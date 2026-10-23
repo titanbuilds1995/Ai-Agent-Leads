@@ -3,7 +3,7 @@
 **To turn it on (10 lines):**
 1. `make setup` — creates `.venv` (Python 3.11), installs deps, copies `.env.example` → `.env`, creates `titan_leads.db`.
 2. Fill `.env`: `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, `GMAIL_OAUTH_JSON`, `GMAIL_SENDER`, `REPORT_TO`, `TWILIO_*`, `WEBHOOK_PUBLIC_URL`. Never commit it. `make doctor` tells you what is still missing or wrong.
-3. Edit `config.yaml → operator` (your real cell, mailing address) and paste 2–3 of your real agent emails into `outreach.example_emails`.
+3. Check `config.yaml → operator` (main line (561) 405-7379, reply-to and postal address are already in). Voice comes from `docs/style/RODRIGO_WRITING_STYLE_GUIDE.md` + the real emails in `outreach.example_emails`; edit either to retune.
 4. `make gmail-auth` once (prints a URL, authorize the **outreach** mailbox, token lands in `secrets/`).
 5. `make run-daily` — first live scrape → score → value → rank → enrich → drafts. Check `raw/` and the printed summary (see BLOCKERS.md #2).
 6. `make report` and open `reports/YYYY-MM-DD.md`; drafts are in Gmail under `Titan/Review` and in `reports/drafts/<date>/` (texts).
@@ -81,6 +81,9 @@ Hard rules that hold in every mode: daily caps (`daily_email_cap`, `daily_sms_ca
 ## Tuning
 
 Everything numeric is in `config.yaml`: counties, price range, property types, lookback, `formula` (ARV ×, fee, EMD, close days, offer discount, counter tolerance), `repairs` $/sqft per tier, `valuation` comp rules, `ranking` thresholds, `scoring` weights + model, `outreach` caps/window/mode/channel/examples, `enrichment` knobs, actor ids, cron hour, model pricing for the cost counter.
+
+## Voice
+`docs/style/RODRIGO_WRITING_STYLE_GUIDE.md` (built from 747 sent emails) is injected into every Claude drafting prompt, and `docs/style/style_examples.md` holds 45 verbatim emails; five agent-facing ones are the few-shot set in `config.yaml → outreach.example_emails`. The template fallbacks, the written-offer email and the canned replies follow the same guide (greeting, "This is Rodrigo with Titan Realty", spelled-out verbs, "Look forward to hearing from you!", `Best regards,` + `Principal | Titan Realty` signature).
 
 ## Files the build left for you
 `PLAN.md` (task list with acceptance tests), `DECISIONS.md` (every judgment call), `BLOCKERS.md` (what needs you), `STATUS.md`, `REVIEW.md` (self-review findings and fixes), `deploy/` (DEPLOY.md runbook, systemd unit, nginx site, VPS bootstrap script).

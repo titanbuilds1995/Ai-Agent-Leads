@@ -20,5 +20,5 @@ def test_nothing_the_engine_writes_waives_inspection_when_config_keeps_it(cfg):
     assert "no inspection" not in body.lower() and "7-day inspection" in body
     assert "no inspection" not in compose_offer_email(cfg, agent, prop, 200000)["body"]
     assert "7-day inspection" in _terms_sentence(cfg)
-    assert "no inspection" not in EMAIL_SYSTEM.format(examples="", close_days=14, inspection=inspection_phrase(cfg["outreach"]["terms"]))
+    assert "no inspection" not in EMAIL_SYSTEM.format(style_guide="", examples="", close_days=14, inspection=inspection_phrase(cfg["outreach"]["terms"]))
     assert all("no inspection" not in e.lower() for e in cfg["outreach"]["example_emails"])

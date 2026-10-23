@@ -1,7 +1,13 @@
 from titan import doctor
 
 
+def test_shipped_config_has_real_operator_values(cfg):
+    assert doctor.check_operator(cfg)[0] == "ok"
+
+
 def test_placeholders_are_caught(cfg):
+    cfg["operator"]["sender_phone"] = doctor.PLACEHOLDER_PHONE
+    cfg["outreach"]["example_emails"] = ["Hi Maria, Rodrigo here with Titan Realty"]
     status, detail, fix = doctor.check_operator(cfg)
     assert status == "fail"
     assert "sender_phone" in detail and "example_emails" in detail and "config.yaml" in fix

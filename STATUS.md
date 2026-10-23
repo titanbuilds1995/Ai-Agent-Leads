@@ -28,6 +28,8 @@ Updated: 2026-10-23 04:40 UTC
 - Terms: inspection period kept (`inspection_contingency: true`, `inspection_days: 7`), wording config-driven everywhere.
 - **Dashboard** (`dashboard/`, Vercel): snapshot sync (`titan/dashboard_sync.py`, after every run + `make sync-dashboard`), password-gated
   API route, three tabs (Progress / Pipeline CRM / Live). Rendered and screenshot-checked against the demo DB. Setup in `dashboard/README.md`.
+- **Voice**: Rodrigo's style guide + 45 verbatim emails under `docs/style/`, injected into the Claude drafting prompt; templates, written-offer email and canned replies follow it. Five real agent-facing emails are the few-shot set.
+- **Branches consolidated** onto `claude/funny-bohr-d0mkrt` (dashboard, terms, config, style guide). New sessions start from the repo default branch, so that branch must be the default (or merged into it) or new sessions miss this work.
 - Rodrigo has MLS access → MLS CSV reader is back on the table (needs one export).
 
 ## Not verifiable without credentials (see BLOCKERS.md)

@@ -34,10 +34,11 @@ def _terms_sentence(cfg: Any) -> str:
 
 
 def _sign(cfg: Any, channel: str) -> str:
+    """Reply signature: short form from the style guide (§1) on email, name + company on text."""
     op = cfg["operator"]
     if channel == "sms":
         return f"- {op['sender_name'].split()[0]}, {op.get('company_short', op['company'])}"
-    return f"{op['sender_name'].split()[0]}\n{op['company']}\n{pretty_phone(op['sender_phone'])}"
+    return f"Best,\n\n{op['sender_name'].split()[0]}\n{op.get('company_short', op['company'])}\n{pretty_phone(op['sender_phone'])}"
 
 
 def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> tuple[str | None, list[str]]:
@@ -69,11 +70,11 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     first = first_name(ctx.get("agent_name"))
     joined = "; ".join(facts)
     joined = joined[0].upper() + joined[1:]
-    tail = f" Anything else, {op['sender_name'].split()[0]} can cover it on a quick call." if unanswered else ""
+    tail = " Anything else, let's get on a quick call and I can walk you through it." if unanswered else ""
     if channel == "sms":
         body = f"Hi {first}, {joined}.{tail} {_sign(cfg, 'sms')}"
     else:
-        body = f"Hi {first},\n\n{joined}.{tail}\n\n{_sign(cfg, 'email')}"
+        body = f"Hi {first},\n\nThank you for getting back to me. {joined}.{tail} Let me know if you have any further questions.\n\n{_sign(cfg, 'email')}"
     return body, unanswered
 
 
@@ -93,7 +94,7 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
     if label == "NOT_INTERESTED":
         reply = None
         if channel == "email" and cfg.get("outreach.reply_on_decline", True):
-            reply = f"Understood, thanks {first}. If anything changes on {street}, I'm a call away.\n\n{_sign(cfg, 'email')}"
+            reply = f"Understood, thank you {first}. If anything changes on {street}, I am a phone call away.\n\n{_sign(cfg, 'email')}"
         return Action(reply, "CLOSED", "CLOSED", "agent declined; closed")
 
     if channel == "sms" and label in ("INTERESTED", "ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
@@ -106,8 +107,8 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
     if label == "ASK_FOR_OFFER":
         if not offer:
             return Action(None, "ESCALATED", "NEEDS_CALL", "asked for offer but no valuation on file")
-        reply = (f"Hi {first},\n\nThanks for getting back to me. Based on what we see, we'd be at ${offer:,.0f} for {street}: {_terms_sentence(cfg)}, "
-                 f"proof of funds on request. If that's in the ballpark I'll send the written offer right over.\n\n{_sign(cfg, 'email')}")
+        reply = (f"Hi {first},\n\nThank you for getting back to me. I went through the numbers and ${offer:,.0f} is where this works for us on {street}: {_terms_sentence(cfg)}, "
+                 f"proof of funds on request. If that is in the ballpark for the seller I will send the written offer right over.\n\n{_sign(cfg, 'email')}")
         return Action(reply, "OPEN", None, f"offer {offer} sent with terms", offer_price=offer)
 
     if label == "COUNTER_WITH_NUMBER":
@@ -116,15 +117,16 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
             return Action(None, "ESCALATED", "HOT_LEAD", "counter without parsable number or no MAO; escalate")
         within = n <= mao * (1 + cfg["formula"]["counter_accept_within_pct"] / 100)
         if within:
-            reply = (f"Thanks {first}, ${n:,.0f} is close enough to work with on {street}. {cfg['operator']['sender_name'].split()[0]} will call you directly "
+            reply = (f"Hi {first},\n\nI appreciate you coming back to me. ${n:,.0f} is close enough to work with on {street}. I will call you directly "
                      f"to lock down the details. Same terms on our side: {_terms_sentence(cfg)}.\n\n{_sign(cfg, 'email')}")
             return Action(reply, "HOT_LEAD", "HOT_LEAD", f"counter {n} within {cfg['formula']['counter_accept_within_pct']}% of MAO {mao}; HOT_LEAD")
         if not thread.get("bridge_sent"):
             bridge = int(round((mao + n) / 2, -3))
             if ctx.get("list_price"):
                 bridge = min(bridge, int(ctx["list_price"]))
-            reply = (f"Appreciate it, {first}. ${n:,.0f} is above where the numbers work for us as-is on {street}. Could the seller meet us at ${bridge:,.0f}? "
-                     f"Same terms: {_terms_sentence(cfg)}, proof of funds on request.\n\n{_sign(cfg, 'email')}")
+            reply = (f"Hi {first},\n\nI appreciate you coming back to me. I went back through the numbers and ${n:,.0f} is above where this works for us as-is on {street}. "
+                     f"Could the seller meet us at ${bridge:,.0f}? Same terms: {_terms_sentence(cfg)}, proof of funds on request.\n\n"
+                     f"Let me know if they'd like to move forward.\n\n{_sign(cfg, 'email')}")
             return Action(reply, "OPEN", None, f"counter {n} > MAO {mao}; bridge {bridge} sent", set_bridge_sent=True, offer_price=bridge)
         return Action(None, "ESCALATED", "HOT_LEAD", f"counter {n} after bridge; escalated to Rodrigo")
 

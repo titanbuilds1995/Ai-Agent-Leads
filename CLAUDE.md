@@ -34,7 +34,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Which Gmail account sends (`GMAIL_SENDER`, `make gmail-auth`).
 
 ## Current status
-- 2026-10-23 (cloud): first live scrape read here. Realtor mapper fixed for the real epctex shape (10/10 map; test added).
-  Apify **free plan caps the scraper at 10 listings**; all 10 were new builds/turnkey → score 0, so **no drafts made** (correct).
-  Zillow returns "No results": its searchQueryState URLs need `mapBounds`/`regionSelection`. 104 tests pass.
-- Next: Rodrigo upgrades Apify (Starter plan) → rerun; fix Zillow URLs; draft HOT/WARM offers via Gmail connector.
+- 2026-10-23 evening (cloud, while Rodrigo was at the gym; all merged into the default branch, 120 tests pass):
+  HomeHarvest (free Realtor.com scraper, pinned 0.8.18, code reviewed) is the default source + sold comps; it only works
+  from the Mac (realtor.com blocks cloud IPs). MLS CSV reader (`raw/mls/`), `make mls-shortlist CSV=…`, Zillow fixed (mapBounds).
+- Rodrigo's hot sheet (3,554 rows) → 779 pass filters → top-100 MLS #s sent to him. It lacks agent email/remarks/city.
+- Next: Rodrigo exports those MLS #s from Matrix WITH City, Zip, Public Remarks, List Agent name/email/phone, DOM, Original
+  List Price → score + value + Gmail drafts. On the Mac: `git pull && make setup && make run-daily`. Asana: connect the
+  official connector (custom-URL connector fails: "automatic client registration not supported"); Make has a working one.
+- Confirm with Rodrigo: hot-sheet % changes are read as price cuts.

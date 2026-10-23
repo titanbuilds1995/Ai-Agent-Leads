@@ -79,13 +79,17 @@ def fetch_for_sale(cfg: Any, scrape: Scrape | None = None) -> tuple[list[Listing
 
 
 def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
-    """Sold comps per county, fetched once per day (comps_cache), filtered per subject by valuation.select_comps."""
+    """Sold comps for the subject's ZIP (one query per ZIP per day, cached in comps_cache), then valuation.select_comps
+    filters by distance/size. A county-wide sold query caps out at the result limit and drops most of a big county, so
+    the county query is only the fallback when the ZIP is unknown or too thin."""
     from .. import db
     cache: dict[str, list[dict[str, Any]]] = {}
     months = cfg.get("valuation.comp_months", 6)
 
-    def load(county: str) -> list[dict[str, Any]]:
-        key = f"hh-sold:{county}:{today_et()}"
+    min_zip = max(cfg.get("valuation.min_comps", 3) * 3, 8)
+
+    def load(location: str) -> list[dict[str, Any]]:
+        key = f"hh-sold:{location}:{today_et()}"
         if key in cache:
             return cache[key]
         row = conn.execute("SELECT comps FROM comps_cache WHERE key=?", (key,)).fetchone()
@@ -93,11 +97,11 @@ def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str
             cache[key] = json.loads(row["comps"])
             return cache[key]
         try:
-            items = (scrape or _scraper())(f"{county} County, FL", listing_type="sold", return_type="raw",
+            items = (scrape or _scraper())(location, listing_type="sold", return_type="raw",
                                            past_days=int(timedelta(days=30 * months).days), property_type=_types(cfg),
                                            limit=cfg.get("ingest.homeharvest.limit_per_query", 3000), extra_property_data=False)
         except Exception as e:  # noqa: BLE001
-            log.error("homeharvest sold comps for %s failed: %s", county, e)
+            log.error("homeharvest sold comps for %s failed: %s", location, e)
             cache[key] = []
             return []
         comps = []
@@ -113,7 +117,15 @@ def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str
         cache[key] = comps
         return comps
 
-    return lambda p: load(p["county"]) if p.get("county") else []
+    def fn(p: dict[str, Any]) -> list[dict[str, Any]]:
+        z = (p.get("zip") or "")[:5]
+        comps = load(z) if len(z) == 5 and z.isdigit() else []
+        if len(comps) < min_zip and p.get("county"):
+            seen = {c["address"] for c in comps}
+            comps = comps + [c for c in load(f"{p['county']} County, FL") if c["address"] not in seen]
+        return comps
+
+    return fn
 
 
 def _sold_price(it: dict[str, Any]) -> int | None:

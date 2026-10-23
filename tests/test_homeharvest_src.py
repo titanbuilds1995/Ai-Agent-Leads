@@ -60,12 +60,28 @@ def test_every_query_failing_raises_so_the_run_summary_shows_it(cfg, tmp_path):
         raise AssertionError("expected RuntimeError")
 
 
-def test_sold_comps_cached_per_county_per_day(cfg, conn):
-    sold = dict(RAW, status="sold", list_price=None, last_sold_price=410000, last_sold_date="2026-08-01")
-    fake = FakeScrape({"sold": [sold]})
+def _sold(i):
+    loc = dict(RAW["location"], address=dict(RAW["location"]["address"], line=f"{i} NW 4th Ave"))
+    return dict(RAW, location=loc, status="sold", list_price=None, last_sold_price=400000 + i, last_sold_date="2026-08-01")
+
+
+def test_sold_comps_by_zip_then_county_fallback_cached(cfg, conn):
+    calls = []
+
+    def fake(location, **kw):
+        calls.append(location)
+        return [_sold(i) for i in range(10)] if location == "33311" else [_sold(i) for i in range(5, 15)]
     fn = homeharvest_src.comps_fn(cfg, conn, scrape=fake)
-    comps = fn({"county": "Broward"})
-    assert comps[0]["sold_price"] == 410000 and comps[0]["sqft"] == 1210 and comps[0]["lat"] == 26.14
-    fn({"county": "Broward"})
-    assert len(fake.calls) == 1
-    assert json.loads(conn.execute("SELECT comps FROM comps_cache").fetchone()[0])[0]["sold_price"] == 410000
+    comps = fn({"county": "Broward", "zip": "33311"})
+    assert calls == ["33311"] and len(comps) == 10            # enough in the ZIP: no county query
+    assert comps[0]["sold_price"] == 400000 and comps[0]["sqft"] == 1210 and comps[0]["lat"] == 26.14
+    fn({"county": "Broward", "zip": "33311"})
+    assert calls == ["33311"]                                  # cached for the day
+
+
+def test_thin_zip_tops_up_from_county_without_duplicates(cfg, conn):
+    def fake(location, **kw):
+        return [_sold(i) for i in range(2)] if location == "33312" else [_sold(i) for i in range(6)]
+    comps = homeharvest_src.comps_fn(cfg, conn, scrape=fake)({"county": "Broward", "zip": "33312"})
+    assert len(comps) == 6 and len({c["address"] for c in comps}) == 6
+    assert json.loads(conn.execute("SELECT comps FROM comps_cache").fetchone()[0])[0]["sold_price"] == 400000

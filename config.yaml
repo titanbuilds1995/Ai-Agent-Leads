@@ -5,9 +5,9 @@ operator:
   sender_title: "Acquisitions"
   company: "Titan Realty Investments LLC"
   company_short: "Titan Realty"
-  sender_phone: "+13055550100"          # TODO: replace with the real outreach cell
-  reply_to_email: "offers@titanrealtyoffers.com"
-  mailing_address: "Miami, FL"          # CAN-SPAM wants a real postal address in the signature
+  sender_phone: "+13055550100"          # TODO: replace with the Twilio outreach number once the brand is approved
+  reply_to_email: "Charles@titanrealtyinvestments.com"
+  mailing_address: "13075 Marcella Blvd, Loxahatchee, FL"
 
 market:
   state: "FL"

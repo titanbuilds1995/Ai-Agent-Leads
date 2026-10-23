@@ -59,3 +59,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (3) pick sending Gmail + Google OAuth client → `make gmail-auth`; (4) `make run-daily` → review drafts in `Titan/Review` → send.
 - 2026-10-23 (late): added `make gmail-test` (one draft to itself, sends nothing); `make gmail-auth` now re-prompts
   sign-in when the saved token is expired/revoked instead of crashing. Waiting on Rodrigo's `make doctor` + `make gmail-test` output.
+- 2026-10-23 (night): plan is to run the engine in cloud sessions, not on the Mac. Cloud check: api.apify.com is
+  injected but the token is rejected ("user-or-token-not-found"); no ANTHROPIC_API_KEY; the session's Gmail connector
+  is rodrigo@, not Charles. Engine now reads Charles's token from env `GMAIL_TOKEN_JSON_CONTENT` (+ `GMAIL_SENDER`).
+  Rodrigo to fix those in environment settings, then a new session runs ingest → drafts. Open: the SQLite DB does
+  not survive between cloud sessions (dedup/cooldown state); persist it before running daily from the cloud.

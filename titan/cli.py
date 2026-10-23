@@ -35,10 +35,15 @@ def build_clients(cfg, conn, need=("apify", "llm", "gmail", "twilio"), interacti
         except LLMUnavailable as e:
             out["missing"].append(f"ANTHROPIC_API_KEY ({e})")
     if "gmail" in need:
-        if cfg.secret("GMAIL_OAUTH_JSON") and cfg.secret("GMAIL_SENDER"):
+        token_path = cfg.root / (cfg.secret("GMAIL_TOKEN_JSON") or "secrets/gmail_token.json")
+        if cfg.secret("GMAIL_TOKEN_JSON_CONTENT") and not token_path.exists():
+            # cloud sessions: the token file's contents live in an environment variable, not on disk
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            token_path.write_text(cfg.secret("GMAIL_TOKEN_JSON_CONTENT"))
+        if (cfg.secret("GMAIL_OAUTH_JSON") or token_path.exists()) and cfg.secret("GMAIL_SENDER"):
             from .outreach.gmail_client import GmailClient, GmailUnavailable
             try:
-                out["gmail"] = GmailClient(cfg.root / cfg.secret("GMAIL_OAUTH_JSON"), cfg.root / (cfg.secret("GMAIL_TOKEN_JSON") or "secrets/gmail_token.json"),
+                out["gmail"] = GmailClient(cfg.root / (cfg.secret("GMAIL_OAUTH_JSON") or "secrets/gmail_oauth_client.json"), token_path,
                                            cfg.secret("GMAIL_SENDER"), cfg.get("operator.sender_name"), interactive=interactive)
             except GmailUnavailable as e:
                 out["missing"].append(f"Gmail ({e})")

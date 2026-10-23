@@ -31,8 +31,11 @@ class GmailClient:
         if token_path.exists():
             creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            token_path.write_text(creds.to_json())
+            try:
+                creds.refresh(Request())
+                token_path.write_text(creds.to_json())
+            except Exception:  # revoked, or 7-day expiry while the Google Cloud app is in "Testing": sign in again
+                creds = None
         if not creds or not creds.valid:
             if not interactive:
                 raise GmailUnavailable("Gmail token missing or invalid; run `make gmail-auth` once on a machine with a browser")

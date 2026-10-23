@@ -40,6 +40,18 @@ Updated: 2026-10-23 04:40 UTC
 ## Running
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
+## RESUME HERE (next session, in order)
+1. **Fix the Realtor mapper.** On the Mac run:
+   `cd ~/Ai-Agent-Leads && .venv/bin/python -c "import json,glob;[print(f, json.dumps(json.load(open(f))[0], default=str)[:3000]) for f in sorted(glob.glob('raw/*.json'))]"`
+   and paste the output. Realtor actor returned items but mapped 0 (keys seen: units, stories, rooms, styles, …, name, logo, url, permalink,
+   status, id, soldOn — a different shape from `titan/ingest/realtor.py`). Zillow returned one `{"error": …}` item (free plan or
+   searchQueryState URL) — the error text is in the newest `raw/*zillow*.json`.
+2. Rerun `make run-daily --steps ingest,score,value` (cap is 300 per actor in config.yaml) → open `make dashboard` → read 10 scored listings.
+3. config.yaml operator block (real cell, postal address, 2–3 real emails) → Google Cloud OAuth client → `make gmail-auth` → first drafts.
+4. Apify paid plan + Anthropic credit → VPS (deploy/DEPLOY.md B) → Twilio last.
+Dashboard: `make dashboard` (local, live) · shareable copy https://claude.ai/artifact/LzhW4zaPMWpr8TeFwV8EmT (drop reports/dashboard.json).
+Map/progress page: https://claude.ai/artifact/PGSCmZQQXJ3VpwiNjrGR9j. Design = Titan house style (navy/gold/paper/serif/mono).
+
 ## Next (Rodrigo, interactive — deploy/DEPLOY.md parts A–B)
 1. `.env` + `config.yaml → operator` (real cell, mailing address, your example emails). Paste secrets yourself; never into a chat.
 2. `make gmail-auth` → `make run-daily` → read the summary (`raw_count` vs `count` per source) and the drafts once.

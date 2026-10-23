@@ -24,6 +24,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval.
+- **Scoring in cloud sessions:** no Anthropic key needed. The engine scores with the rules fallback, then Claude (this session)
+  reads the remarks and confirms or corrects the scores. Gmail drafts can be made through the session's Gmail connector.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -32,6 +34,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Which Gmail account sends (`GMAIL_SENDER`, `make gmail-auth`).
 
 ## Current status
-- 2026-10-23: all side branches (dashboard, terms, config, style guide) merged into `claude/funny-bohr-d0mkrt`;
-  102 tests pass. It is now the default branch on GitHub (verified), so new sessions start from it.
-- Next: fix the Realtor mapper from a real `raw/*.json` sample (STATUS.md → RESUME HERE #1), then first Gmail drafts.
+- 2026-10-23 (cloud): first live scrape read here. Realtor mapper fixed for the real epctex shape (10/10 map; test added).
+  Apify **free plan caps the scraper at 10 listings**; all 10 were new builds/turnkey → score 0, so **no drafts made** (correct).
+  Zillow returns "No results": its searchQueryState URLs need `mapBounds`/`regionSelection`. 105 tests pass.
+- Next: Rodrigo upgrades Apify (Starter plan) → rerun; fix Zillow URLs; draft HOT/WARM offers via Gmail connector.

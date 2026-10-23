@@ -1,0 +1,139 @@
+{
+ "listingId": "3001990331",
+ "listDate": "2026-10-20T03:26:56.000000Z",
+ "photoCount": 6,
+ "flags": {
+  "isComingSoon": null,
+  "isNewListing": true,
+  "isPriceReduced": null,
+  "isForeclosure": null,
+  "isNewConstruction": null,
+  "isPending": null,
+  "isContingent": null,
+  "isAuction": null,
+  "isFractionallyOwned": null,
+  "isNonDeeded": null,
+  "hasNewAvailability": null
+ },
+ "baths": 5,
+ "bathsConsolidated": "4.5",
+ "beds": 5,
+ "listPrice": 589900,
+ "sqft": 1902,
+ "type": "single_family",
+ "units": null,
+ "url": "https://www.realtor.com/realestateandhomes-detail/233-NW-12th-Ct_Florida-City_FL_33034_M99973-53279",
+ "status": "for_sale",
+ "id": "9997353279",
+ "lotSqft": 3000,
+ "yearBuilt": 2022,
+ "daysOnMls": 0,
+ "description": "Welcome to this stunning 2022-built, two-story home featuring 5 bedrooms, 4.5 bathrooms, and modern finishes throughout. Built with solid concrete construction on both levels, impact windows, and doors, this home offers exceptional durability, security, and energy efficiency. The spacious open-concept layout features a beautifully appointed kitchen with stainless steel appliances, stone countertops, and ample cabinetry. Designed for comfort and flexibility, the home offers a luxurious primary suite and two junior primary suites with private bathrooms, including one conveniently located on the first floor-ideal for guests or multigenerational living. Additional highlights include a one-car garage, expanded driveway, and fully fenced backyard. Enjoy a low HOA and a convenient location near schools, shopping, dining, parks, and the Florida Turnpike. Move-in ready and beautifully designed for modern living!",
+ "address": {
+  "street": "233 NW 12th Ct",
+  "locality": "Florida City",
+  "region": "FL",
+  "postalCode": "33034",
+  "county": "Miami-Dade",
+  "countyFipsCode": "12086"
+ },
+ "coordinates": {
+  "latitude": 25.450327,
+  "longitude": -80.497254
+ },
+ "history": [
+  {
+   "date": "2026-10-20",
+   "eventName": "Listed",
+   "price": 589900,
+   "priceSqft": 310.1472134595163,
+   "sourceListingId": "A12109483",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2026-10-19",
+   "eventName": "Listed for rent",
+   "price": 4500,
+   "priceSqft": 2.365930599369085,
+   "sourceListingId": "A12109403",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2026-08-27",
+   "eventName": "Listing removed",
+   "price": 4950,
+   "priceSqft": 2.5462962962962963,
+   "sourceListingId": "A11393625",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2025-02-28",
+   "eventName": "Listing removed",
+   "price": 0,
+   "priceSqft": null,
+   "sourceListingId": "A11617405",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2024-07-05",
+   "eventName": "Listed",
+   "price": 675000,
+   "priceSqft": 354.88958990536275,
+   "sourceListingId": "A11617405",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2024-07-03",
+   "eventName": "Listing removed",
+   "price": 0,
+   "priceSqft": null,
+   "sourceListingId": "A11596322",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2024-06-18",
+   "eventName": "Price Changed",
+   "price": 675000,
+   "priceSqft": 347.22222222222223,
+   "sourceListingId": "A11596322",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2024-05-30",
+   "eventName": "Listed",
+   "price": 695000,
+   "priceSqft": 357.5102880658436,
+   "sourceListingId": "A11596322",
+   "sourceName": "MiamiMLS"
+  },
+  {
+   "date": "2022-12-16",
+   "eventName": "Sold",
+   "price": 370000,
+   "priceSqft": 194.53207150368033,
+   "sourceListingId": null,
+   "sourceName": "Public Record"
+  }
+ ],
+ "advertisers": [
+  {
+   "type": "seller",
+   "name": "Perpetua Muthoni Emilien",
+   "email": "perpetuarealty@gmail.com",
+   "company": "EXP Realty, LLC",
+   "url": "https://perpetuaemilien.exprealty.com",
+   "phones": [
+    {
+     "ext": "",
+     "number": "7542041393",
+     "primary": true,
+     "trackable": null,
+     "type": "Mobile"
+    }
+   ],
+   "office": {
+    "name": "EXP Realty, LLC"
+   }
+  }
+ ]
+}

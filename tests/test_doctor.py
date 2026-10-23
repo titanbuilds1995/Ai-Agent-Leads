@@ -13,7 +13,10 @@ def test_placeholders_are_caught(cfg):
     assert "sender_phone" in detail and "example_emails" in detail and "config.yaml" in fix
 
 
-def test_blank_credentials_are_skips_not_failures(cfg):
+def test_blank_credentials_are_skips_not_failures(cfg, monkeypatch):
+    # offline: a cloud proxy that injects the Apify credential would otherwise make this "ok"
+    from titan.ingest.apify import ApifyClient
+    monkeypatch.setattr(ApifyClient, "auth_ok", lambda self: (False, "no token"))
     assert doctor.check_apify(cfg)[0] == "skip"
     assert doctor.check_anthropic(cfg)[0] == "skip"
     assert doctor.check_gmail(cfg)[0] == "skip"

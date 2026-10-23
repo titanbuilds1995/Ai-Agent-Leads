@@ -43,7 +43,11 @@ Updated: 2026-10-23 04:40 UTC
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
 ## RESUME HERE (next session, in order)
-1. **Fix the Realtor mapper.** On the Mac run:
+0. **2026-10-23 cloud run:** Realtor mapper FIXED (camelCase / `address.locality` / `advertisers[].phones`; `history` trimmed to the
+   current listing so old listings don't read as cuts). Blockers now: (a) Apify FREE plan = 10 items max per run (actor log says so);
+   (b) Zillow `searchUrls` need `mapBounds` + `regionSelection` in searchQueryState (actor says "No results on page").
+   The 10 listings scraped were all new construction / turnkey, score 0 → no outreach. Old item 1 below is done.
+1. ~~**Fix the Realtor mapper.**~~ On the Mac run:
    `cd ~/Ai-Agent-Leads && .venv/bin/python -c "import json,glob;[print(f, json.dumps(json.load(open(f))[0], default=str)[:3000]) for f in sorted(glob.glob('raw/*.json'))]"`
    and paste the output. Realtor actor returned items but mapped 0 (keys seen: units, stories, rooms, styles, …, name, logo, url, permalink,
    status, id, soldOn — a different shape from `titan/ingest/realtor.py`). Zillow returned one `{"error": …}` item (free plan or

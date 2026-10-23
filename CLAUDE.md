@@ -36,5 +36,5 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-10-23 (cloud): first live scrape read here. Realtor mapper fixed for the real epctex shape (10/10 map; test added).
   Apify **free plan caps the scraper at 10 listings**; all 10 were new builds/turnkey → score 0, so **no drafts made** (correct).
-  Zillow returns "No results": its searchQueryState URLs need `mapBounds`/`regionSelection`. 105 tests pass.
+  Zillow returns "No results": its searchQueryState URLs need `mapBounds`/`regionSelection`. 104 tests pass.
 - Next: Rodrigo upgrades Apify (Starter plan) → rerun; fix Zillow URLs; draft HOT/WARM offers via Gmail connector.

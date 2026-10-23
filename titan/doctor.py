@@ -97,16 +97,27 @@ def check_anthropic(cfg) -> Check:
     except Exception as e:  # noqa: BLE001
         return _fail(f"anthropic SDK missing: {e}", "make setup")
     model = cfg.get("scoring.model")
+    client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=30.0)
+    # The one call the engine actually makes is Messages. count_tokens is free and needs the same scope, so it is the
+    # authoritative check; scoped keys may legitimately lack access to the models endpoint.
     try:
-        client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=30.0)
-        client.models.retrieve(model)
+        n = client.messages.count_tokens(model=model, messages=[{"role": "user", "content": "ok"}])
+        return _ok(f"key accepted · model {model} · {n.input_tokens} tokens counted")
     except anthropic.AuthenticationError:
         return _fail("key rejected (401)", "create a new key at console.anthropic.com and paste it into .env")
+    except anthropic.PermissionDeniedError as e:
+        return _fail(f"key lacks permission: {str(e)[:300]}", "in console.anthropic.com → API keys, give this key access to the Messages API (or create an unrestricted key)")
     except anthropic.NotFoundError:
-        return _fail(f"model {model} not found", "set scoring.model in config.yaml to a model your account can use")
+        return _fail(f"model {model} not found for this key", "set scoring.model in config.yaml to a model your account can use")
+    except anthropic.BadRequestError as e:
+        msg = str(e)
+        if "scoped" in msg or "scope" in msg:
+            return _fail(f"key is scoped too narrowly: {msg[:300]}", "in console.anthropic.com → API keys, create a key with Messages API access (default scope) and paste it into .env")
+        if "credit" in msg.lower() or "billing" in msg.lower():
+            return _fail(f"billing: {msg[:300]}", "add credit under console.anthropic.com → Plans & billing")
+        return _fail(f"{type(e).__name__}: {msg[:300]}", "see the message above; check the key and the account's billing status")
     except Exception as e:  # noqa: BLE001
-        return _fail(f"{type(e).__name__}: {str(e)[:120]}", "check network to api.anthropic.com and the account's billing status")
-    return _ok(f"key accepted · model {model}")
+        return _fail(f"{type(e).__name__}: {str(e)[:300]}", "check network to api.anthropic.com and the account's billing status")
 
 
 def check_gmail(cfg) -> Check:

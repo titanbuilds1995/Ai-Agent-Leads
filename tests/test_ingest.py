@@ -103,3 +103,15 @@ def test_unrecognised_actor_shape_is_diagnosed(caplog):
     items = json.loads((FIXTURES / "listings_sample.json").read_text())
     good, extra = map_items("realtor", [i for i in items if i.get("_source", "realtor") == "realtor"], realtor.map_item)
     assert extra["unmapped"] == 0 and "unmapped_sample_keys" not in extra and len(good) == extra["raw_count"]
+
+
+def test_realtor_maps_live_epctex_shape():
+    """Flat camelCase shape the epctex actor returned on the first live run (2026-10-23)."""
+    it = json.loads((FIXTURES / "realtor_epctex_live.json").read_text())
+    r = realtor.map_item(it)
+    assert r is not None
+    assert (r.street, r.city, r.state, r.zip, r.county) == ("335 NW 108th St", "Miami", "FL", "33168", "Miami-Dade")
+    assert (r.list_price, r.beds, r.baths, r.sqft, r.lot_sqft, r.year_built) == (724900, 3.0, 2.0, 1740, 6000, 1947)
+    assert r.property_type == "single_family" and r.photos_count == 36 and r.listing_status == "for_sale"
+    assert r.brokerage == "HOMECOIN.COM" and "CBS construction" in r.remarks
+    assert r.lat == 25.873933 and r.lng == -80.20475

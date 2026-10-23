@@ -40,8 +40,8 @@ def actor_input(cfg: Any, sold: bool = False) -> dict[str, Any]:
 
 
 def map_item(it: dict[str, Any]) -> Listing | None:
-    street = first_str(g(it, "addressStreet", "address.streetAddress", "streetAddress"))
-    city = first_str(g(it, "addressCity", "address.city", "city"))
+    street = first_str(g(it, "addressStreet", "address.streetAddress", "streetAddress", "listingAddress.street", "listingAddress.streetAddress"))
+    city = first_str(g(it, "addressCity", "address.city", "city", "listingAddress.city"))
     if not street and isinstance(g(it, "address"), str):
         parts = [p.strip() for p in it["address"].split(",")]
         if len(parts) >= 3:
@@ -60,9 +60,9 @@ def map_item(it: dict[str, Any]) -> Listing | None:
     if g(sub, "is_bankOwned") or g(it, "isBankOwned") or "foreclos" in (status or "").lower(): flags.append("reo")
     if g(it, "isPreforeclosureAuction") or g(sub, "is_preforeclosure"): flags.append("pre_foreclosure")
     l = Listing(
-        street=street, city=city, state=first_str(g(it, "addressState", "address.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode"), ""),
+        street=street, city=city, state=first_str(g(it, "addressState", "address.state", "listingAddress.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode", "listingAddress.zipcode", "listingAddress.zip"), ""),
         county=first_str(g(it, "county")),
-        list_price=to_int(g(it, "unformattedPrice", "price", "listPrice")),
+        list_price=to_int(g(it, "unformattedPrice", "listingPrice.amount", "price.amount", "price", "listPrice", "listingPrice")),
         price_history=hist, days_on_market=to_int(g(it, "daysOnZillow", "timeOnZillow", "daysOnMarket")),
         beds=to_float(g(it, "beds", "bedrooms")), baths=to_float(g(it, "baths", "bathrooms")),
         sqft=to_int(g(it, "area", "livingArea", "livingAreaValue")),

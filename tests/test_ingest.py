@@ -84,3 +84,22 @@ def test_failed_source_does_not_block_others(conn, cfg, monkeypatch):
     listings, status = pipeline.run_sources(cfg, BadClient(), sources=["realtor", "zillow"])
     assert status["realtor"]["ok"] is False and status["zillow"]["ok"] is True
     assert len(listings) == status["zillow"]["count"] > 0
+
+
+def test_unrecognised_actor_shape_is_diagnosed(caplog):
+    """BLOCKERS #2: when the live actor's field names differ, the summary and log must name the real keys."""
+    from titan.ingest.pipeline import map_items
+    weird = [{"propertyId": 1, "listingAddress": {"street": "1 Main St", "city": "Miami"}, "listingPrice": {"amount": 300000}},
+             {"propertyId": 2, "fullAddress": "2 Main St, Miami, FL 33125", "listPrice": 310000, "county": "Miami-Dade"}]
+    mapped, extra = map_items("realtor", weird, realtor.map_item)
+    assert mapped == [] and extra["raw_count"] == 2 and extra["unmapped"] == 2
+    assert "propertyId" in extra["unmapped_sample_keys"] and "listingAddress.street" in extra["unmapped_sample_keys"]
+    assert any("mapped only 0 of 2" in r.message for r in caplog.records)
+    # the Zillow mapper does understand the nested listingAddress / listingPrice shape
+    z = zillow.map_item({"listingAddress": {"street": "1 Main St", "city": "Miami", "state": "FL", "zipcode": "33125"},
+                         "listingPrice": {"amount": 300000, "formatted": "$300,000"}, "homeType": "SINGLE_FAMILY"})
+    assert z.list_price == 300000 and z.city == "Miami" and z.zip == "33125"
+    # a healthy source reports raw_count/unmapped and no warning
+    items = json.loads((FIXTURES / "listings_sample.json").read_text())
+    good, extra = map_items("realtor", [i for i in items if i.get("_source", "realtor") == "realtor"], realtor.map_item)
+    assert extra["unmapped"] == 0 and "unmapped_sample_keys" not in extra and len(good) == extra["raw_count"]

@@ -10,7 +10,9 @@
 7. `make webhook` on the always-on machine (port 8080) and point the Twilio Messaging Service inbound URL at `<WEBHOOK_PUBLIC_URL>/twilio/inbound`.
 8. `make install-cron` — 5:30 run-daily, every 15 min check-replies, 7:00 report, 9:05 weekday outreach pass (all ET).
 9. **Flip modes** in `config.yaml → outreach.mode`: `DRAFT_FOR_APPROVAL` (default) → `AUTO_SEND_FIRST_TOUCH` (day 2–3) → `FULL_AUTO` (day 7). Channel: `outreach.channel` = `SMS_FIRST` | `EMAIL_FIRST` | `BOTH`. Both can be overridden per run with `TITAN_MODE=... TITAN_CHANNEL=...`.
-10. `make status` any time for the funnel; `make test` runs the 86 offline tests; `make demo` runs the whole pipeline on fixture data with no credentials.
+10. `make status` any time for the funnel; `make test` runs the 87 offline tests; `make demo` runs the whole pipeline on fixture data with no credentials.
+
+VPS install (systemd webhook + nginx/TLS + cron) and the Mac go-live checklist: **`deploy/DEPLOY.md`**.
 
 ---
 
@@ -32,7 +34,7 @@ titan/
   replies/             classifier.py · responder.py · inbox.py (poller, handoff, webhook entry)
   webhook.py           FastAPI: /twilio/inbound, /twilio/status, /health
   report.py, status.py, cli.py
-tests/                 86 tests; fixtures/listings_sample.json (24 listings, both actor shapes), replies.json (30 replies)
+tests/                 87 tests; fixtures/listings_sample.json (24 listings, both actor shapes), replies.json (30 replies)
 ```
 
 ## Commands
@@ -79,4 +81,4 @@ Hard rules that hold in every mode: daily caps (`daily_email_cap`, `daily_sms_ca
 Everything numeric is in `config.yaml`: counties, price range, property types, lookback, `formula` (ARV ×, fee, EMD, close days, offer discount, counter tolerance), `repairs` $/sqft per tier, `valuation` comp rules, `ranking` thresholds, `scoring` weights + model, `outreach` caps/window/mode/channel/examples, `enrichment` knobs, actor ids, cron hour, model pricing for the cost counter.
 
 ## Files the build left for you
-`PLAN.md` (task list with acceptance tests), `DECISIONS.md` (every judgment call), `BLOCKERS.md` (what needs you), `STATUS.md`, `REVIEW.md` (self-review findings and fixes).
+`PLAN.md` (task list with acceptance tests), `DECISIONS.md` (every judgment call), `BLOCKERS.md` (what needs you), `STATUS.md`, `REVIEW.md` (self-review findings and fixes), `deploy/` (DEPLOY.md runbook, systemd unit, nginx site, VPS bootstrap script).

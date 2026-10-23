@@ -94,7 +94,7 @@ class Listing:
 
 
 def to_int(v: Any) -> int | None:
-    if v is None or v == "":
+    if v is None or v == "" or isinstance(v, (dict, list)):
         return None
     if isinstance(v, (int, float)):
         return int(v)
@@ -106,7 +106,7 @@ def to_int(v: Any) -> int | None:
 
 
 def to_float(v: Any) -> float | None:
-    if v is None or v == "":
+    if v is None or v == "" or isinstance(v, (dict, list)):
         return None
     try:
         return float(re.sub(r"[^\d.]", "", str(v))) if not isinstance(v, (int, float)) else float(v)

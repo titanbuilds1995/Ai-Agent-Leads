@@ -44,30 +44,64 @@ def run_sources(cfg: Any, client: ApifyClient | None, sources: list[str] | None 
     out: list[Listing] = []
     status: dict[str, Any] = {}
 
-    def run(name: str, fn: Callable[[], list[Listing]]):
+    def run(name: str, fn: Callable[[], list[Listing] | tuple[list[Listing], dict[str, Any]]]):
         try:
             got = fn()
+            extra: dict[str, Any] = {}
+            if isinstance(got, tuple):
+                got, extra = got
             out.extend(got)
-            status[name] = {"ok": True, "count": len(got)}
+            status[name] = {"ok": True, "count": len(got), **extra}
         except Exception as e:  # noqa: BLE001 — isolate every source
             log.exception("source %s failed: %s", name, e)
             status[name] = {"ok": False, "error": f"{type(e).__name__}: {e}"[:300]}
 
+    max_items = cfg.get("ingest.apify.max_items_per_actor", 3000)
     if "realtor" in sources:
         if client:
-            run("realtor", lambda: [l for l in (realtor.map_item(i) for i in client.run_actor(
-                cfg.get("ingest.apify.realtor_actor"), realtor.actor_input(cfg), cfg.get("ingest.apify.max_items_per_actor", 3000), "realtor")) if l])
+            run("realtor", lambda: map_items("realtor", client.run_actor(cfg.get("ingest.apify.realtor_actor"), realtor.actor_input(cfg), max_items, "realtor"), realtor.map_item))
         else:
             status["realtor"] = {"ok": False, "error": "APIFY_TOKEN missing"}
     if "zillow" in sources:
         if client:
-            run("zillow", lambda: [l for l in (zillow.map_item(i) for i in client.run_actor(
-                cfg.get("ingest.apify.zillow_actor"), zillow.actor_input(cfg), cfg.get("ingest.apify.max_items_per_actor", 3000), "zillow")) if l])
+            run("zillow", lambda: map_items("zillow", client.run_actor(cfg.get("ingest.apify.zillow_actor"), zillow.actor_input(cfg), max_items, "zillow"), zillow.map_item))
         else:
             status["zillow"] = {"ok": False, "error": "APIFY_TOKEN missing"}
     if "redfin" in sources:
         run("redfin", lambda: redfin_csv.parse_dir(cfg.root / cfg.get("ingest.redfin_csv_dir", "raw/redfin")))
     return out, status
+
+
+def map_items(name: str, items: list[dict[str, Any]], mapper: Callable[[dict[str, Any]], Listing | None],
+              min_ratio: float = 0.5) -> tuple[list[Listing], dict[str, Any]]:
+    """Map raw actor items; when the mapper rejects most of them, log the real field names so the fix is obvious (BLOCKERS #2)."""
+    mapped: list[Listing] = []
+    first_bad: dict[str, Any] | None = None
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        l = mapper(it)
+        if l:
+            mapped.append(l)
+        elif first_bad is None:
+            first_bad = it
+    extra: dict[str, Any] = {"raw_count": len(items), "unmapped": len(items) - len(mapped)}
+    if items and len(mapped) < min_ratio * len(items) and first_bad is not None:
+        extra["unmapped_sample_keys"] = sample_keys(first_bad)
+        log.warning("%s: mapped only %d of %d raw items; the mapper does not recognise this shape. "
+                    "Top-level keys of the first unmapped item: %s — compare with titan/ingest/%s.py and the newest file in raw/.",
+                    name, len(mapped), len(items), extra["unmapped_sample_keys"], name)
+    return mapped, extra
+
+
+def sample_keys(item: dict[str, Any], depth: int = 1, limit: int = 60) -> list[str]:
+    """Top-level keys plus one level of nested dict keys ('address.city'), capped. Values are never logged."""
+    keys: list[str] = []
+    for k, v in item.items():
+        keys.append(str(k))
+        if depth > 0 and isinstance(v, dict):
+            keys.extend(f"{k}.{sub}" for sub in list(v.keys())[:12])
+    return keys[:limit]
 
 
 def ingest(conn, cfg: Any, client: ApifyClient | None = None, fixture: Path | None = None,

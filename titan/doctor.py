@@ -6,7 +6,6 @@ also returned so tests and the report can use it. Statuses: ok | warn | fail | s
 from __future__ import annotations
 
 import os
-import socket
 from pathlib import Path
 from typing import Any, Callable
 
@@ -62,32 +61,31 @@ def check_mode(cfg) -> Check:
 
 # --- network + credentials ------------------------------------------------------------------
 
-def check_dns(host: str) -> Callable[[Any], Check]:
+def check_reach(host: str, path: str = "/") -> Callable[[Any], Check]:
+    """HTTPS reachability through whatever proxy the machine uses (plain DNS lookups lie inside proxied containers)."""
     def run(cfg) -> Check:
+        import requests
         try:
-            socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-            return _ok(host)
-        except OSError as e:
-            return _fail(f"{host}: {e}", f"this machine cannot reach {host}; check network / firewall / proxy allow-list")
+            r = requests.get(f"https://{host}{path}", timeout=15, allow_redirects=False)
+            return _ok(f"{host} answers (HTTP {r.status_code})")
+        except requests.exceptions.ProxyError as e:
+            return _fail(f"{host}: blocked by proxy/network policy", f"allow {host} in the network settings (cloud environment → Edit → Network access, or the VPS firewall)")
+        except requests.RequestException as e:
+            return _fail(f"{host}: {type(e).__name__}", f"this machine cannot reach {host}; check network / firewall / proxy allow-list")
     return run
 
 
 def check_apify(cfg) -> Check:
+    from .ingest.apify import ApifyClient
     tok = cfg.secret("APIFY_TOKEN")
+    ok, detail = ApifyClient(tok).auth_ok()
+    if ok:
+        return _ok(detail + ("" if tok else " · via the environment's network secret (no variable needed)"))
     if not tok:
-        return _skip("APIFY_TOKEN blank", "console.apify.com → Settings → Integrations → copy the token into .env")
-    import requests
-    try:
-        r = requests.get("https://api.apify.com/v2/users/me", params={"token": tok}, timeout=20)
-    except requests.RequestException as e:
-        return _fail(f"request failed: {type(e).__name__}", "network to api.apify.com is blocked or down")
-    if r.status_code == 401:
+        return _skip("APIFY_TOKEN blank and no injected credential", "console.apify.com → Settings → Integrations → copy the token into .env (or add it as a network secret in the cloud environment)")
+    if "401" in detail:
         return _fail("token rejected (401)", "regenerate the token in console.apify.com and paste the new one into .env")
-    if r.status_code != 200:
-        return _fail(f"HTTP {r.status_code}", "check status.apify.com; retry later")
-    d = r.json().get("data", {})
-    plan = (d.get("plan") or {}).get("id") or d.get("plan") or "?"
-    return _ok(f"user {d.get('username', '?')} · plan {plan}")
+    return _fail(detail, "network to api.apify.com is blocked or Apify is down (status.apify.com)")
 
 
 def check_anthropic(cfg) -> Check:
@@ -177,8 +175,8 @@ CHECKS: list[tuple[str, Callable[[Any], Check]]] = [
     (".env", check_env_file),
     ("config operator", check_operator),
     ("outreach mode", check_mode),
-    ("dns api.apify.com", check_dns("api.apify.com")),
-    ("dns api.anthropic.com", check_dns("api.anthropic.com")),
+    ("reach api.apify.com", check_reach("api.apify.com", "/v2/users/me")),
+    ("reach api.anthropic.com", check_reach("api.anthropic.com", "/v1/models")),
     ("Apify token", check_apify),
     ("Anthropic key", check_anthropic),
     ("Gmail", check_gmail),

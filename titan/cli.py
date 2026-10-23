@@ -17,11 +17,16 @@ def build_clients(cfg, conn, need=("apify", "llm", "gmail", "twilio"), interacti
     """Construct whichever external clients have credentials. Missing ones are None and get reported, never fatal."""
     out: dict[str, Any] = {"apify": None, "llm": None, "gmail": None, "twilio": None, "missing": []}
     if "apify" in need:
+        from .ingest.apify import ApifyClient
+        client = ApifyClient(cfg.secret("APIFY_TOKEN"), cfg.get("ingest.apify.timeout_seconds", 900), cfg.path("raw"))
         if cfg.secret("APIFY_TOKEN"):
-            from .ingest.apify import ApifyClient
-            out["apify"] = ApifyClient(cfg.secret("APIFY_TOKEN"), cfg.get("ingest.apify.timeout_seconds", 900), cfg.path("raw"))
+            out["apify"] = client
         else:
-            out["missing"].append("APIFY_TOKEN")
+            ok, _ = client.auth_ok()      # a network-layer secret (cloud environment) authenticates without the variable
+            if ok:
+                out["apify"] = client
+            else:
+                out["missing"].append("APIFY_TOKEN")
     if "llm" in need:
         try:
             out["llm"] = LLM(cfg, conn)

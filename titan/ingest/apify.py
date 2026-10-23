@@ -1,4 +1,7 @@
-"""Minimal Apify client: start an actor run, wait, page through dataset items. Retries with backoff."""
+"""Minimal Apify client: start an actor run, wait, page through dataset items. Retries with backoff.
+
+Auth: APIFY_TOKEN is sent as the `token` query param. In a cloud environment that injects the credential at the
+network layer (a "network secret"), the token is None and requests go out bare; `auth_ok()` detects that case."""
 from __future__ import annotations
 
 import json
@@ -18,9 +21,9 @@ class ApifyError(Exception):
 
 
 class ApifyClient:
-    def __init__(self, token: str, timeout_seconds: int = 900, raw_dir: Path | None = None,
+    def __init__(self, token: str | None, timeout_seconds: int = 900, raw_dir: Path | None = None,
                  session: requests.Session | None = None, poll_seconds: float = 10.0):
-        self._token = token
+        self._token = token or None
         self.timeout_seconds = timeout_seconds
         self.raw_dir = raw_dir
         self.s = session or requests.Session()
@@ -28,8 +31,10 @@ class ApifyClient:
 
     def _req(self, method: str, path: str, **kw) -> dict[str, Any] | list[Any]:
         def go():
-            r = self.s.request(method, f"{API}{path}", params={"token": self._token, **kw.pop("params", {})},
-                               timeout=60, **kw)
+            params = kw.pop("params", {})
+            if self._token:
+                params = {"token": self._token, **params}
+            r = self.s.request(method, f"{API}{path}", params=params, timeout=60, **kw)
             if r.status_code >= 500 or r.status_code == 429:
                 raise ApifyError(f"HTTP {r.status_code}")
             if r.status_code >= 400:
@@ -37,6 +42,19 @@ class ApifyClient:
                 raise RuntimeError(f"Apify {method} {path}: HTTP {r.status_code}: {r.text[:300]}")
             return r.json()
         return retry(go, attempts=4, retry_on=(ApifyError, requests.ConnectionError, requests.Timeout), what=f"apify {path}")
+
+    def auth_ok(self) -> tuple[bool, str]:
+        """One cheap GET /users/me. (True, 'username · plan') when the token, or an injected network secret, is accepted."""
+        try:
+            r = self.s.get(f"{API}/users/me", params={"token": self._token} if self._token else {}, timeout=20)
+        except requests.RequestException as e:
+            return False, f"request failed: {type(e).__name__}"
+        if r.status_code != 200:
+            return False, f"HTTP {r.status_code}"
+        d = r.json().get("data", {}) or {}
+        plan = d.get("plan")
+        plan = plan.get("id") if isinstance(plan, dict) else (plan or "?")
+        return True, f"user {d.get('username', '?')} · plan {plan}"
 
     def run_actor(self, actor_id: str, run_input: dict[str, Any], max_items: int = 3000, label: str = "") -> list[dict[str, Any]]:
         act = actor_id.replace("/", "~")

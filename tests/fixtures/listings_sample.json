@@ -1,0 +1,1661 @@
+[
+ {
+  "_source": "realtor",
+  "property_id": "R001",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0001",
+  "status": "for_sale",
+  "list_price": 385000,
+  "list_date": "2026-07-19T00:00:00Z",
+  "days_on_market": 74,
+  "location": {
+   "address": {
+    "line": "107 NW 11th St",
+    "city": "Miami",
+    "state_code": "FL",
+    "postal_code": "33125",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.783,
+     "lon": -80.21199999999999
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1450,
+   "lot_sqft": 7500,
+   "year_built": 1966,
+   "type": "single_family",
+   "text": "CASH ONLY. Estate sale, sold as-is, seller will make no repairs. Needs TLC, roof is older. Priced to sell, bring all offers. Vacant and easy to show."
+  },
+  "flags": {
+   "is_price_reduced": true,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-07-19T00:00:00Z",
+    "price": 429000,
+    "event_name": "Listed"
+   },
+   {
+    "date": "2026-09-12T00:00:00Z",
+    "price": 405000,
+    "event_name": "Price Changed"
+   },
+   {
+    "date": "2026-10-16T00:00:00Z",
+    "price": 385000,
+    "event_name": "Price Changed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Maria Lopez",
+    "phone": "(305) 555-0101",
+    "email": "maria.lopez@kwmiami.com",
+    "office": {
+     "name": "Keller Williams Miami"
+    },
+    "href": "https://www.realtor.com/realestateagents/maria-lopez"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 520000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R002",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0002",
+  "status": "for_sale",
+  "list_price": 410000,
+  "list_date": "2026-10-01T00:00:00Z",
+  "days_on_market": 21,
+  "location": {
+   "address": {
+    "line": "114 NW 12th St",
+    "city": "Hialeah",
+    "state_code": "FL",
+    "postal_code": "33125",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.786,
+     "lon": -80.214
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1600,
+   "lot_sqft": 7500,
+   "year_built": 1967,
+   "type": "single_family",
+   "text": "Probate sale. Original 1960s kitchen and baths, needs updating. As-is. Open permits on the roof, buyer to assume. Bring your contractor. Seller says sell!"
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": false,
+   "is_foreclosure": false
+  },
+  "price_history": [
+   {
+    "date": "2026-10-01T00:00:00Z",
+    "price": 410000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "John Carter",
+    "phone": "305-555-0102",
+    "email": null,
+    "office": {
+     "name": "Keller Williams Miami"
+    },
+    "href": "https://www.realtor.com/realestateagents/john-carter"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 560000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R003",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0003",
+  "status": "for_sale",
+  "list_price": 520000,
+  "list_date": "2026-09-04T00:00:00Z",
+  "days_on_market": 48,
+  "location": {
+   "address": {
+    "line": "121 NW 13th St",
+    "city": "Plantation",
+    "state_code": "FL",
+    "postal_code": "33317",
+    "county": {
+     "name": "Broward"
+    },
+    "coordinate": {
+     "lat": 25.789,
+     "lon": -80.216
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1900,
+   "lot_sqft": 7500,
+   "year_built": 1968,
+   "type": "single_family",
+   "text": "Motivated seller relocating out of state. Home needs some updating but has good bones. Priced below market for a quick sale. All reasonable offers considered."
+  },
+  "flags": {
+   "is_price_reduced": true,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-09-04T00:00:00Z",
+    "price": 549000,
+    "event_name": "Listed"
+   },
+   {
+    "date": "2026-10-17T00:00:00Z",
+    "price": 520000,
+    "event_name": "Price Changed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Sandra Pena",
+    "phone": "9545550103",
+    "email": null,
+    "office": {
+     "name": "RE/MAX Advance Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/sandra-pena"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 600000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R004",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0004",
+  "status": "for_sale",
+  "list_price": 165000,
+  "list_date": "2026-09-29T00:00:00Z",
+  "days_on_market": 23,
+  "location": {
+   "address": {
+    "line": "17000 Okeechobee Blvd Lot 4",
+    "city": "Loxahatchee",
+    "state_code": "FL",
+    "postal_code": "33470",
+    "county": {
+     "name": "Palm Beach"
+    },
+    "coordinate": {
+     "lat": 25.792,
+     "lon": -80.21799999999999
+    }
+   }
+  },
+  "description": {
+   "type": "land",
+   "lot_sqft": 21780,
+   "text": "Vacant land, 0.5 acre buildable lot in Loxahatchee. Owner motivated, bring all offers. Cash only, seller financing considered."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-09-29T00:00:00Z",
+    "price": 165000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Luis Ortega",
+    "phone": "(561) 555-0104",
+    "email": null,
+    "office": {
+     "name": "Lang Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/luis-ortega"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": null
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R005",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0005",
+  "status": "for_sale",
+  "list_price": 650000,
+  "list_date": "2026-10-18T00:00:00Z",
+  "days_on_market": 4,
+  "location": {
+   "address": {
+    "line": "135 NW 15th St",
+    "city": "Davie",
+    "state_code": "FL",
+    "postal_code": "33324",
+    "county": {
+     "name": "Broward"
+    },
+    "coordinate": {
+     "lat": 25.795,
+     "lon": -80.22
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 2100,
+   "lot_sqft": 7500,
+   "year_built": 1970,
+   "type": "single_family",
+   "text": "Fully renovated 4/2 with impact windows, new roof 2024, brand new kitchen. Turnkey, move-in ready. Multiple offers received, highest and best due Monday."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": true
+  },
+  "price_history": [
+   {
+    "date": "2026-10-18T00:00:00Z",
+    "price": 650000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Dana White",
+    "phone": "(954) 555-0105",
+    "email": null,
+    "office": {
+     "name": "Coldwell Banker Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/dana-white"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 655000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R006",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0006",
+  "status": "for_sale",
+  "list_price": 465000,
+  "list_date": "2026-09-15T00:00:00Z",
+  "days_on_market": 37,
+  "location": {
+   "address": {
+    "line": "142 NW 16th St",
+    "city": "Pembroke Pines",
+    "state_code": "FL",
+    "postal_code": "33024",
+    "county": {
+     "name": "Broward"
+    },
+    "coordinate": {
+     "lat": 25.798000000000002,
+     "lon": -80.222
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1500,
+   "lot_sqft": 7500,
+   "year_built": 1971,
+   "type": "single_family",
+   "text": "Charming 3/2 in Pembroke Pines with large yard. Needs a little love. As is. Great starter home or rental."
+  },
+  "flags": {
+   "is_price_reduced": true,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-09-15T00:00:00Z",
+    "price": 479000,
+    "event_name": "Listed"
+   },
+   {
+    "date": "2026-10-17T00:00:00Z",
+    "price": 465000,
+    "event_name": "Price Changed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Kevin Brooks",
+    "phone": "(305) 555-0106",
+    "email": null,
+    "office": {
+     "name": "Coldwell Banker Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/kevin-brooks"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 510000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R007",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0007",
+  "status": "for_sale",
+  "list_price": 540000,
+  "list_date": "2026-08-23T00:00:00Z",
+  "days_on_market": 60,
+  "location": {
+   "address": {
+    "line": "149 NW 17th St",
+    "city": "Lauderhill",
+    "state_code": "FL",
+    "postal_code": "33313",
+    "county": {
+     "name": "Broward"
+    },
+    "coordinate": {
+     "lat": 25.801000000000002,
+     "lon": -80.22399999999999
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 2200,
+   "lot_sqft": 7500,
+   "year_built": 1972,
+   "type": "multi_family",
+   "text": "Duplex, both units rented month to month. Needs some TLC. Seller financing available. Great value add for investors in Lauderhill."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-08-23T00:00:00Z",
+    "price": 540000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Priya Nair",
+    "phone": "(561) 555-0109",
+    "email": null,
+    "office": {
+     "name": "Compass Florida"
+    },
+    "href": "https://www.realtor.com/realestateagents/priya-nair"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 590000
+  }
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R008",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0008",
+  "status": "for_sale",
+  "list_price": 2400000,
+  "list_date": "2026-10-12T00:00:00Z",
+  "days_on_market": 10,
+  "location": {
+   "address": {
+    "line": "156 NW 18th St",
+    "city": "Pinecrest",
+    "state_code": "FL",
+    "postal_code": "33156",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.804000000000002,
+     "lon": -80.226
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 3800,
+   "lot_sqft": 7500,
+   "year_built": 1973,
+   "type": "single_family",
+   "text": "Stunning pool home in Pinecrest. Completely remodeled with no expense spared. Chef's kitchen, smart home. Tastefully upgraded."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": true
+  },
+  "price_history": [
+   {
+    "date": "2026-10-12T00:00:00Z",
+    "price": 2400000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Mike Chen",
+    "phone": "(954) 555-0110",
+    "email": null,
+    "office": {
+     "name": "Berkshire Hathaway HomeServices EWM"
+    },
+    "href": "https://www.realtor.com/realestateagents/mike-chen"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": null
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R009",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0009",
+  "status": "pending",
+  "list_price": 300000,
+  "list_date": "2026-09-02T00:00:00Z",
+  "days_on_market": 50,
+  "location": {
+   "address": {
+    "line": "163 NW 19th St",
+    "city": "Miami",
+    "state_code": "FL",
+    "postal_code": "33125",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.807000000000002,
+     "lon": -80.228
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1100,
+   "lot_sqft": 7500,
+   "year_built": 1974,
+   "type": "single_family",
+   "text": "Great home, pending sale."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-09-02T00:00:00Z",
+    "price": 300000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Maria Lopez",
+    "phone": "(305) 555-0101",
+    "email": "maria.lopez@kwmiami.com",
+    "office": {
+     "name": "Keller Williams Miami"
+    },
+    "href": "https://www.realtor.com/realestateagents/maria-lopez"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": null
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R010",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0010",
+  "status": "for_sale",
+  "list_price": 450000,
+  "list_date": "2026-10-10T00:00:00Z",
+  "days_on_market": 12,
+  "location": {
+   "address": {
+    "line": "170 NW 20th St",
+    "city": "Miami Beach",
+    "state_code": "FL",
+    "postal_code": "33139",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.810000000000002,
+     "lon": -80.22999999999999
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 900,
+   "lot_sqft": 7500,
+   "year_built": 1975,
+   "type": "condo",
+   "text": "Condo on the beach, fully renovated."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": true
+  },
+  "price_history": [
+   {
+    "date": "2026-10-10T00:00:00Z",
+    "price": 450000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Ana Ruiz",
+    "phone": "(305) 555-0106",
+    "email": null,
+    "office": {
+     "name": "Coldwell Banker Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/ana-ruiz"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": null
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R011",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0011",
+  "status": "for_sale",
+  "list_price": 300000,
+  "list_date": "2026-10-10T00:00:00Z",
+  "days_on_market": 12,
+  "location": {
+   "address": {
+    "line": "177 NW 21th St",
+    "city": "Orlando",
+    "state_code": "FL",
+    "postal_code": "32801",
+    "county": {
+     "name": "Orange"
+    },
+    "coordinate": {
+     "lat": 25.813000000000002,
+     "lon": -80.232
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1300,
+   "lot_sqft": 7500,
+   "year_built": 1976,
+   "type": "single_family",
+   "text": "Estate sale, as is, needs work, cash only."
+  },
+  "flags": {
+   "is_price_reduced": false,
+   "is_new_listing": true
+  },
+  "price_history": [
+   {
+    "date": "2026-10-10T00:00:00Z",
+    "price": 300000,
+    "event_name": "Listed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "Tom Reyes",
+    "phone": "(305) 555-0106",
+    "email": null,
+    "office": {
+     "name": "Coldwell Banker Realty"
+    },
+    "href": "https://www.realtor.com/realestateagents/tom-reyes"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": null
+ },
+ {
+  "_source": "realtor",
+  "property_id": "R012",
+  "href": "https://www.realtor.com/realestateandhomes-detail/M0012",
+  "status": "for_sale",
+  "list_price": 385000,
+  "list_date": "2026-07-19T00:00:00Z",
+  "days_on_market": 74,
+  "location": {
+   "address": {
+    "line": "107 N.W. 11th Street",
+    "city": "Miami",
+    "state_code": "FL",
+    "postal_code": "33125",
+    "county": {
+     "name": "Miami-Dade"
+    },
+    "coordinate": {
+     "lat": 25.816000000000003,
+     "lon": -80.234
+    }
+   }
+  },
+  "description": {
+   "beds": 3,
+   "baths": 2,
+   "sqft": 1450,
+   "lot_sqft": 7500,
+   "year_built": 1977,
+   "type": "single_family",
+   "text": "CASH ONLY. Estate sale, sold as-is, seller will make no repairs. Needs TLC, roof is older. Priced to sell, bring all offers. Vacant and easy to show."
+  },
+  "flags": {
+   "is_price_reduced": true,
+   "is_new_listing": false
+  },
+  "price_history": [
+   {
+    "date": "2026-07-19T00:00:00Z",
+    "price": 429000,
+    "event_name": "Listed"
+   },
+   {
+    "date": "2026-10-17T00:00:00Z",
+    "price": 385000,
+    "event_name": "Price Changed"
+   }
+  ],
+  "advertisers": [
+   {
+    "name": "John Carter",
+    "phone": "305-555-0102",
+    "email": null,
+    "office": {
+     "name": "Keller Williams Miami"
+    },
+    "href": "https://www.realtor.com/realestateagents/john-carter"
+   }
+  ],
+  "photos": [
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   },
+   {
+    "href": "x"
+   }
+  ],
+  "estimate": {
+   "estimate": 520000
+  }
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40013,
+  "detailUrl": "/homedetails/40013_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "317 SW 33th Ave",
+  "addressCity": "Hollywood",
+  "addressState": "FL",
+  "addressZipcode": "33020",
+  "county": "Broward",
+  "unformattedPrice": 329000,
+  "price": "$329,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1250,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1985,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Investor special! Handyman special in the heart of Hollywood. Property needs work, as-is, cash or hard money only. Motivated seller, price reduced. Tenant occupied, do not disturb.",
+  "daysOnZillow": 66,
+  "zestimate": 445000,
+  "photoCount": 15,
+  "latitude": 26.049000000000003,
+  "longitude": -80.176,
+  "datePosted": "2026-08-17T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-08-17T00:00:00Z",
+    "price": 349000,
+    "event": "Listed for sale"
+   },
+   {
+    "date": "2026-10-10T00:00:00Z",
+    "price": 329000,
+    "event": "Price change"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "John Carter",
+   "agentPhoneNumber": "305-555-0102",
+   "brokerName": "Keller Williams Miami",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40014,
+  "detailUrl": "/homedetails/40014_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "326 SW 34th Ave",
+  "addressCity": "Lake Worth Beach",
+  "addressState": "FL",
+  "addressZipcode": "33460",
+  "county": "Palm Beach",
+  "unformattedPrice": 299000,
+  "price": "$299,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1320,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1986,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Short sale, third party approval required. Water damage in the back bedroom, some mold, sold as is. Cash offers preferred. Great fix and flip in Lake Worth Beach.",
+  "daysOnZillow": 29,
+  "zestimate": 410000,
+  "photoCount": 15,
+  "latitude": 26.052000000000003,
+  "longitude": -80.17800000000001,
+  "datePosted": "2026-09-23T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-09-23T00:00:00Z",
+    "price": 299000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Luis Ortega",
+   "agentPhoneNumber": "(561) 555-0104",
+   "brokerName": "Lang Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40015,
+  "detailUrl": "/homedetails/40015_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "335 SW 35th Ave",
+  "addressCity": "Boynton Beach",
+  "addressState": "FL",
+  "addressZipcode": "33435",
+  "county": "Palm Beach",
+  "unformattedPrice": 415000,
+  "price": "$415,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1700,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1987,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Back on market! Buyer financing fell through. Property sold as-is. New lower price. Older roof, dated interior.",
+  "daysOnZillow": 90,
+  "zestimate": 470000,
+  "photoCount": 15,
+  "latitude": 26.055000000000003,
+  "longitude": -80.18,
+  "datePosted": "2026-07-24T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-06-24T00:00:00Z",
+    "price": 445000,
+    "event": "Listed for sale"
+   },
+   {
+    "date": "2026-08-13T00:00:00Z",
+    "price": 445000,
+    "event": "Pending sale"
+   },
+   {
+    "date": "2026-09-22T00:00:00Z",
+    "price": 445000,
+    "event": "Listing removed"
+   },
+   {
+    "date": "2026-10-02T00:00:00Z",
+    "price": 415000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Priya Nair",
+   "agentPhoneNumber": "(561) 555-0109",
+   "brokerName": "Compass Florida",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40016,
+  "detailUrl": "/homedetails/40016_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "344 SW 36th Ave",
+  "addressCity": "Coral Springs",
+  "addressState": "FL",
+  "addressZipcode": "33071",
+  "county": "Broward",
+  "unformattedPrice": 480000,
+  "price": "$480,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1600,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1988,
+  "homeType": "TOWNHOUSE",
+  "description": "Beautifully updated townhome in gated community, resort style pool, immaculate condition. Luxury finishes throughout. Won't last!",
+  "daysOnZillow": 7,
+  "zestimate": 485000,
+  "photoCount": 15,
+  "latitude": 26.058,
+  "longitude": -80.182,
+  "datePosted": "2026-10-15T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-10-15T00:00:00Z",
+    "price": 480000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Dana White",
+   "agentPhoneNumber": "(954) 555-0105",
+   "brokerName": "Coldwell Banker Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40017,
+  "detailUrl": "/homedetails/40017_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "353 SW 37th Ave",
+  "addressCity": "Delray Beach",
+  "addressState": "FL",
+  "addressZipcode": "33444",
+  "county": "Palm Beach",
+  "unformattedPrice": 399000,
+  "price": "$399,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1400,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1989,
+  "homeType": "TOWNHOUSE",
+  "description": "Spacious 2/2 condo alternative townhouse. Seller is relocating for a job transfer. Priced to sell. Some deferred maintenance.",
+  "daysOnZillow": 25,
+  "zestimate": 430000,
+  "photoCount": 15,
+  "latitude": 26.061,
+  "longitude": -80.18400000000001,
+  "datePosted": "2026-09-27T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-09-27T00:00:00Z",
+    "price": 399000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Mike Chen",
+   "agentPhoneNumber": "(954) 555-0110",
+   "brokerName": "Berkshire Hathaway HomeServices EWM",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40018,
+  "detailUrl": "/homedetails/40018_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "362 SW 38th Ave",
+  "addressCity": "Homestead",
+  "addressState": "FL",
+  "addressZipcode": "33030",
+  "county": "Miami-Dade",
+  "unformattedPrice": 255000,
+  "price": "$255,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1200,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1990,
+  "homeType": "SINGLE_FAMILY",
+  "description": "CASH ONLY. Estate sale, sold as-is, seller will make no repairs. Needs TLC, roof is older. Priced to sell, bring all offers. Vacant and easy to show.",
+  "daysOnZillow": 80,
+  "zestimate": 400000,
+  "photoCount": 15,
+  "latitude": 26.064,
+  "longitude": -80.186,
+  "datePosted": "2026-08-03T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-08-03T00:00:00Z",
+    "price": 299000,
+    "event": "Listed for sale"
+   },
+   {
+    "date": "2026-10-10T00:00:00Z",
+    "price": 255000,
+    "event": "Price change"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Kevin Brooks",
+   "agentPhoneNumber": "(305) 555-0106",
+   "brokerName": "Coldwell Banker Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40019,
+  "detailUrl": "/homedetails/40019_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "371 SW 39th Ave",
+  "addressCity": "Sunrise",
+  "addressState": "FL",
+  "addressZipcode": "33322",
+  "county": "Broward",
+  "unformattedPrice": 450000,
+  "price": "$450,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1600,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1991,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Lovely home.",
+  "daysOnZillow": 200,
+  "zestimate": 455000,
+  "photoCount": 15,
+  "latitude": 26.067,
+  "longitude": -80.188,
+  "datePosted": "2026-04-05T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-04-05T00:00:00Z",
+    "price": 450000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Sandra Pena",
+   "agentPhoneNumber": "9545550103",
+   "brokerName": "RE/MAX Advance Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40020,
+  "detailUrl": "/homedetails/40020_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "380 SW 40th Ave",
+  "addressCity": "Miami Gardens",
+  "addressState": "FL",
+  "addressZipcode": "33056",
+  "county": "Miami-Dade",
+  "unformattedPrice": 360000,
+  "price": "$360,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1300,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1992,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Motivated seller relocating out of state. Home needs some updating but has good bones. Priced below market for a quick sale. All reasonable offers considered.",
+  "daysOnZillow": 15,
+  "zestimate": 420000,
+  "photoCount": 15,
+  "latitude": 26.07,
+  "longitude": -80.19000000000001,
+  "datePosted": "2026-10-07T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-10-07T00:00:00Z",
+    "price": 360000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Ana Ruiz",
+   "agentPhoneNumber": "(305) 555-0106",
+   "brokerName": "Coldwell Banker Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40021,
+  "detailUrl": "/homedetails/40021_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "389 SW 41th Ave",
+  "addressCity": "North Miami",
+  "addressState": "FL",
+  "addressZipcode": "33161",
+  "county": "Miami-Dade",
+  "unformattedPrice": 420000,
+  "price": "$420,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1450,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1993,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Charming 3/2 in Pembroke Pines with large yard. Needs a little love. As is. Great starter home or rental.",
+  "daysOnZillow": 44,
+  "zestimate": 470000,
+  "photoCount": 15,
+  "latitude": 26.073,
+  "longitude": -80.19200000000001,
+  "datePosted": "2026-09-08T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-09-08T00:00:00Z",
+    "price": 435000,
+    "event": "Listed for sale"
+   },
+   {
+    "date": "2026-10-15T00:00:00Z",
+    "price": 420000,
+    "event": "Price change"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Tom Reyes",
+   "agentPhoneNumber": "(305) 555-0106",
+   "brokerName": "Coldwell Banker Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40022,
+  "detailUrl": "/homedetails/40022_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "398 SW 42th Ave",
+  "addressCity": "Opa-locka",
+  "addressState": "FL",
+  "addressZipcode": "33054",
+  "county": "Miami-Dade",
+  "unformattedPrice": 285000,
+  "price": "$285,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1100,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1994,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Probate sale. Original 1960s kitchen and baths, needs updating. As-is. Open permits on the roof, buyer to assume. Bring your contractor. Seller says sell!",
+  "daysOnZillow": 52,
+  "zestimate": 380000,
+  "photoCount": 15,
+  "latitude": 26.076,
+  "longitude": -80.194,
+  "datePosted": "2026-08-31T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-08-31T00:00:00Z",
+    "price": 285000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Maria Lopez",
+   "agentPhoneNumber": "(305) 555-0101",
+   "brokerName": "Keller Williams Miami",
+   "agentEmail": "maria.lopez@kwmiami.com"
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40023,
+  "detailUrl": "/homedetails/40023_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "407 SW 43th Ave",
+  "addressCity": "Jupiter",
+  "addressState": "FL",
+  "addressZipcode": "33458",
+  "county": "Palm Beach",
+  "unformattedPrice": 700000,
+  "price": "$700,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 2300,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1995,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Fully renovated 4/2 with impact windows, new roof 2024, brand new kitchen. Turnkey, move-in ready. Multiple offers received, highest and best due Monday.",
+  "daysOnZillow": 3,
+  "zestimate": 705000,
+  "photoCount": 15,
+  "latitude": 26.079,
+  "longitude": -80.19600000000001,
+  "datePosted": "2026-10-19T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-10-19T00:00:00Z",
+    "price": 700000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Mike Chen",
+   "agentPhoneNumber": "(954) 555-0110",
+   "brokerName": "Berkshire Hathaway HomeServices EWM",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ },
+ {
+  "_source": "zillow",
+  "zpid": 40024,
+  "detailUrl": "/homedetails/40024_zpid/",
+  "homeStatus": "FOR_SALE",
+  "addressStreet": "416 SW 44th Ave",
+  "addressCity": "Riviera Beach",
+  "addressState": "FL",
+  "addressZipcode": "33404",
+  "county": "Palm Beach",
+  "unformattedPrice": 275000,
+  "price": "$275,000",
+  "beds": 3,
+  "baths": 2,
+  "area": 1150,
+  "lotAreaValue": 0.18,
+  "lotAreaUnit": "acres",
+  "yearBuilt": 1996,
+  "homeType": "SINGLE_FAMILY",
+  "description": "Investor special! Handyman special in the heart of Hollywood. Property needs work, as-is, cash or hard money only. Motivated seller, price reduced. Tenant occupied, do not disturb.",
+  "daysOnZillow": 70,
+  "zestimate": 365000,
+  "photoCount": 15,
+  "latitude": 26.082,
+  "longitude": -80.19800000000001,
+  "datePosted": "2026-08-13T00:00:00Z",
+  "priceHistory": [
+   {
+    "date": "2026-08-13T00:00:00Z",
+    "price": 275000,
+    "event": "Listed for sale"
+   }
+  ],
+  "attributionInfo": {
+   "agentName": "Luis Ortega",
+   "agentPhoneNumber": "(561) 555-0104",
+   "brokerName": "Lang Realty",
+   "agentEmail": null
+  },
+  "monthlyHoaFee": null
+ }
+]

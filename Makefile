@@ -1,0 +1,46 @@
+PY := .venv/bin/python
+.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth demo clean-demo
+
+setup:            ## create venv + install deps (python3.11)
+	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
+	$(PY) -m pip install -q -r requirements.txt 2>/dev/null || uv pip install --python $(PY) -r requirements.txt
+	test -f .env || cp .env.example .env
+	$(PY) -m titan.cli init-db
+
+test:
+	$(PY) -m pytest -q
+
+init-db:
+	$(PY) -m titan.cli init-db
+
+run-daily:        ## 5:30am: scrape → score → value → rank → enrich → outreach
+	$(PY) -m titan.cli run-daily
+
+check-replies:    ## every 15 min: read mailbox, act on replies, flush queued texts
+	$(PY) -m titan.cli check-replies
+
+report:           ## 7:00am: reports/YYYY-MM-DD.md + email
+	$(PY) -m titan.cli report
+
+status:
+	$(PY) -m titan.cli status
+
+install-cron:
+	$(PY) -m titan.cli install-cron
+
+cron-preview:
+	$(PY) -m titan.cli install-cron --dry-run
+
+webhook:          ## Twilio inbound endpoint on :8080 (expose with ngrok or the VPS IP)
+	$(PY) -m titan.cli webhook
+
+gmail-auth:       ## one-time OAuth for the outreach mailbox
+	$(PY) -m titan.cli gmail-auth
+
+demo:             ## full pipeline on fixture data, no credentials needed, into demo_titan_leads.db
+	TITAN_DB=demo_titan_leads.db $(PY) -m titan.cli run-daily --fixture tests/fixtures/listings_sample.json --comps-fixture tests/fixtures/sold_comps_sample.json --offline
+	TITAN_DB=demo_titan_leads.db $(PY) -m titan.cli report --no-email --print
+	TITAN_DB=demo_titan_leads.db $(PY) -m titan.cli status
+
+clean-demo:
+	rm -f demo_titan_leads.db demo_titan_leads.db-*

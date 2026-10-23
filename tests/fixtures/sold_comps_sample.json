@@ -1,0 +1,112 @@
+[
+ {
+  "address": "300 NW 12th St, Miami, FL 33125",
+  "sold_price": 510000,
+  "sqft": 1400,
+  "property_type": "single_family",
+  "lat": 25.783,
+  "lng": -80.212,
+  "zip": "33125",
+  "sold_date": "2026-09-22T00:00:00Z"
+ },
+ {
+  "address": "301 NW 12th St, Miami, FL 33125",
+  "sold_price": 535000,
+  "sqft": 1500,
+  "property_type": "single_family",
+  "lat": 25.783800000000003,
+  "lng": -80.21260000000001,
+  "zip": "33125",
+  "sold_date": "2026-09-12T00:00:00Z"
+ },
+ {
+  "address": "302 NW 12th St, Miami, FL 33125",
+  "sold_price": 498000,
+  "sqft": 1380,
+  "property_type": "single_family",
+  "lat": 25.7846,
+  "lng": -80.2132,
+  "zip": "33125",
+  "sold_date": "2026-09-02T00:00:00Z"
+ },
+ {
+  "address": "303 NW 12th St, Miami, FL 33125",
+  "sold_price": 560000,
+  "sqft": 1600,
+  "property_type": "single_family",
+  "lat": 25.785400000000003,
+  "lng": -80.2138,
+  "zip": "33125",
+  "sold_date": "2026-08-23T00:00:00Z"
+ },
+ {
+  "address": "304 NW 12th St, Miami, FL 33125",
+  "sold_price": 520000,
+  "sqft": 1450,
+  "property_type": "single_family",
+  "lat": 25.7862,
+  "lng": -80.2144,
+  "zip": "33125",
+  "sold_date": "2026-08-13T00:00:00Z"
+ },
+ {
+  "address": "305 NW 12th St, Miami, FL 33125",
+  "sold_price": 505000,
+  "sqft": 1420,
+  "property_type": "single_family",
+  "lat": 25.787000000000003,
+  "lng": -80.215,
+  "zip": "33125",
+  "sold_date": "2026-08-03T00:00:00Z"
+ },
+ {
+  "address": "306 NW 12th St, Miami, FL 33125",
+  "sold_price": 545000,
+  "sqft": 1550,
+  "property_type": "single_family",
+  "lat": 25.7878,
+  "lng": -80.21560000000001,
+  "zip": "33125",
+  "sold_date": "2026-07-24T00:00:00Z"
+ },
+ {
+  "address": "307 NW 12th St, Miami, FL 33125",
+  "sold_price": 515000,
+  "sqft": 1480,
+  "property_type": "single_family",
+  "lat": 25.788600000000002,
+  "lng": -80.2162,
+  "zip": "33125",
+  "sold_date": "2026-07-14T00:00:00Z"
+ },
+ {
+  "address": "far away",
+  "sold_price": 900000,
+  "sqft": 1450,
+  "property_type": "single_family",
+  "lat": 25.95,
+  "lng": -80.4,
+  "zip": "33179",
+  "sold_date": "2026-10-12T00:00:00Z"
+ },
+ {
+  "address": "wrong size",
+  "sold_price": 300000,
+  "sqft": 600,
+  "property_type": "single_family",
+  "lat": 25.783,
+  "lng": -80.212,
+  "zip": "33125",
+  "sold_date": "2026-10-12T00:00:00Z"
+ },
+ {
+  "address": "wrong type",
+  "sold_price": 300000,
+  "sqft": 1450,
+  "property_type": "condo",
+  "lat": 25.783,
+  "lng": -80.212,
+  "zip": "33125",
+  "sold_date": "2026-10-12T00:00:00Z"
+ }
+]

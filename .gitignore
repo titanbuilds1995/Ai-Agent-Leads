@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+*.db-journal
+logs/*.log
+reports/drafts/
+.pytest_cache/
+secrets/
+token.json
+gmail_token.json
+raw/

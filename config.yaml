@@ -1,0 +1,149 @@
+# Every number Rodrigo may want to change lives here. Code never hardcodes these.
+
+operator:
+  sender_name: "Rodrigo Gayoso"
+  sender_title: "Acquisitions"
+  company: "Titan Realty Investments LLC"
+  company_short: "Titan Realty"
+  sender_phone: "+13055550100"          # TODO: replace with the real outreach cell
+  reply_to_email: "offers@titanrealtyoffers.com"
+  mailing_address: "Miami, FL"          # CAN-SPAM wants a real postal address in the signature
+
+market:
+  state: "FL"
+  counties: ["Miami-Dade", "Broward", "Palm Beach"]
+  property_types: ["single_family", "townhouse", "multi_family", "land"]   # multi_family = duplex–quadplex
+  max_units: 4
+  price_min: 150000
+  price_max: 750000
+  lookback_days: 30            # new or price-reduced within this window
+  min_sqft: 500
+
+formula:
+  arv_multiplier: 0.70
+  assignment_fee: 15000
+  min_spread_pct: 15           # list must be at least this % above MAO to be a "deal" worth working... see ranking
+  offer_below_mao_pct: 2       # first written offer = MAO × (1 - this/100)
+  counter_accept_within_pct: 10   # counter within this % of MAO → HOT_LEAD
+  emd: 5000
+  close_days: 14
+
+repairs:
+  # $/sqft by tier, applied to living sqft (land uses a flat per-acre clearing allowance)
+  cosmetic: 15
+  moderate: 35
+  heavy: 60
+  gut: 95
+  default_tier: "moderate"
+  land_per_acre: 2500
+  min_repair_budget: 10000
+
+valuation:
+  comp_radius_miles: 0.5
+  comp_sqft_tolerance_pct: 25
+  comp_months: 6
+  min_comps: 3
+  fallback_radius_miles: 1.0
+  condition_adjustment_pct:     # applied to comp-derived ARV to reflect finished condition expectation
+    cosmetic: 0
+    moderate: 0
+    heavy: 0
+    gut: 0
+  land_arv_per_acre_default: 150000
+
+ranking:
+  hot_min_motivation: 65
+  hot_max_list_over_mao_pct: 20
+  warm_min_motivation: 50
+  warm_max_list_over_mao_pct: 35
+  score_min_for_valuation: 40
+  arv_methods_for_hot_warm: ["comps", "comps_wide", "estimate"]   # a guessed ARV (land_default, list_price) can only be COLD
+
+scoring:
+  model: "claude-sonnet-5-5"
+  effort: "low"
+  max_tokens: 1024
+  # Weighted signals (max contribution each). Rules fallback and the LLM prompt both use these.
+  signals:
+    cash_only: 18
+    as_is: 14
+    needs_work: 12
+    motivated_seller: 15
+    bring_all_offers: 12
+    price_reduced: 10
+    estate_probate: 14
+    life_event: 10
+    tenant_occupied: 6
+    investor_special: 12
+    distress_status: 16
+    seller_financing: 5
+    code_violations: 10
+    damage: 12
+    vacant: 8
+    dom_over_60: 8
+    two_plus_cuts: 10
+    back_on_market: 8
+    expired_relisted: 6
+  negatives:
+    fully_renovated: -20
+    turnkey: -15
+    multiple_offers: -20
+    highest_and_best: -20
+
+outreach:
+  mode: "DRAFT_FOR_APPROVAL"       # DRAFT_FOR_APPROVAL | AUTO_SEND_FIRST_TOUCH | FULL_AUTO
+  channel: "SMS_FIRST"             # SMS_FIRST | EMAIL_FIRST | BOTH
+  daily_email_cap: 25
+  daily_sms_cap: 25
+  agent_cooldown_days: 7
+  max_unanswered_sms: 3
+  sms_window: {start_hour: 9, end_hour: 18, weekdays_only: true, timezone: "America/New_York"}
+  gmail_review_label: "Titan/Review"
+  email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email
+  handoff_email_wait_business_days: 2
+  terms:
+    as_is: true
+    inspection_contingency: false
+    buyer_pays_closing: true
+    proof_of_funds: "available on request"
+  example_emails:
+    - |
+      Hi Maria, Rodrigo here with Titan Realty, we buy houses in Broward for cash. I saw your listing on NW 19th St and the remarks mention it needs some work. Is the seller open to an offer under list if we close as-is in two weeks with no inspection contingency? If so, what number do you think gets it done? Thanks, Rodrigo
+    - |
+      Hey John, quick one. We're a local cash buyer in Miami-Dade and your estate sale on SW 112th Ave caught my eye. Not trying to lowball anyone, just want to know if the family would consider something below asking for a clean, quick close. Happy to send proof of funds. What would it take? Rodrigo, Titan Realty
+    - |
+      Hi Sandra, this is Rodrigo with Titan Realty Investments. Noticed the price drop on the duplex on 6th Ave in Lake Worth. We close in about 14 days, as-is, cash. If the seller is motivated I'd rather make a real offer than waste your time. What range would they actually take?
+
+enrichment:
+  office_line_min_agents: 3
+  smtp_verify: true
+  smtp_timeout_seconds: 8
+  http_timeout_seconds: 15
+  dbpr_enabled: true
+  portals: ["realtor.com", "zillow.com", "homes.com"]
+  pattern_min_known_emails: 2     # how many known emails at a brokerage before guessing a pattern
+
+ingest:
+  apify:
+    realtor_actor: "epctex/realtor-scraper"
+    zillow_actor: "maxcopell/zillow-scraper"
+    sold_actor: "maxcopell/zillow-scraper"     # same actor family supports sold listings via status filter
+    timeout_seconds: 900
+    max_items_per_actor: 3000
+  redfin_csv_dir: "raw/redfin"
+  scrape_health_min_ratio: 0.5     # warn when today's count < ratio × 7-day median
+
+report:
+  hour_et: 7
+  max_hot_leads: 10
+
+llm_pricing_per_mtok:              # USD, used for the cost counter
+  claude-sonnet-5-5: {input: 2.0, output: 10.0}
+  claude-opus-5-5: {input: 4.0, output: 20.0}
+  claude-haiku-5-5: {input: 0.10, output: 0.50}
+
+paths:
+  db: "titan_leads.db"
+  logs: "logs"
+  reports: "reports"
+  raw: "raw"

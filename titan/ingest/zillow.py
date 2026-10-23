@@ -70,7 +70,7 @@ def map_item(it: dict[str, Any]) -> Listing | None:
     if g(sub, "is_bankOwned") or g(it, "isBankOwned") or "foreclos" in (status or "").lower(): flags.append("reo")
     if g(it, "isPreforeclosureAuction") or g(sub, "is_preforeclosure"): flags.append("pre_foreclosure")
     l = Listing(
-        street=street, city=city, state=first_str(g(it, "addressState", "address.state", "listingAddress.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode", "listingAddress.zipcode", "listingAddress.zip"), ""),
+        street=street, city=city, state=first_str(g(it, "addressState", "address.state", "listingAddress.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode", "listingAddress.zipcode", "listingAddress.zipCode", "listingAddress.zip"), ""),
         county=first_str(g(it, "county")),
         list_price=to_int(g(it, "unformattedPrice", "listingPrice.amount", "price.amount", "price", "listPrice", "listingPrice")),
         price_history=hist, days_on_market=to_int(g(it, "daysOnZillow", "timeOnZillow", "daysOnMarket")),

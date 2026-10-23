@@ -23,6 +23,11 @@ market:
   min_sqft: 500
 
 formula:
+  # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp
+  # sales engine's deed-record flips). arv_multiplier is the fallback when no market ratio applies (land, thin data).
+  ratio_source: "market"          # market | flat
+  market_ratio_percentile: "median"   # p25 (conservative) | median | p75
+  market_ratios_file: "data/market_ratios.csv"
   arv_multiplier: 0.70
   assignment_fee: 15000
   min_spread_pct: 15           # list must be at least this % above MAO to be a "deal" worth working... see ranking

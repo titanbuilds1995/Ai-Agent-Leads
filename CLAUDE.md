@@ -32,11 +32,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Needs Rodrigo 1219837590904714, Approved 1219837472466733, Done 1219837472466861). Post what you finished to Updates,
   questions to Needs Rodrigo; on every round read Approved (description + comments), act, then move the card to Done.
 - **Focus (2026-10-23): the free scraper (HomeHarvest, runs on the Mac).** The MLS hot sheet is parked (price cuts only).
+- **Offer ratio = what investors actually paid in that ZIP** (Rodrigo, 2026-10-23), not a flat 70%:
+  `data/market_ratios.csv` from github.com/titanbuilds1995/titan-whatsapp-sales (deed-record flips; refresh from there).
+  Ladder ZIP+band → ZIP → city → county; Palm Beach borrows Broward's county ratio; flat 0.70 only when nothing applies.
+  Code: titan/market_ratios.py, valuation.buy_ratio. ZIP resale $/sf is the ARV fallback when comps are thin.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- Offer formula: Rodrigo wants area-specific ratios from his **WhatsApp scraper's sales database** instead of a flat ARV × 0.70.
-  Location of that engine/data unknown (not in this repo or preforeclosurescraper); asked on Asana 2026-10-23.
+- Offer formula still subtracts repairs + the $15k fee after the market ratio (conservative). The flip ratios already
+  reflect what investors paid as-is, so Rodrigo may want repairs/fee dropped or reduced: asked on Asana 2026-10-23.
 
 ## Current status
 - 2026-10-23 evening (cloud, while Rodrigo was at the gym; all merged into the default branch, 115 tests pass):

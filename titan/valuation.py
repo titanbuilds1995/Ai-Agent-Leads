@@ -85,9 +85,22 @@ def arv_from_comps(subject: dict[str, Any], comps: list[dict[str, Any]], cfg: An
     return int(ppsf * (subject.get("sqft") or 0)), round(ppsf, 2)
 
 
-def compute_mao(arv: int, repairs: int, cfg: Any) -> int:
+def buy_ratio(p: dict[str, Any], arv: int, cfg: Any) -> dict[str, Any]:
+    """Share of ARV to pay: the measured investor ratio for this county/ZIP/type/band, else formula.arv_multiplier."""
+    from .market_ratios import lookup
     f = cfg["formula"]
-    return int(round(arv * f["arv_multiplier"] - repairs - f["assignment_fee"], -2))
+    if f.get("ratio_source", "market") == "market":
+        hit = lookup(cfg.root / f.get("market_ratios_file", "data/market_ratios.csv"), p.get("county"), p.get("zip"),
+                     p.get("property_type"), arv, f.get("market_ratio_percentile", "median"), p.get("city"))
+        if hit:
+            return hit
+    return {"ratio": f["arv_multiplier"], "source": f"flat {f['arv_multiplier']:.0%} (no market ratio for this property)"}
+
+
+def compute_mao(arv: int, repairs: int, cfg: Any, ratio: float | None = None) -> int:
+    f = cfg["formula"]
+    r = f["arv_multiplier"] if ratio is None else ratio
+    return int(round(arv * r - repairs - f["assignment_fee"], -2))
 
 
 def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None) -> dict[str, Any]:
@@ -103,8 +116,15 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
             comps, method = wider, "comps_wide"
     arv, ppsf = arv_from_comps(p, comps, cfg)
     if arv is None or len(comps) < v["min_comps"]:
+        zpsf = None
+        if p.get("sqft") and p.get("property_type") != "land":
+            from .market_ratios import zip_resale_psf
+            zpsf = zip_resale_psf(cfg.root / cfg["formula"].get("market_ratios_file", "data/market_ratios.csv"),
+                                  p.get("county"), p.get("zip"), p.get("property_type"), p["sqft"])
         if p.get("estimate"):
             arv, method = int(p["estimate"]), "estimate"
+        elif zpsf:
+            arv, ppsf, method = int(zpsf * p["sqft"]), zpsf, "zip_resale_psf"
         elif p.get("property_type") == "land" and p.get("lot_sqft"):
             arv, method = int(v["land_arv_per_acre_default"] * p["lot_sqft"] / 43560), "land_default"
         elif arv is not None:
@@ -113,12 +133,13 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
             arv, method = int(p.get("list_price") or 0), "list_price"   # no better information: conservative
     adj = cfg.get("valuation.condition_adjustment_pct", {}).get(tier, 0)
     arv = int(arv * (1 + adj / 100))
-    mao = compute_mao(arv, repairs, cfg)
+    br = buy_ratio(p, arv, cfg)
+    mao = compute_mao(arv, repairs, cfg, br["ratio"])
     lp = int(p.get("list_price") or 0)
     spread = round((lp - mao) / lp * 100, 1) if lp else None
     offer = int(round(mao * (1 - cfg["formula"].get("offer_below_mao_pct", 0) / 100), -2))
     return {"arv": arv, "arv_method": method, "comp_count": len(comps), "ppsf": ppsf, "repair_tier": tier, "repair_cost": repairs,
-            "mao": mao, "list_price": lp, "spread_pct": spread, "offer_price": max(offer, 0),
+            "mao": mao, "buy_ratio": br["ratio"], "buy_ratio_source": br["source"], "list_price": lp, "spread_pct": spread, "offer_price": max(offer, 0),
             "comps": [{k: c.get(k) for k in ("address", "sold_price", "sqft", "sold_date", "distance_mi")} for c in comps[:12]]}
 
 

@@ -55,12 +55,12 @@
     const stops = p.milestones.map((m) => {
       let state = m.state;
       if (m.connection && connByName[m.connection]?.status === "ok" && state !== "done") state = state === "now" ? "now" : state;
-      return `<div class="stop ${state}"><div class="k">${m.n} · ${h(m.when)}</div><h3>${h(m.title)}</h3><ul>${m.lines.map((l) => `<li>${h(l)}</li>`).join("")}</ul>${m.connection ? `<div style="margin-top:6px">${connPill(connByName[m.connection])}</div>` : ""}</div>`;
+      return `<div class="stop ${state}"><span class="k">${m.n} · ${h(m.when)}</span><h3>${h(m.title)}</h3><ul>${m.lines.map((l) => `<li>${h(l)}</li>`).join("")}</ul>${m.connection ? `<div style="margin-top:6px">${connPill(connByName[m.connection])}</div>` : ""}</div>`;
     }).join("");
-    const modes = p.modes.map((m) => `<div class="stop ${m.key === snap.mode ? "now" : "off"}"><div class="k">${m.key === snap.mode ? "current" : ""}</div><h3>${h(m.label)}</h3><ul><li>${h(m.note)}</li></ul></div>`).join("");
+    const modes = p.modes.map((m) => `<div class="stop ${m.key === snap.mode ? "now" : "off"}"><span class="k">${m.key === snap.mode ? "current" : " "}</span><h3>${h(m.label)}</h3><ul><li>${h(m.note)}</li></ul></div>`).join("");
     const f = snap.funnel;
     el.innerHTML = `
-      <div><h2>Where the project is</h2><p class="muted">The road from "built" to "runs every morning". Blue is the stop we're on.</p></div>
+      <div><h2>Where the project is</h2><p class="muted">The road from "built" to "runs every morning". The gold-ruled card is the stop we're on.</p></div>
       <div class="road">${stops}</div>
       <div><h2>Connections</h2><p class="muted">Live from the last check the engine ran${conns.length ? " · " + ago(snap.generated_at) : ""}.</p></div>
       ${conns.length ? `<div class="conns">${conns.map(connRow).join("")}</div>` : `<div class="empty">No connection check in this snapshot yet. It runs with every daily run.</div>`}

@@ -112,6 +112,39 @@ def cmd_run_daily(cfg, args):
     from .dashboard_sync import sync as sync_dashboard
     summary["dashboard"] = sync_dashboard(conn, cfg, include_connections=True)
     print(json.dumps(summary, indent=2, default=str))
+    print(plain_summary(conn, summary))
+
+
+def plain_summary(conn, summary: dict[str, Any], top: int = 10) -> str:
+    """The last lines of every run, in plain words: what came in, and the best leads with the offer and the agent."""
+    out = ["", "=" * 70, f"RUN SUMMARY {summary.get('date', '')}"]
+    ing = summary.get("ingest") or {}
+    if ing.get("error"):
+        out.append(f"Scrape failed: {ing['error'][:200]}")
+    elif ing:
+        for name, st in (ing.get("sources") or {}).items():
+            out.append(f"  {name:<12} " + (f"{st.get('count', ing.get('seen', 0))} listings" if st.get("ok") else f"FAILED: {str(st.get('error'))[:120]}"))
+        out.append(f"  kept {ing.get('kept', 0)} of {ing.get('seen', 0)} (new {ing.get('new', 0)}), filtered out {ing.get('filtered', 0)}")
+    sc = summary.get("score") or {}
+    if sc:
+        out.append(f"  scored {sc.get('scored', 0)} (Claude {sc.get('claude', 0)}, rules {sc.get('rules', 0)}), cost ${sc.get('llm_cost_usd', 0):.2f}")
+    counts = dict(conn.execute("SELECT rating, COUNT(*) FROM valuations GROUP BY rating").fetchall())
+    out.append(f"  ratings: HOT {counts.get('HOT', 0)} · WARM {counts.get('WARM', 0)} · COLD {counts.get('COLD', 0)}")
+    rows = conn.execute(
+        "SELECT p.street, p.city, v.rating, v.list_price, v.offer_price, v.arv, s.score, a.name, a.email "
+        "FROM valuations v JOIN properties p ON p.id=v.property_id JOIN scores s ON s.property_id=p.id "
+        "LEFT JOIN agents a ON a.id=p.agent_id WHERE v.rating IN ('HOT','WARM') "
+        "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, s.score DESC LIMIT ?", (top,)).fetchall()
+    if rows:
+        out.append(f"  best {len(rows)}:")
+        for r in rows:
+            out.append(f"   {r[2]:<4} {r[0]}, {r[1]}  list ${r[3] or 0:,}  offer ${r[4] or 0:,}  ARV ${r[5] or 0:,}  score {r[6]}"
+                       f"  agent {r[7] or '-'} {r[8] or '(no email yet)'}")
+    else:
+        out.append("  no HOT or WARM leads this run")
+    out.append("Next: upload reports/dashboard.json to Claude so it can review these and write the Gmail drafts.")
+    out.append("=" * 70)
+    return "\n".join(out)
 
 
 def cmd_check_replies(cfg, args):

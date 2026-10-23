@@ -43,6 +43,10 @@ Updated: 2026-10-23 04:40 UTC
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
 ## RESUME HERE (next session, in order)
+-1. **HomeHarvest (free Realtor.com scraper) is the default source now** (`ingest.sources` in config.yaml; Apify realtor/zillow
+   are opt-in). Sold comps also come from it (`valuation.comps_source: homeharvest`). It must run on the Mac: realtor.com refuses
+   cloud IPs (the cloud run fails in ~25 s with a clear message and the pipeline carries on). Mac: `make setup` (installs
+   requirements-scraper.txt) → `make run-daily`. Code: titan/ingest/homeharvest_src.py, tests/test_homeharvest_src.py.
 0. **2026-10-23 cloud run:** Realtor mapper FIXED (camelCase / `address.locality` / `advertisers[].phones`; `history` trimmed to the
    current listing so old listings don't read as cuts). Blockers now: (a) Apify FREE plan = 10 items max per run (actor log says so);
    (b) Zillow `searchUrls` need `mapBounds` + `regionSelection` in searchQueryState (actor says "No results on page").

@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable
 
 from .. import db
 from ..util import et_day_bounds, log, today_et
-from . import realtor, redfin_csv, zillow
+from . import homeharvest_src, realtor, redfin_csv, zillow
 from .apify import ApifyClient
 from .normalize import Listing, passes_filters
 
@@ -40,7 +40,7 @@ def store_listings(conn, listings: Iterable[Listing], cfg: Any) -> dict[str, int
 
 def run_sources(cfg: Any, client: ApifyClient | None, sources: list[str] | None = None) -> tuple[list[Listing], dict[str, Any]]:
     """Returns (listings, per-source status). Each source is isolated."""
-    sources = sources or ["realtor", "zillow", "redfin"]
+    sources = sources or cfg.get("ingest.sources") or ["homeharvest", "redfin"]
     out: list[Listing] = []
     status: dict[str, Any] = {}
 
@@ -57,6 +57,8 @@ def run_sources(cfg: Any, client: ApifyClient | None, sources: list[str] | None 
             status[name] = {"ok": False, "error": f"{type(e).__name__}: {e}"[:300]}
 
     max_items = cfg.get("ingest.apify.max_items_per_actor", 3000)
+    if "homeharvest" in sources:
+        run("homeharvest", lambda: homeharvest_src.fetch_for_sale(cfg))
     if "realtor" in sources:
         if client:
             run("realtor", lambda: map_items("realtor", client.run_actor(cfg.get("ingest.apify.realtor_actor"), realtor.actor_input(cfg), max_items, "realtor"), realtor.map_item))

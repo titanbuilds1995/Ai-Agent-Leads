@@ -39,6 +39,7 @@ repairs:
   min_repair_budget: 10000
 
 valuation:
+  comps_source: "homeharvest"   # sold comps: homeharvest (free) or apify (Zillow sold actor)
   comp_radius_miles: 0.5
   comp_sqft_tolerance_pct: 25
   comp_months: 6
@@ -173,6 +174,13 @@ enrichment:
   pattern_min_known_emails: 2     # how many known emails at a brokerage before guessing a pattern
 
 ingest:
+  # Which sources run each morning. homeharvest = free Realtor.com scraper (runs on the Mac; realtor.com blocks cloud IPs).
+  # Add "realtor" / "zillow" to also run the paid Apify actors.
+  sources: ["homeharvest", "redfin"]
+  homeharvest:
+    limit_per_query: 3000        # per county × (new, updated) query
+    extra_property_data: true    # agent email/phones + price history; one extra request per 50 listings
+    proxy: null                  # e.g. "http://user:pass@host:port" if realtor.com starts blocking the Mac
   apify:
     realtor_actor: "epctex/realtor-scraper"
     zillow_actor: "maxcopell/zillow-scraper"

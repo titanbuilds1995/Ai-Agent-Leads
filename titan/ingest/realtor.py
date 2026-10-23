@@ -38,12 +38,12 @@ def _current_listing_history(hist: Any) -> list[dict[str, Any]]:
     if not isinstance(hist, list):
         return []
     rows = sorted((h for h in hist if isinstance(h, dict)), key=lambda h: h.get("date") or "")
-    starts = [i for i, h in enumerate(rows) if (h.get("eventName") or "").lower() == "listed"]
+    ev = lambda h: (h.get("eventName") or h.get("event_name") or "").lower()  # noqa: E731 — camelCase (epctex) or snake_case (realtor API)
+    starts = [i for i, h in enumerate(rows) if ev(h) == "listed"]
     if not starts:
         return []
     mls = rows[starts[-1]].get("sourceListingId")
-    return [h for h in rows[starts[-1]:] if not mls or h.get("sourceListingId") in (mls, None)
-            and "rent" not in (h.get("eventName") or "").lower()]
+    return [h for h in rows[starts[-1]:] if (not mls or h.get("sourceListingId") in (mls, None)) and "rent" not in ev(h)]
 
 
 def map_item(it: dict[str, Any]) -> Listing | None:
@@ -68,10 +68,10 @@ def map_item(it: dict[str, Any]) -> Listing | None:
     photos = g(it, "photos") or []
     l = Listing(
         street=street, city=city, state=first_str(g(addr, "state_code", "state", "region"), "FL"), zip=first_str(g(addr, "postal_code", "zip", "zipcode", "postalCode"), ""),
-        county=first_str(g(addr, "county.name", "county")) if not isinstance(g(addr, "county"), dict) or g(addr, "county.name") else None,
+        county=first_str(g(addr, "county.name", "county"), g(it, "location.county.name")) if not isinstance(g(addr, "county"), dict) or g(addr, "county.name") else None,
         list_price=to_int(g(it, "list_price", "price", "listPrice")),
         original_list_price=to_int(g(it, "original_list_price", "price_history_original", "originalPrice")),
-        price_history=price_history_from(g(it, "price_history", "priceHistory") or _current_listing_history(g(it, "history")), price_key=("price",), event_key=("event_name", "event", "eventName"), date_key=("date",)),
+        price_history=price_history_from(g(it, "price_history", "priceHistory") or _current_listing_history(g(it, "history", "property_history")), price_key=("price",), event_key=("event_name", "event", "eventName"), date_key=("date",)),
         days_on_market=to_int(g(it, "days_on_market", "daysOnMarket", "description.days_on_market", "list_date_days", "daysOnMls")),
         beds=to_float(g(desc, "beds", "bedrooms") or g(it, "beds")), baths=to_float(g(desc, "baths", "baths_consolidated", "bathrooms") or g(it, "bathsConsolidated", "baths")),
         sqft=to_int(g(desc, "sqft", "livingArea") or g(it, "sqft")), lot_sqft=to_int(g(desc, "lot_sqft", "lotSize") or g(it, "lotSqft")),

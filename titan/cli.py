@@ -95,6 +95,9 @@ def cmd_run_daily(cfg, args):
         if args.comps_fixture:
             comps = json.loads(Path(args.comps_fixture).read_text())
             comps_fn = lambda p: comps  # noqa: E731
+        elif cfg.get("valuation.comps_source", "homeharvest") == "homeharvest":
+            from .ingest.homeharvest_src import comps_fn as hh_comps_fn
+            comps_fn = hh_comps_fn(cfg, conn)
         elif c["apify"]:
             comps_fn = apify_comps_fn(cfg, c["apify"], conn)
         summary["value"] = run_valuation(conn, cfg, comps_fn)

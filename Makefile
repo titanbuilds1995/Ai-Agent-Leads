@@ -4,6 +4,7 @@ PY := .venv/bin/python
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
 	$(PY) -m pip install -q -r requirements.txt 2>/dev/null || uv pip install --python $(PY) -r requirements.txt
+	$(PY) -m pip install -q -r requirements-scraper.txt 2>/dev/null || uv pip install --python $(PY) -r requirements-scraper.txt || echo "WARN: HomeHarvest (free scraper) did not install; the other sources still work"
 	test -f .env || cp .env.example .env
 	$(PY) -m titan.cli init-db
 

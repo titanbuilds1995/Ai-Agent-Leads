@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterable
 
 from .. import db
 from ..util import et_day_bounds, log, today_et
-from . import homeharvest_src, realtor, redfin_csv, zillow
+from . import homeharvest_src, mls_csv, realtor, redfin_csv, zillow
 from .apify import ApifyClient
 from .normalize import Listing, passes_filters
 
@@ -40,7 +40,7 @@ def store_listings(conn, listings: Iterable[Listing], cfg: Any) -> dict[str, int
 
 def run_sources(cfg: Any, client: ApifyClient | None, sources: list[str] | None = None) -> tuple[list[Listing], dict[str, Any]]:
     """Returns (listings, per-source status). Each source is isolated."""
-    sources = sources or cfg.get("ingest.sources") or ["homeharvest", "redfin"]
+    sources = sources or cfg.get("ingest.sources") or ["homeharvest", "mls", "redfin"]
     out: list[Listing] = []
     status: dict[str, Any] = {}
 
@@ -69,6 +69,8 @@ def run_sources(cfg: Any, client: ApifyClient | None, sources: list[str] | None 
             run("zillow", lambda: map_items("zillow", client.run_actor(cfg.get("ingest.apify.zillow_actor"), zillow.actor_input(cfg), max_items, "zillow"), zillow.map_item))
         else:
             status["zillow"] = {"ok": False, "error": "APIFY_TOKEN missing"}
+    if "mls" in sources:
+        run("mls", lambda: mls_csv.parse_dir(cfg.root / cfg.get("ingest.mls_csv_dir", "raw/mls")))
     if "redfin" in sources:
         run("redfin", lambda: redfin_csv.parse_dir(cfg.root / cfg.get("ingest.redfin_csv_dir", "raw/redfin")))
     return out, status

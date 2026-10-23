@@ -43,6 +43,10 @@ Updated: 2026-10-23 04:40 UTC
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
 ## RESUME HERE (next session, in order)
+-2. **MLS CSV reader** (titan/ingest/mls_csv.py): drop Matrix exports in `raw/mls/`; runs every morning as source `mls`.
+   Reads the thin "Hot Sheet" (county from area code; "3.45%" change = price cut today; "T->A" = back on market) and full exports
+   (City, Zip, Remarks, List Agent email/phone, DOM, Original List Price via column aliases). ASSUMPTION to confirm with Rodrigo:
+   hot-sheet % changes are price *cuts* (the sheet has no sign). Rodrigo's 2026-10-23 hot sheet: 3,554 rows → 779 pass filters.
 -1. **HomeHarvest (free Realtor.com scraper) is the default source now** (`ingest.sources` in config.yaml; Apify realtor/zillow
    are opt-in). Sold comps also come from it (`valuation.comps_source: homeharvest`). It must run on the Mac: realtor.com refuses
    cloud IPs (the cloud run fails in ~25 s with a clear message and the pipeline carries on). Mac: `make setup` (installs

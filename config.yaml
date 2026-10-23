@@ -176,7 +176,7 @@ enrichment:
 ingest:
   # Which sources run each morning. homeharvest = free Realtor.com scraper (runs on the Mac; realtor.com blocks cloud IPs).
   # Add "realtor" / "zillow" to also run the paid Apify actors.
-  sources: ["homeharvest", "redfin"]
+  sources: ["homeharvest", "mls", "redfin"]
   homeharvest:
     limit_per_query: 3000        # per county × (new, updated) query
     extra_property_data: true    # agent email/phones + price history; one extra request per 50 listings
@@ -188,6 +188,7 @@ ingest:
     timeout_seconds: 900
     max_items_per_actor: 3000
   redfin_csv_dir: "raw/redfin"
+  mls_csv_dir: "raw/mls"          # drop Matrix CSV exports here (hot sheets or full exports)
   scrape_health_min_ratio: 0.5     # warn when today's count < ratio × 7-day median
 
 report:

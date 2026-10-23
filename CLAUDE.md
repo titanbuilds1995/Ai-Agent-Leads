@@ -43,11 +43,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   reflect what investors paid as-is, so Rodrigo may want repairs/fee dropped or reduced: asked on Asana 2026-10-23.
 
 ## Current status
-- 2026-10-23 evening (cloud, while Rodrigo was at the gym; all merged into the default branch, 115 tests pass):
-  HomeHarvest (free Realtor.com scraper, pinned 0.8.18, code reviewed) is the default source + sold comps; it only works
-  from the Mac (realtor.com blocks cloud IPs). MLS CSV reader (`raw/mls/`), `make mls-shortlist CSV=…`, Zillow fixed (mapBounds).
-- Rodrigo's hot sheet (3,554 rows) → 779 pass filters → top-100 MLS #s sent to him. It lacks agent email/remarks/city.
-- Next: Rodrigo exports those MLS #s from Matrix WITH City, Zip, Public Remarks, List Agent name/email/phone, DOM, Original
-  List Price → score + value + Gmail drafts. On the Mac: `git pull && make setup && make run-daily`. Asana: connect the
-  official connector (custom-URL connector fails: "automatic client registration not supported"); Make has a working one.
-- Confirm with Rodrigo: hot-sheet % changes are read as price cuts.
+- 2026-10-23 night (cloud): free scraper confirmed on the Mac (`make scrape-test`: 19/19 read, 17 with agent email).
+  Offers use the WhatsApp engine's ZIP investor ratios; sold comps are pulled per subject ZIP; every run ends with a
+  plain-English summary. EMAIL_FIRST, Charles@ mailbox + footer. All merged into the default branch; 124 tests pass.
+- Rodrigo started the first full Mac run (ingest,score,value,enrich). Next: he uploads reports/dashboard.json → review
+  HOT/WARM leads → Gmail drafts in Charles@ (needs Charles's mailbox connected, or `make gmail-auth` on the Mac as Charles).
+- Waiting on Rodrigo (Asana): repairs/fee after the ratio, signature name, merge of branch claude/gallant-planck-8fc2qd,
+  making titan-whatsapp-sales private.

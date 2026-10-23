@@ -33,5 +33,5 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 
 ## Current status
 - 2026-10-23: all side branches (dashboard, terms, config, style guide) merged into `claude/funny-bohr-d0mkrt`;
-  102 tests pass. Rodrigo needs to make that branch the default branch on GitHub (or merge it into the default).
+  102 tests pass. It is now the default branch on GitHub (verified), so new sessions start from it.
 - Next: fix the Realtor mapper from a real `raw/*.json` sample (STATUS.md → RESUME HERE #1), then first Gmail drafts.

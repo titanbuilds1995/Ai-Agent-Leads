@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth demo clean-demo
+.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth doctor demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -36,6 +36,9 @@ webhook:          ## Twilio inbound endpoint on :8080 (expose with ngrok or the 
 
 gmail-auth:       ## one-time OAuth for the outreach mailbox
 	$(PY) -m titan.cli gmail-auth
+
+doctor:           ## check every credential + setting the live run needs; prints pass/fail and the fix for each
+	$(PY) -m titan.cli doctor
 
 demo:             ## full pipeline on fixture data, no credentials needed, into demo_titan_leads.db
 	TITAN_DB=demo_titan_leads.db $(PY) -m titan.cli run-daily --fixture tests/fixtures/listings_sample.json --comps-fixture tests/fixtures/sold_comps_sample.json --offline

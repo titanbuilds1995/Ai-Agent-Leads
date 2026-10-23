@@ -11,7 +11,9 @@ Everything below that touches a credential or sends anything is a human step. Th
 
 ## A. Mac — go live locally (≈ 30 min, interactive)
 
-Already verified on this branch: `make setup`, `make test` (87 passing), `make demo`.
+Already verified on this branch: `make setup`, `make test` (91 passing), `make demo`.
+
+**Run `make doctor` after every step below.** It checks each key, the config placeholders, the network path to Apify and Anthropic, the Gmail sign-in, Twilio and the webhook, and prints the fix for whatever is still wrong. When it ends with *ready for a live run* you are done with part A.
 
 1. **Credentials → `.env`** (paste them yourself; never read them into a chat, never commit):
    | key | where it comes from |

@@ -2,7 +2,7 @@
 
 **To turn it on (10 lines):**
 1. `make setup` — creates `.venv` (Python 3.11), installs deps, copies `.env.example` → `.env`, creates `titan_leads.db`.
-2. Fill `.env`: `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, `GMAIL_OAUTH_JSON`, `GMAIL_SENDER`, `REPORT_TO`, `TWILIO_*`, `WEBHOOK_PUBLIC_URL`. Never commit it.
+2. Fill `.env`: `APIFY_TOKEN`, `ANTHROPIC_API_KEY`, `GMAIL_OAUTH_JSON`, `GMAIL_SENDER`, `REPORT_TO`, `TWILIO_*`, `WEBHOOK_PUBLIC_URL`. Never commit it. `make doctor` tells you what is still missing or wrong.
 3. Edit `config.yaml → operator` (your real cell, mailing address) and paste 2–3 of your real agent emails into `outreach.example_emails`.
 4. `make gmail-auth` once (prints a URL, authorize the **outreach** mailbox, token lands in `secrets/`).
 5. `make run-daily` — first live scrape → score → value → rank → enrich → drafts. Check `raw/` and the printed summary (see BLOCKERS.md #2).
@@ -10,7 +10,7 @@
 7. `make webhook` on the always-on machine (port 8080) and point the Twilio Messaging Service inbound URL at `<WEBHOOK_PUBLIC_URL>/twilio/inbound`.
 8. `make install-cron` — 5:30 run-daily, every 15 min check-replies, 7:00 report, 9:05 weekday outreach pass (all ET).
 9. **Flip modes** in `config.yaml → outreach.mode`: `DRAFT_FOR_APPROVAL` (default) → `AUTO_SEND_FIRST_TOUCH` (day 2–3) → `FULL_AUTO` (day 7). Channel: `outreach.channel` = `SMS_FIRST` | `EMAIL_FIRST` | `BOTH`. Both can be overridden per run with `TITAN_MODE=... TITAN_CHANNEL=...`.
-10. `make status` any time for the funnel; `make test` runs the 87 offline tests; `make demo` runs the whole pipeline on fixture data with no credentials.
+10. `make status` any time for the funnel; `make test` runs the 91 offline tests; `make demo` runs the whole pipeline on fixture data with no credentials.
 
 VPS install (systemd webhook + nginx/TLS + cron) and the Mac go-live checklist: **`deploy/DEPLOY.md`**.
 
@@ -34,7 +34,7 @@ titan/
   replies/             classifier.py · responder.py · inbox.py (poller, handoff, webhook entry)
   webhook.py           FastAPI: /twilio/inbound, /twilio/status, /health
   report.py, status.py, cli.py
-tests/                 87 tests; fixtures/listings_sample.json (24 listings, both actor shapes), replies.json (30 replies)
+tests/                 91 tests; fixtures/listings_sample.json (24 listings, both actor shapes), replies.json (30 replies)
 ```
 
 ## Commands
@@ -48,6 +48,7 @@ tests/                 87 tests; fixtures/listings_sample.json (24 listings, bot
 | `install-cron` / `cron-preview` | write (or print) the crontab block |
 | `webhook` | Twilio inbound endpoint |
 | `gmail-auth` | one-time OAuth |
+| `doctor` | check every credential, setting and network path the live run needs; prints ok / warn / fail and the fix for each |
 | `demo` / `clean-demo` | full pipeline on fixtures into `demo_titan_leads.db` |
 | `test` | pytest |
 

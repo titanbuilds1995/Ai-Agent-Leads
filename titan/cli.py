@@ -1,4 +1,4 @@
-"""Command line: init-db | run-daily | check-replies | report | status | install-cron | webhook | gmail-auth | score | value | enrich | outreach"""
+"""Command line: init-db | run-daily | check-replies | report | status | install-cron | webhook | gmail-auth | doctor | score | value | enrich | outreach"""
 from __future__ import annotations
 
 import argparse
@@ -161,6 +161,14 @@ def cmd_webhook(cfg, args):
     uvicorn.run(build_app(cfg), host=args.host, port=args.port)
 
 
+def cmd_doctor(cfg, args):
+    from . import doctor
+    rows = doctor.run(cfg)
+    print(doctor.render(rows))
+    if args.strict and any(r["status"] in ("fail", "warn") for r in rows):
+        sys.exit(1)
+
+
 def cmd_gmail_auth(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("gmail",), interactive=True)
@@ -189,11 +197,13 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--host", default="0.0.0.0")
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
+    dr = sub.add_parser("doctor", help="check every credential/setting the live run needs")
+    dr.add_argument("--strict", action="store_true", help="exit 1 on any warn/fail (for scripts)")
     args = ap.parse_args(argv)
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor}[args.cmd](cfg, args)
     return 0
 
 

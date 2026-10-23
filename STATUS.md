@@ -3,7 +3,7 @@
 Updated: 2026-10-23 04:40 UTC
 
 ## Done
-- Every step in PLAN.md is implemented and covered by tests: **87 tests, all passing** (`make test`, ~2.5 s, no network, no API key).
+- Every step in PLAN.md is implemented and covered by tests: **91 tests, all passing** (`make test`, ~2.5 s, no network, no API key).
 - **Re-verified on a clean machine (2026-10-23)**: fresh clone → `make setup` (Python 3.11.17 venv via uv) → `make test` → `make demo` all pass.
   Demo on fixtures: 24 listings in → 16 kept (8 filtered) → 15 scored → 8 valued → 1 HOT / 2 WARM / 5 COLD → 2 text drafts in
   `reports/drafts/<date>/` → morning report. (0 email drafts in the demo: with `--offline` enrichment is skipped and the only fixture
@@ -15,6 +15,8 @@ Updated: 2026-10-23 04:40 UTC
     run summary, and when the mapper rejects most items it logs the actor's real top-level field names, so the fix is a one-line
     addition to `titan/ingest/realtor.py` / `zillow.py`. Zillow mapper also accepts the nested `listingAddress.*` / `listingPrice.amount`
     shape that current docs for `maxcopell/zillow-scraper` describe. Numeric parsers ignore dict/list values instead of mangling them.
+  - `make doctor` (`titan/doctor.py`): checks .env keys, config placeholders, DNS to Apify/Anthropic, Apify token, Anthropic key + model,
+    Gmail token (and that it is the outreach mailbox), Twilio account + Messaging Service inbound URL, webhook /health; prints the fix per row.
   - `deploy/`: `titan-webhook.service` (systemd, binds 127.0.0.1:8080), `nginx-titan.conf` (TLS front, `/twilio/*` + `/health` only),
     `bootstrap_vps.sh` (re-runnable: python3.11, clone/pull, `make setup`, `make test`, install + start the service; never touches
     `.env`/`secrets/`), `DEPLOY.md`.

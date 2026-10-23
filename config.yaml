@@ -8,6 +8,9 @@ operator:
   sender_phone: "+15614057379"          # (561) 405-7379, the Titan main line (docs/style guide §1)
   reply_to_email: "Charles@titanrealtyinvestments.com"
   mailing_address: "13075 Marcella Blvd, Loxahatchee, FL"
+  sender_email: "Charles@titanrealtyinvestments.com"   # the Gmail mailbox that holds the drafts and sends (Rodrigo, 2026-10-23)
+  # Footer under every email signature: business identity + a one-line opt-out ("remove me" replies go to do-not-contact).
+  email_footer: "Titan Realty Investments LLC · 13075 Marcella Blvd, Loxahatchee, FL\nIf you'd rather not receive offers from us, reply \"remove me\" and we won't email you again."
 
 market:
   state: "FL"
@@ -93,7 +96,7 @@ scoring:
 
 outreach:
   mode: "DRAFT_FOR_APPROVAL"       # DRAFT_FOR_APPROVAL | AUTO_SEND_FIRST_TOUCH | FULL_AUTO
-  channel: "SMS_FIRST"             # SMS_FIRST | EMAIL_FIRST | BOTH
+  channel: "EMAIL_FIRST"           # SMS_FIRST | EMAIL_FIRST | BOTH. Email until Twilio A2P is approved (Rodrigo, 2026-10-23)
   daily_email_cap: 25
   daily_sms_cap: 25
   agent_cooldown_days: 7

@@ -23,7 +23,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `config.yaml → outreach.example_emails` are his real emails. Signature: Rodrigo Gayoso / Principal | Titan Realty / (561) 405-7379.
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
-- Texting waits on Twilio A2P 10DLC approval.
+- Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
+- **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`); every email ends with the footer in
+  `operator.email_footer` (business name + address + "reply 'remove me'" opt-out, which the STOP classifier catches).
 - **Scoring in cloud sessions:** no Anthropic key needed. The engine scores with the rules fallback, then Claude (this session)
   reads the remarks and confirms or corrects the scores. Gmail drafts can be made through the session's Gmail connector.
 - **Asana board "Titan Lead Engine — Claude Updates"** (project gid 1219837397052431; sections Updates 1219837472466797,
@@ -33,9 +35,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- Price range ($150k–$750k) and offer formula (ARV × 0.70 − repairs − $15,000) are still build defaults; confirm with Rodrigo.
-- `outreach.channel` is `SMS_FIRST` in config; with Twilio not approved it should likely be `EMAIL_FIRST`.
-- Which Gmail account sends (`GMAIL_SENDER`, `make gmail-auth`).
+- Offer formula: Rodrigo wants area-specific ratios from his **WhatsApp scraper's sales database** instead of a flat ARV × 0.70.
+  Location of that engine/data unknown (not in this repo or preforeclosurescraper); asked on Asana 2026-10-23.
 
 ## Current status
 - 2026-10-23 evening (cloud, while Rodrigo was at the gym; all merged into the default branch, 115 tests pass):

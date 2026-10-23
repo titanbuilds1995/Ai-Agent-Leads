@@ -135,7 +135,11 @@ def signature(cfg: Any, closing: str = "Best regards,") -> str:
     title = op.get("sender_title")
     company = op.get("company_short", op["company"])
     lines = [closing, "", op["sender_name"], f"{title} | {company}" if title else company, pretty_phone(op["sender_phone"])]
-    if op.get("mailing_address"):
+    if op.get("sender_email"):
+        lines.append(op["sender_email"])
+    if op.get("email_footer"):
+        lines += ["", "--", op["email_footer"]]
+    elif op.get("mailing_address"):
         lines.append(op["mailing_address"])
     return "\n".join(lines)
 

@@ -18,6 +18,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
 
 ## Decisions already made
+- **Channel: `EMAIL_FIRST`** until Twilio 10DLC is approved (set 2026-10-23; goal: agent email conversations this weekend).
 - **Draft mode only** (`DRAFT_FOR_APPROVAL`): nothing sends until Rodrigo clicks send in Gmail (label `Titan/Review`).
 - **Voice:** `docs/style/RODRIGO_WRITING_STYLE_GUIDE.md` is injected into every drafting prompt; few-shot examples in
   `config.yaml → outreach.example_emails` are his real emails. Signature: Rodrigo Gayoso / Principal | Titan Realty / (561) 405-7379.
@@ -28,10 +29,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 
 ## Still open (ask once, then record the answer here)
 - Price range ($150k–$750k) and offer formula (ARV × 0.70 − repairs − $15,000) are still build defaults; confirm with Rodrigo.
-- `outreach.channel` is `SMS_FIRST` in config; with Twilio not approved it should likely be `EMAIL_FIRST`.
 - Which Gmail account sends (`GMAIL_SENDER`, `make gmail-auth`).
 
 ## Current status
 - 2026-10-23: all side branches (dashboard, terms, config, style guide) merged into `claude/funny-bohr-d0mkrt`;
   102 tests pass. It is now the default branch on GitHub (verified), so new sessions start from it.
-- Next: fix the Realtor mapper from a real `raw/*.json` sample (STATUS.md → RESUME HERE #1), then first Gmail drafts.
+- 2026-10-23 (later): `outreach.channel` switched to `EMAIL_FIRST` (SMS_FIRST would have routed agents with a cell to
+  texts, which can't send yet, and skipped their email). 102 tests pass. Branch `claude/gallant-planck-8fc2qd`, merge into default.
+- Next, in order: (1) Rodrigo pastes the `raw/*.json` sample → fix Realtor mapper; (2) rerun ingest/score/value;
+  (3) pick sending Gmail + Google OAuth client → `make gmail-auth`; (4) `make run-daily` → review drafts in `Titan/Review` → send.

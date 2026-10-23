@@ -92,7 +92,7 @@ scoring:
 
 outreach:
   mode: "DRAFT_FOR_APPROVAL"       # DRAFT_FOR_APPROVAL | AUTO_SEND_FIRST_TOUCH | FULL_AUTO
-  channel: "SMS_FIRST"             # SMS_FIRST | EMAIL_FIRST | BOTH
+  channel: "EMAIL_FIRST"           # SMS_FIRST | EMAIL_FIRST | BOTH  (email until Twilio 10DLC is approved)
   daily_email_cap: 25
   daily_sms_cap: 25
   agent_cooldown_days: 7

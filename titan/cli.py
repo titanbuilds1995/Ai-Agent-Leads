@@ -198,6 +198,31 @@ def cmd_mls_shortlist(cfg, args):
         print(f"{r['rank']:>3}. {r['points']:>5}  {r['mls']}  {r['address']}, {r['county']}  ${r['price']:,}  {r['why']}")
 
 
+def cmd_scrape_test(cfg, args):
+    """Small live HomeHarvest pull (one ZIP or city) so the Mac can confirm realtor.com answers before a full run."""
+    from .ingest import homeharvest_src, realtor
+    from .ingest.normalize import passes_filters
+    try:
+        scrape = homeharvest_src._scraper()
+    except ImportError:
+        print("HomeHarvest is not installed. Run: make setup")
+        sys.exit(1)
+    m = cfg["market"]
+    try:
+        items = scrape(args.location, listing_type="for_sale", return_type="raw", property_type=homeharvest_src._types(cfg),
+                       price_min=m["price_min"], price_max=m["price_max"], past_days=m["lookback_days"], limit=args.limit,
+                       exclude_pending=True, extra_property_data=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"FAILED: realtor.com did not answer ({type(e).__name__}: {e}).\nIf this is a cloud computer, that is expected: run it on the Mac.")
+        sys.exit(1)
+    ls = [l for l in (realtor.map_item(i) for i in items) if l]
+    kept = [l for l in ls if passes_filters(l, cfg)[0]]
+    with_email = sum(1 for l in ls if l.agent_email)
+    print(f"OK: {len(items)} listings from realtor.com, {len(ls)} read, {len(kept)} pass your filters, {with_email} have an agent email.")
+    for l in ls[:10]:
+        print(f"  ${l.list_price or 0:>9,}  {l.street}, {l.city}  agent: {l.agent_name or '-'} {l.agent_email or ''}")
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -245,11 +270,14 @@ def main(argv: list[str] | None = None) -> int:
     ms.add_argument("csv")
     ms.add_argument("--out", default=None)
     ms.add_argument("--paste", type=int, default=100, help="how many MLS numbers to list for the Matrix search")
+    st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
+    st.add_argument("location", nargs="?", default="33023")
+    st.add_argument("--limit", type=int, default=20)
     args = ap.parse_args(argv)
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test}[args.cmd](cfg, args)
     return 0
 
 

@@ -26,6 +26,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Texting waits on Twilio A2P 10DLC approval.
 - **Scoring in cloud sessions:** no Anthropic key needed. The engine scores with the rules fallback, then Claude (this session)
   reads the remarks and confirms or corrects the scores. Gmail drafts can be made through the session's Gmail connector.
+- **Asana board "Titan Lead Engine — Claude Updates"** (project gid 1219837397052431; sections Updates 1219837472466797,
+  Needs Rodrigo 1219837590904714, Approved 1219837472466733, Done 1219837472466861). Post what you finished to Updates,
+  questions to Needs Rodrigo; on every round read Approved (description + comments), act, then move the card to Done.
+- **Focus (2026-10-23): the free scraper (HomeHarvest, runs on the Mac).** The MLS hot sheet is parked (price cuts only).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)

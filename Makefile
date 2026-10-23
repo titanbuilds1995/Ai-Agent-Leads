@@ -47,6 +47,9 @@ sync-dashboard:   ## push the dashboard snapshot to Vercel Blob now (also runs a
 mls-shortlist:    ## rank an MLS hot sheet: make mls-shortlist CSV=~/Downloads/hotsheet.csv
 	$(PY) -m titan.cli mls-shortlist "$(CSV)"
 
+scrape-test:      ## quick live check of the free scraper: make scrape-test (or LOC="Hollywood, FL")
+	$(PY) -m titan.cli scrape-test "$(or $(LOC),33023)"
+
 doctor:           ## check every credential + setting the live run needs; prints pass/fail and the fix for each
 	$(PY) -m titan.cli doctor
 

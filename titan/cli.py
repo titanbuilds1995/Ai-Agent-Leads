@@ -173,6 +173,11 @@ def cmd_webhook(cfg, args):
     uvicorn.run(build_app(cfg), host=args.host, port=args.port)
 
 
+def cmd_dashboard(cfg, args):
+    from .dashboard_local import serve
+    serve(cfg, port=args.port, open_browser=not args.no_open)
+
+
 def cmd_sync_dashboard(cfg, args):
     from .dashboard_sync import sync as sync_dashboard
     print(json.dumps(sync_dashboard(_open(cfg), cfg, include_connections=not args.fast), indent=2))
@@ -214,6 +219,9 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--host", default="0.0.0.0")
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
+    dl = sub.add_parser("dashboard", help="open the dashboard from this machine (no hosting needed)")
+    dl.add_argument("--port", type=int, default=8765)
+    dl.add_argument("--no-open", action="store_true")
     sd = sub.add_parser("sync-dashboard", help="push the dashboard snapshot to Vercel Blob now")
     sd.add_argument("--fast", action="store_true", help="skip the connection checks")
     dr = sub.add_parser("doctor", help="check every credential/setting the live run needs")
@@ -222,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard}[args.cmd](cfg, args)
     return 0
 
 

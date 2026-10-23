@@ -1,4 +1,10 @@
-# Titan dashboard (Vercel)
+# Titan dashboard
+
+**Quickest: run it from the machine that has the data.** `make dashboard` serves the same site at http://127.0.0.1:8765
+(no password, no hosting) and rebuilds the snapshot from the database on every refresh. Use the Vercel setup below when
+you want it reachable from your phone or by other people.
+
+## Hosted on Vercel
 
 A password-protected site on your own Vercel account that shows what the engine knows: project progress, the
 listings/agents/conversations CRM view, and a live event feed. The engine pushes a JSON snapshot to the project's

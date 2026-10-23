@@ -11,8 +11,10 @@
   let snap = null, progress = null, tab = "progress", sub = "listings", timer = null, filters = { q: "", rating: "", county: "", lead: "" };
   const key = () => { try { return localStorage.getItem("titan_key") || ""; } catch { return ""; } };
 
+  let local = null;
   async function load() {
-    const k = key();
+    if (local === null) { try { local = !!(await (await fetch("/api/health", { cache: "no-store" })).json()).local; } catch { local = false; } }
+    const k = local ? "local" : key();
     if (!k) return showGate();
     $("#sub").textContent = "loading…";
     try {

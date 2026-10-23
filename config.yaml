@@ -2,12 +2,12 @@
 
 operator:
   sender_name: "Rodrigo Gayoso"
-  sender_title: "Acquisitions"
+  sender_title: "Principal"
   company: "Titan Realty Investments LLC"
   company_short: "Titan Realty"
-  sender_phone: "+13055550100"          # TODO: replace with the real outreach cell
-  reply_to_email: "offers@titanrealtyoffers.com"
-  mailing_address: "Miami, FL"          # CAN-SPAM wants a real postal address in the signature
+  sender_phone: "+15614057379"          # (561) 405-7379, the Titan main line (docs/style guide §1)
+  reply_to_email: "offers@titanrealtyoffers.com"   # TODO: confirm the dedicated outreach mailbox (never the main inbox)
+  mailing_address: "West Palm Beach, FL"   # CAN-SPAM wants a real postal address in the signature; add the street if you want it shown
 
 market:
   state: "FL"
@@ -106,13 +106,61 @@ outreach:
     inspection_contingency: false
     buyer_pays_closing: true
     proof_of_funds: "available on request"
+  # Voice. The style guide is injected into every Claude drafting prompt; the examples below are verbatim
+  # agent/office-facing emails Rodrigo sent (docs/style/style_examples.md §C and §F) used as few-shot.
+  style_guide: "docs/style/RODRIGO_WRITING_STYLE_GUIDE.md"
   example_emails:
     - |
-      Hi Maria, Rodrigo here with Titan Realty, we buy houses in Broward for cash. I saw your listing on NW 19th St and the remarks mention it needs some work. Is the seller open to an offer under list if we close as-is in two weeks with no inspection contingency? If so, what number do you think gets it done? Thanks, Rodrigo
+      Good morning,
+
+      This is Rodrigo with Titan Realty Investments. I spoke earlier today with a woman at (786) 780-5923 about the apartment building at 4227 NW 5th St. We're investors buying multifamily properties in South Florida, and I told her we'd like to make an offer. She asked me to send it to this email.
+
+      To make sure our offer is accurate, could you share a few basic numbers on the property? You don't need to send any internal documents. Rough figures are fine.
+
+      Once I have these, I can put together a firm offer quickly. You can also call or text me at (561) 405-7379 if that's easier.
+
+      Thank you, and I look forward to hearing from you.
+
+      Best regards,
     - |
-      Hey John, quick one. We're a local cash buyer in Miami-Dade and your estate sale on SW 112th Ave caught my eye. Not trying to lowball anyone, just want to know if the family would consider something below asking for a clean, quick close. Happy to send proof of funds. What would it take? Rodrigo, Titan Realty
+      Good afternoon,
+
+      This is Rodrigo with Titan Realty. I called one of your numbers earlier and spoke with a member of your staff, who was kind enough to pass along your email addresses.
+
+      We're actively acquiring multifamily properties in the Miami area, and I wanted to ask whether you have any assets you'd be open to selling right now. If so, I'd be happy to put together an offer for you.
+
+      I look forward to hearing from you both.
+
+      Best regards,
     - |
-      Hi Sandra, this is Rodrigo with Titan Realty Investments. Noticed the price drop on the duplex on 6th Ave in Lake Worth. We close in about 14 days, as-is, cash. If the seller is motivated I'd rather make a real offer than waste your time. What range would they actually take?
+      Mr. Wenzel,
+
+      Rodrigo here with Titan Realty, we spoke just now about one of your commercial properties in Hialeah, I reached out to you because we are looking to acquire buildings like this in the area.
+
+      You instructed me to email you so you could forward me the address of the building you're looking to sell.
+
+      Could you please share the address and any related details to the building. Rent roll, expenses, etc.
+
+      Thank you!
+    - |
+      Hey Nicholas,
+
+      At this point, the asking price is nowhere near where we would purchase. Our cash offer would be closer to $1,650,000.
+
+      The main reason is the tax reassessment. The seller has owned the property since 2012, so it's being taxed on a capped value of about $866,000. Once we buy it, it gets reassessed closer to the purchase price. Add vacancy and management, and the expenses become closer to $90,000 for us. The numbers just don't work at the asking price.
+
+      Would the seller consider some seller financing?
+      Best,
+    - |
+      Hey Jonathan,
+
+      This is Rodrigo, I am the principal of Titan Realty Investments, I specialize in finding off market opportunities for investors like yourself. I found you because I noticed that you have purchased 2 properties in the El Portal area that are similar to a property that I have available.
+
+      I was reaching out to you because I know if you're still buying you would be very interested. Could you please give me a call at (561) 405-7379 so I can walk you through the property that we have.
+
+      Look forward to hearing from you!
+
+      Best,
 
 enrichment:
   office_line_min_agents: 3

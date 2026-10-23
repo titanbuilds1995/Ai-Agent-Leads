@@ -1,0 +1,26 @@
+{
+  "updated": "2026-10-23",
+  "milestones": [
+    {"n": 1, "title": "Built", "when": "Oct 22", "state": "done", "lines": ["11 parts, 100+ automatic checks", "guides written"]},
+    {"n": 2, "title": "Test-driven", "when": "Oct 23", "state": "done", "lines": ["dry run on sample data", "server kit + checker"]},
+    {"n": 3, "title": "On your Mac", "when": "Oct 23", "state": "done", "lines": ["Python + engine installed", "Apify ✓  Claude ✓"]},
+    {"n": 4, "title": "First real scrape", "when": "now", "state": "now", "lines": ["300 listings per site, capped", "confirm it reads the data"], "connection": "Apify token"},
+    {"n": 5, "title": "Emails in your voice", "when": "this weekend", "state": "next", "lines": ["your details + real emails in settings", "outreach mailbox signed in", "read drafts, then flip to send"], "connection": "Gmail"},
+    {"n": 6, "title": "Every morning", "when": "next week", "state": "next", "lines": ["install on the server", "schedule on, dashboard live"], "connection": "webhook"},
+    {"n": 7, "title": "Texting", "when": "after approval", "state": "later", "lines": ["Twilio business approval (days)", "texts written with you first"], "connection": "Twilio"}
+  ],
+  "modes": [
+    {"key": "DRAFT_FOR_APPROVAL", "label": "Drafts only", "note": "nothing is sent; you read and approve"},
+    {"key": "AUTO_SEND_FIRST_TOUCH", "label": "First messages go out", "note": "replies still land as drafts"},
+    {"key": "FULL_AUTO", "label": "Full autopilot", "note": "replies answered from your terms"}
+  ],
+  "watch": [
+    {"level": "risk", "when": "first run", "title": "Apify free plan", "text": "First full run will likely stop on a credit/plan message. Fix: card + Starter plan at console.apify.com."},
+    {"level": "risk", "when": "week 2", "title": "Gmail sign-in expires every 7 days", "text": "Switch the Google Cloud app from Testing to In production or the morning emails silently stop."},
+    {"level": "risk", "when": "before texts", "title": "Twilio A2P 10DLC", "text": "Carriers block business texts until Twilio approves your brand and campaign. Days to weeks."},
+    {"level": "risk", "when": "before texts", "title": "Florida texting law", "text": "Have a Florida attorney look at the texting approach. Email-first is the conservative start."},
+    {"level": "todo", "when": "before emails", "title": "Mailbox domain records", "text": "SPF, DKIM, DMARC on the sending domain, or emails land in spam. Keep the cap at 25/day for two weeks."},
+    {"level": "todo", "when": "before server", "title": "Web address + certificate", "text": "A DNS name pointing at the server, Let's Encrypt, ports 80/443 open."},
+    {"level": "todo", "when": "week one", "title": "Your 20 minutes a morning", "text": "Read the drafts, send the good ones by hand, say what reads wrong. This is where it learns your voice."}
+  ]
+}

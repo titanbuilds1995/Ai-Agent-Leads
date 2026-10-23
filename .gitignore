@@ -11,3 +11,4 @@ secrets/
 token.json
 gmail_token.json
 raw/
+reports/dashboard.json

@@ -21,6 +21,15 @@ Updated: 2026-10-23 04:40 UTC
     `bootstrap_vps.sh` (re-runnable: python3.11, clone/pull, `make setup`, `make test`, install + start the service; never touches
     `.env`/`secrets/`), `DEPLOY.md`.
 
+## 2026-10-23 evening — live on the Mac
+- Rodrigo installed Python 3.15 + the engine on his Mac; `make doctor`: Apify ✓ (free plan), Anthropic ✓. First live run: Realtor actor returned items
+  but **0 mapped** (field names differ; the diagnostic printed the real keys — mapper fix pending the key list), Zillow actor returned a single
+  `{error: …}` item (free-plan / input issue, text pending). Nothing sent.
+- Terms: inspection period kept (`inspection_contingency: true`, `inspection_days: 7`), wording config-driven everywhere.
+- **Dashboard** (`dashboard/`, Vercel): snapshot sync (`titan/dashboard_sync.py`, after every run + `make sync-dashboard`), password-gated
+  API route, three tabs (Progress / Pipeline CRM / Live). Rendered and screenshot-checked against the demo DB. Setup in `dashboard/README.md`.
+- Rodrigo has MLS access → MLS CSV reader is back on the table (needs one export).
+
 ## Not verifiable without credentials (see BLOCKERS.md)
 - Live Apify scrape, live Claude scoring, Gmail drafts/sends, Twilio sends/webhook. Each client is wired, retried with backoff, and
   degrades gracefully (missing creds are listed in the run summary and the report; the pipeline keeps going).

@@ -182,6 +182,18 @@ def check_webhook(cfg) -> Check:
         return _fail(f"unreachable: {type(e).__name__}", "DNS, security group (443) or nginx; see deploy/DEPLOY.md part B step 3")
 
 
+def check_dashboard(cfg) -> Check:
+    tok = cfg.secret("BLOB_READ_WRITE_TOKEN")
+    if not tok:
+        return _skip("BLOB_READ_WRITE_TOKEN blank (dashboard off)", "Vercel → your dashboard project → Storage → Blob → copy BLOB_READ_WRITE_TOKEN into .env (dashboard/README.md)")
+    from .dashboard_sync import upload
+    try:
+        meta = upload({"ping": True, "at": __import__("titan.util", fromlist=["iso"]).iso()}, tok, pathname="titan/ping.json")
+    except Exception as e:  # noqa: BLE001
+        return _fail(str(e)[:200], "the token is wrong or the Blob store was deleted; copy a fresh BLOB_READ_WRITE_TOKEN from Vercel")
+    return _ok(f"Vercel Blob accepts uploads ({(meta.get('url') or '').split('/')[2] if meta.get('url') else 'ok'})")
+
+
 CHECKS: list[tuple[str, Callable[[Any], Check]]] = [
     (".env", check_env_file),
     ("config operator", check_operator),
@@ -193,6 +205,7 @@ CHECKS: list[tuple[str, Callable[[Any], Check]]] = [
     ("Gmail", check_gmail),
     ("Twilio", check_twilio),
     ("webhook", check_webhook),
+    ("dashboard (Vercel)", check_dashboard),
 ]
 
 

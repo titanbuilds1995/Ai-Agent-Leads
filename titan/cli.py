@@ -106,6 +106,8 @@ def cmd_run_daily(cfg, args):
             summary["enrich"] = Enricher(cfg, conn).run()
     if "outreach" in steps:
         summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"])
+    from .dashboard_sync import sync as sync_dashboard
+    summary["dashboard"] = sync_dashboard(conn, cfg, include_connections=True)
     print(json.dumps(summary, indent=2, default=str))
 
 
@@ -113,7 +115,10 @@ def cmd_check_replies(cfg, args):
     from .replies.inbox import check_replies
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("llm", "gmail", "twilio"))
-    print(json.dumps(check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"]), indent=2))
+    res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"])
+    from .dashboard_sync import sync as sync_dashboard
+    res["dashboard"] = sync_dashboard(conn, cfg)
+    print(json.dumps(res, indent=2))
 
 
 def cmd_report(cfg, args):
@@ -121,6 +126,8 @@ def cmd_report(cfg, args):
     conn = _open(cfg)
     gmail = None if args.no_email else build_clients(cfg, conn, need=("gmail",))["gmail"]
     path = run_report(conn, cfg, gmail)
+    from .dashboard_sync import sync as sync_dashboard
+    sync_dashboard(conn, cfg, include_connections=True)
     print(path)
     if args.print:
         print(build_report(conn, cfg))
@@ -166,6 +173,11 @@ def cmd_webhook(cfg, args):
     uvicorn.run(build_app(cfg), host=args.host, port=args.port)
 
 
+def cmd_sync_dashboard(cfg, args):
+    from .dashboard_sync import sync as sync_dashboard
+    print(json.dumps(sync_dashboard(_open(cfg), cfg, include_connections=not args.fast), indent=2))
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -202,13 +214,15 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--host", default="0.0.0.0")
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
+    sd = sub.add_parser("sync-dashboard", help="push the dashboard snapshot to Vercel Blob now")
+    sd.add_argument("--fast", action="store_true", help="skip the connection checks")
     dr = sub.add_parser("doctor", help="check every credential/setting the live run needs")
     dr.add_argument("--strict", action="store_true", help="exit 1 on any warn/fail (for scripts)")
     args = ap.parse_args(argv)
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard}[args.cmd](cfg, args)
     return 0
 
 

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Titan Lead Engine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">T</span><div><h1>Titan Lead Engine</h1><div class="sub" id="sub">connecting…</div></div></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="progress" class="active">Progress</button>
+    <button data-tab="pipeline">Pipeline</button>
+    <button data-tab="live">Live</button>
+  </nav>
+  <div class="right"><span class="pill" id="modepill">—</span><button id="refresh" class="ghost" title="refresh now">↻</button><button id="logout" class="ghost" title="sign out">⎋</button></div>
+</header>
+
+<main id="main">
+  <section id="gate" class="gate">
+    <form id="loginform" class="card">
+      <h2>Sign in</h2>
+      <p class="muted">The dashboard password set on the Vercel project.</p>
+      <input id="pw" type="password" placeholder="password" autocomplete="current-password">
+      <button type="submit">Open dashboard</button>
+      <p id="loginerr" class="err" hidden></p>
+    </form>
+  </section>
+
+  <section id="tab-progress" class="tab" hidden></section>
+  <section id="tab-pipeline" class="tab" hidden></section>
+  <section id="tab-live" class="tab" hidden></section>
+</main>
+
+<aside id="drawer" class="drawer" hidden><div class="drawer-inner"><button class="close" id="drawerclose">×</button><div id="drawerbody"></div></div></aside>
+<script src="/app.js"></script>
+</body>
+</html>

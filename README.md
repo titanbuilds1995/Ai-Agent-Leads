@@ -12,7 +12,7 @@
 9. **Flip modes** in `config.yaml → outreach.mode`: `DRAFT_FOR_APPROVAL` (default) → `AUTO_SEND_FIRST_TOUCH` (day 2–3) → `FULL_AUTO` (day 7). Channel: `outreach.channel` = `SMS_FIRST` | `EMAIL_FIRST` | `BOTH`. Both can be overridden per run with `TITAN_MODE=... TITAN_CHANNEL=...`.
 10. `make status` any time for the funnel; `make test` runs the 91 offline tests; `make demo` runs the whole pipeline on fixture data with no credentials.
 
-VPS install (systemd webhook + nginx/TLS + cron) and the Mac go-live checklist: **`deploy/DEPLOY.md`**.
+VPS install (systemd webhook + nginx/TLS + cron) and the Mac go-live checklist: **`deploy/DEPLOY.md`**. Dashboard on Vercel: **`dashboard/README.md`**.
 
 ---
 
@@ -48,6 +48,7 @@ tests/                 91 tests; fixtures/listings_sample.json (24 listings, bot
 | `install-cron` / `cron-preview` | write (or print) the crontab block |
 | `webhook` | Twilio inbound endpoint |
 | `gmail-auth` | one-time OAuth |
+| `sync-dashboard` | push the dashboard snapshot (listings, agents, conversations, runs, connections) to Vercel Blob; runs automatically after run-daily / check-replies / report |
 | `doctor` | check every credential, setting and network path the live run needs; prints ok / warn / fail and the fix for each |
 | `demo` / `clean-demo` | full pipeline on fixtures into `demo_titan_leads.db` |
 | `test` | pytest |

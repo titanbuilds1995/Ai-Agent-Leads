@@ -101,7 +101,13 @@ Mode lives in `config.yaml → outreach.mode` on the VPS (edit, no restart neede
 
 Caps (`daily_email_cap`, `daily_sms_cap`) start at 25; raise them once bounce and STOP rates are known.
 
-## D. Ongoing deploy flow
+## D. Dashboard (Vercel)
+
+A password-protected site on your Vercel account: progress, CRM view, live feed. Setup is in `dashboard/README.md`
+(≈10 min: import the repo with Root Directory `dashboard`, add a Blob store, set `DASHBOARD_PASSWORD`, copy
+`BLOB_READ_WRITE_TOKEN` into the engine's `.env`). Every run then pushes a snapshot; `make sync-dashboard` pushes one now.
+
+## E. Ongoing deploy flow
 
 Develop on the Mac → push to GitHub → on the VPS: `cd ~/Ai-Agent-Leads && git pull && make test && sudo systemctl restart titan-webhook`.
 Cron picks up code changes on the next run automatically. Back up `titan_leads.db` before schema-touching pulls

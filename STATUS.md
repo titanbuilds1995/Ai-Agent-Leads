@@ -43,6 +43,10 @@ Updated: 2026-10-23 04:40 UTC
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
 ## RESUME HERE (next session, in order)
+-3. **MLS shortlist** (`make mls-shortlist CSV=<hot sheet>` → reports/mls_shortlist_<date>.csv + .mls.txt): ranks a thin hot
+   sheet by cut %, back-on-market and $/sqft vs the county+type median on the same sheet. Rodrigo's sheet: 779 ranked; top-100
+   MLS numbers ready to paste into Matrix → export WITH City, Zip, Public Remarks, List Agent name/email/phone, DOM, Original
+   List Price → drop in raw/mls/ → `make run-daily` scores, values and drafts them. Shortlist files are gitignored (MLS data).
 -2. **MLS CSV reader** (titan/ingest/mls_csv.py): drop Matrix exports in `raw/mls/`; runs every morning as source `mls`.
    Reads the thin "Hot Sheet" (county from area code; "3.45%" change = price cut today; "T->A" = back on market) and full exports
    (City, Zip, Remarks, List Agent email/phone, DOM, Original List Price via column aliases). ASSUMPTION to confirm with Rodrigo:

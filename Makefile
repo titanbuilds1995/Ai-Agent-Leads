@@ -44,6 +44,9 @@ dashboard:        ## open the dashboard in your browser from this machine (live,
 sync-dashboard:   ## push the dashboard snapshot to Vercel Blob now (also runs after every run-daily / check-replies / report)
 	$(PY) -m titan.cli sync-dashboard
 
+mls-shortlist:    ## rank an MLS hot sheet: make mls-shortlist CSV=~/Downloads/hotsheet.csv
+	$(PY) -m titan.cli mls-shortlist "$(CSV)"
+
 doctor:           ## check every credential + setting the live run needs; prints pass/fail and the fix for each
 	$(PY) -m titan.cli doctor
 

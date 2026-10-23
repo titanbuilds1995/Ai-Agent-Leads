@@ -43,6 +43,8 @@ Updated: 2026-10-23 04:40 UTC
 Nothing. Cron and the webhook service are installed by `deploy/bootstrap_vps.sh` + `make install-cron` on the VPS.
 
 ## RESUME HERE (next session, in order)
+-4. **Zillow fixed**: searchQueryState now carries a county `mapBounds`; live test 2026-10-23 returned 5/5 Miami-Dade listings,
+   all mapped (search cards have no agent contact; enrichment finds it). Zillow stays opt-in (`ingest.sources`) since it bills Apify.
 -3. **MLS shortlist** (`make mls-shortlist CSV=<hot sheet>` → reports/mls_shortlist_<date>.csv + .mls.txt): ranks a thin hot
    sheet by cut %, back-on-market and $/sqft vs the county+type median on the same sheet. Rodrigo's sheet: 779 ranked; top-100
    MLS numbers ready to paste into Matrix → export WITH City, Zip, Public Remarks, List Agent name/email/phone, DOM, Original

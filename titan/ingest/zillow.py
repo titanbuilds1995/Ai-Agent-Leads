@@ -14,6 +14,14 @@ ALL_TYPES = ["isSingleFamily", "isTownhouse", "isMultiFamily", "isLotLand", "isC
 COUNTY_SLUG = {"Miami-Dade": "miami-dade-county-fl", "Broward": "broward-county-fl", "Palm Beach": "palm-beach-county-fl"}
 
 
+# County bounding boxes. maxcopell/zillow-scraper answers "No results on page" when searchQueryState has no map area.
+MAP_BOUNDS = {
+    "Miami-Dade": {"north": 25.98, "south": 25.13, "east": -80.11, "west": -80.88},
+    "Broward": {"north": 26.34, "south": 25.95, "east": -80.03, "west": -80.88},
+    "Palm Beach": {"north": 26.98, "south": 26.32, "east": -80.03, "west": -80.89},
+}
+
+
 def search_urls(cfg: Any, sold: bool = False) -> list[str]:
     m = cfg["market"]
     urls = []
@@ -29,6 +37,8 @@ def search_urls(cfg: Any, sold: bool = False) -> list[str]:
                   "isNewConstruction": {"value": False}, "isComingSoon": {"value": False}, "isAuction": {"value": False},
                   "isForSaleForeclosure": {"value": False}, "doz": {"value": "6m"}}
         sqs = {"isMapVisible": True, "filterState": fs, "isListVisible": True, "usersSearchTerm": county + " County FL"}
+        if county in MAP_BOUNDS:
+            sqs["mapBounds"] = MAP_BOUNDS[county]
         urls.append(f"https://www.zillow.com/{slug}/?searchQueryState={quote(json.dumps(sqs, separators=(',', ':')))}")
     return urls
 

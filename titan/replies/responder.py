@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from ..util import first_name, pretty_phone
+from ..util import first_name, pretty_phone, inspection_phrase
 from .classifier import Classification
 
 
@@ -25,7 +25,7 @@ class Action:
 def _terms_sentence(cfg: Any) -> str:
     f, t = cfg["formula"], cfg["outreach"]["terms"]
     bits = ["as-is"]
-    bits.append("no inspection contingency" if not t.get("inspection_contingency") else "short inspection period")
+    bits.append(inspection_phrase(t))
     bits.append(f"{f['close_days']}-day close")
     if t.get("buyer_pays_closing"):
         bits.append("buyer pays closing costs")
@@ -47,7 +47,7 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     facts: list[str] = []
     unanswered: list[str] = []
     if re.search(r"inspection|contingenc|due diligence", low):
-        facts.append("we buy as-is with no inspection contingency" if not t.get("inspection_contingency") else "we only need a short inspection period")
+        facts.append("we buy as-is with no inspection contingency" if not t.get("inspection_contingency") else f"we buy as-is and only need {inspection_phrase(t)}")
     if re.search(r"closing cost|who pays|title|closing fee", low):
         facts.append("buyer pays closing costs" if t.get("buyer_pays_closing") else "closing costs split the standard way")
     if re.search(r"proof of funds|pof|verif|funds|bank letter", low):

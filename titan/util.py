@@ -270,3 +270,11 @@ def money(x: float | int | None) -> str:
     if x is None:
         return "n/a"
     return f"${x:,.0f}"
+
+
+def inspection_phrase(terms: dict) -> str:
+    """How the inspection term is written everywhere the engine speaks. Driven only by config.outreach.terms."""
+    if not terms.get("inspection_contingency"):
+        return "no inspection contingency"
+    d = terms.get("inspection_days")
+    return f"a {int(d)}-day inspection period" if d else "a short inspection period"

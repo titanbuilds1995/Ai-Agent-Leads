@@ -9,7 +9,7 @@ import re
 from typing import Any
 
 from ..llm import LLM
-from ..util import first_name, pretty_phone
+from ..util import first_name, pretty_phone, inspection_phrase
 
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
 HTML_RE = re.compile(r"<[a-zA-Z/][^>]*>")
@@ -27,7 +27,7 @@ Hard rules:
 - Reference each property by its street address and one concrete detail from its remarks (quote or paraphrase, no invention).
 - Say we are a local cash buyer in the property's county.
 - Ask whether the seller is open to an offer below list and what number would get it done.
-- Offer to close in {close_days} days, as-is, no inspection contingency.
+- Offer to close in {close_days} days, as-is, with {inspection}.
 - Do not state a dollar figure. Do not promise anything beyond those terms. Do not mention being an AI.
 - If several properties are listed, cover all of them in one email.
 - Vary the wording; do not reuse the example emails verbatim.
@@ -36,20 +36,20 @@ Return JSON: subject (under 60 chars, plain, mentions the street) and body."""
 EMAIL_TEMPLATES = [
     ("{first}, quick question on {street}",
      "Hi {first},\n\n{sender} here with {company_short}. We're a local cash buyer in {county} and your listing at {street} caught my eye, mostly because {detail}. "
-     "Is the seller open to an offer under list if we close as-is in {close_days} days with no inspection contingency? If so, what number do you think gets it done?\n\n{sign}"),
+     "Is the seller open to an offer under list if we close as-is in {close_days} days with {inspection}? If so, what number do you think gets it done?\n\n{sign}"),
     ("Cash offer on {street}?",
      "Hey {first},\n\nI'm {sender} with {company_short}, we buy houses in {county} for cash. Saw {street} and noticed {detail}. Not trying to waste your time or lowball anyone, "
      "I just want to know if the seller would consider something below asking for a clean {close_days}-day close, as-is, buyer pays closing. What range would they actually take?\n\n{sign}"),
     ("{street} - as-is cash buyer",
      "Hi {first},\n\nThis is {sender} with {company}. Noticed {street} in {city}, and that {detail}. We're local cash buyers in {county} and can close in about {close_days} days as-is, "
-     "no inspection contingency, proof of funds on request. Is the seller open to a number below list? If yes, what would it take?\n\n{sign}"),
+     "{inspection}, proof of funds on request. Is the seller open to a number below list? If yes, what would it take?\n\n{sign}"),
     ("Question about {street}",
      "{first},\n\n{sender} with {company_short} here. Your listing at {street} looks like it could fit what we buy in {county}, especially since {detail}. "
      "If the seller is motivated I'd rather make a real as-is cash offer, {close_days}-day close, than go back and forth. Are they open to something under list, and roughly where?\n\n{sign}"),
 ]
 MULTI_TEMPLATE = ("{first}, a few of your listings in {county}",
                   "Hi {first},\n\n{sender} here with {company_short}, local cash buyer in {county}. A few of your listings look like they could fit us:\n{lines}\n"
-                  "Would any of those sellers consider an offer below list for an as-is, {close_days}-day close with no inspection contingency? If so, which ones and roughly what number?\n\n{sign}")
+                  "Would any of those sellers consider an offer below list for an as-is, {close_days}-day close with {inspection}? If so, which ones and roughly what number?\n\n{sign}")
 
 SMS_TEMPLATES = [
     "Hi {first}, this is {sender} w/ {company_short}, local cash buyer. Saw your listing at {street}. Is the seller open to an offer under list for an as-is close in {close_days} days? {phone}",
@@ -96,7 +96,7 @@ def _ctx(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> dict[s
     sign = f"{op['sender_name'].split()[0]}\n{op['company']}\n{pretty_phone(op['sender_phone'])}\n{op.get('mailing_address','')}".strip()
     return {"first": first_name(agent.get("name")), "sender": op["sender_name"].split()[0], "company": op["company"],
             "company_short": op.get("company_short", op["company"]), "phone": pretty_phone(op["sender_phone"]), "county": p.get("county") or "South Florida",
-            "city": p.get("city") or "", "street": p.get("street") or "", "detail": _detail(p), "close_days": cfg["formula"]["close_days"],
+            "city": p.get("city") or "", "street": p.get("street") or "", "detail": _detail(p), "close_days": cfg["formula"]["close_days"], "inspection": inspection_phrase(cfg["outreach"]["terms"]),
             "sign": sign, "lines": "\n".join(f"- {q['street']}, {q['city']}: {_detail(q)}" for q in props)}
 
 
@@ -124,7 +124,7 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
                         "remarks_excerpt": (p.get("remarks") or "")[:800], "detail_hint": _detail(p), "days_on_market": p.get("days_on_market"),
                         "price_cuts": p.get("price_cuts")} for p in props],
     }, ensure_ascii=False)
-    out = llm.structured("draft_email", EMAIL_SYSTEM.format(examples=examples, close_days=cfg["formula"]["close_days"]), user, EMAIL_SCHEMA, max_tokens=700)
+    out = llm.structured("draft_email", EMAIL_SYSTEM.format(examples=examples, close_days=cfg["formula"]["close_days"], inspection=inspection_phrase(cfg["outreach"]["terms"])), user, EMAIL_SCHEMA, max_tokens=700)
     if not out:
         return None
     return out["subject"].strip(), out["body"].strip()
@@ -196,7 +196,7 @@ def compose_offer_email(cfg: Any, agent: dict[str, Any], prop: dict[str, Any], o
         f"Hi {ctx['first']},\n\n"
         f"As discussed, here is our offer on {prop['street']}, {prop['city']}:\n\n"
         f"Offer price: ${offer_price:,.0f}\n"
-        f"Terms: as-is, {'no inspection contingency' if not terms.get('inspection_contingency') else 'short inspection period'}, "
+        f"Terms: as-is, {inspection_phrase(terms)}, "
         f"{f['close_days']}-day close, {'buyer pays closing costs' if terms.get('buyer_pays_closing') else 'standard closing cost split'}, "
         f"${f['emd']:,.0f} earnest money deposit, proof of funds {terms.get('proof_of_funds', 'available on request')}.\n\n"
         f"If the seller is agreeable I can send the contract over right away. Happy to adjust the closing date if they need more or less time.\n\n"

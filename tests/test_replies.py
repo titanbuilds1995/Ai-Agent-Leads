@@ -59,7 +59,8 @@ def test_responder_rules(cfg):
     a = decide(C("SOLD_OR_PENDING", 0.9), _ctx(), cfg, "email", thread)
     assert a.thread_state == "CLOSED" and a.lead_status == "CLOSED"
     a = decide(C("QUESTION", 0.8), _ctx(), cfg, "email", thread, text="Do you need an inspection period? Who pays closing costs?")
-    assert "no inspection contingency" in a.reply and "buyer pays closing costs" in a.reply and "$" not in a.reply.replace("$5,000", "")
+    from titan.util import inspection_phrase
+    assert inspection_phrase(cfg["outreach"]["terms"]) in a.reply and "buyer pays closing costs" in a.reply and "$" not in a.reply.replace("$5,000", "")
     a = decide(C("QUESTION", 0.8), _ctx(), cfg, "email", thread, text="Will you be assigning the contract?")
     assert a.reply is None and a.thread_state == "ESCALATED" and a.lead_status == "NEEDS_CALL"
     a = decide(C("ASK_FOR_OFFER", 0.9), _ctx(), cfg, "sms", thread)
@@ -72,7 +73,7 @@ def test_responder_never_exceeds_terms(cfg):
         a = decide(C(label, 0.9, **kw), _ctx(), cfg, "email", {"state": "OPEN", "bridge_sent": 0})
         if a.reply:
             assert "waive" not in a.reply.lower() and "guarantee" not in a.reply.lower()
-            assert "inspection contingency" in a.reply or "as-is" in a.reply
+            assert "inspection" in a.reply or "as-is" in a.reply
 
 
 def _email_thread(conn, agent_email="maria.lopez@test.com"):

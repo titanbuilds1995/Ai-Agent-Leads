@@ -103,12 +103,13 @@ outreach:
   handoff_email_wait_business_days: 2
   terms:
     as_is: true
-    inspection_contingency: false
+    inspection_contingency: true      # we always keep an inspection period; never promise to waive it
+    inspection_days: 7
     buyer_pays_closing: true
     proof_of_funds: "available on request"
   example_emails:
     - |
-      Hi Maria, Rodrigo here with Titan Realty, we buy houses in Broward for cash. I saw your listing on NW 19th St and the remarks mention it needs some work. Is the seller open to an offer under list if we close as-is in two weeks with no inspection contingency? If so, what number do you think gets it done? Thanks, Rodrigo
+      Hi Maria, Rodrigo here with Titan Realty, we buy houses in Broward for cash. I saw your listing on NW 19th St and the remarks mention it needs some work. Is the seller open to an offer under list if we close as-is in two weeks with a quick 7-day inspection? If so, what number do you think gets it done? Thanks, Rodrigo
     - |
       Hey John, quick one. We're a local cash buyer in Miami-Dade and your estate sale on SW 112th Ave caught my eye. Not trying to lowball anyone, just want to know if the family would consider something below asking for a clean, quick close. Happy to send proof of funds. What would it take? Rodrigo, Titan Realty
     - |

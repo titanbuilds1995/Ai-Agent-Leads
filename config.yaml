@@ -194,7 +194,8 @@ ingest:
   # Add "realtor" / "zillow" to also run the paid Apify actors.
   sources: ["homeharvest", "mls", "redfin"]
   homeharvest:
-    limit_per_query: 3000        # per county × (new, updated) query
+    limit_per_query: 3000        # per county × price band × (new, updated) query; a full result is logged as "capped"
+    price_band_width: 100000     # split each county search into $100k price bands so no query hits the limit
     extra_property_data: true    # agent email/phones + price history; one extra request per 50 listings
     proxy: null                  # e.g. "http://user:pass@host:port" if realtor.com starts blocking the Mac
   apify:

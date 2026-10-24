@@ -41,10 +41,21 @@ def test_for_sale_maps_realtor_raw_shape(cfg, tmp_path):
     assert l.agent_email == "maria@example.com" and l.agent_phone == "+19545550123" and l.brokerage == "Lopez Realty"
     assert l.original_list_price == 319000 and l.price_cuts == 1      # the 2019 sale is not a cut
     assert "cash only" in l.remarks.lower()
-    # one "new" and one "updated" query per county, filtered server-side by price + types
-    assert len(fake.calls) == 2 * len(cfg["market"]["counties"])
+    # "new" + "updated" per county per $100k price band, filtered server-side by price + types
+    bands = homeharvest_src.price_bands(cfg["market"]["price_min"], cfg["market"]["price_max"], 100_000)
+    assert len(fake.calls) == 2 * len(bands) * len(cfg["market"]["counties"])
     kw = fake.calls[0][1]
     assert kw["return_type"] == "raw" and kw["price_min"] == cfg["market"]["price_min"] and "single_family" in kw["property_type"]
+    assert max(c[1]["price_max"] for c in fake.calls) == cfg["market"]["price_max"]
+
+
+def test_price_bands_and_capped_queries_are_reported(cfg, tmp_path):
+    assert homeharvest_src.price_bands(150_000, 750_000, 100_000)[0] == (150_000, 250_000)
+    assert homeharvest_src.price_bands(150_000, 750_000, 100_000)[-1] == (650_000, 750_000)
+    cfg.root = tmp_path
+    cfg.raw["ingest"]["homeharvest"]["limit_per_query"] = 1
+    _, extra = homeharvest_src.fetch_for_sale(cfg, scrape=FakeScrape({"for_sale": [RAW]}))
+    assert extra["capped_queries"]
 
 
 def test_every_query_failing_raises_so_the_run_summary_shows_it(cfg, tmp_path):

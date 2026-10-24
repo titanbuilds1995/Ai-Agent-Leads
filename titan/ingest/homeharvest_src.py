@@ -53,20 +53,29 @@ def fetch_for_sale(cfg: Any, scrape: Scrape | None = None) -> tuple[list[Listing
                   extra_property_data=hh.get("extra_property_data", True), proxy=hh.get("proxy") or None)
     seen: dict[str, dict[str, Any]] = {}
     errors: dict[str, str] = {}
+    capped: list[str] = []
+    bands = price_bands(m["price_min"], m["price_max"], hh.get("price_band_width", 100_000))
+    queries = 0
     for county in m["counties"]:
         loc = f"{county} County, FL"
-        for label, kw in (("new", {"past_days": days}), ("updated", {"updated_in_past_hours": days * 24})):
-            try:
-                items = scrape(loc, **common, **kw) or []
-            except Exception as e:  # noqa: BLE001 — one county/query failing must not drop the rest
-                errors[f"{county}:{label}"] = f"{type(e).__name__}: {e}"[:200]
-                log.warning("homeharvest %s %s failed: %s", county, label, e)
-                continue
-            for it in items:
-                if isinstance(it, dict):
-                    seen.setdefault(str(it.get("property_id") or it.get("listing_id") or id(it)), it)
+        for lo, hi in bands:
+            for label, kw in (("new", {"past_days": days}), ("updated", {"updated_in_past_hours": days * 24})):
+                queries += 1
+                key = f"{county}:{lo // 1000}-{hi // 1000}k:{label}"
+                try:
+                    items = scrape(loc, **{**common, "price_min": lo, "price_max": hi}, **kw) or []
+                except Exception as e:  # noqa: BLE001 — one county/query failing must not drop the rest
+                    errors[key] = f"{type(e).__name__}: {e}"[:200]
+                    log.warning("homeharvest %s failed: %s", key, e)
+                    continue
+                if len(items) >= common["limit"]:
+                    capped.append(key)    # hit the per-query limit: narrow price_band_width
+                    log.warning("homeharvest %s returned the full %d-item limit; some listings may be missing", key, len(items))
+                for it in items:
+                    if isinstance(it, dict):
+                        seen.setdefault(str(it.get("property_id") or it.get("listing_id") or id(it)), it)
     items = list(seen.values())
-    if not items and errors and len(errors) == 2 * len(m["counties"]):
+    if not items and errors and len(errors) == queries:
         raise RuntimeError(f"every HomeHarvest query failed (realtor.com blocks cloud IPs; run on the Mac): {next(iter(errors.values()))}")
     _save_raw(cfg, "for_sale", items)
     from .pipeline import map_items
@@ -75,7 +84,19 @@ def fetch_for_sale(cfg: Any, scrape: Scrape | None = None) -> tuple[list[Listing
         l.source = "homeharvest"
     if errors:
         extra["errors"] = errors
+    if capped:
+        extra["capped_queries"] = capped
     return listings, extra
+
+
+def price_bands(lo: int, hi: int, width: int) -> list[tuple[int, int]]:
+    """$150k–$750k by $100k → (150k,250k), (250k,350k) … so no single query hits the result limit."""
+    out, a = [], lo
+    while a < hi:
+        b = min(a + width, hi)
+        out.append((a, b))
+        a = b
+    return out or [(lo, hi)]
 
 
 def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:

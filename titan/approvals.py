@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from . import db
 from .asana import BOT, Asana
-from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email
+from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
 START, END = "-----EMAIL-----", "-----END EMAIL-----"
@@ -98,6 +98,10 @@ one easy question, 50-110 words, plain text, signature block unchanged, and NO d
 === OUTREACH PROTOCOL ===
 {protocol}
 === END PROTOCOL ===
+
+=== VOICE PROTOCOL ("I" for what {sender} did, "we"/"our side" for criteria; never powerless, never overcommitting) ===
+{voice}
+=== END VOICE PROTOCOL ===
 Return JSON: subject and body (body includes the unchanged signature block)."""
 
 
@@ -115,7 +119,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
         if not feedback:
             continue
         op = cfg["operator"]
-        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg)),
+        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg)),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"],
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         row = db.row_to_dict(conn.execute("SELECT property_ids FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}

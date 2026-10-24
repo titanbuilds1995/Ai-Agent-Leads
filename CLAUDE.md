@@ -34,6 +34,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   email; the analysis is stored in `outreach.analysis` and shown on the Asana card). `BANNED_RE` in compose.py rejects
   §27 phrases, listing echo and fake observations. Fallback templates are angle-based (`angle_for`). `titan.cli
   rewrite-pending` regenerates To Review cards after a protocol change.
+- **Voice protocol = `docs/style/VOICE_PROTOCOL.md`** (Rodrigo, 2026-10-24): junior acquisitions agent for a real buying
+  company. "I" only for what Charles personally did/will do; "we" / "our side" / "what we look for" for criteria, risk,
+  pricing philosophy; never powerless ("ask my boss"), never overcommitting ("we can definitely pay"), not a corporate
+  robot, don't overuse "the team". Injected into first-touch and revise prompts; `PERSONAL_RE` rejects the listed
+  personal framings; canned replies rewritten to it.
 - **Conversation first (Rodrigo, Asana 2026-10-24) — overrides any older offer-percentage rule.** The first message opens a
   conversation (from **Charles**, property-specific, one or two verified details, asks about seller flexibility). It never
   contains a price, percentage, range or "cash offer". Replies: one question at a time, never re-ask; "send an offer" and any
@@ -81,6 +86,6 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `rewrite-pending` (only old-style by default). 'Close to asking' line and FRESH_DEAL lane now keyed to the internal TARGET
   (mao), not the high; ≤2 listings per email; generic mailboxes (help@/info@) skipped; auctions excluded. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
   hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
-  plan) scores. 156 tests pass.
+  plan) scores. Voice protocol added (we/our side for criteria). 162 tests pass.
 - Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;
   `make automate`; full run `run-daily --steps ingest,score,value,enrich,outreach` → cards appear in To Review.

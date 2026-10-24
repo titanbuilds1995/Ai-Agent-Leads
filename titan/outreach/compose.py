@@ -25,6 +25,13 @@ BANNED_RE = re.compile(
     r"(looked|looking) at the (photos|pictures|images)|from the (photos|pictures)|in the (photos|pictures)|"
     r"the (roof|kitchen|bathroom|interior|exterior) (looks|appears)|(photos|pictures) (show|make it look)|"
     r"I noticed (the property|your property|the home|this home) (needs|has|is)|the note in the remarks|in the remarks\b", re.I)
+# Voice protocol: criteria are company framing, never personal opinion; never powerless, never overcommitting.
+PERSONAL_RE = re.compile(
+    r"\bI'?m (less|more) (focused|worried|concerned)|\bI (don'?t|do not) (care|mind)\b|\bI wouldn'?t mind\b|\bI'?m comfortable with\b|"
+    r"\bI (would|could|can) pay\b|\bI think (the property|the house|it)('s| is) worth\b|\bI'?m (mainly|really) (concerned|worried)\b|"
+    r"doesn'?t bother me\b|\bI like (this|the) (deal|house|property)\b|\bI('d| would) need the seller\b|"
+    r"\b(ask|check with|run it by) my boss\b|\bI (don'?t|do not) make (those|the) decisions\b|\bI have no authority\b|"
+    r"\bwe can definitely pay\b", re.I)
 # Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
 DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
@@ -51,6 +58,10 @@ Follow the protocol below exactly. It is the whole job.
 {protocol}
 === END PROTOCOL ===
 
+=== VOICE PROTOCOL (how {sender} speaks: "I" for what he personally did, "we"/"our side" for what the company looks for) ===
+{voice}
+=== END VOICE PROTOCOL ===
+
 Working rules for this call:
 - THINK FIRST: fill in the analysis (facts / positive signals / negative signals / unknown big-ticket items / rehab level 1-5 / one-sentence investment hypothesis / most important unknown / conversation angle) BEFORE writing the email. The email must follow from it.
 - You have NOT seen any photographs (photos_analyzed is false). Never describe photos or what anything "looks like" visually.
@@ -64,10 +75,30 @@ Working rules for this call:
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
 - If property_type is "land": it is a lot, not a house. No renovation, roof or interior talk; ask about flexibility and anything about the parcel (zoning, access, utilities, why it's sitting).
 - NO DASHES of any kind in the subject or body: no em dash (—), no en dash (–), no " - " between words, no "--". Use a comma or a period instead ("Hey John, I was looking at..."). This is a hard rule.
+- Pronoun check before answering: criteria, risk, pricing philosophy and what matters are "we"/"our side"/"what we look for" (never "I'm less focused on", "I don't mind", "I'm worried about", "doesn't bother me"); "I" only for what {sender} personally did or will do. Never overstate authority ("we can definitely pay") and never sound powerless ("I'd have to ask my boss").
 - Before answering, run the quality test from the protocol (could this go to 100 listings? did we repeat the listing? did we claim something we don't know? is there a hypothesis? one easy reason to respond? does it sound like a human investor?). If any fails, rewrite.
 Return JSON: analysis, subject (under 60 chars, plain, names the street, e.g. "Quick question on NW 11th St"), body."""
 
 _STYLE_CACHE: dict[str, str] = {}
+
+
+def voice_text(cfg: Any) -> str:
+    """The junior-acquisitions voice protocol (docs/style/VOICE_PROTOCOL.md)."""
+    return _read_doc(cfg, cfg.get("outreach.voice_protocol", "docs/style/VOICE_PROTOCOL.md"), "voice")
+
+
+def _read_doc(cfg: Any, rel: str, label: str) -> str:
+    path = Path(rel)
+    if not path.is_absolute():
+        path = Path(getattr(cfg, "root", ".")) / path
+    key = f"{label}:{path}"
+    if key not in _STYLE_CACHE:
+        try:
+            _STYLE_CACHE[key] = path.read_text(encoding="utf-8")
+        except OSError as e:
+            log.warning("%s protocol not readable (%s): %s", label, path, e)
+            _STYLE_CACHE[key] = ""
+    return _STYLE_CACHE[key]
 
 
 def protocol_text(cfg: Any) -> str:
@@ -129,13 +160,13 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "heavy": [     # old house / investor-special signals: how deep does it go? (§24)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us, but I'm trying to "
-         "understand how deep the project really goes before throwing a meaningless number at you. Are we mostly talking interior "
-         "rehab, or are roof, plumbing and electrical coming into play too?\n\n{sign}"),
+         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us, but I don't want to "
+         "throw a random number at you before we understand what we're actually buying. Are we mostly talking interior rehab, or "
+         "are roof, plumbing and electrical coming into play too?\n\n{sign}"),
         ("{street_name}: how deep is the project?",
-         "{first}, I'm trying to get my head around the condition on {street_name}. The age doesn't bother us by itself; I mainly "
-         "need to figure out whether we're dealing with cosmetic updating or whether the big-ticket systems are starting to stack up. "
-         "What would you say it really needs?\n\n{sign}"),
+         "{first}, I'm trying to get my head around the condition on {street_name}. The age itself doesn't knock it out for us. What "
+         "we'd want to understand is whether we're dealing with cosmetic updating or whether the big-ticket systems are starting to "
+         "stack up. What would you say it really needs?\n\n{sign}"),
     ],
     "cosmetic": [  # dated-not-distressed hypothesis (§2, §22)
         ("The house on {street_name}",
@@ -153,9 +184,9 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "doesn't sound like we'd be taking on a huge project, so the bigger question is the seller.{near_ask} Do you know how much "
          "room they realistically have from the asking price?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, curious about something on the {street_name} property. Newer house, so I'm not expecting a big rehab, which "
-         "makes it more about whether the numbers can line up.{near_ask} Is the seller open to some flexibility, or are they set on "
-         "staying close to asking?\n\n{sign}"),
+         "Hey {first}, curious about something on the {street_name} property. Newer house, so from our side it probably isn't a big "
+         "rehab, which makes it more about whether the numbers can line up.{near_ask} Is the seller open to some flexibility, or are "
+         "they set on staying close to asking?\n\n{sign}"),
     ],
     "land": [      # vacant land: no renovation talk; the questions are use, utilities and seller flexibility
         ("Quick question on the lot on {street_name}",
@@ -315,7 +346,7 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
                         "hoa_monthly": p.get("hoa"), "listing_remarks_verbatim": (p.get("remarks") or "")[:3000],
                         "may_say_close_to_asking": len(props) == 1 and may_say_close_to_asking(p, cfg)} for p in props],
     }, ensure_ascii=False)
-    system = EMAIL_SYSTEM.format(protocol=protocol_text(cfg), sender=op["sender_name"].split()[0],
+    system = EMAIL_SYSTEM.format(protocol=protocol_text(cfg), voice=voice_text(cfg), sender=op["sender_name"].split()[0],
                                 company=op["company"], company_short=op.get("company_short", op["company"]))
     out = llm.structured("draft_email", system, user, FIRST_TOUCH_SCHEMA, max_tokens=1800)
     if not out or not isinstance(out, dict):
@@ -337,6 +368,8 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
+    if PERSONAL_RE.search(body):
+        problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):
         problems.append("double sign-off")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):

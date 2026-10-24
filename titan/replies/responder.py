@@ -139,16 +139,18 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
 
     if label == "ASK_FOR_OFFER":
         # "Just send an offer" is an invitation to evaluate, not permission to send a number.
-        reply = (f"Thanks {first}, I appreciate that. Let me take a closer look at the numbers on {street} and get back to you. "
-                 f"In the meantime, is there anything on the condition or the seller's timing I should know?\n\n{sign}") if channel == "email" else \
-                f"Thanks {first}! Let me take a closer look at the numbers on {street} and get back to you. Anything on condition or timing I should know? {sign}"
+        reply = (f"Thanks {first}, I appreciate that. I don't want to throw a random number at you before we understand what we're actually "
+                 f"buying, so let me get {street} in front of our acquisitions side and come back to you. In the meantime, is there anything "
+                 f"on the condition or the seller's timing we should know?\n\n{sign}") if channel == "email" else \
+                f"Thanks {first}! Let me run {street} through our side and get back to you with something real. Anything on condition or timing we should know? {sign}"
         return Action(reply, "ESCALATED", "NEEDS_REVIEW", "agent invited an offer: holding reply only, no number; Rodrigo reviews and decides the price",
                       review=True, signal="FLEXIBLE" if flexible else "DISCUSSING")
 
     if label == "COUNTER_WITH_NUMBER":
         n = cls.number
-        reply = (f"Thanks {first}, that's helpful to know. Let me go over it on our side and I'll get back to you shortly.\n\n{sign}") if channel == "email" else \
-                f"Thanks {first}, that's helpful. Let me go over it and get back to you shortly. {sign}"
+        reply = (f"Thanks {first}, that's helpful to know. Let me run that through our underwriting and see where it lands on our side. "
+                 f"I'll get back to you shortly.\n\n{sign}") if channel == "email" else \
+                f"Thanks {first}, that's helpful. Let me run it through our side and get back to you shortly. {sign}"
         return Action(reply, "ESCALATED", "NEEDS_REVIEW", f"agent shared a number ({'$' + format(n, ',') if n else 'unparsed'}): acknowledged, no counter; Rodrigo reviews",
                       review=True, signal="FLEXIBLE" if flexible else "DISCUSSING")
 
@@ -159,7 +161,7 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
         if done >= cfg.get("outreach.max_auto_questions", 2) or nq is None:
             return Action(None, "ESCALATED", "NEEDS_REVIEW", f"{sig.lower()}: enough back-and-forth; Rodrigo reviews before any number",
                           review=True, signal=sig)
-        lead = "That's good to hear." if flexible else "Thanks for getting back to me."
+        lead = "That's good to hear, that's a lot closer to what we like." if flexible else "Thanks for getting back to me."
         reply = (f"Hi {first},\n\n{lead} {nq[1]}\n\n{sign}") if channel == "email" else f"{lead} {nq[1]} {sign}"
         return Action(reply, "OPEN", sig, f"{sig.lower()}: asked about {nq[0]}", review=flexible, signal=sig)
 

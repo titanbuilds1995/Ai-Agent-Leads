@@ -47,7 +47,7 @@ def test_responder_conversation_first(cfg):
     thread = {"state": "OPEN", "bridge_sent": 0}
     a = decide(C("ASK_FOR_OFFER", 0.9), _ctx(), cfg, "email", thread, text="Just send me an offer")
     assert "$" not in a.reply and a.thread_state == "ESCALATED" and a.lead_status == "NEEDS_REVIEW" and a.review
-    assert "numbers" in a.reply and "?" in a.reply                     # holding reply + one useful question
+    assert "random number" in a.reply and "acquisitions" in a.reply and "?" in a.reply   # holding reply, company framing, one question
     a = decide(C("COUNTER_WITH_NUMBER", 0.9, number=325000), _ctx(), cfg, "email", thread, text="Seller would take 325")
     assert "$" not in a.reply and "325" not in a.reply and a.review and a.lead_status == "NEEDS_REVIEW" and a.signal == "FLEXIBLE"
     a = decide(C("COUNTER_WITH_NUMBER", 0.9, number=390000), _ctx(), cfg, "email", thread, text="They want 390")

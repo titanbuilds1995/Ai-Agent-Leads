@@ -239,3 +239,24 @@ def test_plan_skips_generic_mailboxes_and_caps_listings_per_email(loaded, cfg, m
     todo = plan(loaded, cfg, "2026-10-24")
     assert all(not b["agent"]["email"].startswith("help@") for b in todo["email"])
     assert all(len(b["properties"]) <= 2 for b in todo["email"])
+
+
+def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
+    from titan.outreach.compose import PERSONAL_RE
+    p = [_prop()]
+    sig = "\n\nBest regards,\n\nCharles Grant"
+    ok = "Hey Maria, quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
+    assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
+    for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
+                "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):
+        assert PERSONAL_RE.search(bad), bad
+        assert any("personal framing" in x for x in validate_email("Quick question on NW 11th St", ok + " " + bad + sig, p)), bad
+    for seed in range(12):          # every template passes the voice check
+        d = compose_email(None, cfg, _agent(), [_prop()], seed)
+        assert not PERSONAL_RE.search(d["body"])
+
+
+def test_prompts_carry_both_protocols(cfg):
+    from titan.outreach.compose import EMAIL_SYSTEM, protocol_text, voice_text
+    assert "THINK FIRST" in protocol_text(cfg) and "Junior Acquisitions" in voice_text(cfg)
+    assert "{voice}" in EMAIL_SYSTEM and "{protocol}" in EMAIL_SYSTEM

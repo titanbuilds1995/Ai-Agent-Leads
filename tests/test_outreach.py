@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from titan import db
-from titan.outreach.compose import HTML_RE, URL_RE, compose_email, compose_sms, template_email, validate_email, validate_sms
+from titan.outreach.compose import BANNED_RE, HTML_RE, URL_RE, compose_email, compose_sms, template_email, validate_email, validate_sms
 from titan.outreach.send import plan, run_outreach
 
 
@@ -33,17 +33,45 @@ def test_first_touch_is_conversation_first(cfg):
     """No price, no offer, no percentage, no cash-offer pitch; asks about the seller's flexibility (Rodrigo, 2026-10-24)."""
     for seed in range(12):
         d = compose_email(None, cfg, _agent(), [_prop()], seed)
-        text = d["body"].split("\n--\n")[0].lower()
-        assert "flexib" in text or "room on price" in text
+        text = d["body"].split("\n\nBest")[0].lower()
+        assert "?" in text and any(k in text for k in ("flexib", "room", "really need", "how deep", "condition", "entertain", "holding"))
         assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
         assert "doesn't seem too far" not in text          # no preliminary analysis on this prop → never implied
+        assert not BANNED_RE.search(d["body"])             # no listing echo, no fake observations, no corporate phrasing
 
 
-def test_detail_never_quotes_motivation_phrases(cfg):
-    d = compose_email(None, cfg, _agent(), [_prop()], 0)        # cited: cash_only "CASH ONLY. Estate sale"
-    assert "estate" not in d["body"].lower() and "cash only" not in d["body"].lower()
-    p = _prop(cited=json.dumps([{"signal": "needs_work", "phrase": "needs TLC"}]))
-    assert '"needs TLC"' in compose_email(None, cfg, _agent(), [p], 0)["body"]
+def test_never_quotes_the_listing_back(cfg):
+    """Protocol §1: never repeat the listing's own wording to the agent, and never motivation/distress phrases."""
+    d = compose_email(None, cfg, _agent(), [_prop()], 0)        # remarks: CASH ONLY. Estate sale, sold as-is, needs TLC.
+    low = d["body"].lower()
+    assert "estate" not in low and "cash only" not in low and "needs tlc" not in low and "remarks" not in low
+    p = _prop(remarks="Needs TLC. Original kitchen, great bones.", cited=json.dumps([{"signal": "needs_work", "phrase": "needs TLC"}]),
+              price_cuts=0, days_on_market=20)
+    body = compose_email(None, cfg, _agent(), [p], 0)["body"]
+    assert "needs TLC" not in body and "great bones" not in body
+    assert "dated" in body.lower() or "cosmetic" in body.lower()  # reasons one level deeper instead (§2)
+
+
+def test_angle_follows_the_facts(cfg):
+    from titan.outreach.compose import angle_for
+    assert angle_for({"remarks": "", "days_on_market": 90, "price_cuts": 2}) == "reduced"
+    assert angle_for({"remarks": "Investor special, cash only", "days_on_market": 10}) == "heavy"
+    assert angle_for({"remarks": "Well kept", "year_built": 1955, "days_on_market": 10}) == "heavy"          # old + nothing updated
+    assert angle_for({"remarks": "New roof 2022, original kitchen", "year_built": 1955}) == "cosmetic"       # old but systems handled
+    assert angle_for({"remarks": "", "year_built": 2015, "days_on_market": 5}) == "newer"
+    assert angle_for({"remarks": "", "year_built": 1990, "days_on_market": 95}) == "sitting"
+    assert angle_for({"remarks": "", "year_built": 1990, "days_on_market": 12}) == "default"
+
+
+def test_validator_rejects_protocol_violations(cfg):
+    p = [_prop()]
+    sig = "\n\nBest regards,\n\nCharles Grant"
+    filler = " We buy quite a bit in the area and this could work depending on how deep the project is. What's your read on the condition?"
+    for bad in ("I looked at the photos and the roof looks fine on NW 11th St.", "Your NW 11th St listing caught our attention.",
+                "I noticed the property needs TLC on NW 11th St and it fits our criteria.", "NW 11th St could be a good fit for our portfolio."):
+        assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
+    good = "Hey Maria — quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
+    assert validate_email("Quick question on NW 11th St", good, p) == []
 
 
 def test_close_to_asking_line_only_when_analysis_supports_it(cfg):
@@ -65,7 +93,10 @@ def test_validator_rejects_price_language(cfg):
 
 def test_emails_vary(cfg):
     bodies = {compose_email(None, cfg, _agent(), [_prop()], seed)["body"] for seed in range(40)}
-    assert len(bodies) >= 3
+    assert len(bodies) >= 2                                   # within one angle
+    profiles = [_prop(), _prop(remarks="", year_built=2015, days_on_market=5, price_cuts=0),
+                _prop(remarks="", year_built=1990, days_on_market=95, price_cuts=0), _prop(remarks="Investor special", days_on_market=5, price_cuts=0)]
+    assert len({compose_email(None, cfg, _agent(), [q], 1)["body"] for q in profiles}) == 4   # different houses, different emails
 
 
 def test_multi_property_email_batches(cfg):

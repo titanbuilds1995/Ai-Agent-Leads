@@ -135,9 +135,10 @@ def run_outreach(conn, cfg: Any, llm: LLM | None = None, gmail=None, twilio=None
         if asana is not None and o.get("approval") == "asana":
             # Rodrigo approves each email on Asana; approvals.send_approved sends it later in the day
             with db.tx(conn):
-                cur = conn.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,subject,body,variant,to_address,run_date,created_at) "
-                                   "VALUES(?,?,?,?,?,?,?,?,?,?,?)", (agent["id"], json.dumps(pids), "email", "first_touch", "pending_approval",
-                                                                     d["subject"], d["body"], d["variant"], agent["email"], run_date, iso()))
+                cur = conn.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,subject,body,variant,to_address,run_date,created_at,analysis) "
+                                   "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (agent["id"], json.dumps(pids), "email", "first_touch", "pending_approval",
+                                                                       d["subject"], d["body"], d["variant"], agent["email"], run_date, iso(),
+                                                                       json.dumps(d.get("analysis") or {})))
             try:
                 from ..approvals import post_card
                 post_card(conn, cfg, asana, agent, props, d, cur.lastrowid)

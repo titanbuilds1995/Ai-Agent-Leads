@@ -89,14 +89,15 @@ FLEX_RE = re.compile(r"\b((seller|owner|they|she|he)( is|'s| are| would be| migh
 
 # Next questions, in order; each is skipped once the agent has covered the topic (in any reply so far).
 TOPICS = [
-    ("expectations", r"\$|\bnet\b|\bnumber\b|expect|hoping|bottom|lowest|price (would|they)|\d{3}k",
-     "Do you have a sense of what the seller is hoping to end up with, or what would make them comfortable?"),
+    ("condition", r"roof|\bac\b|a/c|hvac|condition|repairs?|updated|renovat|foundation|plumbing|electrical|as[- ]is|cosmetic|gut|dated|"
+                  r"needs (a lot|some|little|no) work|move[- ]in ready|turn ?key",
+     "How much work would you say it really needs? Mostly cosmetic, or is there something bigger going on with it?"),
+    ("expectations", r"\$|\bnet\b|\bnumber\b|expect|hoping|bottom|lowest|price (would|they)|\d{3}k|realistic|firm",
+     "Where do you think the seller realistically needs to be?"),
     ("timing", r"timing|timeline|clos(e|ing) (by|in|before|within)|\d+\s*days|weeks?|months?|asap|soon|date|relocat|moving",
      "What kind of timing is the seller working with?"),
-    ("condition", r"roof|\bac\b|a/c|hvac|condition|repairs?|updated|renovat|foundation|plumbing|electrical|as[- ]is",
-     "How's the condition inside? Anything major like the roof or AC we should know about?"),
     ("occupancy", r"vacant|occupied|tenant|lease|living there|empty",
-     "Is the house vacant right now, or is someone living there?"),
+     "Is anyone living there right now, or is it vacant?"),
 ]
 
 

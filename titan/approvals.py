@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from . import db
 from .asana import BOT, Asana
-from .outreach.compose import EMAIL_SCHEMA, signature, validate_email
+from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email
 from .util import iso, log, now_utc, today_et
 
 START, END = "-----EMAIL-----", "-----END EMAIL-----"
@@ -41,14 +41,38 @@ def parse_card(notes: str) -> dict[str, Any] | None:
     return {"to": to.group(1), "subject": subj.group(1).strip(), "body": body.group(1).strip(), "outreach_id": int(oid.group(1))}
 
 
-def post_card(conn, cfg: Any, asana: Asana, agent: dict[str, Any], props: list[dict[str, Any]], d: dict[str, str],
-              outreach_id: int) -> str:
-    a = _cfg(cfg)
-    p = props[0]
+def analysis_text(analysis: dict[str, Any] | None) -> str:
+    """The think-first analysis behind the email, for Rodrigo's review (protocol §21)."""
+    if not analysis:
+        return ""
+    lines = ["Why this house (engine's read, not sent):"]
+    if analysis.get("hypothesis"):
+        lines.append(f"• Hypothesis: {analysis['hypothesis']}")
+    if analysis.get("rehab_level"):
+        lines.append(f"• Likely rehab level: {analysis['rehab_level']} of 5")
+    if analysis.get("key_unknown"):
+        lines.append(f"• Biggest unknown: {analysis['key_unknown']}")
+    for k, label in (("positive_signals", "Positives"), ("negative_signals", "Negatives"), ("unknown_big_ticket", "Unknown big-ticket")):
+        if analysis.get(k):
+            lines.append(f"• {label}: " + "; ".join(str(x) for x in analysis[k][:5]))
+    return "\n".join(lines)
+
+
+def listing_meta(p: dict[str, Any], agent: dict[str, Any], analysis: dict[str, Any] | None = None) -> str:
     lane = p.get("lane") or ""
     meta = (f"Listing: {p.get('street')}, {p.get('city')} · ${int(p.get('list_price') or 0):,} · {p.get('days_on_market')} days on market · "
             f"{p.get('price_cuts') or 0} price cut(s) · {lane}\n{p.get('listing_url') or ''}\n"
             f"Agent: {agent.get('name')} · {agent.get('email')} · {agent.get('brokerage') or ''}")
+    at = analysis_text(analysis)
+    return f"{meta}\n\n{at}" if at else meta
+
+
+def post_card(conn, cfg: Any, asana: Asana, agent: dict[str, Any], props: list[dict[str, Any]], d: dict[str, Any],
+              outreach_id: int) -> str:
+    a = _cfg(cfg)
+    p = props[0]
+    lane = p.get("lane") or ""
+    meta = listing_meta(p, agent, d.get("analysis"))
     name = f"{agent.get('name') or 'Agent'} · {p.get('street')}, {p.get('city')}" + (" ⚡ fresh deal" if lane == "FRESH_DEAL" else "")
     task = asana.create_task(a["project"], a["to_review"], name, card_notes(agent["email"], d["subject"], d["body"], outreach_id, meta))
     _attach_picture(cfg, asana, task["gid"], agent["email"], d["subject"], d["body"], outreach_id)
@@ -68,8 +92,12 @@ def _attach_picture(cfg: Any, asana: Asana, task: str, to: str, subject: str, bo
 
 
 REVISE_SYSTEM = """You revise one email from {sender} ({company}) to a listing agent, following Rodrigo's feedback exactly.
-Keep the rules: conversation first; no price, offer, percentage, range or "cash offer"; one or two verified details from
-the listing only; ask about the seller's flexibility; short and natural; plain text; keep the signature block unchanged.
+The outreach protocol below still applies in full (no price/offer/percentage, no listing echo, no manufactured observations,
+one easy question, 50-110 words, plain text, signature block unchanged).
+
+=== OUTREACH PROTOCOL ===
+{protocol}
+=== END PROTOCOL ===
 Return JSON: subject and body (body includes the unchanged signature block)."""
 
 
@@ -87,7 +115,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
         if not feedback:
             continue
         op = cfg["operator"]
-        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"], company=op["company"]),
+        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg)),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"],
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         row = db.row_to_dict(conn.execute("SELECT property_ids FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}
@@ -176,3 +204,34 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         asana.move(t["gid"], a["sent"])
         res["sent"] += 1
     return res
+
+
+def rewrite_pending(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
+    """Regenerate every email still waiting for approval with the current writer (e.g. after a protocol change) and
+    refresh its card: text, picture and a comment. Approved/sent cards are left alone."""
+    a = _cfg(cfg)
+    n = {"rewritten": 0, "failed": 0}
+    rows = [db.row_to_dict(r) for r in conn.execute(
+        "SELECT * FROM outreach WHERE status='pending_approval' AND asana_task_id IS NOT NULL ORDER BY id").fetchall()]
+    for row in rows:
+        agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
+        pids = json.loads(row["property_ids"] or "[]")
+        props = [db.row_to_dict(r) for r in conn.execute(
+            f"SELECT p.*, v.lane, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
+            f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
+        if not props:
+            continue
+        try:
+            d = compose_email(llm, cfg, agent, props, seed_for(agent["id"], pids, today_et()))
+        except Exception as e:  # noqa: BLE001
+            n["failed"] += 1
+            log.error("rewrite of outreach %s failed: %s", row["id"], e)
+            continue
+        conn.execute("UPDATE outreach SET subject=?, body=?, variant=?, analysis=? WHERE id=?",
+                     (d["subject"], d["body"], d["variant"], json.dumps(d.get("analysis") or {}), row["id"]))
+        asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
+                                                             listing_meta(props[0], agent, d.get("analysis"))))
+        _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
+        asana.comment(row["asana_task_id"], "Rewritten under the new outreach protocol (think first, no listing echo). New picture attached.")
+        n["rewritten"] += 1
+    return n

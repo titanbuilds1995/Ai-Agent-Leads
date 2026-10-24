@@ -65,12 +65,12 @@ def test_interested_asks_one_question_at_a_time_and_never_repeats(cfg):
     thread = {"state": "OPEN"}
     a = decide(C("INTERESTED", 0.9), _ctx(history_in="Yes the seller is motivated", history_out="", auto_replies=0), cfg, "email", thread,
                text="Yes the seller is motivated")
-    assert a.signal == "FLEXIBLE" and a.lead_status == "FLEXIBLE" and a.review and a.reply.count("?") == 1 and "hoping" in a.reply
-    # agent already said timing and price expectations → next question is condition, not a repeat
-    hist = "Sure, they'd like to close within 30 days and are hoping for around 350k"
-    a = decide(C("INTERESTED", 0.9), _ctx(history_in=hist, history_out="Do you have a sense of what the seller is hoping", auto_replies=1),
+    assert a.signal == "FLEXIBLE" and a.lead_status == "FLEXIBLE" and a.review and a.reply.count("?") <= 2 and "really needs" in a.reply
+    # agent already covered condition and timing → next question is the seller's expectations, not a repeat
+    hist = "It's mostly cosmetic, roof is 4 years old, and they'd like to close within 30 days"
+    a = decide(C("INTERESTED", 0.9), _ctx(history_in=hist, history_out="How much work would you say it really needs?", auto_replies=1),
                cfg, "email", thread, text=hist)
-    assert "condition" in a.reply.lower() and "timing" not in a.reply.lower() and "hoping" not in a.reply
+    assert "realistically needs to be" in a.reply and "timing" not in a.reply.lower() and "really needs" not in a.reply
     # after max_auto_questions we stop and bring it to Rodrigo
     a = decide(C("INTERESTED", 0.9), _ctx(history_in="ok", auto_replies=2), cfg, "email", thread, text="ok")
     assert a.reply is None and a.thread_state == "ESCALATED" and a.lead_status == "NEEDS_REVIEW" and a.review

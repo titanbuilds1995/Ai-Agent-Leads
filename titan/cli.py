@@ -336,6 +336,18 @@ def cmd_approvals(cfg, args):
     print(json.dumps({"feedback": fb, "send": sent}, indent=2))
 
 
+def cmd_rewrite_pending(cfg, args):
+    """Regenerate every email still in To Review with the current protocol and refresh its Asana card."""
+    from .approvals import rewrite_pending
+    conn = _open(cfg)
+    asana = _asana(cfg)
+    if asana is None:
+        print("ASANA_TOKEN missing in .env")
+        sys.exit(1)
+    c = build_clients(cfg, conn, need=("llm",))
+    print(json.dumps(rewrite_pending(conn, cfg, asana, c["llm"]), indent=2))
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -405,6 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
+    sub.add_parser("rewrite-pending", help="regenerate every To Review email with the current protocol and update its card")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
@@ -413,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending}[args.cmd](cfg, args)
     return 0
 
 

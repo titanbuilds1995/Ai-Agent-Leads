@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS outreach (
   channel TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'first_touch',
   status TEXT NOT NULL, subject TEXT, body TEXT, variant TEXT,
   to_address TEXT, gmail_draft_id TEXT, gmail_thread_id TEXT, gmail_message_id TEXT, twilio_sid TEXT,
-  error TEXT, run_date TEXT NOT NULL, created_at TEXT NOT NULL, sent_at TEXT, asana_task_id TEXT
+  error TEXT, run_date TEXT NOT NULL, created_at TEXT NOT NULL, sent_at TEXT, asana_task_id TEXT, analysis TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_outreach_agent ON outreach(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_outreach_run ON outreach(run_date, channel, status);
@@ -114,7 +114,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
-MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT"]   # databases created before the column existed
+MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

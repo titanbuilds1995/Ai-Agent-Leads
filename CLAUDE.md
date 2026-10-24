@@ -27,6 +27,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `sync_feedback` rewrites the card; dragging to Approved is his go-ahead; `titan.cli approvals` (cron every 20 min, 8–17,
   random jitter) sends `per_tick` approved emails from Charles@ inside the send window (8:30–5:30 ET, every day) under
   `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. Needs ASANA_TOKEN in the Mac's .env.
+- **Outreach protocol = `docs/style/OUTREACH_PROTOCOL.md`** (Rodrigo, 2026-10-24): think first (facts / signals / inferences /
+  unknowns / rehab level 1–5 / hypothesis / key unknown), then write; never echo the listing's wording; never manufacture
+  observations (no photos are analyzed); investment hypothesis + one easy question; 50–110 words; varied openings; no
+  flat 70%. Injected verbatim into every first-touch and revise prompt (`FIRST_TOUCH_SCHEMA` has the analysis before the
+  email; the analysis is stored in `outreach.analysis` and shown on the Asana card). `BANNED_RE` in compose.py rejects
+  §27 phrases, listing echo and fake observations. Fallback templates are angle-based (`angle_for`). `titan.cli
+  rewrite-pending` regenerates To Review cards after a protocol change.
 - **Conversation first (Rodrigo, Asana 2026-10-24) — overrides any older offer-percentage rule.** The first message opens a
   conversation (from **Charles**, property-specific, one or two verified details, asks about seller flexibility). It never
   contains a price, percentage, range or "cash offer". Replies: one question at a time, never re-ask; "send an offer" and any
@@ -69,7 +76,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-10-24: Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
+- 2026-10-24 (late): outreach rebuilt to Rodrigo's protocol (think-first analysis, no listing echo, angle templates, banned
+  phrases); Charles Grant signature, no opt-out. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
   hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
   plan) scores. 154 tests pass.
 - Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;

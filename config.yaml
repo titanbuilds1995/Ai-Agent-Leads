@@ -155,7 +155,8 @@ outreach:
     proof_of_funds: "available on request"
   # Voice. The style guide is injected into every Claude drafting prompt; the examples below are verbatim
   # agent/office-facing emails Rodrigo sent (docs/style/style_examples.md §C and §F) used as few-shot.
-  style_guide: "docs/style/RODRIGO_WRITING_STYLE_GUIDE.md"
+  protocol: "docs/style/OUTREACH_PROTOCOL.md"      # Rodrigo's outreach protocol, injected into every first-touch / revise prompt
+  style_guide: "docs/style/RODRIGO_WRITING_STYLE_GUIDE.md"   # tone reference (replies, written offer)
   example_emails:
     - |
       Good morning,

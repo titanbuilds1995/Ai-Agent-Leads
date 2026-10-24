@@ -255,7 +255,7 @@ def _ctx(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> dict[s
             "street_name": street_name(p.get("street")), "near_ask": NEAR_ASK_LINE if len(props) == 1 and may_say_close_to_asking(p, cfg) else "",
             "company_short": op.get("company_short", op["company"]), "phone": pretty_phone(op["sender_phone"]), "county": p.get("county") or "South Florida",
             "city": p.get("city") or "", "street": p.get("street") or "", "close_days": cfg["formula"]["close_days"], "inspection": inspection_phrase(cfg["outreach"]["terms"]),
-            "sign": sign, "lines": "\n".join(f"- {q['street']}, {q['city']}" for q in props)}
+            "sign": sign, "lines": "\n".join(f"{q['street']}, {q['city']}" for q in props)}
 
 
 def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]], seed: int) -> tuple[str, str, str]:

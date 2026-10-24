@@ -67,7 +67,7 @@ def test_angle_follows_the_facts(cfg):
 def test_validator_rejects_protocol_violations(cfg):
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    filler = " We buy quite a bit in the area and this could work depending on how deep the project is. What's your read on the condition?"
+    filler = " This could work for us depending on how deep the project is. What's your read on the condition?"
     for bad in ("I looked at the photos and the roof looks fine on NW 11th St.", "Your NW 11th St listing caught our attention.",
                 "I noticed the property needs TLC on NW 11th St and it fits our criteria.", "NW 11th St could be a good fit for our portfolio."):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad

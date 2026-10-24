@@ -115,3 +115,46 @@ def test_window_and_skip(cfg, loaded, tmp_path, monkeypatch):
     gid = next(iter(asana.tasks))
     asana.move(gid, _sections(cfg)["skip"])
     assert sync_feedback(loaded, cfg, asana, None)["skipped"] == 1
+
+
+def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo commented on Thais's card after approving it and the old sender sent it anyway. Never again."""
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks))
+    asana.move(gid, s["approved"])
+    asana.stories[gid].append("take out the last part, and shorten it")
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            import json
+            c = json.loads(user)
+            return {"subject": c["subject"], "body": c["body"].replace("Hope you're doing well. ", "")}
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
+    assert res["sent"] == 0 and res["held_for_feedback"] == 1 and not gm.sent
+    assert asana.where[gid] == s["to_review"] and any("Holding" in c for c in asana.stories[gid])
+    assert any("Revised" in c for c in asana.stories[gid])            # feedback applied right away, not next tick
+
+
+def test_send_me_a_test_sends_a_copy_to_rodrigo_only(loaded, cfg, tmp_path, monkeypatch):
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks))
+    asana.stories[gid].append("send me a test email to see what it looks like: rodrigo@titanrealtyinvestments.com")
+    out = sync_feedback(loaded, cfg, asana, None, gm)
+    assert out["tests_sent"] == 1 and len(gm.sent) == 1
+    to, subj, body = gm.sent[0]
+    assert to == "rodrigo@titanrealtyinvestments.com" and subj.startswith("[TEST]") and "Test copy" in body
+    assert asana.where[gid] == s["to_review"] and any("Test copy sent" in c for c in asana.stories[gid])
+    assert sync_feedback(loaded, cfg, asana, None, gm)["tests_sent"] == 0       # not re-sent next tick
+
+
+def test_body_never_introduces_the_company_or_says_we_buy_around_here(cfg):
+    from titan.outreach.compose import compose_email, validate_email
+    for seed in range(12):
+        d = compose_email(None, cfg, {"name": "Maria Lopez"}, [{"id": 1, "street": "101 NW 11th St", "city": "Miami", "remarks": "", "days_on_market": 90, "price_cuts": 0, "year_built": 1990}], seed)
+        assert "titan" not in d["body"].split("\n\nBest")[0].lower()
+    p = [{"street": "101 NW 11th St"}]
+    bad = "Hey Maria, quick question on NW 11th St. How much work would you say it really needs? We buy around Miami through Titan Realty.\n\nBest regards,\n\nCharles Grant"
+    assert any("self-introduction" in x for x in validate_email("Quick question on NW 11th St", bad, p))

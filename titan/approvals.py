@@ -105,18 +105,53 @@ one easy question, 50-110 words, plain text, signature block unchanged, and NO d
 Return JSON: subject and body (body includes the unchanged signature block)."""
 
 
-def sync_feedback(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
-    """Rewrite To Review cards that got new feedback comments; mark Skip cards as skipped."""
+TEST_RE = re.compile(r"\btest\b", re.I)
+EMAIL_IN_TEXT_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def pending_feedback(asana: Asana, task_gid: str) -> tuple[list[str], list[dict[str, Any]]]:
+    """Rodrigo's comments since the engine's last comment on the card (the engine's own comments start with BOT)."""
+    comments = asana.comments(task_gid)
+    last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)), default=-1)
+    return [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)], comments
+
+
+def test_request(feedback: list[str], cfg: Any) -> str | None:
+    """'send me a test' (optionally with an address) → the address to send a [TEST] copy to."""
+    text = " ".join(feedback)
+    if not TEST_RE.search(text):
+        return None
+    m = EMAIL_IN_TEXT_RE.search(text)
+    return (m.group(0) if m else None) or cfg.secret("REPORT_TO") or None
+
+
+def send_test_copy(cfg: Any, asana: Asana, gmail, task_gid: str, card: dict[str, Any], to: str) -> bool:
+    if gmail is None:
+        asana.comment(task_gid, f"Can't send the test copy to {to}: Charles's Gmail isn't connected on this machine.")
+        return False
+    try:
+        gmail.send(to, f"[TEST] {card['subject']}", f"(Test copy. The real email would go to {card['to']}.)\n\n{card['body']}")
+    except Exception as e:  # noqa: BLE001
+        asana.comment(task_gid, f"Test copy to {to} failed: {str(e)[:200]}")
+        return False
+    asana.comment(task_gid, f"Test copy sent to {to} from Charles's Gmail. Nothing went to the agent. Comment more feedback, or drag to Approved when it's good.")
+    return True
+
+
+def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, int]:
+    """Rewrite To Review cards that got new feedback comments (or send a test copy when asked); mark Skip cards as skipped."""
     a = _cfg(cfg)
-    n = {"revised": 0, "skipped": 0, "revise_failed": 0}
+    n = {"revised": 0, "skipped": 0, "revise_failed": 0, "tests_sent": 0}
     for t in asana.section_tasks(a["to_review"]):
         card = parse_card(t.get("notes") or "")
         if not card:
             continue
-        comments = asana.comments(t["gid"])
-        last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)), default=-1)
-        feedback = [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)]
+        feedback, comments = pending_feedback(asana, t["gid"])
         if not feedback:
+            continue
+        test_to = test_request(feedback, cfg)
+        if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
+            n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], card, test_to))
             continue
         op = cfg["operator"]
         out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg)),
@@ -141,6 +176,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
         conn.execute("UPDATE outreach SET subject=?, body=? WHERE id=?", (out["subject"], out["body"], card["outreach_id"]))
         asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Drag to Approved when it's good.")
         n["revised"] += 1
+        if test_to:
+            n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], {**card, "subject": out["subject"], "body": out["body"]}, test_to))
     for t in asana.section_tasks(a["skip"]):
         card = parse_card(t.get("notes") or "")
         if card and conn.execute("UPDATE outreach SET status='skipped' WHERE id=? AND status='pending_approval'", (card["outreach_id"],)).rowcount:
@@ -159,13 +196,28 @@ def in_window(cfg: Any, now: datetime | None = None) -> bool:
     return start <= (t.hour, t.minute) < end
 
 
-def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = None, jitter_s: int = 0) -> dict[str, Any]:
-    """Send at most `per_tick` approved emails, only inside the send window and under the daily cap."""
+def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = None, jitter_s: int = 0, llm=None) -> dict[str, Any]:
+    """Send at most `per_tick` approved emails, only inside the send window and under the daily cap.
+    A card in Approved that has new feedback (or a test request) is NOT sent: it goes back to To Review and the
+    feedback is applied there, so a comment is never overtaken by a send."""
     from .outreach.send import ensure_thread, log_message
     a = _cfg(cfg)
-    res = {"sent": 0, "waiting": 0, "errors": 0}
+    res = {"sent": 0, "waiting": 0, "errors": 0, "held_for_feedback": 0}
     approved = asana.section_tasks(a["approved"])
     res["waiting"] = len(approved)
+    held = []
+    for t in list(approved):
+        feedback, _ = pending_feedback(asana, t["gid"])
+        if feedback:
+            asana.move(t["gid"], a["to_review"])
+            approved.remove(t)
+            held.append(t["gid"])
+    if held:
+        res["held_for_feedback"] = len(held)
+        sync_feedback(conn, cfg, asana, llm, gmail)          # apply the comment now, not next tick
+        for gid in held:
+            asana.comment(gid, "Held: you left a comment after approving, so this went back to To Review and your feedback was applied "
+                               "above (or the test copy was sent). Drag it to Approved again when it's good.")
     if not approved or not in_window(cfg, now):
         return res
     if gmail is None:

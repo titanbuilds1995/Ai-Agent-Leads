@@ -32,6 +32,10 @@ PERSONAL_RE = re.compile(
     r"doesn'?t bother me\b|\bI like (this|the) (deal|house|property)\b|\bI('d| would) need the seller\b|"
     r"\b(ask|check with|run it by) my boss\b|\bI (don'?t|do not) make (those|the) decisions\b|\bI have no authority\b|"
     r"\bwe can definitely pay\b", re.I)
+# Rodrigo, 2026-10-24: the signature says who we are. No self-introduction or "we buy around here" closer in the body.
+SELF_INTRO_RE = re.compile(r"(through|at|with|from|here at|we'?re|this is \w+ (with|from|at)) titan realty|titan realty investments|"
+                           r"\bwe buy (quite a bit|a fair amount|a lot|houses|homes|property|properties|around|in|throughout|all over)\b|"
+                           r"\bwe('ve| have) been (buying|picking up)\b", re.I)
 # Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
 DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
@@ -70,7 +74,7 @@ Working rules for this call:
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
 - One natural question an agent can answer easily (two at most). 50-110 words before the signature. Vary the opening naturally.
-- Write as {sender} in first person ("I", "we buy…"). Mention {company_short} once, lightly. Address the agent by first name.
+- Write as {sender} in first person. Address the agent by first name. The company name appears ONLY in the signature block: never introduce {company_short} in the body and never add a line like "We buy around Miami through {company_short}" or "we buy quite a bit in the area" (Rodrigo: we obviously buy, that's why we're reaching out). Saying what we look for or what's "close to what we buy" is fine.
 - End with the signature block from the input, unchanged. It already begins with "Best regards," so do NOT add another sign-off line ("Thanks," / "Appreciate it,") before it.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
 - If property_type is "land": it is a lot, not a house. No renovation, roof or interior talk; ask about flexibility and anything about the parcel (zoning, access, utilities, why it's sitting).
@@ -150,9 +154,9 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "sitting": [   # long DOM, no cuts: why is it sitting? (§6)
         ("The house on {street_name}",
-         "Hey {first}, I've been watching the house on {street_name} because it's been sitting for a while. We buy quite a bit in that "
-         "area and it could work for us, but I'm curious whether that's mostly price or if there's something about the property I'm "
-         "missing.{near_ask} What's been holding this one back?\n\n{sign}"),
+         "Hey {first}, I've been watching the house on {street_name} because it's been sitting for a while. It could work for us, but "
+         "I'm curious whether that's mostly price or if there's something about the property I'm missing.{near_ask} What's been "
+         "holding this one back?\n\n{sign}"),
         ("Quick question on {street_name}",
          "Hey {first}, quick question on {street_name}. It's been on the market a bit, and before I spend your time on numbers I'd like "
          "to understand the story. Is it a condition thing, a price thing, or just the market? If it's the first, how deep of a "
@@ -190,8 +194,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "land": [      # vacant land: no renovation talk; the questions are use, utilities and seller flexibility
         ("Quick question on the lot on {street_name}",
-         "Hey {first}, quick question on the lot on {street_name}. We've been picking up land in that area, and this one could work "
-         "depending on what's possible with it. Do you know if the seller has some flexibility on price, and whether there's "
+         "Hey {first}, quick question on the lot on {street_name}. This one could work for us depending on what's possible with it. Do you know if the seller has some flexibility on price, and whether there's "
          "anything with zoning, access or utilities I should know about before I dig into the numbers?\n\n{sign}"),
         ("The lot on {street_name}",
          "{first}, I was looking at the lot on {street_name}. Before I spend your time on numbers, is the seller open to some "
@@ -200,8 +203,8 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
          "Hey {first}, quick question on the house on {street_name}. I'm trying to figure out whether it's mostly an updating job or "
-         "whether there's anything major going on mechanically. We buy quite a bit in that area and it could potentially work "
-         "depending on how deep the project is.{near_ask} What's your read on the condition?\n\n{sign}"),
+         "whether there's anything major going on mechanically. It could potentially work for us depending on how deep the "
+         "project is.{near_ask} What's your read on the condition?\n\n{sign}"),
         ("The house on {street_name}",
          "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we buy than I initially "
          "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} How much "
@@ -368,6 +371,8 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
+    if SELF_INTRO_RE.search(body.split("\n\nBest")[0]) or SELF_INTRO_RE.search(subject):
+        problems.append("self-introduction / 'we buy around here' in the body (the signature says who we are)")
     if PERSONAL_RE.search(body):
         problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):

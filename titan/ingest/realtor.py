@@ -46,6 +46,17 @@ def _current_listing_history(hist: Any) -> list[dict[str, Any]]:
     return [h for h in rows[starts[-1]:] if (not mls or h.get("sourceListingId") in (mls, None)) and "rent" not in ev(h)]
 
 
+def _current_list_date(it: dict[str, Any]) -> str | None:
+    """When the CURRENT listing started. realtor.com's list_date can be the first time the property was ever listed
+    (years ago), which made fresh relistings look like they had sat 1,000+ days. Take the later of list_date and the
+    current listing's "Listed" event in the price history."""
+    dates = [d for d in (first_str(g(it, "list_date", "listDate")),) if d]
+    cur = _current_listing_history(g(it, "history", "property_history"))
+    if cur and cur[0].get("date"):
+        dates.append(str(cur[0]["date"]))
+    return max(dates, key=lambda d: d[:10]) if dates else None
+
+
 def map_item(it: dict[str, Any]) -> Listing | None:
     addr = g(it, "location.address", "address") or {}
     if isinstance(addr, str):
@@ -82,7 +93,7 @@ def map_item(it: dict[str, Any]) -> Listing | None:
         photos_count=to_int(g(it, "photo_count", "photoCount")) or (len(photos) if isinstance(photos, list) else None),
         listing_url=first_str(g(it, "href", "url", "permalink_url", "listing_url")), source="realtor",
         source_id=first_str(g(it, "property_id", "listing_id", "id", "listingId")), listing_status=first_str(g(it, "status", "listing_status")),
-        listed_at=first_str(g(it, "list_date", "listDate")), last_price_change_at=first_str(g(it, "last_price_change_date", "price_reduced_date", "lastPriceChangeDate")),
+        listed_at=_current_list_date(it), last_price_change_at=first_str(g(it, "last_price_change_date", "price_reduced_date", "lastPriceChangeDate")),
         estimate=to_int(g(it, "estimate.estimate", "estimates.current_values.0.estimate", "estimate")), hoa=to_int(g(it, "hoa.fee", "hoa_fee")),
         status_flags=status_flags, lat=to_float(g(addr, "coordinate.lat", "lat") or g(it, "coordinates.latitude")), lng=to_float(g(addr, "coordinate.lon", "lng", "lon") or g(it, "coordinates.longitude")),
         agent_name=first_str(g(adv, "name", "fullName", "agent_name"), g(it, "agent.name", "agentName", "listingAgentName")),

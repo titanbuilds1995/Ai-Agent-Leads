@@ -96,3 +96,16 @@ def test_thin_zip_tops_up_from_county_without_duplicates(cfg, conn):
     comps = homeharvest_src.comps_fn(cfg, conn, scrape=fake)({"county": "Broward", "zip": "33312"})
     assert len(comps) == 6 and len({c["address"] for c in comps}) == 6
     assert json.loads(conn.execute("SELECT comps FROM comps_cache").fetchone()[0])[0]["sold_price"] == 400000
+
+
+def test_days_on_market_uses_the_current_listing_not_the_first_ever_listing():
+    from datetime import datetime, timedelta, timezone
+    from titan.ingest.realtor import map_item
+    recent = (datetime.now(timezone.utc) - timedelta(days=20)).strftime("%Y-%m-%d")
+    it = dict(RAW, list_date="2019-03-01T00:00:00Z", property_history=[
+        {"date": "2019-03-01", "event_name": "Listed", "price": 250000}, {"date": "2019-09-01", "event_name": "Sold", "price": 240000},
+        {"date": recent, "event_name": "Listed", "price": 289000}])
+    l = map_item(it)
+    assert 19 <= l.days_on_market <= 21 and l.listed_at.startswith(recent)
+    stale = dict(RAW, list_date="2018-01-01T00:00:00Z", property_history=[])
+    assert map_item(stale).days_on_market is None          # 8 years with no history: unknown, not "sitting"

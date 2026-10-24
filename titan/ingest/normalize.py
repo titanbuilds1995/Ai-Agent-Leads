@@ -145,7 +145,9 @@ def finalize(l: Listing) -> Listing:
     l.property_type = norm_type(l.property_type)
     l.agent_phone = normalize_phone(l.agent_phone_raw) if l.agent_phone_raw else l.agent_phone
     if l.days_on_market is None and parse_iso(l.listed_at):
-        l.days_on_market = max((datetime.now(timezone.utc) - parse_iso(l.listed_at)).days, 0)
+        dom = max((datetime.now(timezone.utc) - parse_iso(l.listed_at)).days, 0)
+        # a list date years back with no current-listing history is an old first-listing date, not real time on market
+        l.days_on_market = dom if dom <= 730 or l.price_history else None
     l.remarks = (l.remarks or "").strip()
     text = f"{l.remarks} {l.listing_status or ''} {' '.join(l.status_flags)}"
     l.status_flags = detect_flags(text, {f: True for f in l.status_flags})

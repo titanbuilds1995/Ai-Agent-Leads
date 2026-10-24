@@ -56,9 +56,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Charles's last name and title for the signature (asked on Asana 2026-10-24).
 
 ## Current status
-- 2026-10-24: Mac run stored 3,256 listings (2,484 agents with email) but every Claude scoring call failed: SCORE_SCHEMA had
-  `minimum`/`maximum`, which structured outputs reject (400), so all were scored by rules ($0, only 25 valued). Fixed;
-  guard test checks every schema; Claude switches off after 5 straight failures with a loud warning; rules-scored listings
-  are re-scored automatically once Claude works (no --force). Conversation-first outreach is in (see Decisions). REO/short sales excluded. 137 tests pass.
-- Next on the Mac: `git pull && .venv/bin/python -m titan.cli run-daily --steps score,value,enrich` (no re-scrape needed;
-  ~3,256 Claude calls ≈ a few dollars) → upload reports/dashboard.json → review HOT/WARM → first-touch drafts in Charles@.
+- 2026-10-24: fixed Claude scoring (schema had minimum/maximum → every call 400'd), REO/short sales excluded, targeting
+  lanes (SITTING 60+ / FRESH_DEAL), all-active scrape in $50k bands, conversation-first outreach from Charles. 141 tests pass.
+- Blockers (all on the Mac): (1) `git pull` + `run-daily --steps ingest,score,value,enrich`; (2) Charles's Gmail sign-in on
+  the Mac (`make doctor | grep -i gmail` → if missing: OAuth client JSON in secrets/, `make gmail-auth` as Charles,
+  `make gmail-test`); this chat's Gmail connector is rodrigo@ and cannot draft as Charles. (3) `--steps outreach` → drafts.
+- Cloud check-ins don't survive idle restarts unless armed with send_later; nothing can run on the Mac from the cloud.

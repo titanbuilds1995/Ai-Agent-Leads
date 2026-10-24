@@ -30,7 +30,7 @@ def test_claude_code_uses_the_plan_not_the_api_key(cfg, monkeypatch):
     assert llm.structured("t", "sys", "hello", {"type": "object"}) == {"ok": 1}
     assert "ANTHROPIC_API_KEY" not in seen["env"]                      # otherwise -p bills the API key
     c = seen["cmd"]
-    assert c[:2] == ["claude", "-p"] and "--json-schema" in c and c[c.index("--tools") + 1] == "" and "--no-session-persistence" in c
+    assert c[1] == "-p" and c[0].endswith("claude") and "--json-schema" in c and c[c.index("--tools") + 1] == "" and "--no-session-persistence" in c
     assert seen["input"] == "hello" and llm.session_cost == 0.0
 
 
@@ -48,6 +48,7 @@ def test_plan_limit_stops_calls_without_errors_flood(cfg, monkeypatch):
 def test_missing_cli_never_falls_back_to_paid_api_unless_allowed(cfg, monkeypatch):
     monkeypatch.delenv("TITAN_LLM", raising=False)
     monkeypatch.setattr(llm_mod.shutil, "which", lambda name: None)
+    monkeypatch.setattr(llm_mod, "CLAUDE_CLI_PLACES", [])
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-x")
     assert LLM(cfg, None).provider == "rules"
     monkeypatch.setenv("TITAN_LLM", "rules")

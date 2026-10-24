@@ -32,6 +32,22 @@ class LLMUnavailable(Exception):
     pass
 
 
+CLAUDE_CLI_PLACES = ["~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+                     "~/.npm-global/bin/claude", "~/.volta/bin/claude"]
+
+
+def find_claude_cli(name: str = "claude") -> str | None:
+    """The Claude Code CLI, on PATH or in the usual install folders (make/cron often run with a short PATH)."""
+    hit = shutil.which(name)
+    if hit:
+        return hit
+    for place in CLAUDE_CLI_PLACES:
+        p = os.path.expanduser(place)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
+
 class LLM:
     def __init__(self, cfg: Any, conn=None, provider: str | None = None):
         self.cfg = cfg
@@ -42,7 +58,8 @@ class LLM:
         key = cfg.secret("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
         forced = provider or os.environ.get("TITAN_LLM")
         wanted = forced or cfg.get("scoring.provider", "claude_code")
-        if wanted == "claude_code" and shutil.which(cfg.get("scoring.claude_code_cli", "claude")):
+        self.cli = find_claude_cli(cfg.get("scoring.claude_code_cli", "claude"))
+        if wanted == "claude_code" and self.cli:
             self.provider = "claude_code"
         elif wanted == "claude_code" and not forced:
             # Claude Code CLI missing on this machine. Paid API only if Rodrigo switched it on (cost rule).
@@ -70,7 +87,7 @@ class LLM:
         """One `claude -p` call on the Claude Code plan. The API key is removed from the child's environment so the plan,
         not API credit, is used (in -p mode an ANTHROPIC_API_KEY always wins). Runs in an empty folder so no project
         CLAUDE.md or settings leak into the prompt; tools are disabled."""
-        cli = self.cfg.get("scoring.claude_code_cli", "claude")
+        cli = self.cli or self.cfg.get("scoring.claude_code_cli", "claude")
         cmd = [cli, "-p", "--model", self.cfg.get("scoring.claude_code_model", "sonnet"), "--output-format", "json",
                "--json-schema", json.dumps(schema), "--tools", "", "--max-turns", "3", "--no-session-persistence",
                "--system-prompt", system]

@@ -93,7 +93,7 @@ def _attach_picture(cfg: Any, asana: Asana, task: str, to: str, subject: str, bo
 
 REVISE_SYSTEM = """You revise one email from {sender} ({company}) to a listing agent, following Rodrigo's feedback exactly.
 The outreach protocol below still applies in full (no price/offer/percentage, no listing echo, no manufactured observations,
-one easy question, 50-110 words, plain text, signature block unchanged).
+one easy question, 50-110 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
 
 === OUTREACH PROTOCOL ===
 {protocol}

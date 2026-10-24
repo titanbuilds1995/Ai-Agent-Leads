@@ -113,6 +113,10 @@ through the listing on [Street]…", "Hey [Name] — this one on [Street] actual
 have a buyer angle on your [Street] listing…", "Hey [Name] — I'm trying to get my head around the condition on
 [Street]…", "Hey [Name], curious about something on the [Street] property…". Choose naturally, don't rotate mechanically.
 
+## 17b. No dashes (Rodrigo, 2026-10-24)
+Never use an em dash (—), en dash (–), spaced hyphen ( - ) or double hyphen (--) in an email. The examples in this
+document that show "Hey John — I was…" must be written "Hey John, I was…". Commas and periods only.
+
 ## 18. Keep first contact short: ~50–110 words. Agents get enormous amounts of email. The goal is a response.
 
 ## 19. Do not force personalization

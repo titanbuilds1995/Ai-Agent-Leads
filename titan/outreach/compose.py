@@ -25,6 +25,8 @@ BANNED_RE = re.compile(
     r"(looked|looking) at the (photos|pictures|images)|from the (photos|pictures)|in the (photos|pictures)|"
     r"the (roof|kitchen|bathroom|interior|exterior) (looks|appears)|(photos|pictures) (show|make it look)|"
     r"I noticed (the property|your property|the home|this home) (needs|has|is)|the note in the remarks|in the remarks\b", re.I)
+# Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
+DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
 HTML_RE = re.compile(r"<[a-zA-Z/][^>]*>")
 
@@ -60,6 +62,7 @@ Working rules for this call:
 - Write as {sender} in first person ("I", "we buy…"). Mention {company_short} once, lightly. Address the agent by first name.
 - End with the signature block from the input, unchanged, after a short sign-off line.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
+- NO DASHES of any kind in the subject or body: no em dash (—), no en dash (–), no " - " between words, no "--". Use a comma or a period instead ("Hey John, I was looking at..."). This is a hard rule.
 - Before answering, run the quality test from the protocol (could this go to 100 listings? did we repeat the listing? did we claim something we don't know? is there a hypothesis? one easy reason to respond? does it sound like a human investor?). If any fails, rewrite.
 Return JSON: analysis, subject (under 60 chars, plain, names the street, e.g. "Quick question on NW 11th St"), body."""
 
@@ -105,17 +108,17 @@ def style_guide_text(cfg: Any) -> str:
 EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     "reduced": [   # price moved, sitting a while: pricing issue vs condition issue (§23)
         ("Quick question on {street_name}",
-         "Hey {first} — I've been looking at the property on {street_name}. I saw they've already moved the price since it hit the market, "
+         "Hey {first}, I've been looking at the property on {street_name}. I saw they've already moved the price since it hit the market, "
          "and the house itself doesn't sound like a major rehab, so I'm wondering if this is becoming more of a pricing issue than a "
          "condition issue.{near_ask} Do you think the seller is getting closer to where they'd entertain an investor number?\n\n{sign}"),
         ("{street_name}",
-         "{first} — I went through the listing on {street_name}. With the price having come down a bit, I'm curious whether the seller "
+         "{first}, I went through the listing on {street_name}. With the price having come down a bit, I'm curious whether the seller "
          "is starting to get realistic or whether there's something about the property that's been holding it back.{near_ask} "
          "What's your read on where they really need to be?\n\n{sign}"),
     ],
     "sitting": [   # long DOM, no cuts: why is it sitting? (§6)
         ("The house on {street_name}",
-         "Hey {first} — I've been watching the house on {street_name} because it's been sitting for a while. We buy quite a bit in that "
+         "Hey {first}, I've been watching the house on {street_name} because it's been sitting for a while. We buy quite a bit in that "
          "area and it could work for us, but I'm curious whether that's mostly price or if there's something about the property I'm "
          "missing.{near_ask} What's been holding this one back?\n\n{sign}"),
         ("Quick question on {street_name}",
@@ -125,17 +128,17 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "heavy": [     # old house / investor-special signals: how deep does it go? (§24)
         ("Quick question on {street_name}",
-         "Hey {first} — quick question on the property on {street_name}. This one looks like it could work for us, but I'm trying to "
+         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us, but I'm trying to "
          "understand how deep the project really goes before throwing a meaningless number at you. Are we mostly talking interior "
          "rehab, or are roof, plumbing and electrical coming into play too?\n\n{sign}"),
-        ("{street_name} — how deep is the project?",
-         "{first} — I'm trying to get my head around the condition on {street_name}. The age doesn't bother us by itself; I mainly "
+        ("{street_name}: how deep is the project?",
+         "{first}, I'm trying to get my head around the condition on {street_name}. The age doesn't bother us by itself; I mainly "
          "need to figure out whether we're dealing with cosmetic updating or whether the big-ticket systems are starting to stack up. "
          "What would you say it really needs?\n\n{sign}"),
     ],
     "cosmetic": [  # dated-not-distressed hypothesis (§2, §22)
         ("The house on {street_name}",
-         "Hey {first} — I was looking at the house on {street_name}. From the description it sounds more dated than truly distressed. "
+         "Hey {first}, I was looking at the house on {street_name}. From the description it sounds more dated than truly distressed. "
          "If the roof, AC and the major stuff are still in decent shape, this might actually be pretty close to something we'd look "
          "at.{near_ask} How much work would you say it really needs?\n\n{sign}"),
         ("Quick question on {street_name}",
@@ -145,7 +148,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "newer": [     # newer build: probably not a huge project (§25)
         ("{street_name}",
-         "Hey {first} — the house on {street_name} actually looks pretty close to something we'd buy. With it being a newer build it "
+         "Hey {first}, the house on {street_name} actually looks pretty close to something we'd buy. With it being a newer build it "
          "doesn't sound like we'd be taking on a huge project, so the bigger question is the seller.{near_ask} Do you know how much "
          "room they realistically have from the asking price?\n\n{sign}"),
         ("Quick question on {street_name}",
@@ -155,17 +158,17 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
-         "Hey {first} — quick question on the house on {street_name}. I'm trying to figure out whether it's mostly an updating job or "
+         "Hey {first}, quick question on the house on {street_name}. I'm trying to figure out whether it's mostly an updating job or "
          "whether there's anything major going on mechanically. We buy quite a bit in that area and it could potentially work "
          "depending on how deep the project is.{near_ask} What's your read on the condition?\n\n{sign}"),
         ("The house on {street_name}",
-         "{first} — I went through the listing on {street_name}. Honestly this one may be closer to what we buy than I initially "
+         "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we buy than I initially "
          "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} How much "
          "work would you say it really needs?\n\n{sign}"),
     ],
 }
 MULTI_TEMPLATE = ("A few of your listings",
-                  "Hey {first} — I went through a few of your listings and a couple could work for us depending on how deep the projects are:\n{lines}\n\n"
+                  "Hey {first}, I went through a few of your listings and a couple could work for us depending on how deep the projects are:\n{lines}\n\n"
                   "Before I spend your time on numbers: on any of those, is it mostly cosmetic, or is there something bigger going on? "
                   "And do any of those sellers have some room from asking?\n\n{sign}")
 
@@ -323,6 +326,8 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
+    if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):
+        problems.append("dash (Rodrigo: no em/en dashes or ' - ' in emails)")
     if "?" not in body:
         problems.append("no question")
     if re.search(r"\$\s?\d", body):

@@ -38,6 +38,7 @@ def test_first_touch_is_conversation_first(cfg):
         assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
         assert "doesn't seem too far" not in text          # no preliminary analysis on this prop → never implied
         assert not BANNED_RE.search(d["body"])             # no listing echo, no fake observations, no corporate phrasing
+        assert "—" not in d["body"] and " - " not in d["body"] and "—" not in d["subject"]   # Rodrigo: no dashes
 
 
 def test_never_quotes_the_listing_back(cfg):
@@ -70,7 +71,9 @@ def test_validator_rejects_protocol_violations(cfg):
     for bad in ("I looked at the photos and the roof looks fine on NW 11th St.", "Your NW 11th St listing caught our attention.",
                 "I noticed the property needs TLC on NW 11th St and it fits our criteria.", "NW 11th St could be a good fit for our portfolio."):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
-    good = "Hey Maria — quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
+    assert any("dash" in x for x in validate_email("Quick question on NW 11th St", "Hey Maria — quick question on NW 11th St." + filler + sig, p))
+    assert any("dash" in x for x in validate_email("NW 11th St - quick question", "Hey Maria, quick question on NW 11th St." + filler + sig, p))
+    good = "Hey Maria, quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
     assert validate_email("Quick question on NW 11th St", good, p) == []
 
 

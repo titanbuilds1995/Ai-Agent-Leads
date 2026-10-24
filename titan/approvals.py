@@ -118,10 +118,10 @@ FAILED_PREFIX = "I couldn't rewrite this one automatically"
 
 def pending_feedback(asana: Asana, task_gid: str) -> tuple[list[str], list[dict[str, Any]]]:
     """Rodrigo's comments since the engine's last comment on the card (the engine's own comments start with BOT).
-    A "couldn't rewrite" comment does not count: the feedback stays pending until a rewrite actually lands."""
+    "Couldn't rewrite" and "Held" comments do not count: the feedback stays pending until a rewrite actually lands."""
     comments = asana.comments(task_gid)
     last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)
-                    and not (c.get("text") or "").startswith(f"{BOT} {FAILED_PREFIX}")), default=-1)
+                    and not (c.get("text") or "").startswith((f"{BOT} {FAILED_PREFIX}", f"{BOT} Held:"))), default=-1)
     return [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)], comments
 
 

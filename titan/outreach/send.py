@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ from ..util import in_send_window, iso, log, now_utc, parse_iso, today_et
 from .compose import compose_email, compose_sms, seed_for, validate_sms
 
 CONF_RANK = {"high": 3, "medium": 2, "low": 1}
+# help@flatfee.com, info@, listings@ …: a service desk or flat-fee listing mill, not a person we can talk to
+GENERIC_MAILBOX_RE = re.compile(r"^(help|info|support|office|listings?|admin|contact|sales|team|noreply|no-reply|hello|frontdesk|reception)@", re.I)
 
 
 def _recent_contact(conn, agent_id: int, channel: str, days: int) -> bool:
@@ -34,7 +37,7 @@ def _today_count(conn, channel: str, run_date: str) -> int:
 
 def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
     rows = conn.execute(
-        "SELECT p.*, s.score, s.cited, v.rating, v.mao, v.offer_price, v.arv, v.repair_tier, v.repair_cost, v.arv_method, v.comp_count, a.id AS a_id, a.name AS a_name, a.email AS a_email, "
+        "SELECT p.*, s.score, s.cited, v.rating, v.lane, v.mao, v.offer_price, v.arv, v.repair_tier, v.repair_cost, v.arv_method, v.comp_count, a.id AS a_id, a.name AS a_name, a.email AS a_email, "
         "a.email_confidence AS a_conf, a.phone AS a_phone, a.is_office_line AS a_office "
         "FROM properties p JOIN scores s ON s.property_id=p.id JOIN valuations v ON v.property_id=p.id JOIN agents a ON a.id=p.agent_id "
         "WHERE v.rating IN ('HOT','WARM') AND p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED','HOT_LEAD','NEEDS_CALL','NEEDS_REVIEW','DISCUSSING','FLEXIBLE','RESPONDED') "
@@ -57,7 +60,8 @@ def plan(conn, cfg: Any, run_date: str, now=None) -> dict[str, list[dict[str, An
             continue
         if _already_contacted_property(conn, p["id"]):
             continue
-        can_email = bool(p["a_email"]) and CONF_RANK.get(p["a_conf"] or "low", 1) >= min_conf and not _recent_contact(conn, aid, "email", o["agent_cooldown_days"])
+        can_email = (bool(p["a_email"]) and not GENERIC_MAILBOX_RE.match(p["a_email"]) and CONF_RANK.get(p["a_conf"] or "low", 1) >= min_conf
+                     and not _recent_contact(conn, aid, "email", o["agent_cooldown_days"]))
         can_sms = bool(p["a_phone"]) and not p["a_office"] and not _recent_contact(conn, aid, "sms", o["agent_cooldown_days"]) and not _sms_blocked(conn, aid, o["max_unanswered_sms"])
         use_email = use_sms = False
         if channel_mode == "BOTH":
@@ -73,6 +77,10 @@ def plan(conn, cfg: Any, run_date: str, now=None) -> dict[str, list[dict[str, An
             b["properties"].append(p)
         if use_sms and not any(i["agent"]["id"] == aid for i in sms_items):   # one text per agent per day
             sms_items.append({"agent": {"id": aid, "name": p["a_name"], "phone": p["a_phone"], "email": p["a_email"]}, "property": p})
+    # one email covers at most a couple of listings; more reads like mass mail (protocol §8). Candidates are already ranked.
+    max_props = int(o.get("max_properties_per_email", 2))
+    for b in email_by_agent.values():
+        b["properties"] = b["properties"][:max_props]
     email_cap = max(0, o["daily_email_cap"] - _today_count(conn, "email", run_date))
     sms_cap = max(0, o["daily_sms_cap"] - _today_count(conn, "sms", run_date))
     return {"email": list(email_by_agent.values())[:email_cap], "sms": sms_items[:sms_cap]}

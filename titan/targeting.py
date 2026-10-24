@@ -18,12 +18,14 @@ def _t(cfg: Any) -> dict[str, Any]:
     return cfg.get("targeting", {}) or {}
 
 
-def lane(p: dict[str, Any], cfg: Any, internal_high: int | None = None, arv_method: str | None = None) -> str:
+def lane(p: dict[str, Any], cfg: Any, internal_target: int | None = None, arv_method: str | None = None) -> str:
+    """internal_target = the median-ratio screening number (valuations.mao). A fresh listing is a FRESH_DEAL only when the
+    ask is already within fresh_price_within_pct of that target on real comps (not the top of the range, which was too loose)."""
     t = _t(cfg)
     dom = p.get("days_on_market")
     lp = p.get("list_price")
-    if dom is not None and dom <= t.get("fresh_max_dom", 14) and lp and internal_high and arv_method in REAL_COMPS \
-            and lp <= internal_high * (1 + t.get("fresh_price_within_pct", 5) / 100):
+    if dom is not None and dom <= t.get("fresh_max_dom", 14) and lp and internal_target and arv_method in REAL_COMPS \
+            and lp <= internal_target * (1 + t.get("fresh_price_within_pct", 5) / 100):
         return "FRESH_DEAL"
     if dom is not None and dom >= t.get("sitting_min_dom", 60):
         return "SITTING"

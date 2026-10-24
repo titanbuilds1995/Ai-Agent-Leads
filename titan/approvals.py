@@ -206,21 +206,26 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
     return res
 
 
-def rewrite_pending(conn, cfg: Any, asana: Asana, llm) -> dict[str, int]:
-    """Regenerate every email still waiting for approval with the current writer (e.g. after a protocol change) and
-    refresh its card: text, picture and a comment. Approved/sent cards are left alone."""
+def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = True) -> dict[str, int]:
+    """Regenerate emails still waiting for approval with the current writer and refresh their cards (text, picture, comment).
+    By default only cards written before the protocol (no stored analysis); all=True redoes every To Review card.
+    Approved/sent cards are left alone."""
     a = _cfg(cfg)
-    n = {"rewritten": 0, "failed": 0}
+    n = {"rewritten": 0, "failed": 0, "skipped_already_protocol": 0}
     rows = [db.row_to_dict(r) for r in conn.execute(
         "SELECT * FROM outreach WHERE status='pending_approval' AND asana_task_id IS NOT NULL ORDER BY id").fetchall()]
     for row in rows:
+        if only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
+            n["skipped_already_protocol"] += 1
+            continue
         agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
         pids = json.loads(row["property_ids"] or "[]")
         props = [db.row_to_dict(r) for r in conn.execute(
-            f"SELECT p.*, v.lane, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
+            f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
             f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
         if not props:
             continue
+        props = props[: int(cfg.get("outreach.max_properties_per_email", 2))]
         try:
             d = compose_email(llm, cfg, agent, props, seed_for(agent["id"], pids, today_et()))
         except Exception as e:  # noqa: BLE001

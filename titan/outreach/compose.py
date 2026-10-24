@@ -60,7 +60,7 @@ Working rules for this call:
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
 - One natural question an agent can answer easily (two at most). 50-110 words before the signature. Vary the opening naturally.
 - Write as {sender} in first person ("I", "we buy…"). Mention {company_short} once, lightly. Address the agent by first name.
-- End with the signature block from the input, unchanged, after a short sign-off line.
+- End with the signature block from the input, unchanged. It already begins with "Best regards," so do NOT add another sign-off line ("Thanks," / "Appreciate it,") before it.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
 - If property_type is "land": it is a lot, not a house. No renovation, roof or interior talk; ask about flexibility and anything about the parcel (zoning, access, utilities, why it's sitting).
 - NO DASHES of any kind in the subject or body: no em dash (—), no en dash (–), no " - " between words, no "--". Use a comma or a period instead ("Hey John, I was looking at..."). This is a hard rule.
@@ -250,13 +250,12 @@ def street_name(street: str | None) -> str:
 
 
 def may_say_close_to_asking(p: dict[str, Any], cfg: Any) -> bool:
-    """Only when our own preliminary analysis supports it: list ≤ internal high × (1 + near_ask_within_pct), on real comps."""
-    from ..valuation import preliminary_range
+    """Rare, not automatic (protocol): only when the ask is within near_ask_within_pct of our INTERNAL TARGET (the median-ratio
+    screening number, p["mao"]), on real comps. Keyed to the target, not the top of the range, so it stays rare."""
     if p.get("arv_method") not in ("comps", "comps_wide"):
         return False
-    r = preliminary_range(p, cfg)
-    lp = p.get("list_price")
-    return bool(r and lp and r["high"] and lp <= r["high"] * (1 + cfg.get("outreach.near_ask_within_pct", 5) / 100))
+    lp, target = p.get("list_price"), p.get("mao")
+    return bool(lp and target and target > 0 and lp <= target * (1 + cfg.get("outreach.near_ask_within_pct", 5) / 100))
 
 
 def _ctx(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> dict[str, Any]:
@@ -338,6 +337,8 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
+    if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):
+        problems.append("double sign-off")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):
         problems.append("dash (Rodrigo: no em/en dashes or ' - ' in emails)")
     if "?" not in body:

@@ -78,9 +78,9 @@ def test_validator_rejects_protocol_violations(cfg):
 
 
 def test_close_to_asking_line_only_when_analysis_supports_it(cfg):
-    base = dict(arv=500_000, repair_cost=20_000, arv_method="comps", comp_count=6, zip="33125", property_type="single_family")
-    near = _prop(list_price=300_000, **base)        # internal high ≈ 500k × p75 − 20k − 15k, well above 300k
-    far = _prop(list_price=480_000, **base)
+    base = dict(arv=500_000, repair_cost=20_000, arv_method="comps", comp_count=6, zip="33125", property_type="single_family", mao=310_000)
+    near = _prop(list_price=300_000, **base)        # ask at/below our internal target
+    far = _prop(list_price=380_000, **base)         # 23% over the target: never implied
     assert any("doesn't seem too far" in compose_email(None, cfg, _agent(), [near], s)["body"] for s in range(8))
     assert all("doesn't seem too far" not in compose_email(None, cfg, _agent(), [far], s)["body"] for s in range(8))
     guessed = _prop(list_price=300_000, **dict(base, arv_method="estimate"))
@@ -223,3 +223,19 @@ def test_greeting_never_uses_an_initial_or_title():
     from titan.util import first_name
     assert first_name("C Glansen, Broker") == "Glansen" and first_name("Dr. Ana Perez PA") == "Ana"
     assert first_name("CHERYL A MEDEIROS REALTOR") == "Cheryl" and first_name("Team Smith") == "Smith" and first_name("") == "there"
+
+
+def test_double_sign_off_is_rejected(cfg):
+    p = [_prop()]
+    filler = "Hey Maria, quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
+    assert any("double sign-off" in x for x in validate_email("Quick question on NW 11th St", filler + "\n\nThanks,\n\nBest regards,\n\nCharles Grant", p))
+    assert validate_email("Quick question on NW 11th St", filler + "\n\nBest regards,\n\nCharles Grant", p) == []
+
+
+def test_plan_skips_generic_mailboxes_and_caps_listings_per_email(loaded, cfg, monkeypatch):
+    monkeypatch.setenv("TITAN_CHANNEL", "EMAIL_FIRST")
+    loaded.execute("UPDATE agents SET email='help@flatfee.com', email_confidence='high' WHERE id=(SELECT MIN(id) FROM agents)")
+    loaded.execute("UPDATE agents SET email=lower(replace(name,' ','.'))||'@example.com', email_confidence='high' WHERE email IS NULL")
+    todo = plan(loaded, cfg, "2026-10-24")
+    assert all(not b["agent"]["email"].startswith("help@") for b in todo["email"])
+    assert all(len(b["properties"]) <= 2 for b in todo["email"])

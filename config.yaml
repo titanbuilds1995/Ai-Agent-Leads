@@ -27,7 +27,7 @@ market:
   lookback_days: 30            # only used with ingest.homeharvest.scope: window (or require_recent: true)
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
-  exclude_flags: ["reo", "short_sale", "not_a_home"]   # not_a_home = boat slips, parking spaces, storage, timeshares, lot rent
+  exclude_flags: ["reo", "short_sale", "auction", "not_a_home"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
 
 formula:
   # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp
@@ -129,6 +129,7 @@ outreach:
   max_auto_questions: 2            # after this many back-and-forths, stop and bring the lead to Rodrigo
   channel: "EMAIL_FIRST"           # SMS_FIRST | EMAIL_FIRST | BOTH. Email until Twilio A2P is approved (Rodrigo, 2026-10-23)
   daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
+  max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
   daily_sms_cap: 25
   agent_cooldown_days: 7
   max_unanswered_sms: 3

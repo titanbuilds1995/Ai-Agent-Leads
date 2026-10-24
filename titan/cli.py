@@ -345,7 +345,7 @@ def cmd_rewrite_pending(cfg, args):
         print("ASANA_TOKEN missing in .env")
         sys.exit(1)
     c = build_clients(cfg, conn, need=("llm",))
-    print(json.dumps(rewrite_pending(conn, cfg, asana, c["llm"]), indent=2))
+    print(json.dumps(rewrite_pending(conn, cfg, asana, c["llm"], only_old_style=not args.all), indent=2))
 
 
 def cmd_doctor(cfg, args):
@@ -417,7 +417,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
-    sub.add_parser("rewrite-pending", help="regenerate every To Review email with the current protocol and update its card")
+    rp = sub.add_parser("rewrite-pending", help="regenerate To Review emails written before the protocol and update their cards")
+    rp.add_argument("--all", action="store_true", help="redo every To Review card, not only the old-style ones")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")

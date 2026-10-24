@@ -35,15 +35,13 @@ def rate(score: int | None, list_price: int | None, mao: int | None, cfg: Any, a
 
 def rerank(conn, cfg: Any) -> dict[str, int]:
     from .targeting import ideal, lane
-    from .valuation import preliminary_range
     rows = conn.execute("SELECT p.*, v.list_price AS v_list, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier, "
                         "s.score FROM valuations v JOIN scores s ON s.property_id=v.property_id JOIN properties p ON p.id=v.property_id "
                         "WHERE p.lead_status != 'EXCLUDED'").fetchall()
     counts: dict[str, int] = {"HOT": 0, "WARM": 0, "COLD": 0, "FRESH_DEAL": 0, "SITTING": 0, "SITTING_IDEAL": 0, "WATCH": 0}
     for r in rows:
         p = dict(r)
-        rng = preliminary_range(p, cfg)
-        ln = lane(p, cfg, rng["high"] if rng else None, p["arv_method"])
+        ln = lane(p, cfg, r["mao"], p["arv_method"])
         best = ideal(p, cfg)
         rating = rate(r["score"], r["v_list"], r["mao"], cfg, r["arv_method"], ln, best)
         conn.execute("UPDATE valuations SET rating=?, lane=? WHERE property_id=?", (rating, ln, r["id"]))

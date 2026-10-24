@@ -77,7 +77,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 
 ## Current status
 - 2026-10-24 (late): outreach rebuilt to Rodrigo's protocol (think-first analysis, no listing echo, angle templates, banned
-  phrases); Charles Grant signature, no opt-out. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
+  phrases, NO dashes, no double sign-off); Charles Grant signature, no opt-out. First 30 cards posted; 26 were old-style →
+  `rewrite-pending` (only old-style by default). 'Close to asking' line and FRESH_DEAL lane now keyed to the internal TARGET
+  (mao), not the high; ≤2 listings per email; generic mailboxes (help@/info@) skipped; auctions excluded. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
   hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
   plan) scores. 156 tests pass.
 - Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;

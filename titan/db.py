@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS valuations (
   property_id INTEGER PRIMARY KEY REFERENCES properties(id),
   arv INTEGER, arv_method TEXT, comp_count INTEGER, ppsf REAL,
   repair_tier TEXT, repair_cost INTEGER, mao INTEGER, list_price INTEGER, spread_pct REAL,
-  offer_price INTEGER, rating TEXT, comps TEXT, valued_at TEXT NOT NULL
+  offer_price INTEGER, rating TEXT, comps TEXT, valued_at TEXT NOT NULL, lane TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_valuations_rating ON valuations(rating);
 
@@ -114,8 +114,16 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
+MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT"]   # databases created before the column existed
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    for stmt in MIGRATIONS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError:
+            pass   # already applied
 
 
 @contextmanager

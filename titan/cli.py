@@ -137,17 +137,25 @@ def plain_summary(conn, summary: dict[str, Any], top: int = 10) -> str:
             out.append(f"  removed {sc['excluded_reo_short_sale']} REO / short sale listings")
         if sc.get("claude_failed"):
             out.append(f"  WARNING: {sc['claude_failed']} Claude scoring calls failed. " + (sc.get("warning") or "See logs/titan.log."))
+    if sc.get("claude_cap_reached"):
+        out.append("  Claude cap reached this run (scoring.max_claude_calls_per_run); the rest are scored on the next runs")
     counts = dict(conn.execute("SELECT rating, COUNT(*) FROM valuations GROUP BY rating").fetchall())
+    lanes = dict(conn.execute("SELECT COALESCE(lane,'?'), COUNT(*) FROM valuations GROUP BY lane").fetchall())
+    ideal_n = conn.execute("SELECT COUNT(*) FROM valuations v JOIN properties p ON p.id=v.property_id WHERE v.lane='SITTING' "
+                           "AND (p.price_cuts > 0 OR p.back_on_market)").fetchone()[0]
+    out.append(f"  targets: sitting 60+ days {lanes.get('SITTING', 0)} (with price drops / back on market: {ideal_n}) · "
+               f"fresh deals {lanes.get('FRESH_DEAL', 0)} · watching {lanes.get('WATCH', 0)}")
     out.append(f"  ratings: HOT {counts.get('HOT', 0)} · WARM {counts.get('WARM', 0)} · COLD {counts.get('COLD', 0)}")
     rows = conn.execute(
-        "SELECT p.street, p.city, v.rating, v.list_price, v.offer_price, v.arv, s.score, a.name, a.email "
+        "SELECT p.street, p.city, v.rating, v.list_price, v.offer_price, v.arv, s.score, a.name, a.email, v.lane, p.days_on_market "
         "FROM valuations v JOIN properties p ON p.id=v.property_id JOIN scores s ON s.property_id=p.id "
         "LEFT JOIN agents a ON a.id=p.agent_id WHERE v.rating IN ('HOT','WARM') "
-        "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, s.score DESC LIMIT ?", (top,)).fetchall()
+        "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, CASE v.lane WHEN 'FRESH_DEAL' THEN 0 WHEN 'SITTING' THEN 1 ELSE 2 END, "
+        "s.score DESC LIMIT ?", (top,)).fetchall()
     if rows:
         out.append(f"  best {len(rows)}:")
         for r in rows:
-            out.append(f"   {r[2]:<4} {r[0]}, {r[1]}  list ${r[3] or 0:,}  offer ${r[4] or 0:,}  ARV ${r[5] or 0:,}  score {r[6]}"
+            out.append(f"   {r[2]:<4} {(r[9] or ''):<10} {r[10] if r[10] is not None else '?'}d  {r[0]}, {r[1]}  list ${r[3] or 0:,}  ARV ${r[5] or 0:,}  score {r[6]}"
                        f"  agent {r[7] or '-'} {r[8] or '(no email yet)'}")
     else:
         out.append("  no HOT or WARM leads this run")

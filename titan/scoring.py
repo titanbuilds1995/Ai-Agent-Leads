@@ -168,16 +168,25 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
     excluded = exclude_flagged(conn, cfg)
     rows = conn.execute("SELECT p.*, s.remarks_hash AS prev_hash, s.method AS prev_method FROM properties p LEFT JOIN scores s ON s.property_id=p.id "
                         "WHERE p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED') ORDER BY p.last_seen DESC").fetchall()
+    from .targeting import claude_priority
     n, skipped, methods = 0, 0, {"rules": 0, "claude": 0}
     warning = None
-    for r in rows:
-        p = db.row_to_dict(r)
+    cap = int(cfg.get("scoring.max_claude_calls_per_run", 1500))
+    claude_used = 0
+    items = [db.row_to_dict(r) for r in rows]
+    for p in items:
+        p["_prio"] = claude_priority(p, cfg)
+    items.sort(key=lambda p: (99 if p["_prio"] is None else p["_prio"]))     # target lanes get Claude first
+    for p in items:
         h = remarks_hash(p)
-        # unchanged listings are skipped, except rules-fallback scores once Claude is available again
-        if not force and p.get("prev_hash") == h and not (llm and llm.available and p.get("prev_method") == "rules"):
+        want_claude = bool(llm and llm.available and p["_prio"] is not None and claude_used < cap)
+        # unchanged listings are skipped, except rules scores of target listings once Claude can take them
+        if not force and p.get("prev_hash") == h and not (want_claude and p.get("prev_method") == "rules"):
             skipped += 1
             continue
-        res = score_property(llm, p, cfg)
+        res = score_property(llm if want_claude else None, p, cfg)
+        if want_claude:
+            claude_used += 1
         if llm and llm.available and llm.session_failures >= 5 and llm.session_successes == 0:
             warning = (f"Claude scoring failed {llm.session_failures} times in a row and was switched off for this run; "
                        f"the rest are scored by the keyword rules. Last error: {llm.last_error}")
@@ -194,7 +203,8 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         if limit and n >= limit:
             break
     counts = {"scored": n, "skipped_unchanged": skipped, **methods, "llm_cost_usd": round(llm.session_cost, 4) if llm else 0,
-              "claude_failed": llm.session_failures if llm else 0, "excluded_reo_short_sale": excluded}
+              "claude_failed": llm.session_failures if llm else 0, "excluded_reo_short_sale": excluded,
+              "claude_cap_reached": bool(llm and llm.available and claude_used >= cap)}
     if warning:
         counts["warning"] = warning
     db.finish_run(conn, run_id, "ok", counts)

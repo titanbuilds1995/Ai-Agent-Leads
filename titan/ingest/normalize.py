@@ -144,6 +144,8 @@ def finalize(l: Listing) -> Listing:
     l.county = county_for(l.city, l.county)
     l.property_type = norm_type(l.property_type)
     l.agent_phone = normalize_phone(l.agent_phone_raw) if l.agent_phone_raw else l.agent_phone
+    if l.days_on_market is None and parse_iso(l.listed_at):
+        l.days_on_market = max((datetime.now(timezone.utc) - parse_iso(l.listed_at)).days, 0)
     l.remarks = (l.remarks or "").strip()
     text = f"{l.remarks} {l.listing_status or ''} {' '.join(l.status_flags)}"
     l.status_flags = detect_flags(text, {f: True for f in l.status_flags})
@@ -204,7 +206,8 @@ def passes_filters(l: Listing, cfg: Any, today: datetime | None = None) -> tuple
     recent_new = listed is not None and today - listed <= lookback
     recent_cut = changed is not None and today - changed <= lookback
     dom_recent = l.days_on_market is not None and l.days_on_market <= m["lookback_days"]
-    if not (recent_new or recent_cut or dom_recent or l.price_cuts > 0):
+    # Targeting happens after ingest (titan/targeting.py), so by default every active listing is kept.
+    if m.get("require_recent", False) and not (recent_new or recent_cut or dom_recent or l.price_cuts > 0):
         return False, "not new or price-reduced in window"
     return True, "ok"
 

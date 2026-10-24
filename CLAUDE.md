@@ -46,6 +46,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Never pursue REO / bank-owned or short sales** (Rodrigo, 2026-10-24): `market.exclude_flags` in config; filtered at ingest,
   and `exclude_flagged()` marks already-stored ones EXCLUDED (no score, valuation or outreach) on every ingest/score run.
   Negations ("not a short sale or foreclosure") don't count; pre-foreclosure is NOT excluded.
+- **Targeting (Rodrigo, 2026-10-24):** scrape every active listing (free; `ingest.homeharvest.scope: all_active`, $50k price
+  bands), then `titan/targeting.py` lanes: **SITTING** (60+ days; ideal = with price drops / back on market) and
+  **FRESH_DEAL** (≤14 days and list ≤ internal high +5% on real comps; lock it in fast); the rest WATCH. Ranking, Claude
+  scoring order (cap `scoring.max_claude_calls_per_run`) and outreach order follow the lanes. Outreach stays focused on HOT.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)

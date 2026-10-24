@@ -44,7 +44,8 @@ def _save_raw(cfg: Any, name: str, items: list[dict[str, Any]]) -> None:
 
 
 def fetch_for_sale(cfg: Any, scrape: Scrape | None = None) -> tuple[list[Listing], dict[str, Any]]:
-    """Per county: listed in the lookback window + updated in it (catches price cuts on older listings). Deduped."""
+    """Per county × price band. scope all_active (default): every active listing, since targeting (sitting 60+ days, fresh
+    deals) happens after ingest and scraping is free. scope window: only listed/updated within market.lookback_days."""
     scrape = scrape or _scraper()
     m, hh = cfg["market"], cfg.get("ingest.homeharvest", {}) or {}
     days = m["lookback_days"]
@@ -59,7 +60,9 @@ def fetch_for_sale(cfg: Any, scrape: Scrape | None = None) -> tuple[list[Listing
     for county in m["counties"]:
         loc = f"{county} County, FL"
         for lo, hi in bands:
-            for label, kw in (("new", {"past_days": days}), ("updated", {"updated_in_past_hours": days * 24})):
+            windows = ((("active", {}),) if hh.get("scope", "all_active") == "all_active" else
+                       (("new", {"past_days": days}), ("updated", {"updated_in_past_hours": days * 24})))
+            for label, kw in windows:
                 queries += 1
                 key = f"{county}:{lo // 1000}-{hi // 1000}k:{label}"
                 try:

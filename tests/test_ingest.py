@@ -47,7 +47,10 @@ def test_filters(cfg):
     assert reasons["realtor8"].startswith("status")       # pending
     assert reasons["realtor9"].startswith("type")         # condo
     assert reasons["realtor10"].startswith("county")      # Orlando
-    assert reasons["zillow18"].startswith("not new")      # stale
+    assert reasons["zillow18"] == "ok"                     # stale listings are kept now: they are the "sitting" target
+    cfg["market"]["require_recent"] = True                  # the old window rule still works when switched on
+    assert passes_filters(ls["zillow18"], cfg)[1].startswith("not new")
+    cfg["market"]["require_recent"] = False
     assert reasons["realtor0"] == "ok" and reasons["zillow12"] == "ok" and reasons["realtor3"] == "ok"  # land ok
 
 

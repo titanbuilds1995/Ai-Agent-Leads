@@ -20,7 +20,7 @@ market:
   max_units: 4
   price_min: 150000
   price_max: 750000
-  lookback_days: 30            # new or price-reduced within this window
+  lookback_days: 30            # only used with ingest.homeharvest.scope: window (or require_recent: true)
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
   exclude_flags: ["reo", "short_sale"]
@@ -63,16 +63,25 @@ valuation:
     gut: 0
   land_arv_per_acre_default: 150000
 
+targeting:
+  # Ideal seller: sitting 60+ days, best with price drops / back on market. Also: fresh listings whose price already works.
+  sitting_min_dom: 60
+  fresh_max_dom: 14
+  fresh_price_within_pct: 5      # fresh listing counts as a deal when list ≤ internal high × (1 + this/100), on real comps
+
 ranking:
+  sitting_hot_max_list_over_mao_pct: 40    # SITTING lane: conversation first, so a wider gap is still worth asking about
+  sitting_warm_max_list_over_mao_pct: 60
   hot_min_motivation: 65
   hot_max_list_over_mao_pct: 20
   warm_min_motivation: 50
   warm_max_list_over_mao_pct: 35
-  score_min_for_valuation: 40
+  score_min_for_valuation: 0      # value every kept listing (cheap; comps cached per ZIP) so fresh good prices are found
   arv_methods_for_hot_warm: ["comps", "comps_wide", "estimate"]   # a guessed ARV (land_default, list_price) can only be COLD
 
 scoring:
   model: "claude-sonnet-5-5"
+  max_claude_calls_per_run: 1500   # cost cap (~$0.005 each); target lanes first, the rest catch up on later runs
   effort: "low"
   max_tokens: 1024
   # Weighted signals (max contribution each). Rules fallback and the LLM prompt both use these.
@@ -194,8 +203,9 @@ ingest:
   # Add "realtor" / "zillow" to also run the paid Apify actors.
   sources: ["homeharvest", "mls", "redfin"]
   homeharvest:
-    limit_per_query: 3000        # per county × price band × (new, updated) query; a full result is logged as "capped"
-    price_band_width: 100000     # split each county search into $100k price bands so no query hits the limit
+    scope: "all_active"          # all_active: every active listing (free; targeting picks who we contact) | window: last lookback_days only
+    limit_per_query: 3000        # per county × price band query; a full result is logged as "capped"
+    price_band_width: 50000      # split each county search into $50k price bands so no query hits the limit
     extra_property_data: true    # agent email/phones + price history; one extra request per 50 listings
     proxy: null                  # e.g. "http://user:pass@host:port" if realtor.com starts blocking the Mac
   apify:

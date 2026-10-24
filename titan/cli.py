@@ -113,7 +113,7 @@ def cmd_run_daily(cfg, args):
         else:
             summary["enrich"] = Enricher(cfg, conn).run()
     if "outreach" in steps:
-        summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"])
+        summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"], asana=_asana(cfg))
     from .dashboard_sync import sync as sync_dashboard
     summary["dashboard"] = sync_dashboard(conn, cfg, include_connections=True)
     print(json.dumps(summary, indent=2, default=str))
@@ -201,6 +201,7 @@ def cmd_install_cron(cfg, args):
         f"PATH={Path.home() / '.local/bin'}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
         f"30 5 * * * cd {root} && /usr/bin/caffeinate -i {py} -m titan.cli run-daily >> {root}/logs/cron.log 2>&1",
         f"*/15 * * * * cd {root} && {py} -m titan.cli check-replies >> {root}/logs/cron.log 2>&1",
+        f"*/20 8-17 * * * cd {root} && {py} -m titan.cli approvals --jitter 600 >> {root}/logs/cron.log 2>&1   # Asana-approved emails, spread out",
         f"0 {cfg.get('report.hour_et', 7)} * * * cd {root} && {py} -m titan.cli report >> {root}/logs/cron.log 2>&1",
         f"5 {w['start_hour']} * * 1-5 cd {root} && {py} -m titan.cli run-daily --steps outreach >> {root}/logs/cron.log 2>&1   # second outreach pass inside the SMS window",
         "# --- end titan ---",
@@ -314,6 +315,27 @@ def cmd_score_test(cfg, args):
     print("OK" if res else "FAILED")
 
 
+def _asana(cfg):
+    if cfg.get("outreach.approval") == "asana" and cfg.secret("ASANA_TOKEN"):
+        from .asana import Asana
+        return Asana(cfg.secret("ASANA_TOKEN"))
+    return None
+
+
+def cmd_approvals(cfg, args):
+    """Every 20 minutes in the day: rewrite cards that got feedback, then send up to per_tick approved emails."""
+    from .approvals import send_approved, sync_feedback
+    conn = _open(cfg)
+    asana = _asana(cfg)
+    if asana is None:
+        print("ASANA_TOKEN missing in .env (Asana → My settings → Apps → Developer apps → Personal access token)")
+        sys.exit(1)
+    c = build_clients(cfg, conn, need=("llm", "gmail"))
+    fb = sync_feedback(conn, cfg, asana, c["llm"])
+    sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter)
+    print(json.dumps({"feedback": fb, "send": sent}, indent=2))
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -381,6 +403,8 @@ def main(argv: list[str] | None = None) -> int:
     ao.add_argument("price", type=int)
     ao.add_argument("--note", default=None)
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
+    ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
+    ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
@@ -389,7 +413,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals}[args.cmd](cfg, args)
     return 0
 
 

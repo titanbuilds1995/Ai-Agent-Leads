@@ -16,19 +16,19 @@ CONF_RANK = {"high": 3, "medium": 2, "low": 1}
 
 def _recent_contact(conn, agent_id: int, channel: str, days: int) -> bool:
     since = iso(now_utc() - timedelta(days=days))
-    r = conn.execute("SELECT 1 FROM outreach WHERE agent_id=? AND channel=? AND status IN ('sent','draft','queued') AND created_at>=? LIMIT 1",
+    r = conn.execute("SELECT 1 FROM outreach WHERE agent_id=? AND channel=? AND status IN ('sent','draft','queued','pending_approval') AND created_at>=? LIMIT 1",
                      (agent_id, channel, since)).fetchone()
     return r is not None
 
 
 def _already_contacted_property(conn, property_id: int, channel: str | None = None) -> bool:
-    rows = conn.execute("SELECT property_ids FROM outreach WHERE status IN ('sent','draft','queued')" + (" AND channel=?" if channel else ""),
+    rows = conn.execute("SELECT property_ids FROM outreach WHERE status IN ('sent','draft','queued','pending_approval','skipped')" + (" AND channel=?" if channel else ""),
                         ((channel,) if channel else ())).fetchall()
     return any(property_id in json.loads(r["property_ids"]) for r in rows)
 
 
 def _today_count(conn, channel: str, run_date: str) -> int:
-    return conn.execute("SELECT COUNT(*) FROM outreach WHERE run_date=? AND channel=? AND status IN ('sent','draft','queued')",
+    return conn.execute("SELECT COUNT(*) FROM outreach WHERE run_date=? AND channel=? AND status IN ('sent','draft','queued','pending_approval')",
                         (run_date, channel)).fetchone()[0]
 
 
@@ -109,7 +109,8 @@ def log_message(conn, thread_id: int, direction: str, body: str, external_id: st
     return int(cur.lastrowid)
 
 
-def run_outreach(conn, cfg: Any, llm: LLM | None = None, gmail=None, twilio=None, now=None, drafts_dir: Path | None = None) -> dict[str, Any]:
+def run_outreach(conn, cfg: Any, llm: LLM | None = None, gmail=None, twilio=None, now=None, drafts_dir: Path | None = None,
+                 asana=None) -> dict[str, Any]:
     run_date = today_et()
     mode = cfg.mode
     run_id = db.start_run(conn, "outreach", run_date)
@@ -131,6 +132,21 @@ def run_outreach(conn, cfg: Any, llm: LLM | None = None, gmail=None, twilio=None
             log.exception("compose email failed for agent %s: %s", agent["id"], e)
             continue
         status, ids, err = "draft", {}, None
+        if asana is not None and o.get("approval") == "asana":
+            # Rodrigo approves each email on Asana; approvals.send_approved sends it later in the day
+            with db.tx(conn):
+                cur = conn.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,subject,body,variant,to_address,run_date,created_at) "
+                                   "VALUES(?,?,?,?,?,?,?,?,?,?,?)", (agent["id"], json.dumps(pids), "email", "first_touch", "pending_approval",
+                                                                     d["subject"], d["body"], d["variant"], agent["email"], run_date, iso()))
+            try:
+                from ..approvals import post_card
+                post_card(conn, cfg, asana, agent, props, d, cur.lastrowid)
+                counts["email_cards"] = counts.get("email_cards", 0) + 1
+            except Exception as e:  # noqa: BLE001
+                counts["errors"] += 1
+                conn.execute("UPDATE outreach SET status='failed', error=? WHERE id=?", (f"asana: {e}"[:400], cur.lastrowid))
+                log.exception("asana card failed for agent %s: %s", agent["id"], e)
+            continue
         try:
             if send_first_touch and gmail is not None:
                 ids = gmail.send(agent["email"], d["subject"], d["body"])

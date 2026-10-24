@@ -130,6 +130,17 @@ outreach:
   max_unanswered_sms: 3
   sms_window: {start_hour: 9, end_hour: 18, weekdays_only: true, timezone: "America/New_York"}
   gmail_review_label: "Titan/Review"
+  # Approvals on Asana (Rodrigo, 2026-10-24): each email is a card (picture + text) on the board below. Feedback comments are
+  # rewritten on the card; Approved cards go out from Charles's Gmail inside send_window, per_tick at a time, at varied times.
+  approval: "asana"                 # asana | gmail_drafts
+  asana:
+    project: "1219847112999805"     # Titan Outreach — Email Approvals
+    to_review: "1219847260413153"
+    approved: "1219847113107056"
+    sent: "1219847113142042"
+    skip: "1219846985445292"
+    per_tick: 2                     # emails per 20-minute round
+    send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email
   handoff_email_wait_business_days: 2
   terms:

@@ -21,7 +21,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   and never switch on a paid fallback without asking.
 
 ## Decisions already made
-- **Draft mode only** (`DRAFT_FOR_APPROVAL`): nothing sends until Rodrigo clicks send in Gmail (label `Titan/Review`).
+- **Every email is approved on Asana** (Rodrigo, 2026-10-24; `outreach.approval: asana`): board "Titan Outreach — Email
+  Approvals" (project 1219847112999805; sections To Review 1219847260413153, Approved 1219847113107056, Sent 1219847113142042,
+  Skip 1219846985445292). One card per email with a PNG of the email + the text between EMAIL markers. Rodrigo's comments →
+  `sync_feedback` rewrites the card; dragging to Approved is his go-ahead; `titan.cli approvals` (cron every 20 min, 8–17,
+  random jitter) sends `per_tick` approved emails from Charles@ inside the send window (8:30–5:30 ET, every day) under
+  `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. Needs ASANA_TOKEN in the Mac's .env.
 - **Conversation first (Rodrigo, Asana 2026-10-24) — overrides any older offer-percentage rule.** The first message opens a
   conversation (from **Charles**, property-specific, one or two verified details, asks about seller flexibility). It never
   contains a price, percentage, range or "cash offer". Replies: one question at a time, never re-ask; "send an offer" and any
@@ -63,11 +68,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Charles's last name and title for the signature (asked on Asana 2026-10-24).
 
 ## Current status
-- 2026-10-24: Claude Code installed + logged in on the Mac (Max plan); `make score-test` OK through claude_code. Fixed DOM
-  (current listing date, not first-ever), excluded not-a-home listings (boat slips etc.). 147 tests pass.
-- Next on the Mac: `git pull && make setup && make score-test` → `run-daily --steps ingest,score,value,enrich` →
-  `run-daily --steps outreach` → drafts in Charles@ (Titan/Review). This chat's Gmail connector is rodrigo@ (can't draft as Charles).
-- **Hands-off loop (2026-10-24):** `make automate` on the Mac = cron 5:30 run-daily (caffeinate) + 7:00 report email to
-  REPORT_TO (rodrigo@) + `pmset` wake 5:25. The report email ends with a JSON block between `-----BEGIN TITAN-DATA-----`
-  markers (top HOT/WARM leads + pending reviews); the cloud session reads it via the Gmail connector (search
-  `subject:"Titan morning report"`) every morning and posts to Asana. For cron, `claude setup-token` → CLAUDE_CODE_OAUTH_TOKEN in .env.
+- 2026-10-24: Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
+  hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
+  plan) scores. 154 tests pass.
+- Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;
+  `make automate`; full run `run-daily --steps ingest,score,value,enrich,outreach` → cards appear in To Review.

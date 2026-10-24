@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 from urllib.parse import quote
 
 from .common import first_str, g, price_history_from
 from .normalize import Listing, finalize, to_float, to_int
+from ..util import county_for
 
 ZILLOW_TYPES = {"single_family": "isSingleFamily", "townhouse": "isTownhouse", "multi_family": "isMultiFamily",
                 "land": "isLotLand", "condo": "isCondo", "mobile": "isManufactured"}
@@ -53,33 +55,45 @@ def map_item(it: dict[str, Any]) -> Listing | None:
         return None
     attr = g(it, "attributionInfo") or {}
     hist = price_history_from(g(it, "priceHistory") or [], price_key=("price",), event_key=("event",), date_key=("date", "time"))
-    status = first_str(g(it, "homeStatus", "keystoneHomeStatus", "statusType", "listing_sub_type"))
+    status = first_str(g(it, "homeStatus", "keystoneHomeStatus", "statusType", "listingStatus", "listing_sub_type"))
     flags = []
     sub = g(it, "listing_sub_type") or {}
-    if g(sub, "is_forAuction") or g(it, "isAuction") or "auction" in (status or "").lower(): flags.append("auction")
-    if g(sub, "is_bankOwned") or g(it, "isBankOwned") or "foreclos" in (status or "").lower(): flags.append("reo")
-    if g(it, "isPreforeclosureAuction") or g(sub, "is_preforeclosure"): flags.append("pre_foreclosure")
+    lt = g(it, "listingType") or {}   # current maxcopell shape: {"isFSBA":..,"isForAuction":..,"isBankOwned":..,"isForeclosure":..}
+    if g(sub, "is_forAuction") or g(it, "isAuction") or g(lt, "isForAuction") or "auction" in (status or "").lower(): flags.append("auction")
+    if g(sub, "is_bankOwned") or g(it, "isBankOwned") or g(lt, "isBankOwned") or "foreclos" in (status or "").lower(): flags.append("reo")
+    if g(it, "isPreforeclosureAuction") or g(sub, "is_preforeclosure") or g(lt, "isForeclosure"): flags.append("pre_foreclosure")
+    tagline = first_str(g(it, "marketingTagline")) or ""
+    county = first_str(g(it, "county"))
+    if not county and not county_for(city):   # unknown city: fall back to the county the search URL asked for
+        src = (first_str(g(it, "sourceSearchUrl")) or "").lower()
+        county = next((name for name, slug in COUNTY_SLUG.items() if "/" + slug + "/" in src), None)
     l = Listing(
-        street=street, city=city, state=first_str(g(it, "addressState", "address.state", "listingAddress.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode", "listingAddress.zipcode", "listingAddress.zip"), ""),
-        county=first_str(g(it, "county")),
+        street=street, city=city, state=first_str(g(it, "addressState", "address.state", "listingAddress.state"), "FL"), zip=first_str(g(it, "addressZipcode", "address.zipcode", "listingAddress.zipcode", "listingAddress.zipCode", "listingAddress.zip"), ""),
+        county=county,
         list_price=to_int(g(it, "unformattedPrice", "listingPrice.amount", "price.amount", "price", "listPrice", "listingPrice")),
         price_history=hist, days_on_market=to_int(g(it, "daysOnZillow", "timeOnZillow", "daysOnMarket")),
         beds=to_float(g(it, "beds", "bedrooms")), baths=to_float(g(it, "baths", "bathrooms")),
         sqft=to_int(g(it, "area", "livingArea", "livingAreaValue")),
-        lot_sqft=_lot_sqft(g(it, "lotAreaValue", "lotSize"), g(it, "lotAreaUnit", "lotAreaUnits")),
+        lot_sqft=_lot_sqft(g(it, "lotAreaValue", "lotSize", "lotArea.value"), g(it, "lotAreaUnit", "lotAreaUnits", "lotArea.unit")),
         year_built=to_int(g(it, "yearBuilt")), property_type=first_str(g(it, "homeType", "propertyType")),
-        remarks=first_str(g(it, "description", "remarks"), "") or "", photos_count=to_int(g(it, "photoCount")) or (len(g(it, "photos") or []) or None),
-        listing_url=_url(first_str(g(it, "detailUrl", "url", "hdpUrl"))), source="zillow", source_id=first_str(g(it, "zpid", "id")),
+        remarks=first_str(g(it, "description", "remarks"), tagline, "") or "", photos_count=to_int(g(it, "photoCount")) or (len(g(it, "photos") or []) or None),
+        listing_url=_url(first_str(g(it, "detailUrl", "url", "hdpUrl", "propertyUrl"))), source="zillow", source_id=first_str(g(it, "zpid", "id")),
         listing_status=status, listed_at=first_str(g(it, "datePosted", "listingDate", "dateListed")),
         estimate=to_int(g(it, "zestimate")), hoa=to_int(g(it, "monthlyHoaFee", "hoa", "hoaFee")), status_flags=flags,
-        lat=to_float(g(it, "latitude", "latLong.latitude")), lng=to_float(g(it, "longitude", "latLong.longitude")),
+        lat=to_float(g(it, "latitude", "latLong.latitude", "coordinates.latitude")), lng=to_float(g(it, "longitude", "latLong.longitude", "coordinates.longitude")),
         agent_name=first_str(g(attr, "agentName", "listingAgents.0.memberFullName"), g(it, "brokerName_agent", "agentName")),
         agent_phone_raw=first_str(g(attr, "agentPhoneNumber", "listingAgents.0.phone"), g(it, "agentPhone")),
         agent_email=first_str(g(attr, "agentEmail", "listingAgents.0.email")),
-        brokerage=first_str(g(attr, "brokerName", "brokerageName"), g(it, "brokerName")),
+        brokerage=first_str(g(attr, "brokerName", "brokerageName"), g(it, "brokerName", "broker.name")),
         agent_profile_url=first_str(g(attr, "listingAgents.0.profileUrl")),
         raw=it,
     )
+    # Search-result cards carry the last price cut only as a tagline: "Price cut: $10,000 (10/20)".
+    m = re.match(r"price cut:\s*\$([\d,\.]+)\s*([kK])?", tagline, re.I)
+    if m and l.list_price:
+        cut = int(float(m.group(1).replace(",", "")) * (1000 if m.group(2) else 1))
+        l.price_cuts = max(l.price_cuts, 1)
+        l.original_list_price = l.original_list_price or l.list_price + cut
     return finalize(l)
 
 

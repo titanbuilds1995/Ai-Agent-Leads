@@ -34,6 +34,8 @@ def store_listings(conn, listings: Iterable[Listing], cfg: Any) -> dict[str, int
             counts["kept"] += 1
             counts["new" if created else "updated"] += 1
         db.flag_office_lines(conn, cfg.get("enrichment.office_line_min_agents", 3))
+        from .normalize import exclude_flagged
+        counts["excluded_existing"] = exclude_flagged(conn, cfg)
     counts["filter_reasons"] = reasons  # type: ignore[assignment]
     return counts
 

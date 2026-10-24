@@ -179,7 +179,7 @@ def run_valuation(conn, cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict
     run_id = db.start_run(conn, "value", today_et())
     rows = conn.execute("SELECT p.*, s.score FROM properties p JOIN scores s ON s.property_id=p.id "
                         "LEFT JOIN valuations v ON v.property_id=p.id "
-                        "WHERE s.score >= ? AND (v.property_id IS NULL OR v.list_price != p.list_price OR v.valued_at < s.scored_at)",
+                        "WHERE s.score >= ? AND p.lead_status != 'EXCLUDED' AND (v.property_id IS NULL OR v.list_price != p.list_price OR v.valued_at < s.scored_at)",
                         (min_score,)).fetchall()
     n, errors = 0, 0
     for r in rows:

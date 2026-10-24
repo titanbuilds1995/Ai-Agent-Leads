@@ -23,7 +23,7 @@ TYPE_MAP = {
 
 FLAG_PATTERNS = {
     "short_sale": r"\bshort[\s-]?sale\b",
-    "reo": r"\b(reo|bank[\s-]owned|lender[\s-]owned|foreclosed|foreclosure)\b",
+    "reo": r"\b(reo|bank[\s-]owned|lender[\s-]owned|foreclosed|hud[\s-]owned|hud home|fannie mae|freddie mac|homepath|homesteps)\b|(?<!pre-)(?<!pre )\bforeclosure\b",
     "auction": r"\bauction\b",
     "pre_foreclosure": r"\bpre[\s-]?foreclosure\b|\blis pendens\b|\bnotice of default\b",
     "probate": r"\bprobate\b|\bpersonal representative\b|\bletters of administration\b",
@@ -121,8 +121,14 @@ def norm_type(v: Any) -> str | None:
     return TYPE_MAP.get(s) or TYPE_MAP.get(s.replace("_", " ")) or TYPE_MAP.get(s.replace(" ", "_")) or s
 
 
+# "not a short sale", "no REO", "non-foreclosure" must not trigger the flag
+_DISTRESS = r"(short[\s-]?sale|reo|bank[\s-]owned|lender[\s-]owned|foreclosure|auction)"
+NEGATED_RE = re.compile(rf"\b(not|no|non|never)[\s-]+(a |an |)?{_DISTRESS}(\s*(,|/|or|and|nor)\s*(a |an |)?{_DISTRESS})*\b", re.I)
+
+
 def detect_flags(text: str, extra: dict[str, bool] | None = None) -> list[str]:
-    flags = [name for name, pat in FLAG_PATTERNS.items() if re.search(pat, text or "", re.I)]
+    text = NEGATED_RE.sub(" ", text or "")
+    flags = [name for name, pat in FLAG_PATTERNS.items() if re.search(pat, text, re.I)]
     for k, v in (extra or {}).items():
         if v and k not in flags:
             flags.append(k)
@@ -175,6 +181,9 @@ def finalize(l: Listing) -> Listing:
 
 def passes_filters(l: Listing, cfg: Any, today: datetime | None = None) -> tuple[bool, str]:
     m = cfg["market"]
+    excluded = [f for f in (l.status_flags or []) if f in m.get("exclude_flags", [])]
+    if excluded:
+        return False, f"excluded {excluded[0]}"
     if l.county not in m["counties"]:
         return False, f"county {l.county}"
     if l.property_type not in m["property_types"]:
@@ -198,3 +207,22 @@ def passes_filters(l: Listing, cfg: Any, today: datetime | None = None) -> tuple
     if not (recent_new or recent_cut or dom_recent or l.price_cuts > 0):
         return False, "not new or price-reduced in window"
     return True, "ok"
+
+
+def exclude_flagged(conn, cfg: Any) -> int:
+    """Drop already-stored listings that are REO / short sale (market.exclude_flags): lead_status EXCLUDED, valuation removed,
+    so they are never scored, valued, ranked or contacted. Re-reads the remarks, so it also catches rows stored before the rule."""
+    import json
+    bad = set(cfg["market"].get("exclude_flags", []))
+    if not bad:
+        return 0
+    n = 0
+    for r in conn.execute("SELECT id, remarks, listing_status, status_flags FROM properties WHERE lead_status != 'EXCLUDED'").fetchall():
+        stored = json.loads(r["status_flags"] or "[]") if isinstance(r["status_flags"], str) else (r["status_flags"] or [])
+        flags = set(detect_flags(f"{r['remarks'] or ''} {r['listing_status'] or ''}")) | set(stored)
+        hit = sorted(flags & bad)
+        if hit:
+            conn.execute("UPDATE properties SET lead_status='EXCLUDED', lead_note=? WHERE id=?", (f"excluded: {', '.join(hit)}", r["id"]))
+            conn.execute("DELETE FROM valuations WHERE property_id=?", (r["id"],))
+            n += 1
+    return n

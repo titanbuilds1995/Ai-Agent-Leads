@@ -164,8 +164,10 @@ def score_property(llm: LLM | None, p: dict[str, Any], cfg: Any) -> dict[str, An
 def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None, force: bool = False) -> dict[str, Any]:
     """Score every property whose remarks/structured inputs changed since the last score."""
     run_id = db.start_run(conn, "score", today_et())
+    from .ingest.normalize import exclude_flagged
+    excluded = exclude_flagged(conn, cfg)
     rows = conn.execute("SELECT p.*, s.remarks_hash AS prev_hash, s.method AS prev_method FROM properties p LEFT JOIN scores s ON s.property_id=p.id "
-                        "WHERE p.lead_status NOT IN ('CLOSED','DNC') ORDER BY p.last_seen DESC").fetchall()
+                        "WHERE p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED') ORDER BY p.last_seen DESC").fetchall()
     n, skipped, methods = 0, 0, {"rules": 0, "claude": 0}
     warning = None
     for r in rows:
@@ -192,7 +194,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         if limit and n >= limit:
             break
     counts = {"scored": n, "skipped_unchanged": skipped, **methods, "llm_cost_usd": round(llm.session_cost, 4) if llm else 0,
-              "claude_failed": llm.session_failures if llm else 0}
+              "claude_failed": llm.session_failures if llm else 0, "excluded_reo_short_sale": excluded}
     if warning:
         counts["warning"] = warning
     db.finish_run(conn, run_id, "ok", counts)

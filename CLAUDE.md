@@ -43,6 +43,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `data/market_ratios.csv` from github.com/titanbuilds1995/titan-whatsapp-sales (deed-record flips; refresh from there).
   Ladder ZIP+band → ZIP → city → county; Palm Beach borrows Broward's county ratio; flat 0.70 only when nothing applies.
   Code: titan/market_ratios.py, valuation.buy_ratio. ZIP resale $/sf is the ARV fallback when comps are thin.
+- **Never pursue REO / bank-owned or short sales** (Rodrigo, 2026-10-24): `market.exclude_flags` in config; filtered at ingest,
+  and `exclude_flagged()` marks already-stored ones EXCLUDED (no score, valuation or outreach) on every ingest/score run.
+  Negations ("not a short sale or foreclosure") don't count; pre-foreclosure is NOT excluded.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -52,6 +55,6 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - 2026-10-24: Mac run stored 3,256 listings (2,484 agents with email) but every Claude scoring call failed: SCORE_SCHEMA had
   `minimum`/`maximum`, which structured outputs reject (400), so all were scored by rules ($0, only 25 valued). Fixed;
   guard test checks every schema; Claude switches off after 5 straight failures with a loud warning; rules-scored listings
-  are re-scored automatically once Claude works (no --force). Conversation-first outreach is in (see Decisions). 134 tests pass.
+  are re-scored automatically once Claude works (no --force). Conversation-first outreach is in (see Decisions). REO/short sales excluded. 137 tests pass.
 - Next on the Mac: `git pull && .venv/bin/python -m titan.cli run-daily --steps score,value,enrich` (no re-scrape needed;
   ~3,256 Claude calls ≈ a few dollars) → upload reports/dashboard.json → review HOT/WARM → first-touch drafts in Charles@.

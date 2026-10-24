@@ -133,6 +133,8 @@ def plain_summary(conn, summary: dict[str, Any], top: int = 10) -> str:
     sc = summary.get("score") or {}
     if sc:
         out.append(f"  scored {sc.get('scored', 0)} (Claude {sc.get('claude', 0)}, rules {sc.get('rules', 0)}), cost ${sc.get('llm_cost_usd', 0):.2f}")
+        if sc.get("excluded_reo_short_sale"):
+            out.append(f"  removed {sc['excluded_reo_short_sale']} REO / short sale listings")
         if sc.get("claude_failed"):
             out.append(f"  WARNING: {sc['claude_failed']} Claude scoring calls failed. " + (sc.get("warning") or "See logs/titan.log."))
     counts = dict(conn.execute("SELECT rating, COUNT(*) FROM valuations GROUP BY rating").fetchall())

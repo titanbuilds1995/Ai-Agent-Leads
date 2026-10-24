@@ -1,0 +1,74 @@
+"""Scoring through `claude -p` on the Claude Code plan (Rodrigo, 2026-10-24: free / already-paid first). Fake CLI only."""
+import json
+import subprocess
+
+from titan import llm as llm_mod
+from titan.llm import LLM
+from titan.scoring import BATCH_SCHEMA, run_scoring
+
+
+class Proc:
+    def __init__(self, stdout, returncode=0, stderr=""):
+        self.stdout, self.returncode, self.stderr = stdout, returncode, stderr
+
+
+def _cc(cfg, monkeypatch, handler):
+    monkeypatch.setattr(llm_mod.shutil, "which", lambda name: "/usr/local/bin/claude")
+    monkeypatch.setattr(llm_mod.subprocess, "run", handler)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-be-passed")
+    return LLM(cfg, None, provider="claude_code")
+
+
+def test_claude_code_uses_the_plan_not_the_api_key(cfg, monkeypatch):
+    seen = {}
+
+    def run(cmd, input, capture_output, text, cwd, env, timeout):
+        seen.update(cmd=cmd, env=env, input=input)
+        return Proc(json.dumps({"result": "", "structured_output": {"ok": 1}, "total_cost_usd": 0.01}))
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.available and llm.provider == "claude_code"
+    assert llm.structured("t", "sys", "hello", {"type": "object"}) == {"ok": 1}
+    assert "ANTHROPIC_API_KEY" not in seen["env"]                      # otherwise -p bills the API key
+    c = seen["cmd"]
+    assert c[:2] == ["claude", "-p"] and "--json-schema" in c and c[c.index("--tools") + 1] == "" and "--no-session-persistence" in c
+    assert seen["input"] == "hello" and llm.session_cost == 0.0
+
+
+def test_plan_limit_stops_calls_without_errors_flood(cfg, monkeypatch):
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(1)
+        return Proc(json.dumps({"result": "You've hit your session limit · resets 3pm", "is_error": True}), returncode=1)
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.structured("t", "s", "u", {}) is None
+    assert llm.limit_hit and not llm.available and llm.structured("t", "s", "u", {}) is None and len(calls) == 1
+
+
+def test_missing_cli_never_falls_back_to_paid_api_unless_allowed(cfg, monkeypatch):
+    monkeypatch.delenv("TITAN_LLM", raising=False)
+    monkeypatch.setattr(llm_mod.shutil, "which", lambda name: None)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-x")
+    assert LLM(cfg, None).provider == "rules"
+    monkeypatch.setenv("TITAN_LLM", "rules")
+
+
+def test_batched_scoring_through_claude_code(loaded, cfg, monkeypatch):
+    loaded.execute("UPDATE properties SET days_on_market=90, price_cuts=1")      # everyone is a target
+    n = loaded.execute("SELECT COUNT(*) FROM properties WHERE lead_status NOT IN ('CLOSED','DNC','EXCLUDED')").fetchone()[0]
+    cfg.raw["scoring"]["claude_code_batch_size"] = 5
+    batches = []
+
+    def run(cmd, input, **kw):
+        listings = json.loads(input)
+        batches.append(len(listings))
+        schema = json.loads(cmd[cmd.index("--json-schema") + 1])
+        assert schema == BATCH_SCHEMA
+        return Proc(json.dumps({"structured_output": {"results": [
+            {"id": l["id"], "score": 72, "cited": [{"signal": "needs_work", "phrase": "needs work"}], "negatives": [], "summary": "s"}
+            for l in listings]}}))
+    llm = _cc(cfg, monkeypatch, run)
+    out = run_scoring(loaded, cfg, llm, force=True)
+    assert sum(batches) == out["claude"] >= 5 and max(batches) <= 5 and len(batches) == -(-sum(batches) // 5)
+    assert out["llm_cost_usd"] == 0 and out["claude"] + out["rules"] == out["scored"]
+    assert loaded.execute("SELECT model FROM scores WHERE method='claude' LIMIT 1").fetchone()[0] == "claude_code:sonnet"

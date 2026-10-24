@@ -31,7 +31,7 @@ def build_clients(cfg, conn, need=("apify", "llm", "gmail", "twilio"), interacti
         try:
             out["llm"] = LLM(cfg, conn)
             if not out["llm"].available:
-                out["missing"].append("ANTHROPIC_API_KEY (using rules fallback)")
+                out["missing"].append("Claude (no `claude` CLI or API key: using rules fallback)")
         except LLMUnavailable as e:
             out["missing"].append(f"ANTHROPIC_API_KEY ({e})")
     if "gmail" in need:
@@ -291,6 +291,28 @@ def cmd_review_queue(cfg, args):
         print(f"\n{'=' * 70}\n{f}\n{'=' * 70}\n{f.read_text()}")
 
 
+def cmd_score_test(cfg, args):
+    """Score 3 stored listings through the configured provider and show the result (checks the Claude Code plan path)."""
+    from .scoring import score_llm_batch
+    conn = _open(cfg)
+    llm = LLM(cfg, conn)
+    print(f"provider: {llm.provider}" + ("  (Claude Code plan, no API spend)" if llm.provider == "claude_code" else ""))
+    if not llm.available:
+        print("Claude is not available: install/log in to Claude Code (`claude` then /login), then retry.")
+        sys.exit(1)
+    rows = [db.row_to_dict(r) for r in conn.execute("SELECT * FROM properties WHERE remarks != '' AND lead_status != 'EXCLUDED' "
+                                                     "ORDER BY days_on_market DESC LIMIT 3")]
+    if not rows:
+        print("No stored listings yet: run `make run-daily` (or the ingest step) first.")
+        sys.exit(1)
+    res = score_llm_batch(llm, rows, cfg.get("scoring.signals", {}), cfg.get("scoring.negatives", {}))
+    for p in rows:
+        r = res.get(p["id"])
+        print(f"- {p['street']}, {p['city']} ({p.get('days_on_market')}d): " +
+              (f"score {r['score']} · {r['summary']}" if r else f"no result ({llm.last_error or 'see logs'})"))
+    print("OK" if res else "FAILED")
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -358,6 +380,7 @@ def main(argv: list[str] | None = None) -> int:
     ao.add_argument("price", type=int)
     ao.add_argument("--note", default=None)
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
+    sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
     st.add_argument("--limit", type=int, default=20)
@@ -365,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test}[args.cmd](cfg, args)
     return 0
 
 

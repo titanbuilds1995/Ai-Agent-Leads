@@ -161,6 +161,44 @@ def score_property(llm: LLM | None, p: dict[str, Any], cfg: Any) -> dict[str, An
     return res
 
 
+_ITEM = {k: v for k, v in SCORE_SCHEMA["properties"].items()}
+BATCH_SCHEMA = {"type": "object", "properties": {"results": {"type": "array", "items": {
+    "type": "object", "properties": {"id": {"type": "integer"}, **_ITEM}, "required": ["id", *SCORE_SCHEMA["required"]],
+    "additionalProperties": False}}}, "required": ["results"], "additionalProperties": False}
+
+
+def _llm_input(p: dict[str, Any]) -> dict[str, Any]:
+    return {"remarks": (p.get("remarks") or "")[:6000], "list_price": p.get("list_price"), "original_list_price": p.get("original_list_price"),
+            "price_cuts": p.get("price_cuts"), "days_on_market": p.get("days_on_market"), "back_on_market": bool(p.get("back_on_market")),
+            "vacant": bool(p.get("vacant")), "status_flags": p.get("status_flags"), "property_type": p.get("property_type"),
+            "year_built": p.get("year_built"), "photos_count": p.get("photos_count")}
+
+
+def score_llm_batch(llm: LLM, props: list[dict[str, Any]], weights: dict[str, int], negatives: dict[str, int]) -> dict[int, dict[str, Any]]:
+    """Score many listings in one call (Claude Code plan: fewer calls = less plan usage). Returns {property id: result}."""
+    w = "\n".join(f"- {k}: +{v}" for k, v in weights.items()) + "\n" + "\n".join(f"- {k}: {v}" for k, v in negatives.items())
+    system = SYSTEM.format(weights=w) + "\n\nYou receive a JSON list of listings, each with an id. Score every one independently and return one result per id."
+    user = json.dumps([{"id": p["id"], **_llm_input(p)} for p in props], ensure_ascii=False)
+    out = llm.structured("score_batch", system, user, BATCH_SCHEMA, max_tokens=int(llm.cfg.get("scoring.max_tokens", 1024)) * len(props))
+    res: dict[int, dict[str, Any]] = {}
+    ids = {p["id"] for p in props}
+    for r in (out or {}).get("results", []) if isinstance(out, dict) else []:
+        try:
+            pid = int(r.get("id"))
+        except (TypeError, ValueError):
+            continue
+        if pid not in ids:
+            continue
+        r = {k: r.get(k) for k in ("score", "cited", "negatives", "summary")}
+        r["score"] = max(0, min(100, int(r.get("score") or 0)))
+        r["cited"], r["negatives"] = r.get("cited") or [], r.get("negatives") or []
+        r["summary"], r["method"] = r.get("summary") or "", "claude"
+        if r["score"] >= 40 and not r["cited"]:
+            continue                      # a score with no evidence is not acceptable; rules take it
+        res[pid] = r
+    return res
+
+
 def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None, force: bool = False) -> dict[str, Any]:
     """Score every property whose remarks/structured inputs changed since the last score."""
     run_id = db.start_run(conn, "score", today_et())
@@ -177,6 +215,25 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
     for p in items:
         p["_prio"] = claude_priority(p, cfg)
     items.sort(key=lambda p: (99 if p["_prio"] is None else p["_prio"]))     # target lanes get Claude first
+    prefetched: dict[int, dict[str, Any]] = {}
+    if llm and llm.available and llm.provider == "claude_code":
+        # Claude Code plan: score the target listings in batches up front, then fall through the normal loop
+        todo = [p for p in items if p["_prio"] is not None and (force or p.get("prev_hash") != remarks_hash(p) or p.get("prev_method") == "rules")][:cap]
+        if limit:
+            todo = todo[:limit]
+        size = max(1, int(cfg.get("scoring.claude_code_batch_size", 20)))
+        w, neg = cfg.get("scoring.signals", {}), cfg.get("scoring.negatives", {})
+        for i in range(0, len(todo), size):
+            if not llm.available:
+                break                       # plan limit hit or switched off after failures
+            prefetched.update(score_llm_batch(llm, todo[i:i + size], w, neg))
+            if llm.session_failures >= 5 and llm.session_successes == 0:
+                warning = (f"Claude Code scoring failed {llm.session_failures} times in a row and was switched off for this run; "
+                           f"the rest are scored by the keyword rules. Last error: {llm.last_error}")
+                log.error(warning)
+                llm.provider = "rules"
+        if getattr(llm, "limit_hit", None):
+            warning = f"Claude Code plan limit reached; the rest are scored by rules and get Claude on the next run. ({llm.limit_hit})"
     for p in items:
         h = remarks_hash(p)
         want_claude = bool(llm and llm.available and p["_prio"] is not None and claude_used < cap)
@@ -184,8 +241,13 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         if not force and p.get("prev_hash") == h and not (want_claude and p.get("prev_method") == "rules"):
             skipped += 1
             continue
-        res = score_property(llm if want_claude else None, p, cfg)
-        if want_claude:
+        if p["id"] in prefetched:
+            res = prefetched[p["id"]]
+        elif llm and (llm.provider == "claude_code" or getattr(llm, "limit_hit", None)):
+            res = score_property(None, p, cfg)          # batched already (or limit hit): rules for the rest
+        else:
+            res = score_property(llm if want_claude else None, p, cfg)
+        if want_claude or p["id"] in prefetched:
             claude_used += 1
         if llm and llm.available and llm.session_failures >= 5 and llm.session_successes == 0:
             warning = (f"Claude scoring failed {llm.session_failures} times in a row and was switched off for this run; "
@@ -197,7 +259,8 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
                      "signals=excluded.signals, negatives=excluded.negatives, summary=excluded.summary, method=excluded.method, "
                      "model=excluded.model, remarks_hash=excluded.remarks_hash, scored_at=excluded.scored_at",
                      (p["id"], res["score"], db.j(res["cited"]), db.j([c["signal"] for c in res["cited"]]), db.j(res["negatives"]),
-                      res["summary"], res["method"], llm.model if (llm and res["method"] == "claude") else None, h, db.iso()))
+                      res["summary"], res["method"], (f"claude_code:{cfg.get('scoring.claude_code_model', 'sonnet')}" if p["id"] in prefetched
+                                                       else llm.model) if (llm and res["method"] == "claude") else None, h, db.iso()))
         methods[res["method"]] += 1
         n += 1
         if limit and n >= limit:

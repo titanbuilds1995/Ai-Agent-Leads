@@ -16,6 +16,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   to merge the PR). Work left on a side branch is invisible to the next session.
 - Keep replies short and plain. Rodrigo is not a developer; give him exact commands to paste.
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
+- **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
+  already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
+  and never switch on a paid fallback without asking.
 
 ## Decisions already made
 - **Draft mode only** (`DRAFT_FOR_APPROVAL`): nothing sends until Rodrigo clicks send in Gmail (label `Titan/Review`).
@@ -33,6 +36,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`); every email ends with the footer in
   `operator.email_footer` (business name + address + "reply 'remove me'" opt-out, which the STOP classifier catches).
+- **Scoring runs on the Claude Code plan** (`scoring.provider: claude_code`): `claude -p` on the Mac, 20 listings per call,
+  API key stripped from the child env so the plan is billed; plan limit → rest by rules, Claude next run. Paid API only with
+  `scoring.allow_paid_api: true`. Check with `make score-test`.
+- **Charles's Gmail is connected on the Mac** (Rodrigo, 2026-10-24) — don't ask again.
 - **Scoring in cloud sessions:** no Anthropic key needed. The engine scores with the rules fallback, then Claude (this session)
   reads the remarks and confirms or corrects the scores. Gmail drafts can be made through the session's Gmail connector.
 - **Asana board "Titan Lead Engine — Claude Updates"** (project gid 1219837397052431; sections Updates 1219837472466797,
@@ -58,7 +65,6 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-10-24: fixed Claude scoring (schema had minimum/maximum → every call 400'd), REO/short sales excluded, targeting
   lanes (SITTING 60+ / FRESH_DEAL), all-active scrape in $50k bands, conversation-first outreach from Charles. 141 tests pass.
-- Blockers (all on the Mac): (1) `git pull` + `run-daily --steps ingest,score,value,enrich`; (2) Charles's Gmail sign-in on
-  the Mac (`make doctor | grep -i gmail` → if missing: OAuth client JSON in secrets/, `make gmail-auth` as Charles,
-  `make gmail-test`); this chat's Gmail connector is rodrigo@ and cannot draft as Charles. (3) `--steps outreach` → drafts.
+- Next on the Mac: `git pull && make setup && make score-test` → `run-daily --steps ingest,score,value,enrich` →
+  `run-daily --steps outreach` → drafts in Charles@ (Titan/Review). This chat's Gmail connector is rodrigo@ (can't draft as Charles).
 - Cloud check-ins don't survive idle restarts unless armed with send_later; nothing can run on the Mac from the cloud.

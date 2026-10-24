@@ -80,7 +80,12 @@ ranking:
   arv_methods_for_hot_warm: ["comps", "comps_wide", "estimate"]   # a guessed ARV (land_default, list_price) can only be COLD
 
 scoring:
-  model: "claude-sonnet-5-5"
+  # Cost rule (Rodrigo, 2026-10-24): use what is free or already paid for before spending money.
+  provider: "claude_code"          # claude_code = `claude -p` on the Mac, billed to the Claude Code plan | api = pay per token | rules
+  claude_code_model: "sonnet"
+  claude_code_batch_size: 20       # listings per `claude -p` call (fewer calls = less plan usage)
+  allow_paid_api: false            # true = fall back to the paid API when the Claude Code CLI is missing
+  model: "claude-sonnet-5-5"       # only used by provider: api
   max_claude_calls_per_run: 1500   # cost cap (~$0.005 each); target lanes first, the rest catch up on later runs
   effort: "low"
   max_tokens: 1024

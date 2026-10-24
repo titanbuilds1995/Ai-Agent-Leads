@@ -1,4 +1,10 @@
-"""The only module that talks to the Claude API.
+"""The only module that talks to Claude.
+
+Providers (config scoring.provider, or env TITAN_LLM):
+- claude_code: the `claude -p` CLI on this machine, billed to Rodrigo's Claude Code plan (no API spend). Default.
+- api:         the Anthropic API with ANTHROPIC_API_KEY (pay per token).
+- rules:       deterministic keyword fallback, used when nothing else is available and in tests.
+Rule (Rodrigo, 2026-10-24): always prefer what costs nothing extra over paid API calls.
 
 - structured JSON output via output_config.format (json_schema)
 - retry wrapper on retryable errors
@@ -9,6 +15,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
+import tempfile
 from typing import Any
 
 from .util import log, retry
@@ -32,10 +41,16 @@ class LLM:
         self.pricing = cfg.get("llm_pricing_per_mtok", {})
         key = cfg.secret("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
         forced = provider or os.environ.get("TITAN_LLM")
-        if forced:
-            self.provider = forced
+        wanted = forced or cfg.get("scoring.provider", "claude_code")
+        if wanted == "claude_code" and shutil.which(cfg.get("scoring.claude_code_cli", "claude")):
+            self.provider = "claude_code"
+        elif wanted == "claude_code" and not forced:
+            # Claude Code CLI missing on this machine. Paid API only if Rodrigo switched it on (cost rule).
+            paid_ok = cfg.get("scoring.allow_paid_api", False)
+            self.provider = "claude" if (paid_ok and key and anthropic is not None) else "rules"
         else:
-            self.provider = "claude" if (key and anthropic is not None) else "rules"
+            self.provider = {"api": "claude"}.get(wanted, wanted)
+        self.limit_hit: str | None = None
         self._client = None
         if self.provider == "claude":
             if anthropic is None or not key:
@@ -49,9 +64,56 @@ class LLM:
 
     @property
     def available(self) -> bool:
-        return self.provider == "claude"
+        return self.provider in ("claude", "claude_code")
+
+    def _claude_code(self, purpose: str, system: str, user: str, schema: dict[str, Any]) -> dict[str, Any] | None:
+        """One `claude -p` call on the Claude Code plan. The API key is removed from the child's environment so the plan,
+        not API credit, is used (in -p mode an ANTHROPIC_API_KEY always wins). Runs in an empty folder so no project
+        CLAUDE.md or settings leak into the prompt; tools are disabled."""
+        cli = self.cfg.get("scoring.claude_code_cli", "claude")
+        cmd = [cli, "-p", "--model", self.cfg.get("scoring.claude_code_model", "sonnet"), "--output-format", "json",
+               "--json-schema", json.dumps(schema), "--tools", "", "--max-turns", "3", "--no-session-persistence",
+               "--system-prompt", system]
+        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                proc = subprocess.run(cmd, input=user, capture_output=True, text=True, cwd=tmp, env=env,
+                                      timeout=int(self.cfg.get("scoring.claude_code_timeout_s", 600)))
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return self._cc_fail(purpose, f"{type(e).__name__}: {e}")
+        try:
+            env_out = json.loads(proc.stdout or "{}")
+        except json.JSONDecodeError:
+            env_out = {}
+        text = f"{env_out.get('result') or ''} {proc.stderr or ''}"
+        low = text.lower()
+        if "usage limit" in low or "session limit" in low or "weekly limit" in low or "hit your limit" in low:
+            self.limit_hit = text.strip()[:300]
+            self.provider = "rules"          # stop calling until the next run; the rest are scored by rules
+            log.warning("Claude Code plan limit reached: %s", self.limit_hit)
+            return self._cc_fail(purpose, self.limit_hit)
+        if proc.returncode != 0 or env_out.get("is_error"):
+            return self._cc_fail(purpose, text.strip()[:300] or f"exit {proc.returncode}")
+        out = env_out.get("structured_output")
+        if out is None:
+            try:
+                out = json.loads(env_out.get("result") or "")
+            except (json.JSONDecodeError, TypeError):
+                return self._cc_fail(purpose, "no structured output")
+        self.session_successes += 1
+        self._record(purpose, 0, 0, ok=True, model=f"claude_code:{self.cfg.get('scoring.claude_code_model', 'sonnet')}")
+        return out
+
+    def _cc_fail(self, purpose: str, err: str) -> None:
+        log.error("claude_code:%s failed: %s", purpose, err)
+        self.session_failures += 1
+        self.last_error = err
+        self._record(purpose, 0, 0, ok=False, model="claude_code")
+        return None
 
     def _cost(self, model: str, inp: int, out: int) -> float:
+        if model.startswith("claude_code"):
+            return 0.0            # included in the Claude Code plan
         p = self.pricing.get(model) or {"input": 3.0, "output": 15.0}
         return (inp * p["input"] + out * p["output"]) / 1_000_000
 
@@ -59,6 +121,8 @@ class LLM:
         """Return a dict matching schema, or None when the API is unavailable/refused (caller falls back to rules)."""
         if not self.available:
             return None
+        if self.provider == "claude_code":
+            return self._claude_code(purpose, system, user, schema)
         assert self._client is not None
         a = anthropic
 

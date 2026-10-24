@@ -53,6 +53,9 @@ mls-shortlist:    ## rank an MLS hot sheet: make mls-shortlist CSV=~/Downloads/h
 scrape-test:      ## quick live check of the free scraper: make scrape-test (or LOC="Hollywood, FL")
 	$(PY) -m titan.cli scrape-test "$(or $(LOC),33023)"
 
+score-test:       ## score 3 stored listings through Claude Code (your plan, no API spend)
+	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli score-test
+
 doctor:           ## check every credential + setting the live run needs; prints pass/fail and the fix for each
 	$(PY) -m titan.cli doctor
 

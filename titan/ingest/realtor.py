@@ -57,9 +57,11 @@ def map_item(it: dict[str, Any]) -> Listing | None:
     desc = g(it, "description") or {}
     if isinstance(desc, str):
         desc = {"text": desc}
-    adv = (g(it, "advertisers") or [{}])
+    # epctex/realtor-scraper (2026-10 live sample) is flat camelCase: address.locality/region/postalCode, beds/sqft at top level
+    flat = lambda *keys: g(desc, *keys) if g(desc, *keys) is not None else g(it, *keys)
+    adv = (g(it, "advertisers", "agents", "listingAgents", "listingAgent", "agent") or [{}])
     adv = adv[0] if isinstance(adv, list) and adv else (adv if isinstance(adv, dict) else {})
-    office = g(adv, "office") or {}
+    office = g(adv, "office", "broker") or {}
     flags = g(it, "flags") or {}
     status_flags = []
     if g(flags, "is_foreclosure", "isForeclosure"): status_flags.append("reo")
@@ -70,7 +72,7 @@ def map_item(it: dict[str, Any]) -> Listing | None:
         street=street, city=city, state=first_str(g(addr, "state_code", "state", "region"), "FL"), zip=first_str(g(addr, "postal_code", "zip", "zipcode", "postalCode"), ""),
         county=first_str(g(addr, "county.name", "county"), g(it, "location.county.name")) if not isinstance(g(addr, "county"), dict) or g(addr, "county.name") else None,
         list_price=to_int(g(it, "list_price", "price", "listPrice")),
-        original_list_price=to_int(g(it, "original_list_price", "price_history_original", "originalPrice")),
+        original_list_price=to_int(g(it, "original_list_price", "price_history_original", "originalPrice", "originalListPrice")),
         price_history=price_history_from(g(it, "price_history", "priceHistory") or _current_listing_history(g(it, "history", "property_history")), price_key=("price",), event_key=("event_name", "event", "eventName"), date_key=("date",)),
         days_on_market=to_int(g(it, "days_on_market", "daysOnMarket", "description.days_on_market", "list_date_days", "daysOnMls")),
         beds=to_float(g(desc, "beds", "bedrooms") or g(it, "beds")), baths=to_float(g(desc, "baths", "baths_consolidated", "bathrooms") or g(it, "bathsConsolidated", "baths")),
@@ -80,13 +82,13 @@ def map_item(it: dict[str, Any]) -> Listing | None:
         photos_count=to_int(g(it, "photo_count", "photoCount")) or (len(photos) if isinstance(photos, list) else None),
         listing_url=first_str(g(it, "href", "url", "permalink_url", "listing_url")), source="realtor",
         source_id=first_str(g(it, "property_id", "listing_id", "id", "listingId")), listing_status=first_str(g(it, "status", "listing_status")),
-        listed_at=first_str(g(it, "list_date", "listDate")), last_price_change_at=first_str(g(it, "last_price_change_date", "price_reduced_date")),
+        listed_at=first_str(g(it, "list_date", "listDate")), last_price_change_at=first_str(g(it, "last_price_change_date", "price_reduced_date", "lastPriceChangeDate")),
         estimate=to_int(g(it, "estimate.estimate", "estimates.current_values.0.estimate", "estimate")), hoa=to_int(g(it, "hoa.fee", "hoa_fee")),
         status_flags=status_flags, lat=to_float(g(addr, "coordinate.lat", "lat") or g(it, "coordinates.latitude")), lng=to_float(g(addr, "coordinate.lon", "lng", "lon") or g(it, "coordinates.longitude")),
-        agent_name=first_str(g(adv, "name", "agent_name"), g(it, "agent.name", "agentName")),
+        agent_name=first_str(g(adv, "name", "fullName", "agent_name"), g(it, "agent.name", "agentName", "listingAgentName")),
         agent_phone_raw=first_str(g(adv, "phone", "phones.0.number"), g(it, "agent.phone", "agentPhone")),
-        agent_email=first_str(g(adv, "email"), g(it, "agent.email")),
-        brokerage=first_str(g(office, "name"), g(adv, "company"), g(it, "broker.name", "brokerName", "office_name")),
+        agent_email=first_str(g(adv, "email", "emails.0"), g(it, "agent.email", "agentEmail")),
+        brokerage=first_str(g(office, "name"), g(adv, "company"), g(it, "broker.name", "brokerName", "office_name", "branding.0.name")),
         agent_profile_url=first_str(g(adv, "href", "profile_url", "url")),
         raw=it,
     )

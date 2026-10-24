@@ -35,10 +35,15 @@ def build_clients(cfg, conn, need=("apify", "llm", "gmail", "twilio"), interacti
         except LLMUnavailable as e:
             out["missing"].append(f"ANTHROPIC_API_KEY ({e})")
     if "gmail" in need:
-        if cfg.secret("GMAIL_OAUTH_JSON") and cfg.secret("GMAIL_SENDER"):
+        token_path = cfg.root / (cfg.secret("GMAIL_TOKEN_JSON") or "secrets/gmail_token.json")
+        if cfg.secret("GMAIL_TOKEN_JSON_CONTENT") and not token_path.exists():
+            # cloud sessions: the token file's contents live in an environment variable, not on disk
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            token_path.write_text(cfg.secret("GMAIL_TOKEN_JSON_CONTENT"))
+        if (cfg.secret("GMAIL_OAUTH_JSON") or token_path.exists()) and cfg.secret("GMAIL_SENDER"):
             from .outreach.gmail_client import GmailClient, GmailUnavailable
             try:
-                out["gmail"] = GmailClient(cfg.root / cfg.secret("GMAIL_OAUTH_JSON"), cfg.root / (cfg.secret("GMAIL_TOKEN_JSON") or "secrets/gmail_token.json"),
+                out["gmail"] = GmailClient(cfg.root / (cfg.secret("GMAIL_OAUTH_JSON") or "secrets/gmail_oauth_client.json"), token_path,
                                            cfg.secret("GMAIL_SENDER"), cfg.get("operator.sender_name"), interactive=interactive)
             except GmailUnavailable as e:
                 out["missing"].append(f"Gmail ({e})")
@@ -270,6 +275,20 @@ def cmd_gmail_auth(cfg, args):
     print("gmail ok" if c["gmail"] else f"gmail not configured: {c['missing']}")
 
 
+def cmd_gmail_test(cfg, args):
+    """Prove the outreach mailbox works end to end: one draft to itself under the review label. Sends nothing."""
+    conn = _open(cfg)
+    c = build_clients(cfg, conn, need=("gmail",), interactive=False)
+    if not c["gmail"]:
+        print(f"gmail NOT working: {c['missing']} (run `make doctor` for the fix)")
+        sys.exit(1)
+    g = c["gmail"]
+    addr = g.svc.users().getProfile(userId="me").execute()["emailAddress"]
+    label = cfg.get("outreach.gmail_review_label", "Titan/Review")
+    d = g.create_draft(addr, "Titan test draft (delete me)", "Test only. If you can read this in Drafts, the engine can draft from this mailbox.", label=label)
+    print(f"gmail OK: signed in as {addr}; .env GMAIL_SENDER = {cfg.secret('GMAIL_SENDER')}; test draft {d['draft_id']} is in Drafts under {label}")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="titan")
     ap.add_argument("--config", default=None)
@@ -292,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--host", default="0.0.0.0")
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
+    sub.add_parser("gmail-test", help="make one test draft in the outreach mailbox (sends nothing)")
     dl = sub.add_parser("dashboard", help="open the dashboard from this machine (no hosting needed)")
     dl.add_argument("--port", type=int, default=8765)
     dl.add_argument("--no-open", action="store_true")
@@ -310,7 +330,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test}[args.cmd](cfg, args)
     return 0
 
 

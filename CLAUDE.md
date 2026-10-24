@@ -18,6 +18,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
 
 ## Decisions already made
+- **Channel: `EMAIL_FIRST`** until Twilio 10DLC is approved (set 2026-10-23; goal: agent email conversations this weekend).
+- **Sending mailbox: Rodrigo's "Charles" account** (2026-10-23; exact address goes in `.env` GMAIL_SENDER on the Mac).
 - **Draft mode only** (`DRAFT_FOR_APPROVAL`): nothing sends until Rodrigo clicks send in Gmail (label `Titan/Review`).
 - **Voice:** `docs/style/RODRIGO_WRITING_STYLE_GUIDE.md` is injected into every drafting prompt; few-shot examples in
   `config.yaml → outreach.example_emails` are his real emails. Signature: Rodrigo Gayoso / Principal | Titan Realty / (561) 405-7379.
@@ -43,6 +45,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   reflect what investors paid as-is, so Rodrigo may want repairs/fee dropped or reduced: asked on Asana 2026-10-23.
 
 ## Current status
+- Merged branch claude/gallant-planck-8fc2qd (Rodrigo OK'd on Asana 2026-10-24): `make gmail-test` (one draft to itself),
+  `make gmail-auth` re-prompts on a dead token, engine reads Charles's Gmail token from env `GMAIL_TOKEN_JSON_CONTENT`.
+  Notes from that session: this cloud session's Gmail connector is rodrigo@, not Charles; the SQLite DB does not survive
+  between cloud sessions (dedup/cooldown state) — persist it before running daily from the cloud.
 - 2026-10-23 night (cloud): free scraper confirmed on the Mac (`make scrape-test`: 19/19 read, 17 with agent email).
   Offers use the WhatsApp engine's ZIP investor ratios; sold comps are pulled per subject ZIP; every run ends with a
   plain-English summary. EMAIL_FIRST, Charles@ mailbox + footer. All merged into the default branch; 124 tests pass.

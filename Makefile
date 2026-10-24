@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth doctor dashboard sync-dashboard demo clean-demo
+.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -37,6 +37,9 @@ webhook:          ## Twilio inbound endpoint on :8080 (expose with ngrok or the 
 
 gmail-auth:       ## one-time OAuth for the outreach mailbox
 	$(PY) -m titan.cli gmail-auth
+
+gmail-test:       ## one test draft in the outreach mailbox, to itself (sends nothing)
+	$(PY) -m titan.cli gmail-test
 
 dashboard:        ## open the dashboard in your browser from this machine (live, no password, no Vercel)
 	$(PY) -m titan.cli dashboard

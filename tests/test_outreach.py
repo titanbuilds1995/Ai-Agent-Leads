@@ -210,3 +210,16 @@ def test_auto_mode_sends_via_clients_and_respects_window(loaded, cfg, monkeypatc
     n = flush_queued_sms(loaded, cfg, T(), now=tuesday)
     assert n == counts["sms_skipped_window"] == len(sent_sms)
     assert loaded.execute("SELECT COUNT(*) FROM threads WHERE channel='sms'").fetchone()[0] == n
+
+
+def test_land_gets_a_lot_email_not_a_renovation_email(cfg):
+    p = _prop(property_type="land", remarks="Vacant agricultural land", sqft=None, beds=None, baths=None, year_built=None, price_cuts=0, days_on_market=3)
+    d = compose_email(None, cfg, _agent(), [p], 0)
+    low = d["body"].lower()
+    assert "lot" in low and "renovat" not in low and "roof" not in low and "?" in low
+
+
+def test_greeting_never_uses_an_initial_or_title():
+    from titan.util import first_name
+    assert first_name("C Glansen, Broker") == "Glansen" and first_name("Dr. Ana Perez PA") == "Ana"
+    assert first_name("CHERYL A MEDEIROS REALTOR") == "Cheryl" and first_name("Team Smith") == "Smith" and first_name("") == "there"

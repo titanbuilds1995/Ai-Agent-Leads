@@ -62,6 +62,7 @@ Working rules for this call:
 - Write as {sender} in first person ("I", "we buy…"). Mention {company_short} once, lightly. Address the agent by first name.
 - End with the signature block from the input, unchanged, after a short sign-off line.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
+- If property_type is "land": it is a lot, not a house. No renovation, roof or interior talk; ask about flexibility and anything about the parcel (zoning, access, utilities, why it's sitting).
 - NO DASHES of any kind in the subject or body: no em dash (—), no en dash (–), no " - " between words, no "--". Use a comma or a period instead ("Hey John, I was looking at..."). This is a hard rule.
 - Before answering, run the quality test from the protocol (could this go to 100 listings? did we repeat the listing? did we claim something we don't know? is there a hypothesis? one easy reason to respond? does it sound like a human investor?). If any fails, rewrite.
 Return JSON: analysis, subject (under 60 chars, plain, names the street, e.g. "Quick question on NW 11th St"), body."""
@@ -156,6 +157,15 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "makes it more about whether the numbers can line up.{near_ask} Is the seller open to some flexibility, or are they set on "
          "staying close to asking?\n\n{sign}"),
     ],
+    "land": [      # vacant land: no renovation talk; the questions are use, utilities and seller flexibility
+        ("Quick question on the lot on {street_name}",
+         "Hey {first}, quick question on the lot on {street_name}. We've been picking up land in that area, and this one could work "
+         "depending on what's possible with it. Do you know if the seller has some flexibility on price, and whether there's "
+         "anything with zoning, access or utilities I should know about before I dig into the numbers?\n\n{sign}"),
+        ("The lot on {street_name}",
+         "{first}, I was looking at the lot on {street_name}. Before I spend your time on numbers, is the seller open to some "
+         "flexibility, or are they firm near asking? And is there anything about the parcel that's been holding it back?\n\n{sign}"),
+    ],
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
          "Hey {first}, quick question on the house on {street_name}. I'm trying to figure out whether it's mostly an updating job or "
@@ -185,6 +195,8 @@ SOLID_RE = re.compile(r"new(er)? roof|roof (20[12]\d|replaced)|new(er)? (ac|a/c|
 def angle_for(p: dict[str, Any]) -> str:
     """Which investment hypothesis the fallback leads with (facts and signals only, never a quote of the listing)."""
     remarks = p.get("remarks") or ""
+    if p.get("property_type") == "land":
+        return "land"
     dom = p.get("days_on_market") or 0
     cuts = p.get("price_cuts") or 0
     yb = p.get("year_built") or 0

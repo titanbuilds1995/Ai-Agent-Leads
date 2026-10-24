@@ -242,13 +242,19 @@ def display_street(street: str | None) -> str:
     return " ".join(out)
 
 
+_NOT_A_NAME = {"dr", "mr", "mrs", "ms", "team", "the", "realtor", "broker", "pa", "llc", "inc", "group", "associates", "realty"}
+
+
 def first_name(full: str | None) -> str:
+    """'CHERYL A MEDEIROS REALTOR' → 'Cheryl'; 'C Glansen, Broker' / 'Dr. Ana Perez' / 'Team Smith' → the first real first name,
+    else 'there' (so the greeting reads 'Hey there,' instead of 'Hey C,')."""
     if not full:
         return "there"
-    parts = re.split(r"[\s,]+", full.strip())
-    fn = parts[0] if parts else "there"
-    fn = re.sub(r"[^A-Za-z'\-]", "", fn)
-    return fn.title() if fn else "there"
+    for part in re.split(r"[\s,]+", full.strip()):
+        fn = re.sub(r"[^A-Za-z'\-]", "", part)
+        if len(fn) >= 2 and fn.lower() not in _NOT_A_NAME:
+            return fn.title()
+    return "there"
 
 
 def slug(s: str) -> str:

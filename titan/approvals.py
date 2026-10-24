@@ -14,7 +14,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from . import db
-from .asana import BOT, Asana
+from .asana import BOT, Asana, AsanaError
 from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
@@ -92,8 +92,12 @@ def _attach_picture(cfg: Any, asana: Asana, task: str, to: str, subject: str, bo
 
 
 REVISE_SYSTEM = """You revise one email from {sender} ({company}) to a listing agent, following Rodrigo's feedback exactly.
-The outreach protocol below still applies in full (no price/offer/percentage, no listing echo, no manufactured observations,
-one easy question, 50-110 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
+The outreach protocol below still applies in full (no price/offer/percentage/dollar figure, no listing echo, no manufactured observations,
+one easy question, 60-120 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
+The first paragraph must say who we are in a personable sentence or two ({sender} with {company}, investors who buy in this area and like it,
+this listing stood out); keep or add that intro. The input carries the listing facts (`properties`); use them so the feedback lands on the right house,
+and name every listed street in the body. If the feedback asks for numbers or analysis rather than a change to the email, keep the email a
+conversation (ask the agent for the fact instead of stating a figure).
 
 === OUTREACH PROTOCOL ===
 {protocol}
@@ -109,10 +113,15 @@ TEST_RE = re.compile(r"\btest\b", re.I)
 EMAIL_IN_TEXT_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
 
+FAILED_PREFIX = "I couldn't rewrite this one automatically"
+
+
 def pending_feedback(asana: Asana, task_gid: str) -> tuple[list[str], list[dict[str, Any]]]:
-    """Rodrigo's comments since the engine's last comment on the card (the engine's own comments start with BOT)."""
+    """Rodrigo's comments since the engine's last comment on the card (the engine's own comments start with BOT).
+    A "couldn't rewrite" comment does not count: the feedback stays pending until a rewrite actually lands."""
     comments = asana.comments(task_gid)
-    last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)), default=-1)
+    last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)
+                    and not (c.get("text") or "").startswith(f"{BOT} {FAILED_PREFIX}")), default=-1)
     return [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)], comments
 
 
@@ -153,18 +162,28 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], card, test_to))
             continue
-        op = cfg["operator"]
-        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg)),
-                             json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"],
-                                         "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         row = db.row_to_dict(conn.execute("SELECT property_ids FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}
         props = [db.row_to_dict(r) for r in conn.execute(
             f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(json.loads(row.get('property_ids') or '[]'))) or 'NULL'})",
             json.loads(row.get("property_ids") or "[]"))]
-        problems = validate_email(out["subject"], out["body"], props) if out else ["no rewrite"]
+        op = cfg["operator"]
+        facts = [{k: p.get(k) for k in ("street", "city", "zip", "list_price", "original_list_price", "price_cuts", "days_on_market", "beds", "baths",
+                                        "sqft", "lot_sqft", "year_built", "property_type", "vacant")} | {"listing_remarks_verbatim": (p.get("remarks") or "")[:2000]}
+                 for p in props]
+        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg)),
+                             json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
+                                         "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
+        if out is None:
+            why = "Claude isn't reachable from this job" + (f": {llm.last_error[:160]}" if llm is not None and getattr(llm, "last_error", None) else
+                                                            " (not logged in, or CLAUDE_CODE_OAUTH_TOKEN missing in .env)")
+            problems = [why]
+        else:
+            problems = validate_email(out["subject"], out["body"], props)
         if problems:
-            asana.comment(t["gid"], f"I couldn't rewrite this one automatically ({', '.join(problems)}). Edit the text on the card, "
-                                    f"or comment again with different wording.")
+            last = (comments[-1].get("text") or "") if comments else ""
+            if not last.startswith(f"{BOT} {FAILED_PREFIX}"):      # say it once; the feedback stays pending and is retried next tick
+                asana.comment(t["gid"], f"{FAILED_PREFIX} ({', '.join(problems)}). I'll retry on the next round; you can also edit the "
+                                        f"text on the card yourself or comment again with different wording.")
             n["revise_failed"] += 1
             continue
         notes = (t["notes"] or "")
@@ -267,12 +286,22 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
     By default only cards written before the protocol (no stored analysis); all=True redoes every To Review card.
     Approved/sent cards are left alone."""
     a = _cfg(cfg)
-    n = {"rewritten": 0, "failed": 0, "skipped_already_protocol": 0}
+    n = {"rewritten": 0, "failed": 0, "skipped_already_protocol": 0, "left_to_feedback": 0, "card_deleted": 0}
     rows = [db.row_to_dict(r) for r in conn.execute(
         "SELECT * FROM outreach WHERE status='pending_approval' AND asana_task_id IS NOT NULL ORDER BY id").fetchall()]
     for row in rows:
         if only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
             n["skipped_already_protocol"] += 1
+            continue
+        try:
+            feedback, comments = pending_feedback(asana, row["asana_task_id"])
+        except AsanaError as e:                      # card deleted on the board: nothing to rewrite, don't send it either
+            log.warning("card for outreach %s is gone (%s); marking skipped", row["id"], e)
+            conn.execute("UPDATE outreach SET status='skipped' WHERE id=?", (row["id"],))
+            n["card_deleted"] += 1
+            continue
+        if feedback or any((c.get("text") or "").startswith(f"{BOT} Revised based on your comment") for c in comments):
+            n["left_to_feedback"] += 1              # Rodrigo's own feedback shapes this one; sync_feedback owns it
             continue
         agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
         pids = json.loads(row["property_ids"] or "[]")

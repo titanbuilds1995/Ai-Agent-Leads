@@ -150,11 +150,54 @@ def test_send_me_a_test_sends_a_copy_to_rodrigo_only(loaded, cfg, tmp_path, monk
     assert sync_feedback(loaded, cfg, asana, None, gm)["tests_sent"] == 0       # not re-sent next tick
 
 
-def test_body_never_introduces_the_company_or_says_we_buy_around_here(cfg):
+def test_first_paragraph_introduces_who_we_are(cfg):
     from titan.outreach.compose import compose_email, validate_email
     for seed in range(12):
         d = compose_email(None, cfg, {"name": "Maria Lopez"}, [{"id": 1, "street": "101 NW 11th St", "city": "Miami", "remarks": "", "days_on_market": 90, "price_cuts": 0, "year_built": 1990}], seed)
-        assert "titan" not in d["body"].split("\n\nBest")[0].lower()
+        first = d["body"].split("\n\n")[0]
+        assert "Titan Realty Investments" in first and "Miami" in first and first.startswith(("Hey Maria,", "Maria,"))
+        assert not validate_email(d["subject"], d["body"], [{"street": "101 NW 11th St"}])
     p = [{"street": "101 NW 11th St"}]
-    bad = "Hey Maria, quick question on NW 11th St. How much work would you say it really needs? We buy around Miami through Titan Realty.\n\nBest regards,\n\nCharles Grant"
-    assert any("self-introduction" in x for x in validate_email("Quick question on NW 11th St", bad, p))
+    bare = "Hey Maria, quick question on NW 11th St. Is it mostly cosmetic or something bigger? How much work would you say it really needs, and is the seller open to some flexibility on price at this point?\n\nBest regards,\n\nCharles Grant"
+    assert any("no intro" in x for x in validate_email("Quick question on NW 11th St", bare, p))
+
+
+def test_both_listed_streets_must_appear(cfg):
+    from titan.outreach.compose import validate_email
+    props = [{"street": "202 S A St"}, {"street": "1 NW 75th Way"}]
+    body = "Hey Dror, Charles here with Titan Realty Investments, we're investors who buy around Lake Worth. Quick question on NW 75th Way, is the tenant on a lease and how long does it run? If the rest is in decent shape there may be something we can work with.\n\nBest regards,\n\nCharles Grant"
+    assert any("missing from the body" in x for x in validate_email("Quick question", body, props))
+
+
+def test_failed_rewrite_keeps_the_feedback_pending(loaded, cfg, tmp_path, monkeypatch):
+    from titan.approvals import FAILED_PREFIX, pending_feedback
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    gid = next(iter(asana.tasks))
+    asana.stories[gid].append("mention the pool")
+    class NoClaude:
+        available = True
+        last_error = "Not logged in"
+        def structured(self, *a, **k): return None
+    for _ in range(2):
+        sync_feedback(loaded, cfg, asana, NoClaude(), FakeGmail())
+    fails = [t for t in asana.stories[gid] if t.startswith(f"{BOT} {FAILED_PREFIX}")]
+    assert len(fails) == 1 and "Not logged in" in fails[0]            # said once, not every tick
+    assert pending_feedback(asana, gid)[0] == ["mention the pool"]      # still pending for the next round
+
+
+def test_rewrite_pending_leaves_feedback_cards_alone_and_survives_deleted_cards(loaded, cfg, tmp_path, monkeypatch):
+    from titan.approvals import rewrite_pending
+    from titan.asana import AsanaError
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    gids = list(asana.tasks)
+    asana.stories[gids[0]].append(f"{BOT} Revised based on your comment (picture v1 attached).")
+    class Asana2(FakeAsana):
+        def comments(self, task):
+            if task == gids[1]:
+                raise AsanaError("GET: HTTP 404 Not a recognized ID")
+            return FakeAsana.comments(self, task)
+    a2 = Asana2(); a2.__dict__.update(asana.__dict__)
+    n = rewrite_pending(loaded, cfg, a2, None, only_old_style=False)
+    assert n["left_to_feedback"] == 1 and n["card_deleted"] == 1
+    oid = parse_card(asana.tasks[gids[1]]["notes"])["outreach_id"]
+    assert loaded.execute("SELECT status FROM outreach WHERE id=?", (oid,)).fetchone()[0] == "skipped"

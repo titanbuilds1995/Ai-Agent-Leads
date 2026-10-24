@@ -32,10 +32,15 @@ PERSONAL_RE = re.compile(
     r"doesn'?t bother me\b|\bI like (this|the) (deal|house|property)\b|\bI('d| would) need the seller\b|"
     r"\b(ask|check with|run it by) my boss\b|\bI (don'?t|do not) make (those|the) decisions\b|\bI have no authority\b|"
     r"\bwe can definitely pay\b", re.I)
-# Rodrigo, 2026-10-24: the signature says who we are. No self-introduction or "we buy around here" closer in the body.
-SELF_INTRO_RE = re.compile(r"(through|at|with|from|here at|we'?re|this is \w+ (with|from|at)) titan realty|titan realty investments|"
-                           r"\bwe buy (quite a bit|a fair amount|a lot|houses|homes|property|properties|around|in|throughout|all over)\b|"
-                           r"\bwe('ve| have) been (buying|picking up)\b", re.I)
+# Rodrigo, 2026-10-24 (later, overrides the earlier "no self-intro" rule): the agent doesn't know who we are. The FIRST
+# paragraph says so in a sentence or two (Charles with Titan Realty Investments, investors who buy in this area and like it,
+# this listing stood out), personable and directed at the agent. Validated: the first paragraph must say who we are.
+INTRO_RE = re.compile(r"\btitan realty\b|\binvestors?\b|\bwe (buy|invest|purchase|renovate|flip)\b|\bbuying (houses|homes|property|properties)\b", re.I)
+INTRO_LINES = [
+    "Charles here with Titan Realty Investments. We're investors who buy and renovate houses in and around {city}, and this one stood out to me.",
+    "I'm Charles with Titan Realty Investments, we buy property in {city} and the surrounding area and like this part of town quite a bit.",
+    "Charles with Titan Realty Investments here. We're local investors, we buy in and around {city} regularly, and your listing stood out.",
+]
 # Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
 DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
@@ -73,8 +78,10 @@ Working rules for this call:
 - Do not quote or paraphrase the listing's own wording back to the agent. Reason one level deeper instead.
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
-- One natural question an agent can answer easily (two at most). 50-110 words before the signature. Vary the opening naturally.
-- Write as {sender} in first person. Address the agent by first name. The company name appears ONLY in the signature block: never introduce {company_short} in the body and never add a line like "We buy around Miami through {company_short}" or "we buy quite a bit in the area" (Rodrigo: we obviously buy, that's why we're reaching out). Saying what we look for or what's "close to what we buy" is fine.
+- One natural question an agent can answer easily (two at most). 60-120 words before the signature including the intro. Vary the opening naturally.
+- Write as {sender} in first person. Address the agent by first name.
+- INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, investors who buy (and renovate) in this area and like it, and that this listing stood out. Directed at the agent, warm, not a pitch (no "we specialize in", no credentials list). Then the property reasoning and the question.
+- If two properties are given, lead with the first and name the second by its street in one sentence; both streets must appear.
 - End with the signature block from the input, unchanged. It already begins with "Best regards," so do NOT add another sign-off line ("Thanks," / "Appreciate it,") before it.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
 - If property_type is "land": it is a lot, not a house. No renovation, roof or interior talk; ask about flexibility and anything about the parcel (zoning, access, utilities, why it's sitting).
@@ -303,9 +310,15 @@ def _ctx(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> dict[s
             "sign": sign, "lines": "\n".join(f"{q['street']}, {q['city']}" for q in props)}
 
 
+def with_intro(body: str, intro: str) -> str:
+    """Insert the who-we-are sentence right after the greeting ("Hey {first}, quick question" → "Hey {first}, <intro> Quick question")."""
+    return re.sub(r"^((?:Hey )?\{first\}), (\w)", lambda m: f"{m.group(1)}, {intro} {m.group(2).upper()}", body, count=1)
+
+
 def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]], seed: int) -> tuple[str, str, str]:
     ctx = _ctx(cfg, agent, props)
     rnd = random.Random(seed)
+    intro = rnd.choice(INTRO_LINES).format(city=ctx["city"] or "South Florida")
     if len(props) > 1:
         subj, body = MULTI_TEMPLATE
         variant = "multi"
@@ -315,7 +328,7 @@ def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]],
         i = rnd.randrange(len(options))
         subj, body = options[i]
         variant = f"t:{angle}:{i}"
-    return subj.format(**ctx), body.format(**ctx), variant
+    return subj.format(**ctx), with_intro(body, intro).format(**ctx), variant
 
 
 def _history_summary(p: dict[str, Any]) -> list[str]:
@@ -371,8 +384,11 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
-    if SELF_INTRO_RE.search(body.split("\n\nBest")[0]) or SELF_INTRO_RE.search(subject):
-        problems.append("self-introduction / 'we buy around here' in the body (the signature says who we are)")
+    first_para = body.strip().split("\n\n")[0]
+    if not INTRO_RE.search(first_para):
+        problems.append("no intro (Rodrigo: the first paragraph says who we are, investors who buy in the area)")
+    if len(props) > 1 and not all(street_name(p.get("street")) and street_name(p.get("street")) in body for p in props):
+        problems.append("a listed property is missing from the body")
     if PERSONAL_RE.search(body):
         problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):

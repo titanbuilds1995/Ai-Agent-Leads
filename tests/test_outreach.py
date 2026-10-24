@@ -73,7 +73,7 @@ def test_validator_rejects_protocol_violations(cfg):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
     assert any("dash" in x for x in validate_email("Quick question on NW 11th St", "Hey Maria — quick question on NW 11th St." + filler + sig, p))
     assert any("dash" in x for x in validate_email("NW 11th St - quick question", "Hey Maria, quick question on NW 11th St." + filler + sig, p))
-    good = "Hey Maria, quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
+    good = "Hey Maria, Charles here with Titan Realty Investments, we buy around Miami. Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
     assert validate_email("Quick question on NW 11th St", good, p) == []
 
 
@@ -227,7 +227,7 @@ def test_greeting_never_uses_an_initial_or_title():
 
 def test_double_sign_off_is_rejected(cfg):
     p = [_prop()]
-    filler = "Hey Maria, quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
+    filler = "Hey Maria, Charles here with Titan Realty Investments, we buy around Miami. Quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
     assert any("double sign-off" in x for x in validate_email("Quick question on NW 11th St", filler + "\n\nThanks,\n\nBest regards,\n\nCharles Grant", p))
     assert validate_email("Quick question on NW 11th St", filler + "\n\nBest regards,\n\nCharles Grant", p) == []
 
@@ -245,7 +245,7 @@ def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
     from titan.outreach.compose import PERSONAL_RE
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    ok = "Hey Maria, quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
+    ok = "Hey Maria, Charles with Titan Realty Investments here, we buy around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
     assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
     for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
                 "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):

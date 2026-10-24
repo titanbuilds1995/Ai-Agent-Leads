@@ -29,7 +29,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. **A new comment on an Approved card holds
   the send**: the card goes back to To Review and the feedback is applied at once. "send me a test" (+ optional address) on
   any card sends a [TEST] copy to Rodrigo (REPORT_TO) from Charles@; `titan.cli test-email <outreach_id>` does it by hand.
-  Body never introduces the company or says "we buy around here" (`SELF_INTRO_RE`). Needs ASANA_TOKEN in the Mac's .env.
+  **Every email opens with a short intro** (Rodrigo, Asana 2026-10-24, later: "they don't really know who we are"): first paragraph =
+  Charles with Titan Realty Investments, investors who buy in this area and like it, this listing stood out (protocol §0, `INTRO_RE`
+  requires it; this replaced the earlier no-self-intro rule). A "couldn't rewrite" comment does NOT consume feedback (retried next
+  tick, reason shown, e.g. Claude not logged in from cron). `rewrite-pending` leaves cards that Rodrigo's feedback already shaped
+  alone and marks deleted cards skipped. Needs ASANA_TOKEN in the Mac's .env.
 - **Outreach protocol = `docs/style/OUTREACH_PROTOCOL.md`** (Rodrigo, 2026-10-24): think first (facts / signals / inferences /
   unknowns / rehab level 1–5 / hypothesis / key unknown), then write; never echo the listing's wording; never manufacture
   observations (no photos are analyzed); investment hypothesis + one easy question; 50–110 words; varied openings; no

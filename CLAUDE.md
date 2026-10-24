@@ -88,12 +88,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-10-24 (late): outreach rebuilt to Rodrigo's protocol (think-first analysis, no listing echo, angle templates, banned
-  phrases, NO dashes, no double sign-off); Charles Grant signature, no opt-out. First 30 cards posted; 26 were old-style →
-  `rewrite-pending` (only old-style by default). 'Close to asking' line and FRESH_DEAL lane now keyed to the internal TARGET
-  (mao), not the high; ≤2 listings per email; generic mailboxes (help@/info@) skipped; auctions excluded. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
-  hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
-  plan) scores. Voice protocol added (we/our side for criteria). First 2 emails sent 2026-10-24 12:44pm ET (Thais
-  Guevara, Lise Freeman); Thais's went out before Rodrigo's comment was applied → feedback-hold rule added. 165 tests pass.
-- Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;
-  `make automate`; full run `run-daily --steps ingest,score,value,enrich,outreach` → cards appear in To Review.
+- 2026-10-24 (afternoon): Rodrigo reviewed the board: 4 cards approved with comments (Richard Dipietro, Abraham Elbaz, Eugene
+  Schroeder, Dror Gerges), feedback on Glenn Smith (triplex: wants a rental-yield number) and Douglas Montas (the global
+  "introduce yourself first" rule), 4 cards deleted (Alex Salinas, Yuri Skutnik, Ingrid Vengoechea, Brett Colby). Cron rewrites
+  failed twice with "no rewrite" (Claude Code not usable from cron; likely no CLAUDE_CODE_OAUTH_TOKEN). This commit: intro-first
+  rule (protocol §0, INTRO_RE, templates), revise prompt gets listing facts + both streets required, failed rewrites keep the
+  feedback pending and show the reason, rewrite-pending skips feedback-shaped cards and tolerates deleted cards. 168 tests pass.
+- Next on the Mac: `git pull`, then `.venv/bin/python -m titan.cli approvals` (applies the held feedback with the intro), then
+  `.venv/bin/python -m titan.cli rewrite-pending --all` (intro on the rest). Add CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`)
+  to .env so the cron rewrites work. Then Rodrigo re-approves; 2 emails go out per 20-min tick until 5:30pm ET.

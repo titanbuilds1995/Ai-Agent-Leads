@@ -1,8 +1,14 @@
 # Every number Rodrigo may want to change lives here. Code never hardcodes these.
 
 operator:
-  sender_name: "Charles"               # Rodrigo's assistant sends and signs the outreach (Rodrigo, Asana 2026-10-24)
-  sender_title: ""                     # e.g. "Acquisitions" — ask Rodrigo for Charles's last name/title
+  sender_name: "Charles Grant"         # sends and signs the outreach (Rodrigo, 2026-10-24)
+  sender_title: "Junior Acquisitions Agent"
+  # Exact signature under every email (Rodrigo, 2026-10-24). No opt-out line: it makes a personal email read as marketing.
+  signature_lines:
+    - "Charles Grant"
+    - "Junior Acquisitions Agent"
+    - "Titan Realty Investments"
+    - "Office Line: +1 (561) 405 7379"
   principal_name: "Rodrigo Gayoso"     # approves every price; named only when an agent asks who decides
   company: "Titan Realty Investments LLC"
   company_short: "Titan Realty"
@@ -10,8 +16,6 @@ operator:
   reply_to_email: "Charles@titanrealtyinvestments.com"
   mailing_address: "13075 Marcella Blvd, Loxahatchee, FL"
   sender_email: "Charles@titanrealtyinvestments.com"   # the Gmail mailbox that holds the drafts and sends (Rodrigo, 2026-10-23)
-  # Footer under every email signature: business identity + a one-line opt-out ("remove me" replies go to do-not-contact).
-  email_footer: "Titan Realty Investments LLC · 13075 Marcella Blvd, Loxahatchee, FL\nIf you'd rather not hear from us about listings, reply \"remove me\" and we won't email you again."
 
 market:
   state: "FL"

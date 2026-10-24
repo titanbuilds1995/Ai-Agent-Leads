@@ -142,6 +142,8 @@ def seed_for(agent_id: int, property_ids: list[int], run_date: str) -> int:
 def signature(cfg: Any, closing: str = "Best regards,") -> str:
     """The sender's signature (Charles), without a website so the no-links rule holds, plus the footer."""
     op = cfg["operator"]
+    if op.get("signature_lines"):
+        return "\n".join([closing, "", *op["signature_lines"]])
     title = op.get("sender_title")
     company = op.get("company_short", op["company"])
     lines = [closing, "", op["sender_name"], f"{title} | {company}" if title else company, pretty_phone(op["sender_phone"])]

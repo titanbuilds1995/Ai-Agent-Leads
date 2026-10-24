@@ -35,12 +35,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `titan.cli approve-offer <property_id> <price>` (Rodrigo decides per house; creates a draft, never sends).
   The ZIP-ratio MAO/range is an INTERNAL screening tool only (ranking + review summary, labeled as such).
 - **Voice/sender:** outreach is written and signed by **Charles** (Rodrigo's assistant) from Charles@; the style guide and
-  Rodrigo's example emails are tone references only. Charles's last name/title not yet given (config `operator.sender_title`).
+  Rodrigo's example emails are tone references only. Charles Grant, Junior Acquisitions Agent.
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
-- **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`); every email ends with the footer in
-  `operator.email_footer` (business name + address + "reply 'remove me'" opt-out, which the STOP classifier catches).
+- **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
+  Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379. **No opt-out footer**
+  (Rodrigo, 2026-10-24: it reads as marketing). "Remove me"/stop replies are still caught and honored (do-not-contact).
 - **Scoring runs on the Claude Code plan** (`scoring.provider: claude_code`): `claude -p` on the Mac, 20 listings per call,
   API key stripped from the child env so the plan is billed; plan limit → rest by rules, Claude next run. Paid API only with
   `scoring.allow_paid_api: true`. Check with `make score-test`.
@@ -65,7 +66,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- Charles's last name and title for the signature (asked on Asana 2026-10-24).
+- (none)
 
 ## Current status
 - 2026-10-24: Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);

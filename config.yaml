@@ -124,7 +124,7 @@ outreach:
   near_ask_within_pct: 5           # may say "asking isn't too far from where we'd need to be" only when list ≤ internal high × (1 + this/100)
   max_auto_questions: 2            # after this many back-and-forths, stop and bring the lead to Rodrigo
   channel: "EMAIL_FIRST"           # SMS_FIRST | EMAIL_FIRST | BOTH. Email until Twilio A2P is approved (Rodrigo, 2026-10-23)
-  daily_email_cap: 25
+  daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
   daily_sms_cap: 25
   agent_cooldown_days: 7
   max_unanswered_sms: 3

@@ -39,7 +39,7 @@ STRUCTURED = ("dom_over_60", "two_plus_cuts", "back_on_market", "expired_reliste
 SCORE_SCHEMA = {
     "type": "object",
     "properties": {
-        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "score": {"type": "integer"},   # 0-100 is enforced after parsing: structured outputs reject minimum/maximum (400)
         "cited": {"type": "array", "items": {"type": "object", "properties": {
             "signal": {"type": "string"}, "phrase": {"type": "string"}}, "required": ["signal", "phrase"], "additionalProperties": False}},
         "negatives": {"type": "array", "items": {"type": "object", "properties": {
@@ -164,16 +164,23 @@ def score_property(llm: LLM | None, p: dict[str, Any], cfg: Any) -> dict[str, An
 def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None, force: bool = False) -> dict[str, Any]:
     """Score every property whose remarks/structured inputs changed since the last score."""
     run_id = db.start_run(conn, "score", today_et())
-    rows = conn.execute("SELECT p.*, s.remarks_hash AS prev_hash FROM properties p LEFT JOIN scores s ON s.property_id=p.id "
+    rows = conn.execute("SELECT p.*, s.remarks_hash AS prev_hash, s.method AS prev_method FROM properties p LEFT JOIN scores s ON s.property_id=p.id "
                         "WHERE p.lead_status NOT IN ('CLOSED','DNC') ORDER BY p.last_seen DESC").fetchall()
     n, skipped, methods = 0, 0, {"rules": 0, "claude": 0}
+    warning = None
     for r in rows:
         p = db.row_to_dict(r)
         h = remarks_hash(p)
-        if not force and p.get("prev_hash") == h:
+        # unchanged listings are skipped, except rules-fallback scores once Claude is available again
+        if not force and p.get("prev_hash") == h and not (llm and llm.available and p.get("prev_method") == "rules"):
             skipped += 1
             continue
         res = score_property(llm, p, cfg)
+        if llm and llm.available and llm.session_failures >= 5 and llm.session_successes == 0:
+            warning = (f"Claude scoring failed {llm.session_failures} times in a row and was switched off for this run; "
+                       f"the rest are scored by the keyword rules. Last error: {llm.last_error}")
+            log.error(warning)
+            llm.provider = "rules"
         conn.execute("INSERT INTO scores(property_id,score,cited,signals,negatives,summary,method,model,remarks_hash,scored_at) "
                      "VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET score=excluded.score, cited=excluded.cited, "
                      "signals=excluded.signals, negatives=excluded.negatives, summary=excluded.summary, method=excluded.method, "
@@ -184,7 +191,10 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         n += 1
         if limit and n >= limit:
             break
-    counts = {"scored": n, "skipped_unchanged": skipped, **methods, "llm_cost_usd": round(llm.session_cost, 4) if llm else 0}
+    counts = {"scored": n, "skipped_unchanged": skipped, **methods, "llm_cost_usd": round(llm.session_cost, 4) if llm else 0,
+              "claude_failed": llm.session_failures if llm else 0}
+    if warning:
+        counts["warning"] = warning
     db.finish_run(conn, run_id, "ok", counts)
     log.info("scoring: %s", counts)
     return counts

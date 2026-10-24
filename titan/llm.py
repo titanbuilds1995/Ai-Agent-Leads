@@ -43,6 +43,9 @@ class LLM:
             self._client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=120.0)
         self.session_cost = 0.0
         self.session_calls = 0
+        self.session_failures = 0
+        self.session_successes = 0
+        self.last_error: str | None = None
 
     @property
     def available(self) -> bool:
@@ -76,11 +79,14 @@ class LLM:
             raise LLMUnavailable(f"authentication failed: {e.message}") from e
         except Exception as e:  # noqa: BLE001
             log.error("claude:%s failed: %s", purpose, e)
+            self.session_failures += 1
+            self.last_error = f"{type(e).__name__}: {getattr(e, 'message', e)}"[:300]
             self._record(purpose, 0, 0, ok=False)
             return None
         usage = getattr(resp, "usage", None)
         inp = getattr(usage, "input_tokens", 0) or 0
         out = getattr(usage, "output_tokens", 0) or 0
+        self.session_successes += 1
         self._record(purpose, inp, out, ok=True, model=resp.model)
         if resp.stop_reason == "refusal":
             log.warning("claude:%s refused (%s)", purpose, getattr(getattr(resp, "stop_details", None), "category", None))

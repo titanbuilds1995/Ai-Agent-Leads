@@ -49,8 +49,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Charles's last name and title for the signature (asked on Asana 2026-10-24).
 
 ## Current status
-- 2026-10-24 (cloud): rebuilt outreach to Rodrigo's conversation-first strategy (first touch, replies, review summaries,
-  approve-offer; automatic offers/counters/bridges and the SMS→written-offer handoff removed). Merged
-  claude/gallant-planck-8fc2qd. Free scraper confirmed on the Mac (19/19, 17 with email). 131 tests pass.
-- Next: Rodrigo's full Mac run → upload reports/dashboard.json → review HOT/WARM → first-touch drafts in Charles@
-  (connect Charles's Gmail, or `make gmail-auth` on the Mac as Charles). Rodrigo to make titan-whatsapp-sales private.
+- 2026-10-24: Mac run stored 3,256 listings (2,484 agents with email) but every Claude scoring call failed: SCORE_SCHEMA had
+  `minimum`/`maximum`, which structured outputs reject (400), so all were scored by rules ($0, only 25 valued). Fixed;
+  guard test checks every schema; Claude switches off after 5 straight failures with a loud warning; rules-scored listings
+  are re-scored automatically once Claude works (no --force). Conversation-first outreach is in (see Decisions). 134 tests pass.
+- Next on the Mac: `git pull && .venv/bin/python -m titan.cli run-daily --steps score,value,enrich` (no re-scrape needed;
+  ~3,256 Claude calls ≈ a few dollars) → upload reports/dashboard.json → review HOT/WARM → first-touch drafts in Charles@.

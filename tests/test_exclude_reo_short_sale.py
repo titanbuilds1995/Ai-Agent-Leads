@@ -38,3 +38,11 @@ def test_already_stored_listings_are_removed_and_never_valued(loaded, cfg):
     run_valuation(loaded, cfg, None, min_score=0)
     assert loaded.execute("SELECT 1 FROM valuations WHERE property_id=?", (pid,)).fetchone() is None
     assert exclude_flagged(loaded, cfg) == 0        # idempotent
+
+
+def test_things_that_are_not_homes_are_excluded(cfg):
+    for t in ("Marina boat slip for sale, 40 ft wet slip", "Deeded parking space in the garage", "Timeshare week 32",
+              "Mobile home, lot rent $900/month"):
+        ok, why = passes_filters(_l(t), cfg)
+        assert not ok and why == "excluded not_a_home", t
+    assert passes_filters(_l("Waterfront home with private boat dock, needs work"), cfg)[0]

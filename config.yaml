@@ -23,7 +23,7 @@ market:
   lookback_days: 30            # only used with ingest.homeharvest.scope: window (or require_recent: true)
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
-  exclude_flags: ["reo", "short_sale"]
+  exclude_flags: ["reo", "short_sale", "not_a_home"]   # not_a_home = boat slips, parking spaces, storage, timeshares, lot rent
 
 formula:
   # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp

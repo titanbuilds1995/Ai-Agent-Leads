@@ -27,6 +27,9 @@ FLAG_PATTERNS = {
     "auction": r"\bauction\b",
     "pre_foreclosure": r"\bpre[\s-]?foreclosure\b|\blis pendens\b|\bnotice of default\b",
     "probate": r"\bprobate\b|\bpersonal representative\b|\bletters of administration\b",
+    "not_a_home": r"\b(boat slip|boat dock(age)? (for sale|only)|dock slip|marina slip|wet slip|dry slip|parking (space|spot)s? (for sale|only)|"
+                  r"deeded parking|storage unit|cabana (for sale|only)|timeshare|time share|fractional (ownership|interest)|"
+                  r"lot rent|land lease community|leased land)\b",
     "estate": r"\bestate sale\b|\binherited\b|\bheirs?\b|\bdeceased\b|\btrust sale\b|\bsold by (the )?estate\b",
 }
 VACANT_RE = re.compile(r"\bvacant\b|\bunoccupied\b|\beasy to show\b.*\bvacant\b|\bno tenants?\b", re.I)

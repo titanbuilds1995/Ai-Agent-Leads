@@ -51,7 +51,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Ladder ZIP+band → ZIP → city → county; Palm Beach borrows Broward's county ratio; flat 0.70 only when nothing applies.
   Code: titan/market_ratios.py, valuation.buy_ratio. ZIP resale $/sf is the ARV fallback when comps are thin.
 - **Never pursue REO / bank-owned or short sales** (Rodrigo, 2026-10-24): `market.exclude_flags` in config; filtered at ingest,
-  and `exclude_flagged()` marks already-stored ones EXCLUDED (no score, valuation or outreach) on every ingest/score run.
+  and `exclude_flagged()` marks already-stored ones EXCLUDED (also `not_a_home`: boat slips, parking, storage, timeshares, lot rent) (no score, valuation or outreach) on every ingest/score run.
   Negations ("not a short sale or foreclosure") don't count; pre-foreclosure is NOT excluded.
 - **Targeting (Rodrigo, 2026-10-24):** scrape every active listing (free; `ingest.homeharvest.scope: all_active`, $50k price
   bands), then `titan/targeting.py` lanes: **SITTING** (60+ days; ideal = with price drops / back on market) and
@@ -63,8 +63,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Charles's last name and title for the signature (asked on Asana 2026-10-24).
 
 ## Current status
-- 2026-10-24: fixed Claude scoring (schema had minimum/maximum → every call 400'd), REO/short sales excluded, targeting
-  lanes (SITTING 60+ / FRESH_DEAL), all-active scrape in $50k bands, conversation-first outreach from Charles. 141 tests pass.
+- 2026-10-24: Claude Code installed + logged in on the Mac (Max plan); `make score-test` OK through claude_code. Fixed DOM
+  (current listing date, not first-ever), excluded not-a-home listings (boat slips etc.). 147 tests pass.
 - Next on the Mac: `git pull && make setup && make score-test` → `run-daily --steps ingest,score,value,enrich` →
   `run-daily --steps outreach` → drafts in Charles@ (Titan/Review). This chat's Gmail connector is rodrigo@ (can't draft as Charles).
 - Cloud check-ins don't survive idle restarts unless armed with send_later; nothing can run on the Mac from the cloud.

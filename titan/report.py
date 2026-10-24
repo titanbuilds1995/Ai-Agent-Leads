@@ -108,7 +108,7 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
 
 def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
     run_date = run_date or today_et()
-    text = build_report(conn, cfg, run_date)
+    text = build_report(conn, cfg, run_date) + "\n\n" + lead_data_section(conn, cfg)
     out_dir = cfg.path("reports")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{run_date}.md"
@@ -126,3 +126,42 @@ def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
     db.finish_run(conn, rid, "ok", {"path": str(path), "status": status})
     log.info("report: %s (%s)", path, status)
     return path
+
+
+def lead_data_section(conn, cfg: Any, limit: int = 40) -> str:
+    """Everything a reviewer needs without access to the Mac: the top HOT/WARM targets with remarks, agent and the
+    internal screening range, plus any pending review summaries. Ends with a JSON block (between TITAN-DATA markers)
+    that the cloud Claude session reads from Rodrigo's inbox each morning."""
+    import json
+    from .valuation import preliminary_range
+    rows = conn.execute(
+        "SELECT p.*, v.rating, v.lane, v.arv, v.arv_method, v.comp_count, v.repair_tier, v.repair_cost, v.mao, s.score, s.summary AS score_summary, "
+        "a.name AS agent_name, a.email AS agent_email, a.phone AS agent_phone, a.brokerage FROM valuations v "
+        "JOIN properties p ON p.id=v.property_id JOIN scores s ON s.property_id=p.id LEFT JOIN agents a ON a.id=p.agent_id "
+        "WHERE v.rating IN ('HOT','WARM') AND p.lead_status != 'EXCLUDED' "
+        "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, CASE v.lane WHEN 'FRESH_DEAL' THEN 0 WHEN 'SITTING' THEN 1 ELSE 2 END, "
+        "(p.price_cuts > 0 OR p.back_on_market) DESC, s.score DESC LIMIT ?", (limit,)).fetchall()
+    leads = []
+    for r in rows:
+        p = dict(r)
+        rng = preliminary_range(p, cfg)
+        leads.append({"id": p["id"], "rating": p["rating"], "lane": p["lane"], "street": p["street"], "city": p["city"], "zip": p["zip"],
+                      "county": p["county"], "list_price": p["list_price"], "original_list_price": p["original_list_price"],
+                      "price_cuts": p["price_cuts"], "days_on_market": p["days_on_market"], "back_on_market": bool(p["back_on_market"]),
+                      "beds": p["beds"], "baths": p["baths"], "sqft": p["sqft"], "year_built": p["year_built"],
+                      "property_type": p["property_type"], "url": p["listing_url"], "score": p["score"], "why": p["score_summary"],
+                      "remarks": (p["remarks"] or "")[:700], "agent": p["agent_name"], "agent_email": p["agent_email"],
+                      "agent_phone": p["agent_phone"], "brokerage": p["brokerage"], "lead_status": p["lead_status"],
+                      "internal_range": [rng["low"], rng["high"]] if rng else None, "range_uncertainty": rng["uncertainty"] if rng else None,
+                      "arv": p["arv"], "arv_method": p["arv_method"], "comps": p["comp_count"]})
+    counts = dict(conn.execute("SELECT COALESCE(lane,'?'), COUNT(*) FROM valuations GROUP BY lane").fetchall())
+    from .review import pending
+    reviews = [f.read_text()[:4000] for f in pending(cfg)[-10:]]
+    lines = ["## Lead data (for review)", "",
+             f"Lanes: sitting 60+ days {counts.get('SITTING', 0)} · fresh deals {counts.get('FRESH_DEAL', 0)} · watching {counts.get('WATCH', 0)}", ""]
+    for l in leads[:15]:
+        lines.append(f"- {l['rating']} {l['lane']} · {l['street']}, {l['city']} · ${l['list_price'] or 0:,} · {l['days_on_market']} days · "
+                     f"{l['price_cuts'] or 0} cut(s) · {l['agent'] or '?'} {l['agent_email'] or ''}")
+    payload = {"version": 1, "date": today_et(), "lanes": counts, "leads": leads, "reviews": reviews}
+    lines += ["", "-----BEGIN TITAN-DATA-----", json.dumps(payload, default=str, separators=(",", ":")), "-----END TITAN-DATA-----"]
+    return "\n".join(lines)

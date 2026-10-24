@@ -53,6 +53,11 @@ mls-shortlist:    ## rank an MLS hot sheet: make mls-shortlist CSV=~/Downloads/h
 scrape-test:      ## quick live check of the free scraper: make scrape-test (or LOC="Hollywood, FL")
 	$(PY) -m titan.cli scrape-test "$(or $(LOC),33023)"
 
+automate:         ## daily 5:30am run + 7am report email, and wake the Mac at 5:25 (asks for your Mac password once)
+	$(PY) -m titan.cli install-cron
+	sudo pmset repeat wakeorpoweron MTWRFSU 05:25:00
+	@echo "Done. Keep the Mac plugged in. Check: crontab -l ; pmset -g sched"
+
 score-test:       ## score 3 stored listings through Claude Code (your plan, no API spend)
 	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli score-test
 

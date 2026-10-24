@@ -198,7 +198,8 @@ def cmd_install_cron(cfg, args):
     lines = [
         "# --- titan lead engine (managed by `make install-cron`) ---",
         f"CRON_TZ={w.get('timezone', 'America/New_York')}",
-        f"30 5 * * * cd {root} && {py} -m titan.cli run-daily >> {root}/logs/cron.log 2>&1",
+        f"PATH={Path.home() / '.local/bin'}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        f"30 5 * * * cd {root} && /usr/bin/caffeinate -i {py} -m titan.cli run-daily >> {root}/logs/cron.log 2>&1",
         f"*/15 * * * * cd {root} && {py} -m titan.cli check-replies >> {root}/logs/cron.log 2>&1",
         f"0 {cfg.get('report.hour_et', 7)} * * * cd {root} && {py} -m titan.cli report >> {root}/logs/cron.log 2>&1",
         f"5 {w['start_hour']} * * 1-5 cd {root} && {py} -m titan.cli run-daily --steps outreach >> {root}/logs/cron.log 2>&1   # second outreach pass inside the SMS window",

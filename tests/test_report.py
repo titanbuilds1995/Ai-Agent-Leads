@@ -22,3 +22,17 @@ def test_report_renders_and_writes(loaded, cfg, tmp_path):
 def test_report_without_leads(loaded, cfg):
     text = build_report(loaded, cfg, "2026-10-22")
     assert "No conversations need you yet" in text
+
+
+def test_report_carries_lead_data_for_the_cloud_reviewer(loaded, cfg):
+    import json
+    from titan.ranking import rerank
+    rerank(loaded, cfg)
+    from titan.report import lead_data_section
+    text = lead_data_section(loaded, cfg)
+    blob = text.split("-----BEGIN TITAN-DATA-----")[1].split("-----END TITAN-DATA-----")[0]
+    data = json.loads(blob)
+    assert data["version"] == 1 and "lanes" in data and isinstance(data["leads"], list)
+    if data["leads"]:
+        l = data["leads"][0]
+        assert {"street", "list_price", "days_on_market", "agent_email", "remarks", "internal_range", "lane"} <= set(l)

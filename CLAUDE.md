@@ -67,4 +67,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (current listing date, not first-ever), excluded not-a-home listings (boat slips etc.). 147 tests pass.
 - Next on the Mac: `git pull && make setup && make score-test` → `run-daily --steps ingest,score,value,enrich` →
   `run-daily --steps outreach` → drafts in Charles@ (Titan/Review). This chat's Gmail connector is rodrigo@ (can't draft as Charles).
-- Cloud check-ins don't survive idle restarts unless armed with send_later; nothing can run on the Mac from the cloud.
+- **Hands-off loop (2026-10-24):** `make automate` on the Mac = cron 5:30 run-daily (caffeinate) + 7:00 report email to
+  REPORT_TO (rodrigo@) + `pmset` wake 5:25. The report email ends with a JSON block between `-----BEGIN TITAN-DATA-----`
+  markers (top HOT/WARM leads + pending reviews); the cloud session reads it via the Gmail connector (search
+  `subject:"Titan morning report"`) every morning and posts to Asana. For cron, `claude setup-token` → CLAUDE_CODE_OAUTH_TOKEN in .env.

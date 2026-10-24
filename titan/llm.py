@@ -92,6 +92,9 @@ class LLM:
                "--json-schema", json.dumps(schema), "--tools", "", "--max-turns", "3", "--no-session-persistence",
                "--system-prompt", system]
         env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+        tok = self.cfg.secret("CLAUDE_CODE_OAUTH_TOKEN")
+        if tok:   # `claude setup-token` (plan login that works from cron, where the Mac keychain may be locked)
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = tok
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 proc = subprocess.run(cmd, input=user, capture_output=True, text=True, cwd=tmp, env=env,

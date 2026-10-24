@@ -25,8 +25,42 @@ def test_template_email_passes_validation(cfg):
     for seed in range(12):
         d = compose_email(None, cfg, _agent(), [_prop()], seed)
         assert validate_email(d["subject"], d["body"], [_prop()]) == []
-        assert "Miami-Dade" in d["body"] and "101 NW 11th St" in d["body"] and "14" in d["body"]
+        assert "NW 11th St" in d["body"] and "Charles" in d["body"] and "Rodrigo" not in d["body"]
         assert not HTML_RE.search(d["body"]) and not URL_RE.search(d["body"])
+
+
+def test_first_touch_is_conversation_first(cfg):
+    """No price, no offer, no percentage, no cash-offer pitch; asks about the seller's flexibility (Rodrigo, 2026-10-24)."""
+    for seed in range(12):
+        d = compose_email(None, cfg, _agent(), [_prop()], seed)
+        text = d["body"].split("\n--\n")[0].lower()
+        assert "flexib" in text or "room on price" in text
+        assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
+        assert "doesn't seem too far" not in text          # no preliminary analysis on this prop → never implied
+
+
+def test_detail_never_quotes_motivation_phrases(cfg):
+    d = compose_email(None, cfg, _agent(), [_prop()], 0)        # cited: cash_only "CASH ONLY. Estate sale"
+    assert "estate" not in d["body"].lower() and "cash only" not in d["body"].lower()
+    p = _prop(cited=json.dumps([{"signal": "needs_work", "phrase": "needs TLC"}]))
+    assert '"needs TLC"' in compose_email(None, cfg, _agent(), [p], 0)["body"]
+
+
+def test_close_to_asking_line_only_when_analysis_supports_it(cfg):
+    base = dict(arv=500_000, repair_cost=20_000, arv_method="comps", comp_count=6, zip="33125", property_type="single_family")
+    near = _prop(list_price=300_000, **base)        # internal high ≈ 500k × p75 − 20k − 15k, well above 300k
+    far = _prop(list_price=480_000, **base)
+    assert any("doesn't seem too far" in compose_email(None, cfg, _agent(), [near], s)["body"] for s in range(8))
+    assert all("doesn't seem too far" not in compose_email(None, cfg, _agent(), [far], s)["body"] for s in range(8))
+    guessed = _prop(list_price=300_000, **dict(base, arv_method="estimate"))
+    assert all("doesn't seem too far" not in compose_email(None, cfg, _agent(), [guessed], s)["body"] for s in range(8))
+
+
+def test_validator_rejects_price_language(cfg):
+    p = [_prop()]
+    body = "Hi Maria, Charles here. Your listing on NW 11th St looks good. Would the seller take 10% below list? " + "word " * 30
+    assert "price or offer language" in validate_email("Your listing on NW 11th St", body, p)
+    assert "price or offer language" in validate_email("Cash offer: NW 11th St", "NW 11th St, any flexibility? " + "word " * 40, p)
 
 
 def test_emails_vary(cfg):
@@ -51,7 +85,8 @@ def test_sms_under_160_and_varied(cfg):
     for seed in range(20):
         d = compose_sms(cfg, _agent(), _prop(), seed)
         assert validate_sms(d["body"]) == [] and len(d["body"]) <= 160
-        assert "Maria" in d["body"] and "Rodrigo" in d["body"] and "Titan" in d["body"] and "NW 11th St" in d["body"]
+        assert "Maria" in d["body"] and "Charles" in d["body"] and "Titan" in d["body"] and "NW 11th St" in d["body"]
+        assert "flexib" in d["body"] and "$" not in d["body"] and "offer" not in d["body"].lower()
         bodies.add(d["body"])
     assert len(bodies) >= 3
     long_street = _prop(street="12345 Southwest Pembroke Lakes Boulevard Northwest Unit 1204")

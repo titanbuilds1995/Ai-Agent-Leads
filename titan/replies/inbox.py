@@ -8,7 +8,6 @@ from typing import Any
 
 from .. import db
 from ..llm import LLM
-from ..outreach.compose import compose_offer_email
 from ..outreach.send import ensure_thread, flush_queued_sms, log_message
 from ..util import business_days_since, iso, log, now_utc, parse_iso, today_et
 from .classifier import Classification, classify
@@ -27,9 +26,16 @@ def thread_context(conn, thread: dict[str, Any], text: str = "") -> dict[str, An
             if num and re.search(rf"\b{re.escape(num)}\b", text):
                 prop = p
                 break
+    msgs = conn.execute("SELECT direction, body, action FROM messages WHERE thread_id=? ORDER BY id", (thread["id"],)).fetchall()
+    history_in = " ".join([m["body"] or "" for m in msgs if m["direction"] == "in"] + [text or ""])
+    outs = [m for m in msgs if m["direction"] == "out" and (m["action"] or "").startswith("reply:")]
+    drafted = conn.execute("SELECT body FROM outreach WHERE agent_id=? AND kind LIKE 'reply:%' AND property_ids=?",
+                           (thread["agent_id"], thread["property_ids"])).fetchall()
+    history_out = " ".join([m["body"] or "" for m in outs] + [d["body"] or "" for d in drafted])
     return {"agent": agent, "agent_name": agent.get("name"), "property": prop, "properties": props, "street": prop.get("street"),
             "city": prop.get("city"), "county": prop.get("county"), "list_price": prop.get("list_price"), "mao": prop.get("mao"),
-            "offer_price": prop.get("offer_price")}
+            "offer_price": prop.get("offer_price"), "history_in": history_in, "history_out": history_out,
+            "auto_replies": max(len(outs), len(drafted))}
 
 
 def _send_or_draft(conn, cfg: Any, channel: str, thread: dict[str, Any], ctx: dict[str, Any], body: str, subject: str | None,
@@ -86,12 +92,11 @@ def handle_inbound(conn, cfg: Any, thread: dict[str, Any], text: str, external_i
         log_message(conn, thread["id"], "in", text, external_id=external_id, classification=cls.label, confidence=cls.confidence)
         conn.execute("UPDATE threads SET last_class=?, updated_at=? WHERE id=?", (cls.label, iso(), thread["id"]))
 
-    # Awaiting an email address for the handoff: finish it as soon as we have one
-    if channel == "sms" and thread.get("awaiting_email") and agent.get("email") and cls.label != "STOP":
-        conn.execute("UPDATE threads SET awaiting_email=0 WHERE id=?", (thread["id"],))
-        return run_handoff(conn, cfg, thread, ctx, gmail, twilio, cls)
-
     if cls.label != "STOP" and thread.get("state") in ("HOT_LEAD", "ESCALATED", "CLOSED", "STOPPED"):
+        # Rodrigo/Charles own the conversation now; refresh the review so the new message is in front of them
+        if thread.get("state") in ("HOT_LEAD", "ESCALATED"):
+            from ..review import build as build_review
+            build_review(conn, cfg, thread["id"], (ctx.get("property") or {}).get("id"), "new message on a lead under review")
         return {"classification": cls.label, "action": "logged only (auto-reply off)", "state": thread["state"]}
 
     action = decide(cls, ctx, cfg, channel, thread, text)
@@ -111,8 +116,12 @@ def apply_action(conn, cfg: Any, thread: dict[str, Any], ctx: dict[str, Any], cl
             for pid in json.loads(thread["property_ids"] or "[]"):
                 db.set_lead_status(conn, pid, action.lead_status, action.note)
     result = {"classification": cls.label, "number": cls.number, "action": action.note, "state": action.thread_state, "reply": None}
-    if action.handoff:
-        return {**result, **run_handoff(conn, cfg, thread, ctx, gmail, twilio, cls)}
+    if action.signal:
+        result["signal"] = action.signal
+    if action.review:
+        from ..review import build as build_review
+        rv = build_review(conn, cfg, thread["id"], (ctx.get("property") or {}).get("id"), action.note)
+        result["review"] = rv["path"]
     if action.reply:
         status, ids = _send_or_draft(conn, cfg, channel, thread, ctx, action.reply, None, gmail, twilio, kind=f"reply:{cls.label}", in_reply_to=in_reply_to)
         result["reply"] = action.reply
@@ -120,59 +129,7 @@ def apply_action(conn, cfg: Any, thread: dict[str, Any], ctx: dict[str, Any], cl
     return result
 
 
-# --- text-to-email handoff (7a) -------------------------------------------------------------------
-
-def run_handoff(conn, cfg: Any, thread: dict[str, Any], ctx: dict[str, Any], gmail, twilio, cls: Classification) -> dict[str, Any]:
-    agent, prop = ctx["agent"], ctx["property"]
-    mode = cfg.mode
-    email_ok = agent.get("email") and (agent.get("email_confidence") == "high")
-    if not email_ok:
-        ask = "Great - what's the best email to send the written offer to?"
-        status, _ = _send_or_draft(conn, cfg, "sms", thread, ctx, ask, None, gmail, twilio, kind="handoff:ask_email")
-        conn.execute("UPDATE threads SET awaiting_email=1, awaiting_email_since=COALESCE(awaiting_email_since, ?), state='HOT_LEAD', updated_at=? WHERE id=?",
-                     (iso(), iso(), thread["id"]))
-        for pid in json.loads(thread["property_ids"] or "[]"):
-            db.set_lead_status(conn, pid, "HOT_LEAD", "positive text; asked agent for email")
-        return {"handoff": "asked_for_email", "sms_status": status}
-    offer_price = ctx.get("offer_price") or (int(ctx["mao"] * (1 - cfg["formula"].get("offer_below_mao_pct", 0) / 100)) if ctx.get("mao") else None)
-    if not offer_price:
-        for pid in json.loads(thread["property_ids"] or "[]"):
-            db.set_lead_status(conn, pid, "NEEDS_CALL", "positive text but no valuation on file")
-        return {"handoff": "no_valuation"}
-    d = compose_offer_email(cfg, agent, prop, offer_price)
-    # the written offer goes out automatically in AUTO modes; in DRAFT_FOR_APPROVAL it lands in Titan/Review
-    email_thread_id = ensure_thread(conn, agent["id"], "email", None, json.loads(thread["property_ids"]))
-    ethread = db.row_to_dict(conn.execute("SELECT * FROM threads WHERE id=?", (email_thread_id,)).fetchone())
-    send_now = mode in ("AUTO_SEND_FIRST_TOUCH", "FULL_AUTO") and gmail is not None
-    status, ids = "draft", {}
-    try:
-        if send_now:
-            ids = gmail.send(agent["email"], d["subject"], d["body"])
-            status = "sent"
-        elif gmail is not None:
-            ids = gmail.create_draft(agent["email"], d["subject"], d["body"], label=cfg["outreach"]["gmail_review_label"])
-    except Exception as e:  # noqa: BLE001
-        status = "failed"
-        log.error("handoff email failed: %s", e)
-    conn.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,subject,body,to_address,gmail_draft_id,gmail_thread_id,gmail_message_id,run_date,created_at,sent_at) "
-                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                 (agent["id"], thread["property_ids"], "email", "handoff:offer", status, d["subject"], d["body"], agent["email"], ids.get("draft_id"),
-                  ids.get("thread_id"), ids.get("message_id"), today_et(), iso(), iso() if status == "sent" else None))
-    if ids.get("thread_id"):
-        conn.execute("UPDATE threads SET external_id=? WHERE id=?", (ids["thread_id"], email_thread_id))
-    conn.execute("UPDATE threads SET linked_thread_id=?, state='HOT_LEAD', awaiting_email=0, updated_at=? WHERE id=?", (email_thread_id, iso(), thread["id"]))
-    conn.execute("UPDATE threads SET linked_thread_id=?, state='HOT_LEAD', updated_at=? WHERE id=?", (thread["id"], iso(), email_thread_id))
-    if status == "sent":
-        log_message(conn, email_thread_id, "out", d["body"], external_id=ids.get("message_id"), action="handoff:offer")
-        confirm = f"Just sent the written offer to {agent['email']}, let me know what the seller says. - {cfg['operator']['sender_name'].split()[0]}"
-        sms_status, _ = _send_or_draft(conn, cfg, "sms", thread, ctx, confirm, None, gmail, twilio, kind="handoff:confirm")
-    else:
-        sms_status = "not_sent (offer email is a draft)"
-    for pid in json.loads(thread["property_ids"] or "[]"):
-        db.set_lead_status(conn, pid, "HOT_LEAD", f"{cls.label} by text; written offer {status} to {agent['email']}")
-    return {"handoff": "offer_email", "offer_price": offer_price, "email_status": status, "sms_status": sms_status,
-            "email_thread_id": email_thread_id, "gmail_thread_id": ids.get("thread_id")}
-
+# --- awaiting an agent's email address (older SMS threads) ----------------------------------------
 
 def check_handoff_timeouts(conn, cfg: Any, now: datetime | None = None) -> int:
     wait = cfg["outreach"].get("handoff_email_wait_business_days", 2)

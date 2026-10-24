@@ -15,10 +15,11 @@ def test_nothing_the_engine_writes_waives_inspection_when_config_keeps_it(cfg):
     prop = {"id": 1, "street": "1 Main St", "city": "Miami", "county": "Miami-Dade", "remarks": "needs work", "cited": "[]"}
     for seed in range(8):
         _, body, _ = template_email(cfg, agent, [prop], seed)
-        assert "no inspection" not in body.lower()
+        assert "no inspection" not in body.lower() and "waive" not in body.lower()
     _, body, _ = template_email(cfg, agent, [prop, dict(prop, id=2, street="2 Main St")], 0)
-    assert "no inspection" not in body.lower() and "7-day inspection" in body
-    assert "no inspection" not in compose_offer_email(cfg, agent, prop, 200000)["body"]
+    assert "no inspection" not in body.lower() and "waive" not in body.lower()
+    offer = compose_offer_email(cfg, agent, prop, 200000)["body"]       # only after Rodrigo approves a price
+    assert "no inspection" not in offer and "7-day inspection" in offer
     assert "7-day inspection" in _terms_sentence(cfg)
-    assert "no inspection" not in EMAIL_SYSTEM.format(style_guide="", examples="", close_days=14, inspection=inspection_phrase(cfg["outreach"]["terms"]))
+    assert "no inspection" not in EMAIL_SYSTEM.format(style_guide="", examples="", sender="Charles", company="Titan", company_short="Titan")
     assert all("no inspection" not in e.lower() for e in cfg["outreach"]["example_emails"])

@@ -19,7 +19,8 @@ def hot_leads(conn, limit: int = 10) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT p.*, v.mao, v.offer_price, v.arv, v.arv_method, v.comp_count, v.repair_tier, v.rating, s.score, a.name AS agent_name, a.phone AS agent_phone, a.email AS agent_email "
         "FROM properties p LEFT JOIN valuations v ON v.property_id=p.id LEFT JOIN scores s ON s.property_id=p.id LEFT JOIN agents a ON a.id=p.agent_id "
-        "WHERE p.lead_status IN ('HOT_LEAD','NEEDS_CALL') ORDER BY p.lead_status_at DESC LIMIT ?", (limit,)).fetchall()
+        "WHERE p.lead_status IN ('NEEDS_REVIEW','FLEXIBLE','HOT_LEAD','NEEDS_CALL','OFFER_DRAFTED') "
+        "ORDER BY CASE p.lead_status WHEN 'NEEDS_REVIEW' THEN 0 WHEN 'FLEXIBLE' THEN 1 ELSE 2 END, p.lead_status_at DESC LIMIT ?", (limit,)).fetchall()
     out = []
     for r in rows:
         p = db.row_to_dict(r)
@@ -34,21 +35,20 @@ def hot_leads(conn, limit: int = 10) -> list[dict[str, Any]]:
 
 
 def say_this(p: dict[str, Any], last) -> str:
+    """Next step for Rodrigo. Conversation first: never a number to anchor on; Rodrigo decides the price per house."""
     cls = last["classification"] if last else None
-    mao, offer = p.get("mao"), p.get("offer_price")
-    if p.get("lead_status") == "NEEDS_CALL" and "email" in (p.get("lead_note") or ""):
-        return f"Agent is interested but never sent an email. Call, get the email, send the written offer at {money(offer)}."
+    st = p.get("lead_status")
+    if st == "OFFER_DRAFTED":
+        return "Your approved offer is a draft in Gmail (Titan/Review). Read it and send it when ready."
     if cls == "COUNTER_WITH_NUMBER":
-        if "bridge" in (p.get("lead_note") or ""):
-            return f"Their counter is above our bridge. Decide: walk, or go to {money(mao)} max (MAO)."
-        return f"Their number is within 10% of MAO {money(mao)}. Confirm terms and lock the contract today."
+        return "The agent shared a seller number. Read the review summary, then approve a price (approve-offer) or pass."
     if cls == "ASK_FOR_OFFER":
-        return f"Confirm they received the written offer at {money(offer)}; ask when the seller will respond."
-    if cls == "INTERESTED":
-        return f"Seller is open. Ask what number gets it done; we're at {money(offer)}, MAO {money(mao)}."
+        return "The agent invited an offer. We sent a holding reply only; review and approve a price if it works."
+    if st == "FLEXIBLE" or cls == "INTERESTED":
+        return "Agent says the seller has some flexibility (not confirmed with a number). A short call to learn timing and condition."
     if cls == "QUESTION":
-        return "Answer their question on the call (outside auto-reply scope), then ask for a number."
-    return f"Open with the as-is 14-day close; anchor at {money(offer)}, ceiling {money(mao)}."
+        return "They asked something we don't answer automatically. Reply or call."
+    return "Read the conversation and decide the next step."
 
 
 def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
@@ -60,14 +60,19 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     leads = hot_leads(conn, cfg.get("report.max_hot_leads", 10))
     runs = conn.execute("SELECT step, status, counts, notes FROM daily_runs WHERE run_date=? ORDER BY id", (run_date,)).fetchall()
     lines = [f"# Titan morning report — {run_date}", "", f"Mode: **{cfg.mode}** · Channel: **{cfg.channel}**", ""]
-    lines += [f"## HOT leads to call today ({len(leads)})", ""]
+    lines += [f"## Conversations for you ({len(leads)})", ""]
     if not leads:
-        lines.append("_No HOT_LEADs yet. Replies land here as agents answer._")
+        lines.append("_No conversations need you yet. Replies land here as agents answer._")
+    from .review import pending
+    rv = [r for r in pending(cfg) if r.name.startswith(run_date)] or pending(cfg)[-10:]
+    if rv:
+        lines += ["", f"Review summaries waiting ({len(rv)}): " + ", ".join(f"`{r.relative_to(cfg.root)}`" for r in rv) +
+                  " — or run `.venv/bin/python -m titan.cli review-queue`", ""]
     for i, p in enumerate(leads, 1):
-        lines += [f"### {i}. {p['street']}, {p['city']} — list {money(p['list_price'])}, MAO {money(p['mao'])} ({p['lead_status']})",
+        lines += [f"### {i}. {p['street']}, {p['city']} — list {money(p['list_price'])} ({p['lead_status']})",
                   f"- Agent: {p.get('agent_name') or 'unknown'} · {p.get('agent_phone') or 'no phone'} · {p.get('agent_email') or 'no email'}",
                   f"- Last message ({p.get('channel') or '-'} / {p.get('last_class') or '-'}): {p['last_message']}",
-                  f"- Motivation {p.get('score')} · ARV {money(p.get('arv'))} ({p.get('arv_method')}, {p.get('comp_count') or 0} comps, {p.get('repair_tier')} repairs) · offer {money(p.get('offer_price'))} · {p.get('listing_url') or ''}",
+                  f"- Motivation {p.get('score')} · ARV {money(p.get('arv'))} ({p.get('arv_method')}, {p.get('comp_count') or 0} comps, {p.get('repair_tier')} repairs) · internal screening MAO {money(p.get('mao'))} (not an offer) · {p.get('listing_url') or ''}",
                   f"- **Say this:** {p['say_this']}", ""]
     lines += ["## Pipeline", "", "| metric | count |", "|---|---|"]
     for k in ("today_properties_seen", "today_new", "properties", "scored", "valued", "HOT", "WARM", "COLD", "agents", "agents_with_email",

@@ -12,7 +12,8 @@ def test_report_renders_and_writes(loaded, cfg, tmp_path):
     cfg.raw["paths"]["reports"] = str(tmp_path)
     path = run_report(loaded, cfg, gmail=None)
     text = path.read_text()
-    assert "HOT leads to call today (1)" in text and "cash offer at 310" in text and "Say this" in text
+    assert "Conversations for you (1)" in text and "cash offer at 310" in text and "Say this" in text
+    assert "approve a price" in text and "not an offer" in text                # conversation first: Rodrigo prices it
     assert "| HOT |" in text and "API cost" in text
     assert "<" not in text.split("## Pipeline")[0].replace("—", "")  # plain text, no html in the lead section
     assert "Titan lead engine" in render(loaded, cfg, "2026-10-22")
@@ -20,4 +21,4 @@ def test_report_renders_and_writes(loaded, cfg, tmp_path):
 
 def test_report_without_leads(loaded, cfg):
     text = build_report(loaded, cfg, "2026-10-22")
-    assert "No HOT_LEADs yet" in text
+    assert "No conversations need you yet" in text

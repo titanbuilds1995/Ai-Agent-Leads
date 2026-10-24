@@ -261,6 +261,24 @@ def cmd_scrape_test(cfg, args):
         print(f"  ${l.list_price or 0:>9,}  {l.street}, {l.city}  agent: {l.agent_name or '-'} {l.agent_email or ''}")
 
 
+def cmd_approve_offer(cfg, args):
+    from .approve import approve_offer
+    conn = _open(cfg)
+    gmail = build_clients(cfg, conn, need=("gmail",))["gmail"]
+    res = approve_offer(conn, cfg, args.property_id, args.price, gmail, args.note)
+    print(json.dumps(res, indent=2))
+    print("Draft only: read it in Gmail (Titan/Review) or the file above, then send it yourself." if res["status"] == "draft" else "")
+
+
+def cmd_review_queue(cfg, args):
+    from .review import pending
+    files = pending(cfg)
+    if not files:
+        print("No leads waiting for review.")
+    for f in files:
+        print(f"\n{'=' * 70}\n{f}\n{'=' * 70}\n{f.read_text()}")
+
+
 def cmd_doctor(cfg, args):
     from . import doctor
     rows = doctor.run(cfg)
@@ -323,6 +341,11 @@ def main(argv: list[str] | None = None) -> int:
     ms.add_argument("csv")
     ms.add_argument("--out", default=None)
     ms.add_argument("--paste", type=int, default=100, help="how many MLS numbers to list for the Matrix search")
+    ao = sub.add_parser("approve-offer", help="Rodrigo approves a price for one house -> written offer as a Gmail draft (never sends)")
+    ao.add_argument("property_id", type=int)
+    ao.add_argument("price", type=int)
+    ao.add_argument("--note", default=None)
+    sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
     st.add_argument("--limit", type=int, default=20)
@@ -330,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue}[args.cmd](cfg, args)
     return 0
 
 

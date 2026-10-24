@@ -18,11 +18,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
 
 ## Decisions already made
-- **Channel: `EMAIL_FIRST`** until Twilio 10DLC is approved (set 2026-10-23; goal: agent email conversations this weekend).
-- **Sending mailbox: Rodrigo's "Charles" account** (2026-10-23; exact address goes in `.env` GMAIL_SENDER on the Mac).
 - **Draft mode only** (`DRAFT_FOR_APPROVAL`): nothing sends until Rodrigo clicks send in Gmail (label `Titan/Review`).
-- **Voice:** `docs/style/RODRIGO_WRITING_STYLE_GUIDE.md` is injected into every drafting prompt; few-shot examples in
-  `config.yaml → outreach.example_emails` are his real emails. Signature: Rodrigo Gayoso / Principal | Titan Realty / (561) 405-7379.
+- **Conversation first (Rodrigo, Asana 2026-10-24) — overrides any older offer-percentage rule.** The first message opens a
+  conversation (from **Charles**, property-specific, one or two verified details, asks about seller flexibility). It never
+  contains a price, percentage, range or "cash offer". Replies: one question at a time, never re-ask; "send an offer" and any
+  seller number get a holding reply only and go to Rodrigo as a review summary (`titan/review.py`, `reports/review/`,
+  `titan.cli review-queue`). Signals kept apart: RESPONDED < DISCUSSING < FLEXIBLE. A number reaches an agent only through
+  `titan.cli approve-offer <property_id> <price>` (Rodrigo decides per house; creates a draft, never sends).
+  The ZIP-ratio MAO/range is an INTERNAL screening tool only (ranking + review summary, labeled as such).
+- **Voice/sender:** outreach is written and signed by **Charles** (Rodrigo's assistant) from Charles@; the style guide and
+  Rodrigo's example emails are tone references only. Charles's last name/title not yet given (config `operator.sender_title`).
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
@@ -41,18 +46,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- Offer formula still subtracts repairs + the $15k fee after the market ratio (conservative). The flip ratios already
-  reflect what investors paid as-is, so Rodrigo may want repairs/fee dropped or reduced: asked on Asana 2026-10-23.
+- Charles's last name and title for the signature (asked on Asana 2026-10-24).
 
 ## Current status
-- Merged branch claude/gallant-planck-8fc2qd (Rodrigo OK'd on Asana 2026-10-24): `make gmail-test` (one draft to itself),
-  `make gmail-auth` re-prompts on a dead token, engine reads Charles's Gmail token from env `GMAIL_TOKEN_JSON_CONTENT`.
-  Notes from that session: this cloud session's Gmail connector is rodrigo@, not Charles; the SQLite DB does not survive
-  between cloud sessions (dedup/cooldown state) — persist it before running daily from the cloud.
-- 2026-10-23 night (cloud): free scraper confirmed on the Mac (`make scrape-test`: 19/19 read, 17 with agent email).
-  Offers use the WhatsApp engine's ZIP investor ratios; sold comps are pulled per subject ZIP; every run ends with a
-  plain-English summary. EMAIL_FIRST, Charles@ mailbox + footer. All merged into the default branch; 124 tests pass.
-- Rodrigo started the first full Mac run (ingest,score,value,enrich). Next: he uploads reports/dashboard.json → review
-  HOT/WARM leads → Gmail drafts in Charles@ (needs Charles's mailbox connected, or `make gmail-auth` on the Mac as Charles).
-- Waiting on Rodrigo (Asana): repairs/fee after the ratio, signature name, merge of branch claude/gallant-planck-8fc2qd,
-  making titan-whatsapp-sales private.
+- 2026-10-24 (cloud): rebuilt outreach to Rodrigo's conversation-first strategy (first touch, replies, review summaries,
+  approve-offer; automatic offers/counters/bridges and the SMS→written-offer handoff removed). Merged
+  claude/gallant-planck-8fc2qd. Free scraper confirmed on the Mac (19/19, 17 with email). 131 tests pass.
+- Next: Rodrigo's full Mac run → upload reports/dashboard.json → review HOT/WARM → first-touch drafts in Charles@
+  (connect Charles's Gmail, or `make gmail-auth` on the Mac as Charles). Rodrigo to make titan-whatsapp-sales private.

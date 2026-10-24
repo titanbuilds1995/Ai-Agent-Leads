@@ -97,6 +97,35 @@ def buy_ratio(p: dict[str, Any], arv: int, cfg: Any) -> dict[str, Any]:
     return {"ratio": f["arv_multiplier"], "source": f"flat {f['arv_multiplier']:.0%} (no market ratio for this property)"}
 
 
+def preliminary_range(p: dict[str, Any], cfg: Any) -> dict[str, Any] | None:
+    """INTERNAL screening range, never sent: ARV × (p25 … p75 investor ratio) − repairs − fee, with the assumptions behind it.
+    p needs arv, repair_cost (and county/zip/property_type/city for the ratio lookup)."""
+    from .market_ratios import lookup
+    arv = p.get("arv")
+    if not arv:
+        return None
+    f = cfg["formula"]
+    repairs = int(p.get("repair_cost") or 0)
+    path = cfg.root / f.get("market_ratios_file", "data/market_ratios.csv")
+    lo = lookup(path, p.get("county"), p.get("zip"), p.get("property_type"), arv, "p25", p.get("city"))
+    hi = lookup(path, p.get("county"), p.get("zip"), p.get("property_type"), arv, "p75", p.get("city"))
+    if lo and hi:
+        r_lo, r_hi, src = lo["ratio"], hi["ratio"], lo["source"]
+    else:
+        r_lo = r_hi = f["arv_multiplier"]
+        src = f"flat {f['arv_multiplier']:.0%} (no market ratio)"
+    low = max(int(round(arv * r_lo - repairs - f["assignment_fee"], -3)), 0)
+    high = max(int(round(arv * r_hi - repairs - f["assignment_fee"], -3)), 0)
+    method, n = p.get("arv_method") or "?", p.get("comp_count")
+    uncertainty = "high" if method in ("estimate", "list_price", "land_default", "zip_resale_psf", "comps_thin") or not lo else \
+                  "medium" if method == "comps_wide" else "lower"
+    return {"low": low, "high": high, "uncertainty": uncertainty, "assumptions": [
+        f"ARV ${arv:,.0f} from {method}" + (f" ({n} comps)" if n else ""),
+        f"investor buy ratio {r_lo:.0%}–{r_hi:.0%} of resale ({src})",
+        f"repairs ${repairs:,.0f} ({p.get('repair_tier') or 'default'} tier, estimated from the remarks; condition not verified)",
+        f"minus ${f['assignment_fee']:,.0f} fee"]}
+
+
 def compute_mao(arv: int, repairs: int, cfg: Any, ratio: float | None = None) -> int:
     f = cfg["formula"]
     r = f["arv_multiplier"] if ratio is None else ratio

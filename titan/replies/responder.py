@@ -1,5 +1,9 @@
 """Decide what to do with a classified reply. Pure function of (classification, context, config) → Action.
-Never commits beyond config.outreach.terms; never invents facts."""
+
+Conversation first (Rodrigo, 2026-10-24): the engine never sends a price, a counter or a commitment. It keeps a real
+conversation going (one question at a time, never re-asking what the agent already answered) and brings the lead to
+Rodrigo with a review summary as soon as there is meaningful engagement, a request for an offer, or a seller number.
+Signals kept apart: RESPONDED (agent replied) < DISCUSSING (willing to talk) < FLEXIBLE (agent said the seller has room)."""
 from __future__ import annotations
 
 import re
@@ -18,8 +22,9 @@ class Action:
     note: str
     dnc: bool = False
     set_bridge_sent: bool = False
-    handoff: bool = False        # SMS path: run the text-to-email handoff
     offer_price: int | None = None
+    review: bool = False         # bring this lead to Rodrigo (review summary + Asana card)
+    signal: str | None = None    # RESPONDED | DISCUSSING | FLEXIBLE
 
 
 def _terms_sentence(cfg: Any) -> str:
@@ -60,10 +65,10 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     if re.search(r"financ|loan|mortgage|hard money|cash\b", low):
         facts.append("it's a cash purchase, no financing contingency")
     if re.search(r"who (are you|is this)|what company|are you (a |an )?(agent|realtor|licensed)|represent|your company|titan", low):
-        facts.append(f"this is {op['sender_name']} with {op['company']}, a local cash buyer in {ctx.get('county') or 'South Florida'}")
+        facts.append(f"this is {op['sender_name'].split()[0]} with {op['company']}; we buy and renovate homes in {ctx.get('county') or 'South Florida'}")
     if re.search(r"assign|wholesal|double clos|end buyer|partner", low):
         unanswered.append("deal structure")
-    if re.search(r"appraisal|survey|seller concession|lease ?back|post[- ]occupancy|rent ?back|repairs? credit|price\b.*\?|how much|offer\b.*\?", low) and not facts:
+    if re.search(r"appraisal|survey|seller concession|lease ?back|post[- ]occupancy|rent ?back|repairs? credit|price\b.*\?|how much|offer\b.*\?", low):
         unanswered.append("terms outside config")
     if not facts:
         return None, unanswered or ["unrecognized question"]
@@ -78,60 +83,89 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     return body, unanswered
 
 
+FLEX_RE = re.compile(r"\b((seller|owner|they|she|he)( is|'s| are| would be| might be| may be)? ?(very |pretty |definitely )?(motivated|flexible|negotiable|open to (offers|negotiat\w+|something|less))|"
+                     r"some (flexibility|room|wiggle room)|there'?s (some )?room|price is negotiable|will(ing to)? (consider|entertain|look at) (less|offers|anything|all offers)|"
+                     r"open to (reasonable |all |any )?offers|bring (me |us )?(an |any |all )?offers?|make (an|any) offer)\b", re.I)
+
+# Next questions, in order; each is skipped once the agent has covered the topic (in any reply so far).
+TOPICS = [
+    ("expectations", r"\$|\bnet\b|\bnumber\b|expect|hoping|bottom|lowest|price (would|they)|\d{3}k",
+     "Do you have a sense of what the seller is hoping to end up with, or what would make them comfortable?"),
+    ("timing", r"timing|timeline|clos(e|ing) (by|in|before|within)|\d+\s*days|weeks?|months?|asap|soon|date|relocat|moving",
+     "What kind of timing is the seller working with?"),
+    ("condition", r"roof|\bac\b|a/c|hvac|condition|repairs?|updated|renovat|foundation|plumbing|electrical|as[- ]is",
+     "How's the condition inside? Anything major like the roof or AC we should know about?"),
+    ("occupancy", r"vacant|occupied|tenant|lease|living there|empty",
+     "Is the house vacant right now, or is someone living there?"),
+]
+
+
+def next_question(history_in: str, history_out: str) -> tuple[str, str] | None:
+    """First topic the agent has not covered and we have not already asked about."""
+    low_in, low_out = (history_in or "").lower(), (history_out or "").lower()
+    for key, covered, q in TOPICS:
+        if re.search(covered, low_in):
+            continue
+        if q.lower()[:30] in low_out:
+            continue
+        return key, q
+    return None
+
+
 def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thread: dict[str, Any], text: str = "") -> Action:
-    """ctx keys: agent_name, street, city, county, list_price, mao, offer_price."""
+    """ctx keys: agent_name, street, city, county, list_price, history_in (all agent replies so far, incl. this one),
+    history_out (our earlier replies), auto_replies (how many conversation replies we already drafted on this thread)."""
     first = first_name(ctx.get("agent_name"))
     street = ctx.get("street") or "the property"
-    mao, offer = ctx.get("mao"), ctx.get("offer_price")
     label = cls.label
+    sign = _sign(cfg, channel)
+    flexible = bool(FLEX_RE.search(text or "")) or (label == "COUNTER_WITH_NUMBER" and cls.number and ctx.get("list_price")
+                                                    and cls.number < ctx["list_price"])
 
     if label == "STOP":
         return Action(None, "STOPPED", None, "agent asked to stop; added to do-not-contact", dnc=True)
     if label == "OUT_OF_OFFICE":
         return Action(None, thread.get("state", "OPEN"), None, "auto-reply; waiting")
     if label == "SOLD_OR_PENDING":
-        return Action(None, "CLOSED", "CLOSED", "property sold/pending; closed")
+        return Action(None, "CLOSED", "CLOSED", "property sold/pending; closed", signal="RESPONDED")
     if label == "NOT_INTERESTED":
         reply = None
-        if channel == "email" and cfg.get("outreach.reply_on_decline", True):
-            reply = f"Understood, thank you {first}. If anything changes on {street}, I am a phone call away.\n\n{_sign(cfg, 'email')}"
-        return Action(reply, "CLOSED", "CLOSED", "agent declined; closed")
-
-    if channel == "sms" and label in ("INTERESTED", "ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
-        # Section 7a: positive text reply → written offer by email, no human step.
-        return Action(None, "HOT_LEAD", "HOT_LEAD", f"{label} by text; text-to-email handoff", handoff=True, offer_price=offer)
-
-    if label == "INTERESTED":
-        return Action(None, "HOT_LEAD", "HOT_LEAD", "positive reply; auto-reply off, Rodrigo takes over")
+        if cfg.get("outreach.reply_on_decline", True):
+            reply = (f"Understood, thank you {first}. I appreciate you letting me know. If anything changes with the seller on {street}, "
+                     f"feel free to reach out anytime.\n\n{sign}") if channel == "email" else \
+                    f"Understood, thanks {first}. If anything changes on {street}, feel free to reach out. {sign}"
+        return Action(reply, "CLOSED", "CLOSED", "seller firm / agent declined; closed respectfully (no pressure)", signal="RESPONDED")
 
     if label == "ASK_FOR_OFFER":
-        if not offer:
-            return Action(None, "ESCALATED", "NEEDS_CALL", "asked for offer but no valuation on file")
-        reply = (f"Hi {first},\n\nThank you for getting back to me. I went through the numbers and ${offer:,.0f} is where this works for us on {street}: {_terms_sentence(cfg)}, "
-                 f"proof of funds on request. If that is in the ballpark for the seller I will send the written offer right over.\n\n{_sign(cfg, 'email')}")
-        return Action(reply, "OPEN", None, f"offer {offer} sent with terms", offer_price=offer)
+        # "Just send an offer" is an invitation to evaluate, not permission to send a number.
+        reply = (f"Thanks {first}, I appreciate that. Let me take a closer look at the numbers on {street} and get back to you. "
+                 f"In the meantime, is there anything on the condition or the seller's timing I should know?\n\n{sign}") if channel == "email" else \
+                f"Thanks {first}! Let me take a closer look at the numbers on {street} and get back to you. Anything on condition or timing I should know? {sign}"
+        return Action(reply, "ESCALATED", "NEEDS_REVIEW", "agent invited an offer: holding reply only, no number; Rodrigo reviews and decides the price",
+                      review=True, signal="FLEXIBLE" if flexible else "DISCUSSING")
 
     if label == "COUNTER_WITH_NUMBER":
         n = cls.number
-        if not n or not mao:
-            return Action(None, "ESCALATED", "HOT_LEAD", "counter without parsable number or no MAO; escalate")
-        within = n <= mao * (1 + cfg["formula"]["counter_accept_within_pct"] / 100)
-        if within:
-            reply = (f"Hi {first},\n\nI appreciate you coming back to me. ${n:,.0f} is close enough to work with on {street}. I will call you directly "
-                     f"to lock down the details. Same terms on our side: {_terms_sentence(cfg)}.\n\n{_sign(cfg, 'email')}")
-            return Action(reply, "HOT_LEAD", "HOT_LEAD", f"counter {n} within {cfg['formula']['counter_accept_within_pct']}% of MAO {mao}; HOT_LEAD")
-        if not thread.get("bridge_sent"):
-            bridge = int(round((mao + n) / 2, -3))
-            if ctx.get("list_price"):
-                bridge = min(bridge, int(ctx["list_price"]))
-            reply = (f"Hi {first},\n\nI appreciate you coming back to me. I went back through the numbers and ${n:,.0f} is above where this works for us as-is on {street}. "
-                     f"Could the seller meet us at ${bridge:,.0f}? Same terms: {_terms_sentence(cfg)}, proof of funds on request.\n\n"
-                     f"Let me know if they'd like to move forward.\n\n{_sign(cfg, 'email')}")
-            return Action(reply, "OPEN", None, f"counter {n} > MAO {mao}; bridge {bridge} sent", set_bridge_sent=True, offer_price=bridge)
-        return Action(None, "ESCALATED", "HOT_LEAD", f"counter {n} after bridge; escalated to Rodrigo")
+        reply = (f"Thanks {first}, that's helpful to know. Let me go over it on our side and I'll get back to you shortly.\n\n{sign}") if channel == "email" else \
+                f"Thanks {first}, that's helpful. Let me go over it and get back to you shortly. {sign}"
+        return Action(reply, "ESCALATED", "NEEDS_REVIEW", f"agent shared a number ({'$' + format(n, ',') if n else 'unparsed'}): acknowledged, no counter; Rodrigo reviews",
+                      review=True, signal="FLEXIBLE" if flexible else "DISCUSSING")
+
+    if label == "INTERESTED":
+        sig = "FLEXIBLE" if flexible else "DISCUSSING"
+        done = int(ctx.get("auto_replies") or 0)
+        nq = next_question(ctx.get("history_in") or text, ctx.get("history_out") or "")
+        if done >= cfg.get("outreach.max_auto_questions", 2) or nq is None:
+            return Action(None, "ESCALATED", "NEEDS_REVIEW", f"{sig.lower()}: enough back-and-forth; Rodrigo reviews before any number",
+                          review=True, signal=sig)
+        lead = "That's good to hear." if flexible else "Thanks for getting back to me."
+        reply = (f"Hi {first},\n\n{lead} {nq[1]}\n\n{sign}") if channel == "email" else f"{lead} {nq[1]} {sign}"
+        return Action(reply, "OPEN", sig, f"{sig.lower()}: asked about {nq[0]}", review=flexible, signal=sig)
 
     # QUESTION
     reply, unanswered = answer_question(text, ctx, cfg, channel)
-    if reply is None:
-        return Action(None, "ESCALATED", "NEEDS_CALL", f"question outside config facts ({', '.join(unanswered)}); call the agent")
-    return Action(reply, "OPEN", None, "answered from config facts" + (f"; unanswered: {', '.join(unanswered)}" if unanswered else ""))
+    if reply is None or "terms outside config" in unanswered:
+        return Action(None, "ESCALATED", "NEEDS_REVIEW", f"question we should not answer automatically ({', '.join(unanswered)}); Rodrigo reviews",
+                      review=True, signal="DISCUSSING")
+    return Action(reply, "OPEN", "DISCUSSING", "answered from config facts" + (f"; unanswered: {', '.join(unanswered)}" if unanswered else ""),
+                  signal="DISCUSSING")

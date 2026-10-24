@@ -133,7 +133,7 @@ def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monk
             return {"subject": c["subject"], "body": c["body"].replace("Hope you're doing well. ", "")}
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
     assert res["sent"] == 0 and res["held_for_feedback"] == 1 and not gm.sent
-    assert asana.where[gid] == s["to_review"] and any("Holding" in c for c in asana.stories[gid])
+    assert asana.where[gid] == s["to_review"] and any("Held" in c for c in asana.stories[gid])
     assert any("Revised" in c for c in asana.stories[gid])            # feedback applied right away, not next tick
 
 

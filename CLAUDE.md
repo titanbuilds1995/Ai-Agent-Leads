@@ -79,6 +79,6 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - 2026-10-24 (late): outreach rebuilt to Rodrigo's protocol (think-first analysis, no listing echo, angle templates, banned
   phrases); Charles Grant signature, no opt-out. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
   hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
-  plan) scores. 154 tests pass.
+  plan) scores. 156 tests pass.
 - Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;
   `make automate`; full run `run-daily --steps ingest,score,value,enrich,outreach` → cards appear in To Review.

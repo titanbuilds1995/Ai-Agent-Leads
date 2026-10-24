@@ -26,7 +26,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Skip 1219846985445292). One card per email with a PNG of the email + the text between EMAIL markers. Rodrigo's comments →
   `sync_feedback` rewrites the card; dragging to Approved is his go-ahead; `titan.cli approvals` (cron every 20 min, 8–17,
   random jitter) sends `per_tick` approved emails from Charles@ inside the send window (8:30–5:30 ET, every day) under
-  `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. Needs ASANA_TOKEN in the Mac's .env.
+  `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. **A new comment on an Approved card holds
+  the send**: the card goes back to To Review and the feedback is applied at once. "send me a test" (+ optional address) on
+  any card sends a [TEST] copy to Rodrigo (REPORT_TO) from Charles@; `titan.cli test-email <outreach_id>` does it by hand.
+  Body never introduces the company or says "we buy around here" (`SELF_INTRO_RE`). Needs ASANA_TOKEN in the Mac's .env.
 - **Outreach protocol = `docs/style/OUTREACH_PROTOCOL.md`** (Rodrigo, 2026-10-24): think first (facts / signals / inferences /
   unknowns / rehab level 1–5 / hypothesis / key unknown), then write; never echo the listing's wording; never manufacture
   observations (no photos are analyzed); investment hypothesis + one easy question; 50–110 words; varied openings; no
@@ -86,6 +89,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `rewrite-pending` (only old-style by default). 'Close to asking' line and FRESH_DEAL lane now keyed to the internal TARGET
   (mao), not the high; ≤2 listings per email; generic mailboxes (help@/info@) skipped; auctions excluded. Asana email approvals built (cards with email picture, feedback rewrites, spaced sending from Charles@);
   hands-off loop (`make automate`, report email with lead data, daily 7:22 review trigger). Claude Code on the Mac (Max
-  plan) scores. Voice protocol added (we/our side for criteria). 162 tests pass.
+  plan) scores. Voice protocol added (we/our side for criteria). First 2 emails sent 2026-10-24 12:44pm ET (Thais
+  Guevara, Lise Freeman); Thais's went out before Rodrigo's comment was applied → feedback-hold rule added. 165 tests pass.
 - Next on the Mac: `git pull && make setup`; add ASANA_TOKEN (and CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`) to .env;
   `make automate`; full run `run-daily --steps ingest,score,value,enrich,outreach` → cards appear in To Review.

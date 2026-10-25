@@ -133,11 +133,15 @@ def _plain_body(payload: dict[str, Any]) -> str:
 
 
 def strip_quoted(text: str) -> str:
-    """Drop quoted history ('On ... wrote:', '>' lines, signatures separators)."""
+    """Drop quoted history ('On ... wrote:' even when Gmail wraps it over two lines, '>' lines, signature separators)."""
     import re
+    text = text or ""
+    m = re.search(r"(?:^|\n)\s*On\s[^\n]{3,200}(?:\n[^\n]{0,120})?\bwrote:\s*(?:\n|$)", text)
+    if m:
+        text = text[:m.start()]
     lines = []
     for line in text.splitlines():
-        if re.match(r"^\s*On .{5,120} wrote:\s*$", line) or line.strip() == "-- " or re.match(r"^-{3,}\s*Original Message", line, re.I):
+        if line.strip() == "-- " or re.match(r"^-{3,}\s*Original Message", line, re.I):
             break
         if line.lstrip().startswith(">"):
             continue

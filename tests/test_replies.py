@@ -183,3 +183,20 @@ def test_bounces_are_never_counters():
     assert c.label == "BOUNCE" and c.number is None
     assert classify_rules("Address not found. Your message wasn't delivered to x@y.com because the address couldn't be found.", 400000).label == "BOUNCE"
     assert classify_rules("Seller would take 520k, send me your best offer", 439900).label != "BOUNCE"
+
+
+def test_strip_quoted_handles_wrapped_gmail_header():
+    from titan.outreach.gmail_client import strip_quoted
+    raw = ("Hi Charles, it's a gut.  Needs a roof, the AC is window units.\n\nI'd rather be transparent.\n\n"
+           "On Sat, Oct 24, 2026 at 12:44 PM Charles Grant <\nCharles@titanrealtyinvestments.com> wrote:\n\n> Hey Lise\n\n-- \n\n Lise Freeman\n561-907-0095\n")
+    out = strip_quoted(raw)
+    assert out.endswith("I'd rather be transparent.") and "titan" not in out.lower() and "Lise Freeman" not in out
+
+
+def test_condition_details_keep_the_conversation_going(cfg):
+    """Lise Freeman, 2026-10-24: a frank condition rundown with no question is INTERESTED (ask the next thing), not a QUESTION about us."""
+    c = classify_rules("Hi Charles, it's a gut. Needs a roof, the AC is window units, new kitchen, new bath. Electrical most likely needs done. "
+                       "My seller inherited this from his aunt. I'd rather be transparent.", 299900)
+    assert c.label == "INTERESTED"
+    a = decide(c, _ctx(history_in="it's a gut. needs a roof, kitchen, bath, electrical. seller inherited it.", history_out="", auto_replies=0), cfg, "email", {"state": "OPEN"})
+    assert a.reply and "realistically" in a.reply and "Charles Grant" in a.reply and "$" not in a.reply

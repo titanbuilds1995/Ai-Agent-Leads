@@ -32,13 +32,40 @@ def card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) ->
 
 
 def parse_card(notes: str) -> dict[str, Any] | None:
+    """A first-touch card ends with "(outreach #N)"; a reply card (an answer in an existing conversation) ends with
+    "(reply to outreach #N)" and is sent inside that email's Gmail thread."""
     to = re.search(r"^To:\s*(\S+@\S+)\s*$", notes or "", re.M)
     subj = re.search(r"^Subject:\s*(.+)$", notes or "", re.M)
     body = re.search(re.escape(START) + r"\n(.*?)\n" + re.escape(END), notes or "", re.S)
-    oid = re.search(r"\(outreach #(\d+)\)", notes or "")
+    oid = re.search(r"\((reply to )?outreach #(\d+)\)", notes or "")
     if not (to and subj and body and oid):
         return None
-    return {"to": to.group(1), "subject": subj.group(1).strip(), "body": body.group(1).strip(), "outreach_id": int(oid.group(1))}
+    return {"to": to.group(1), "subject": subj.group(1).strip(), "body": body.group(1).strip(), "outreach_id": int(oid.group(2)),
+            "reply_to": bool(oid.group(1))}
+
+
+def reply_card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) -> str:
+    return (f"To: {to}\nSubject: {subject}\n{START}\n{body}\n{END}\n\n{meta}\n\n"
+            f"This is Charles's ANSWER in an existing conversation. Drag to Approved to send it as a reply in the same email thread "
+            f"(during business hours). Comment to change it, or edit the text between the EMAIL lines yourself.\n(reply to outreach #{outreach_id})")
+
+
+def post_reply_card(conn, cfg: Any, asana: Asana, outreach_id: int, body: str, section: str | None = None, note: str = "") -> str | None:
+    """Put an answer to an agent on the approvals board as a reply card (To Review by default). Returns the card gid."""
+    a = _cfg(cfg)
+    row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (outreach_id,)).fetchone())
+    if not row:
+        return None
+    agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
+    pids = json.loads(row["property_ids"] or "[]")
+    props = [db.row_to_dict(r) for r in conn.execute(f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+    street = ", ".join(x["street"] for x in props) or "your listing"
+    subject = row.get("subject") or f"Quick question on {street}"
+    subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+    meta = f"Answering {agent.get('name')} about {street}." + (f"\n{note}" if note else "")
+    task = asana.create_task(a["project"], section or a["to_review"], f"Reply · {agent.get('name')} · {street}",
+                             reply_card_notes(row["to_address"] or agent.get("email"), subject, body, outreach_id, meta))
+    return task.get("gid")
 
 
 def analysis_text(analysis: dict[str, Any] | None) -> str:
@@ -256,7 +283,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             res["errors"] += 1
             continue
         row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone())
-        if not row or row["status"] == "sent":
+        if not row or (row["status"] == "sent" and not card.get("reply_to")):
             asana.move(t["gid"], a["sent"])
             continue
         if db.is_dnc(conn, agent_id=row["agent_id"], email=card["to"]):
@@ -264,17 +291,29 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             asana.move(t["gid"], a["skip"])
             continue
         try:
-            ids = gmail.send(card["to"], card["subject"], card["body"])
+            if card.get("reply_to"):      # an answer: same Gmail thread as the email it answers
+                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"))
+            else:
+                ids = gmail.send(card["to"], card["subject"], card["body"])
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1
             asana.comment(t["gid"], f"Send failed, will retry next round: {str(e)[:200]}")
             continue
         with db.tx(conn):
-            conn.execute("UPDATE outreach SET status='sent', subject=?, body=?, gmail_thread_id=?, gmail_message_id=?, sent_at=? WHERE id=?",
-                         (card["subject"], card["body"], ids.get("thread_id"), ids.get("message_id"), iso(), row["id"]))
             pids = json.loads(row["property_ids"])
-            tid = ensure_thread(conn, row["agent_id"], "email", ids.get("thread_id") or f"local-{row['id']}", pids)
-            log_message(conn, tid, "out", card["body"], external_id=ids.get("message_id"))
+            if card.get("reply_to"):
+                conn.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,subject,body,to_address,gmail_thread_id,gmail_message_id,"
+                             "run_date,created_at,sent_at,asana_task_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (row["agent_id"], row["property_ids"], "email", "reply:manual", "sent", card["subject"], card["body"], card["to"],
+                              ids.get("thread_id") or row.get("gmail_thread_id"), ids.get("message_id"), today_et(), iso(), iso(), t["gid"]))
+                tid = ensure_thread(conn, row["agent_id"], "email", ids.get("thread_id") or row.get("gmail_thread_id") or f"local-{row['id']}", pids)
+                log_message(conn, tid, "out", card["body"], external_id=ids.get("message_id"), action="reply:manual")
+                conn.execute("UPDATE threads SET state=CASE WHEN state IN ('OPEN','ESCALATED','HOT_LEAD') THEN state ELSE 'OPEN' END, updated_at=? WHERE id=?", (iso(), tid))
+            else:
+                conn.execute("UPDATE outreach SET status='sent', subject=?, body=?, gmail_thread_id=?, gmail_message_id=?, sent_at=? WHERE id=?",
+                             (card["subject"], card["body"], ids.get("thread_id"), ids.get("message_id"), iso(), row["id"]))
+                tid = ensure_thread(conn, row["agent_id"], "email", ids.get("thread_id") or f"local-{row['id']}", pids)
+                log_message(conn, tid, "out", card["body"], external_id=ids.get("message_id"))
         local = (now or now_utc()).astimezone(ZoneInfo(_cfg(cfg).get("send_window", {}).get("timezone", "America/New_York")))
         asana.comment(t["gid"], f"Sent {local.strftime('%a %b %d, %I:%M %p')} from {cfg.secret('GMAIL_SENDER') or 'Charles'}.")
         asana.move(t["gid"], a["sent"])

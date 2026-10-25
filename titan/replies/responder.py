@@ -43,7 +43,8 @@ def _sign(cfg: Any, channel: str) -> str:
     op = cfg["operator"]
     if channel == "sms":
         return f"- {op['sender_name'].split()[0]}, {op.get('company_short', op['company'])}"
-    return f"Best,\n\n{op['sender_name'].split()[0]}\n{op.get('company_short', op['company'])}\n{pretty_phone(op['sender_phone'])}"
+    from ..outreach.compose import signature
+    return signature(cfg)      # Rodrigo: the signature is exactly operator.signature_lines, on replies too
 
 
 def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> tuple[str | None, list[str]]:

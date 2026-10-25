@@ -41,6 +41,9 @@ INTERESTED_RE = re.compile(r"\b(yes|yeah|yep|sure|absolutely|definitely|open to 
                            r"call me|give me a call|let'?s (talk|chat|discuss|connect|set up)|(seller|they|owner) (is|are|'s) (motivated|flexible|open|willing|negotiable)|"
                            r"some (flexibility|room|wiggle room)|there'?s (some )?room|negotiable|interested|would (consider|entertain|look at)|open to (negotiat\w+|discussing)|"
                            r"can (you |we )?(call|talk|chat)|when can (you|we)|love to|happy to (talk|chat|discuss)|sounds good|let me know when)\b", re.I)
+CONDITION_RE = re.compile(r"\b(roof|a/?c\b|hvac|air cond|window units?|kitchen|bath(room)?s?|electrical|plumbing|wiring|panel|gut(ted)?|cosmetic|"
+                          r"tenants?|lease|rent(s|ed|al)?|occupied|vacant|inherited|estate|probate|permits?|foundation|septic|windows|floors?|"
+                          r"needs? (a |new |some )?(roof|work|everything|updating)|original|as.is|handyman|teardown|tear down)\b", re.I)
 QUESTION_RE = re.compile(r"\?|\b(who (are you|is this)|what (company|is titan)|are you (a |an )?(agent|realtor|wholesaler|licensed|the buyer|buying yourself)|"
                          r"do you (need|require|have|want|work)|proof of funds|pof|earnest|emd|deposit|inspection|contingenc|closing cost|how (fast|quick|soon)|"
                          r"timeline|financing|assign|double clos|hard money|how (do|does) (this|it) work|can you (close|send|provide)|will you)\b", re.I)
@@ -126,6 +129,8 @@ def classify_rules(text: str, list_price: int | None = None) -> Classification:
         return Classification("QUESTION", 0.7, email=email, reasons=["question"])
     if INTERESTED_RE.search(low):
         return Classification("INTERESTED", 0.6, email=email, reasons=["positive phrase"])
+    if CONDITION_RE.search(low):   # the agent is telling us about the house (roof, AC, tenants, rents...): keep the conversation going
+        return Classification("INTERESTED", 0.55, email=email, reasons=["condition or situation details, no question"])
     return Classification("QUESTION", 0.3, email=email, reasons=["unmatched"])
 
 

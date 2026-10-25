@@ -50,7 +50,7 @@ def _cards(loaded, cfg, tmp_path, monkeypatch):
 
 def test_card_round_trip():
     n = card_notes("a@b.com", "Your listing on NW 11th St", "Hey Maria,\n\nBody?\n\nCharles", 7, "Listing: ...")
-    assert parse_card(n) == {"to": "a@b.com", "subject": "Your listing on NW 11th St", "body": "Hey Maria,\n\nBody?\n\nCharles", "outreach_id": 7}
+    assert parse_card(n) == {"to": "a@b.com", "subject": "Your listing on NW 11th St", "body": "Hey Maria,\n\nBody?\n\nCharles", "outreach_id": 7, "reply_to": False}
 
 
 def test_outreach_posts_cards_with_a_picture_and_sends_nothing(loaded, cfg, tmp_path, monkeypatch):
@@ -203,3 +203,27 @@ def test_rewrite_pending_leaves_feedback_cards_alone_and_survives_deleted_cards(
     assert n["left_to_feedback"] == 1 and n["card_deleted"] == 1
     oid = parse_card(asana.tasks[gids[1]]["notes"])["outreach_id"]
     assert loaded.execute("SELECT status FROM outreach WHERE id=?", (oid,)).fetchone()[0] == "skipped"
+
+
+def test_reply_card_sends_in_the_same_thread(loaded, cfg, tmp_path, monkeypatch):
+    """An answer to an agent is a card ending '(reply to outreach #N)': approved → sent inside that email's Gmail thread."""
+    from titan.approvals import post_reply_card
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    loaded.execute("UPDATE outreach SET gmail_thread_id='thr-1' WHERE id=?", (oid,))
+    rgid = post_reply_card(loaded, cfg, asana, oid, "Hi Maria,\n\nThanks, that helps. Where does the seller realistically need to be?\n\nBest regards,\n\nCharles Grant")
+    card = parse_card(asana.tasks[rgid]["notes"])
+    assert card["reply_to"] and card["outreach_id"] == oid and card["subject"].startswith("Re: ") and asana.where[rgid] == s["to_review"]
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0          # To Review never sends
+    asana.move(rgid, s["approved"])
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    assert res["sent"] == 1 and gm.sent[-1][0] == card["to"] and gm.sent[-1][1] == card["subject"]
+    assert asana.where[rgid] == s["sent"]
+    row = loaded.execute("SELECT kind, status, gmail_thread_id FROM outreach WHERE asana_task_id=?", (rgid,)).fetchone()
+    assert row["kind"] == "reply:manual" and row["status"] == "sent"
+    assert loaded.execute("SELECT COUNT(*) FROM messages WHERE direction='out' AND action='reply:manual'").fetchone()[0] == 1
+    # the original stays sent and is not re-sent; the reply card is not sent twice
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == 2

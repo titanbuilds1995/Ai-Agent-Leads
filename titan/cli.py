@@ -199,6 +199,7 @@ def cmd_install_cron(cfg, args):
         "# --- titan lead engine (managed by `make install-cron`) ---",
         f"CRON_TZ={w.get('timezone', 'America/New_York')}",
         f"PATH={Path.home() / '.local/bin'}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        f"*/10 * * * * cd {root} && git pull -q --ff-only >> {root}/logs/cron.log 2>&1 && {py} -m pip install -q -r requirements.txt >> {root}/logs/cron.log 2>&1   # self-update: merged fixes land without anyone at the Mac",
         f"30 5 * * * cd {root} && /usr/bin/caffeinate -i {py} -m titan.cli run-daily >> {root}/logs/cron.log 2>&1",
         f"*/15 * * * * cd {root} && {py} -m titan.cli check-replies >> {root}/logs/cron.log 2>&1",
         f"*/20 8-17 * * * cd {root} && {py} -m titan.cli approvals --jitter 600 >> {root}/logs/cron.log 2>&1   # Asana-approved emails, spread out",

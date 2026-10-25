@@ -169,6 +169,10 @@ def cmd_check_replies(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("llm", "gmail", "twilio"))
     res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"])
+    asana = _asana(cfg)
+    if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
+        from .conversations import mirror_replies
+        res["asana_mirror"] = mirror_replies(conn, cfg, asana)
     from .dashboard_sync import sync as sync_dashboard
     res["dashboard"] = sync_dashboard(conn, cfg)
     print(json.dumps(res, indent=2))
@@ -334,7 +338,9 @@ def cmd_approvals(cfg, args):
     c = build_clients(cfg, conn, need=("llm", "gmail"))
     fb = sync_feedback(conn, cfg, asana, c["llm"], c["gmail"])
     sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])
-    print(json.dumps({"feedback": fb, "send": sent}, indent=2))
+    from .conversations import mirror_replies
+    mirrored = mirror_replies(conn, cfg, asana)
+    print(json.dumps({"feedback": fb, "send": sent, "asana_mirror": mirrored}, indent=2))
 
 
 def cmd_test_email(cfg, args):

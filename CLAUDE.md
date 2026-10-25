@@ -97,6 +97,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-25 ~4:40pm ET, RESUME HERE: **the cloud's `GMAIL_TOKEN_JSON_CONTENT` is Rodrigo's mailbox token, not Charles's**
+  (Gmail profile = rodrigo@). Cloud sessions cannot read Charles's inbox or send as Charles until Rodrigo pastes the contents of
+  the Mac's `secrets/gmail_token.json` (Charles's token) into that environment variable. Workaround built this session:
+  **conversations mirror** (`titan/conversations.py`): every inbound reply (email or text) is posted as a comment on the
+  agent's card on the Email Approvals board, with the engine's classification, lead status, internal MAO and the draft answer
+  (drafts never send on their own). Runs after every `check-replies` (cron, every 15 min) and `approvals` tick; idempotent via
+  `messages.mirrored_at`; a message with no card is marked `no_card`. Lise Freeman's reply (card gid 1219848010908101, Sent
+  section) and the two Dror Gerges bounces show up there once the Mac pulls (within ~25 min of this merge). Next: read Lise's
+  comment on Asana, classify, write Charles's reply (conversation protocol: one question, no numbers unless Rodrigo approves),
+  and either put it on the card for Rodrigo or send it through the Mac. 174 tests.
 - 2026-10-25 3:15pm ET, RESUME HERE: Mac is current (cron self-updates every 10 min via `git pull --ff-only`), Claude Code token
   works from cron (`make score-test` OK), all 37 To Review cards rewritten with the intro; Rodrigo was told to run
   `run-daily --steps value && rewrite-pending --all` so the bad "close to asking" lines drop. Rodrigo set GMAIL_TOKEN_JSON_CONTENT

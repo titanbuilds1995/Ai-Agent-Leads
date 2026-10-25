@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY,
   thread_id INTEGER NOT NULL REFERENCES threads(id), direction TEXT NOT NULL,
   body TEXT, external_id TEXT UNIQUE, classification TEXT, confidence REAL, action TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL, mirrored_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS do_not_contact (
@@ -114,7 +114,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
     return conn
 
 
-MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT"]   # databases created before the column existed
+MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT",
+              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

@@ -97,6 +97,17 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-25 3:15pm ET, RESUME HERE: Mac is current (cron self-updates every 10 min via `git pull --ff-only`), Claude Code token
+  works from cron (`make score-test` OK), all 37 To Review cards rewritten with the intro; Rodrigo was told to run
+  `run-daily --steps value && rewrite-pending --all` so the bad "close to asking" lines drop. Rodrigo set GMAIL_TOKEN_JSON_CONTENT
+  in the cloud environment (Charles's token JSON): a NEW session should read Charles's inbox with
+  `build_clients(cfg, None, need=("gmail",))` → `gmail.search('from:lisefreeman@gmail.com')` / `thread_messages`. **Lise Freeman
+  (529 23rd Ave N, Lake Worth Beach, $299,900) replied to Charles and nobody has answered her**: read it, classify, draft Charles's
+  reply for Rodrigo, give the internal range if she talks price. Emails are landing in inboxes (not spam). Next build (Rodrigo,
+  journal 2026-10-25): a Conversations board on Asana (Engine handling / Needs Rodrigo / Waiting on agent / Closed), every inbound
+  reply as a card comment with the engine's answer; decisions pending from Rodrigo: auto-send info-gathering replies? "offer N"
+  comment sends the written offer? Also pending: agent ranking (small agents up, Compass/Elliman/Sotheby's/CB down), MAO on the
+  card with repair credits, call list for few-photo listings, email-then-text sequence, flip-ratio database.
 - 2026-10-25 morning: Mac ran at 5:30am on OLD code (no git pull yet): 30 new To Review cards without the intro and without
   Claude analysis (templates), 11,010 properties, 37 HOT. Report showed two bounces (Dror Gerges, inbox full) misread as
   COUNTER_WITH_NUMBER → fixed (BOUNCE class). Inflated ARVs (multi-family $8M/$15M, land $2M) drove FRESH_DEAL + "close to asking"

@@ -46,3 +46,12 @@ def test_things_that_are_not_homes_are_excluded(cfg):
         ok, why = passes_filters(_l(t), cfg)
         assert not ok and why == "excluded not_a_home", t
     assert passes_filters(_l("Waterfront home with private boat dock, needs work"), cfg)[0]
+
+
+def test_no_assignment_and_no_inspection_listings_are_excluded():
+    from titan.ingest.normalize import detect_flags
+    assert "no_assignment" in detect_flags("Great flip. No assignments. Cash only.")
+    assert "no_assignment" in detect_flags("Contract is not assignable, wholesalers please don't call")
+    assert "no_inspection" in detect_flags("Seller wants 0 day inspection period")
+    assert "no_inspection" in detect_flags("Sold as-is, no inspection contingency")
+    assert not {"no_assignment", "no_inspection"} & set(detect_flags("Assignment of lease included; 7 day inspection period welcome"))

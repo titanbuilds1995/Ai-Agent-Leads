@@ -12,9 +12,11 @@ from ..llm import LLM
 from ..util import in_send_window, iso, log, now_utc, parse_iso, today_et
 from .compose import compose_email, compose_sms, seed_for, validate_sms
 
-CONF_RANK = {"high": 3, "medium": 2, "low": 1}
+CONF_RANK = {"high": 3, "medium": 2, "low": 1, "bounced": 0}
 # help@flatfee.com, info@, listings@ …: a service desk or flat-fee listing mill, not a person we can talk to
-GENERIC_MAILBOX_RE = re.compile(r"^(help|info|support|office|listings?|admin|contact|sales|team|noreply|no-reply|hello|frontdesk|reception)@", re.I)
+GENERIC_MAILBOX_RE = re.compile(r"^(help|info|support|office|listings?|admin|contact|sales|team|noreply|no-reply|hello|frontdesk|reception|realtor|agent|oxlistings)@|"
+                                r"@(opendoor|offerpad|beycome|flatfee|listwithfreedom|homecoin|houzeo|fsbo|myfloridalicense|zillow|zillowhomes)\.", re.I)
+# ^ generic help desks, flat-fee listing services and institutional sellers (Opendoor, Offerpad): no relationship to build there.
 
 
 def _recent_contact(conn, agent_id: int, channel: str, days: int) -> bool:

@@ -172,3 +172,14 @@ def test_approve_offer_is_the_only_way_a_number_goes_out(loaded, cfg, tmp_path):
 def test_sms_stop_from_unknown_number(loaded, cfg):
     res = inbound_sms(loaded, cfg, "+19999999999", "STOP", "SM-u")
     assert res == {"skipped": "unknown sender"} and db.is_dnc(loaded, phone="+19999999999")
+
+
+def test_bounces_are_never_counters():
+    from titan.replies.classifier import classify_rules
+    bounce = ("** Recipient inbox full ** Your message couldn't be delivered to dror2invest@yahoo.com. Their inbox is full, "
+              "or it's getting too much mail right now. The response from the remote server was: 552 5.2.2 This message could not be "
+              "delivered because the recipient's mailbox is full. 100k under appraiser value, 12% return on 430k purchase.")
+    c = classify_rules(bounce, 439900)
+    assert c.label == "BOUNCE" and c.number is None
+    assert classify_rules("Address not found. Your message wasn't delivered to x@y.com because the address couldn't be found.", 400000).label == "BOUNCE"
+    assert classify_rules("Seller would take 520k, send me your best offer", 439900).label != "BOUNCE"

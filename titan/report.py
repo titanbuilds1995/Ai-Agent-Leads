@@ -163,5 +163,9 @@ def lead_data_section(conn, cfg: Any, limit: int = 40) -> str:
         lines.append(f"- {l['rating']} {l['lane']} · {l['street']}, {l['city']} · ${l['list_price'] or 0:,} · {l['days_on_market']} days · "
                      f"{l['price_cuts'] or 0} cut(s) · {l['agent'] or '?'} {l['agent_email'] or ''}")
     payload = {"version": 1, "date": today_et(), "lanes": counts, "leads": leads, "reviews": reviews}
-    lines += ["", "-----BEGIN TITAN-DATA-----", json.dumps(payload, default=str, separators=(",", ":")), "-----END TITAN-DATA-----"]
+    import base64
+    raw = json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8")
+    b64 = base64.b64encode(raw).decode("ascii")
+    lines += ["", "-----BEGIN TITAN-DATA-B64-----"] + [b64[i:i + 76] for i in range(0, len(b64), 76)] + ["-----END TITAN-DATA-B64-----"]
+    # base64 in 76-char lines survives email line wrapping; the old raw JSON block got newlines inside strings
     return "\n".join(lines)

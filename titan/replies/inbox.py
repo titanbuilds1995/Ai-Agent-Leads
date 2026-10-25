@@ -83,6 +83,17 @@ def handle_inbound(conn, cfg: Any, thread: dict[str, Any], text: str, external_i
     cls = classify(text, ctx.get("list_price"), llm)
     agent = ctx["agent"]
 
+    if cls.label == "BOUNCE":
+        # The email never arrived. Mark the address so the planner stops using it, log it, and never treat it as a reply.
+        with db.tx(conn):
+            log_message(conn, thread["id"], "in", text[:2000], external_id=external_id, classification="BOUNCE", confidence=cls.confidence)
+            conn.execute("UPDATE threads SET last_class='BOUNCE', state='BOUNCED', updated_at=? WHERE id=?", (iso(), thread["id"]))
+            if agent.get("id"):
+                conn.execute("UPDATE agents SET email_confidence='bounced', updated_at=? WHERE id=?", (iso(), agent["id"]))
+            for pid in json.loads(thread["property_ids"] or "[]"):
+                db.set_lead_status(conn, pid, "NEEDS_CALL", "email bounced (bad or full mailbox); reach the agent by phone")
+        return {"classification": "BOUNCE", "action": "email bounced: address marked bad, lead set to NEEDS_CALL", "state": "BOUNCED"}
+
     # Agent gave us an email in a text → store it (high confidence: they told us)
     if channel == "sms" and cls.email and agent.get("id"):
         conn.execute("UPDATE agents SET email=?, email_confidence='high', email_source='sms_reply', updated_at=? WHERE id=?", (cls.email, iso(), agent["id"]))

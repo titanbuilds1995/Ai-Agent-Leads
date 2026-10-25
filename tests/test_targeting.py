@@ -45,3 +45,16 @@ def test_claude_goes_to_targets_first_and_respects_the_cap(loaded, cfg):
     out = run_scoring(loaded, cfg, L(), force=True)
     assert out["claude"] == 2 and out["claude_cap_reached"] and len(seen) == 2
     assert out["rules"] == out["scored"] - 2
+
+
+def test_absurd_arv_is_flagged_suspect_and_never_fresh_deal(cfg):
+    from titan.valuation import value_property
+    from titan.targeting import lane
+    from titan.ranking import rate
+    p = {"id": 1, "street": "711 SW 7th St", "city": "Pompano Beach", "zip": "33060", "county": "Broward", "list_price": 499900,
+         "sqft": 90000, "property_type": "multi_family", "year_built": 1969, "remarks": "duplex", "days_on_market": 1}
+    comps = [{"address": f"c{i}", "sold_price": 450000, "sqft": 1500, "sold_date": "2026-09-01", "distance_mi": 0.2, "property_type": "multi_family"} for i in range(5)]
+    res = value_property(p, cfg, lambda _p: comps)
+    assert res["arv"] > 499900 * 1.75 and res["arv_method"].endswith("_suspect")
+    assert lane(p, cfg, res["mao"], res["arv_method"]) != "FRESH_DEAL"
+    assert rate(80, p["list_price"], res["mao"], cfg, res["arv_method"]) == "COLD"

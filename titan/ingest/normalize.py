@@ -30,6 +30,11 @@ FLAG_PATTERNS = {
     "not_a_home": r"\b(boat slip|boat dock(age)? (for sale|only)|dock slip|marina slip|wet slip|dry slip|parking (space|spot)s? (for sale|only)|"
                   r"deeded parking|storage unit|cabana (for sale|only)|timeshare|time share|fractional (ownership|interest)|"
                   r"lot rent|land lease community|leased land)\b",
+    # Rodrigo, 2026-10-25: we need an inspection period and the right to assign; listings that rule either out are off the list.
+    "no_assignment": r"\bno[\s-]+assign(ment|ments|ing|able)?\b|\bnot assignable\b|\bnon[\s-]?assignable\b|\bassignments? (is |are )?not (allowed|permitted|accepted)\b|"
+                     r"\bno wholesal(e|ers|ing)\b|\bwholesalers? (need not|do not|don'?t|please don'?t) (apply|contact|call|inquire)\b",
+    "no_inspection": r"\b(0|zero|no)[\s-]+day inspections?\b|\bno inspection( period| contingenc(y|ies))?\b|\binspections? (are )?(waived|not permitted|not allowed)\b|"
+                     r"\bwaive(d)? (the |all |any )?inspections?\b|\bas[\s-]is,? no inspections?\b",
     "estate": r"\bestate sale\b|\binherited\b|\bheirs?\b|\bdeceased\b|\btrust sale\b|\bsold by (the )?estate\b",
 }
 VACANT_RE = re.compile(r"\bvacant\b|\bunoccupied\b|\beasy to show\b.*\bvacant\b|\bno tenants?\b", re.I)

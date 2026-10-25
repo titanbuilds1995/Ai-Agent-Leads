@@ -30,8 +30,10 @@ def test_report_carries_lead_data_for_the_cloud_reviewer(loaded, cfg):
     rerank(loaded, cfg)
     from titan.report import lead_data_section
     text = lead_data_section(loaded, cfg)
-    blob = text.split("-----BEGIN TITAN-DATA-----")[1].split("-----END TITAN-DATA-----")[0]
-    data = json.loads(blob)
+    import base64
+    blob = text.split("-----BEGIN TITAN-DATA-B64-----")[1].split("-----END TITAN-DATA-B64-----")[0]
+    assert all(len(line) <= 76 for line in blob.strip().splitlines())
+    data = json.loads(base64.b64decode("".join(blob.split())))
     assert data["version"] == 1 and "lanes" in data and isinstance(data["leads"], list)
     if data["leads"]:
         l = data["leads"][0]

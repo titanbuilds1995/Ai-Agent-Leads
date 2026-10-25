@@ -27,7 +27,7 @@ market:
   lookback_days: 30            # only used with ingest.homeharvest.scope: window (or require_recent: true)
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
-  exclude_flags: ["reo", "short_sale", "auction", "not_a_home"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
+  exclude_flags: ["reo", "short_sale", "auction", "not_a_home", "no_assignment", "no_inspection"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
 
 formula:
   # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp
@@ -59,6 +59,7 @@ valuation:
   comp_sqft_tolerance_pct: 25
   comp_months: 6
   min_comps: 3
+  max_arv_to_list: 1.75          # ARV above 1.75× the ask is flagged *_suspect (bad comps/sqft), never HOT, never "close to asking"
   fallback_radius_miles: 1.0
   condition_adjustment_pct:     # applied to comp-derived ARV to reflect finished condition expectation
     cosmetic: 0
@@ -81,7 +82,7 @@ ranking:
   warm_min_motivation: 50
   warm_max_list_over_mao_pct: 35
   score_min_for_valuation: 0      # value every kept listing (cheap; comps cached per ZIP) so fresh good prices are found
-  arv_methods_for_hot_warm: ["comps", "comps_wide", "estimate"]   # a guessed ARV (land_default, list_price) can only be COLD
+  arv_methods_for_hot_warm: ["comps", "comps_wide", "estimate"]   # *_suspect (ARV > max_arv_to_list × ask) is never HOT/WARM   # a guessed ARV (land_default, list_price) can only be COLD
 
 scoring:
   # Cost rule (Rodrigo, 2026-10-24): use what is free or already paid for before spending money.

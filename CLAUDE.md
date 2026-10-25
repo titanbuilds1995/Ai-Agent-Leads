@@ -78,6 +78,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Never pursue REO / bank-owned or short sales** (Rodrigo, 2026-10-24): `market.exclude_flags` in config; filtered at ingest,
   and `exclude_flagged()` marks already-stored ones EXCLUDED (also `not_a_home`: boat slips, parking, storage, timeshares, lot rent) (no score, valuation or outreach) on every ingest/score run.
   Negations ("not a short sale or foreclosure") don't count; pre-foreclosure is NOT excluded.
+- **Never pursue listings that rule out assignment or an inspection period** (Rodrigo, 2026-10-25): flags `no_assignment`
+  ("no assignments", "not assignable", "no wholesalers") and `no_inspection` ("0 day inspection", "inspection waived") are in
+  `market.exclude_flags`. Agent preference (not built yet, 2026-10-25 journal): rank big-brokerage and very active agents down,
+  the small agent with one or two listings up; few/no interior photos is a "call now" signal; MAO on the card with repair
+  credits for stated new roof/AC; email in the morning, text later the same day once texting is live.
+- **Data guards (2026-10-25):** a bounce (mailer-daemon, "inbox full") is classified BOUNCE, never a counter; the agent's email is
+  marked `bounced`, the lead goes NEEDS_CALL. ARV above `valuation.max_arv_to_list` (1.75×) the ask is `*_suspect`: never HOT,
+  never FRESH_DEAL, never "close to asking". Flat-fee / institutional domains (opendoor, beycome, flatfee…) are skipped like
+  generic mailboxes. The report's data block is base64 (`TITAN-DATA-B64`) because Gmail wrapped the JSON.
 - **Targeting (Rodrigo, 2026-10-24):** scrape every active listing (free; `ingest.homeharvest.scope: all_active`, $50k price
   bands), then `titan/targeting.py` lanes: **SITTING** (60+ days; ideal = with price drops / back on market) and
   **FRESH_DEAL** (≤14 days and list ≤ internal high +5% on real comps; lock it in fast); the rest WATCH. Ranking, Claude
@@ -88,6 +97,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-25 morning: Mac ran at 5:30am on OLD code (no git pull yet): 30 new To Review cards without the intro and without
+  Claude analysis (templates), 11,010 properties, 37 HOT. Report showed two bounces (Dror Gerges, inbox full) misread as
+  COUNTER_WITH_NUMBER → fixed (BOUNCE class). Inflated ARVs (multi-family $8M/$15M, land $2M) drove FRESH_DEAL + "close to asking"
+  → `max_arv_to_list` guard. No-assignment / no-inspection exclusions added (Rodrigo). Report JSON block now base64. 171 tests.
+  Rodrigo is journaling ideas (call list, MAO with repair credits, email-then-text, ratio database); nothing built from those yet.
 - 2026-10-24 (afternoon): Rodrigo reviewed the board: 4 cards approved with comments (Richard Dipietro, Abraham Elbaz, Eugene
   Schroeder, Dror Gerges), feedback on Glenn Smith (triplex: wants a rental-yield number) and Douglas Montas (the global
   "introduce yourself first" rule), 4 cards deleted (Alex Salinas, Yuri Skutnik, Ingrid Vengoechea, Brett Colby). Cron rewrites
@@ -103,6 +117,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Rodrigo's 25 target. 21 cards in To Review, every one rewritten in the cloud with the intro and his comments; 0 Approved; 1 Skip.
   Nothing more sends until Rodrigo drags cards to Approved (window reopens 8:30am ET). Comments on the remaining 8 never reached
   Asana (none recorded), so those got the intro only.
-- Next on the Mac: `git pull`, then `.venv/bin/python -m titan.cli approvals` (applies the held feedback with the intro), then
+- Next on the Mac: `git pull`, then `.venv/bin/python -m titan.cli rewrite-pending --all` (the 30 new cards get intro + analysis),
+  then `.venv/bin/python -m titan.cli approvals` (applies the held feedback with the intro), then
   `.venv/bin/python -m titan.cli rewrite-pending --all` (intro on the rest). Add CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`)
   to .env so the cron rewrites work. Then Rodrigo re-approves; 2 emails go out per 20-min tick until 5:30pm ET.

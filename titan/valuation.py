@@ -117,7 +117,7 @@ def preliminary_range(p: dict[str, Any], cfg: Any) -> dict[str, Any] | None:
     low = max(int(round(arv * r_lo - repairs - f["assignment_fee"], -3)), 0)
     high = max(int(round(arv * r_hi - repairs - f["assignment_fee"], -3)), 0)
     method, n = p.get("arv_method") or "?", p.get("comp_count")
-    uncertainty = "high" if method in ("estimate", "list_price", "land_default", "zip_resale_psf", "comps_thin") or not lo else \
+    uncertainty = "high" if method in ("estimate", "list_price", "land_default", "zip_resale_psf", "comps_thin") or method.endswith("_suspect") or not lo else \
                   "medium" if method == "comps_wide" else "lower"
     return {"low": low, "high": high, "uncertainty": uncertainty, "assumptions": [
         f"ARV ${arv:,.0f} from {method}" + (f" ({n} comps)" if n else ""),
@@ -162,6 +162,9 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
             arv, method = int(p.get("list_price") or 0), "list_price"   # no better information: conservative
     adj = cfg.get("valuation.condition_adjustment_pct", {}).get(tier, 0)
     arv = int(arv * (1 + adj / 100))
+    lp0 = int(p.get("list_price") or 0)
+    if lp0 and arv > lp0 * float(v.get("max_arv_to_list", 1.75)) and method != "list_price":
+        method = f"{method}_suspect"      # a resale value this far above the ask is almost always bad comps or bad sqft, not a deal
     br = buy_ratio(p, arv, cfg)
     mao = compute_mao(arv, repairs, cfg, br["ratio"])
     lp = int(p.get("list_price") or 0)

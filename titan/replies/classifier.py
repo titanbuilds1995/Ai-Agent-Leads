@@ -8,7 +8,7 @@ from typing import Any
 
 from ..llm import LLM
 
-CLASSES = ["INTERESTED", "ASK_FOR_OFFER", "COUNTER_WITH_NUMBER", "NOT_INTERESTED", "SOLD_OR_PENDING", "QUESTION", "OUT_OF_OFFICE", "STOP"]
+CLASSES = ["BOUNCE", "INTERESTED", "ASK_FOR_OFFER", "COUNTER_WITH_NUMBER", "NOT_INTERESTED", "SOLD_OR_PENDING", "QUESTION", "OUT_OF_OFFICE", "STOP"]
 
 
 @dataclass
@@ -86,6 +86,11 @@ def parse_money(text: str, list_price: int | None = None) -> int | None:
     return cands[0]
 
 
+BOUNCE_RE = re.compile(r"(couldn'?t|could not|was not|wasn'?t|cannot|can'?t) be delivered|undeliverable|delivery (status notification|failure|has failed|incomplete)|"
+                       r"mail delivery (failed|subsystem)|mailer-daemon|postmaster@|address not found|(mailbox|inbox) (is )?(full|unavailable|not found|does not exist)|"
+                       r"recipient (inbox|mailbox) full|user unknown|no such user|does not exist|over quota|\b5\.[1247]\.\d\b|\b55[0-4]\b.{0,40}(user|mailbox|recipient|address)", re.I)
+
+
 def classify_rules(text: str, list_price: int | None = None) -> Classification:
     t = (text or "").strip()
     low = t.lower()
@@ -96,6 +101,8 @@ def classify_rules(text: str, list_price: int | None = None) -> Classification:
         email = em.group(0).lower()
     if not t:
         return Classification("QUESTION", 0.2, email=email, reasons=["empty"])
+    if BOUNCE_RE.search(low):      # a mail server talking, not the agent: never a counter, never a conversation
+        return Classification("BOUNCE", 0.98, reasons=["delivery failure notice"])
     if STOP_RE.search(low):
         return Classification("STOP", 0.95, email=email, reasons=["stop phrase"])
     if OOO_RE.search(low) and len(low) < 1200:

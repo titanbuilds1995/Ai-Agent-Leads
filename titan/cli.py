@@ -340,7 +340,9 @@ def cmd_approvals(cfg, args):
     sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])
     from .conversations import mirror_replies
     mirrored = mirror_replies(conn, cfg, asana)
-    print(json.dumps({"feedback": fb, "send": sent, "asana_mirror": mirrored}, indent=2))
+    from .dashboard_sync import sync as sync_dashboard
+    dash = sync_dashboard(conn, cfg)          # the website's Board (card counts, sent, replies) stays current every tick
+    print(json.dumps({"feedback": fb, "send": sent, "asana_mirror": mirrored, "dashboard": dash}, indent=2))
 
 
 def cmd_test_email(cfg, args):

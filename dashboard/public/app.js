@@ -8,7 +8,7 @@
   const fmt = (iso) => (iso ? new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
   const tag = (v) => `<span class="tag ${h(v)}">${h(v || "—")}</span>`;
 
-  let snap = null, progress = null, tab = "progress", sub = "listings", timer = null, filters = { q: "", rating: "", county: "", lead: "" };
+  let snap = null, progress = null, tab = "board", sub = "listings", timer = null, filters = { q: "", rating: "", county: "", lead: "" };
   const key = () => { try { return localStorage.getItem("titan_key") || ""; } catch { return ""; } };
 
   let local = null;
@@ -44,8 +44,46 @@
     }
     $("#sub").textContent = `updated ${ago(snap.generated_at)} · ${snap.properties_total} listings · ${snap.funnel.agents} agents`;
     const mp = $("#modepill"); mp.textContent = snap.mode.replace(/_/g, " ").toLowerCase(); mp.className = "pill " + (snap.mode === "DRAFT_FOR_APPROVAL" ? "ok" : snap.mode === "FULL_AUTO" ? "risk" : "now");
-    ({ progress: renderProgress, pipeline: renderPipeline, live: renderLive })[tab]();
+    ({ board: renderBoard, progress: renderProgress, pipeline: renderPipeline, live: renderLive })[tab]();
   }
+
+
+  /* ---------------- Board (the Asana board, one level up, with the numbers) ---------------- */
+  const COLS = [
+    ["needs_answer", "Agent replied, needs our answer", "An agent wrote back and nobody has answered yet."],
+    ["needs_rodrigo", "Needs Rodrigo", "A number, an offer request or a hot lead: your call."],
+    ["waiting_on_agent", "Waiting on the agent", "We answered; the ball is on their side."],
+    ["no_reply_yet", "No reply yet", "First email out, nothing back so far."],
+    ["closed", "Closed", "Declined, sold, bounced or opted out."],
+  ];
+  const pctTile = (v, l, cls = "") => `<div class="tile ${cls}"><div class="n">${v == null ? "—" : v + "%"}</div><div class="l">${h(l)}</div></div>`;
+  function renderBoard() {
+    const el = $("#tab-board"); const st = snap.stats || {}; const t = st.totals || {}; const az = st.asana; const d = st.daily || [];
+    if (!st.totals || st.error) { el.innerHTML = `<div class="empty"><h2>No scoreboard in this snapshot yet</h2><p class="muted">It appears after the next run or approvals tick on the Mac.</p></div>`; return; }
+    const asanaTiles = az ? `${tile(az.to_review, "cards to review")}${tile(az.approved, "approved")}${tile(az.sent, "cards sent")}${tile(az.skip, "skipped")}` : tile(t.cards_waiting, "cards waiting");
+    el.innerHTML = `
+      <div><h2>What the outreach is doing</h2><p class="muted">Updated ${ago(snap.generated_at)} · counts since the first email went out · a bounce is never a reply.</p></div>
+      <div class="tiles">${tile(t.emails_sent, "emails sent")}${tile(t.agents_replied, "agents replied", "hot")}${pctTile(t.reply_rate_pct, "reply rate", "hot")}${tile(t.answered, "answered by us")}${pctTile(t.answer_rate_pct, "answer rate")}${tile(t.awaiting_our_answer, "awaiting answer", t.awaiting_our_answer ? "hot" : "")}${tile(t.needs_rodrigo, "needs Rodrigo", t.needs_rodrigo ? "hot" : "")}${tile(t.median_hours_to_first_reply == null ? "—" : t.median_hours_to_first_reply + "h", "median reply time")}</div>
+      <div><h2>Today and the pipeline</h2><p class="muted">New listings found this morning, what is hot, and where the Asana cards stand.</p></div>
+      <div class="tiles">${tile(t.new_today, "new today")}${tile(t.hot, "hot right now", "hot")}${tile(t.properties, "tracked")}${tile(t.sent_today, "sent today")}${tile(t.replies_today, "replies today")}${asanaTiles}${tile(t.bounces, "bounced")}${tile(t.do_not_contact, "opted out")}</div>
+      <div><h2>Last ${d.length} days</h2><p class="muted">One bar per day, Eastern time. Hover a bar for the number.</p></div>
+      <div class="grid g3 charts">${barChart(d, "new_properties", "New listings found")}${barChart(d, "emails_sent", "Emails sent")}${barChart(d, "replies", "Replies received")}</div>
+      <div><h2>Conversations by stage</h2><p class="muted">Every agent who got an email, sorted into the column that says what happens next. Click a card for the whole thread.</p></div>
+      <div class="cols">${COLS.map(([k, title, note]) => `<div class="col"><div class="colhead"><h3>${h(title)}</h3><span class="count">${(st.board?.[k] || []).length}</span></div><div class="muted colnote">${h(note)}</div>${(st.board?.[k] || []).map(convCard).join("") || `<div class="kempty">nothing here</div>`}</div>`).join("")}</div>`;
+    el.querySelectorAll(".kcard").forEach((c) => (c.onclick = () => openAgent(+c.dataset.agent)));
+    el.querySelectorAll(".bars i").forEach((b) => { b.onmouseenter = () => showTip(b); b.onmouseleave = hideTip; b.onfocus = () => showTip(b); b.onblur = hideTip; });
+  }
+  const convCard = (c) => `<div class="kcard" data-agent="${c.agent?.id ?? ""}" role="button" tabindex="0"><b>${h(c.agent?.name || "?")}</b><div class="muted">${h((c.properties || []).map((p) => p.street).join(", "))}</div><div class="snip">${h(c.last_snippet || "")}</div><div class="kmeta"><span>${tag(c.channel)} ${c.last_class ? tag(c.last_class) : ""}</span><span class="muted">${c.last_direction === "in" ? "they wrote" : "we wrote"} ${ago(c.last_at)}</span></div></div>`;
+  function barChart(days, key, title) {
+    const max = Math.max(1, ...days.map((x) => x[key] || 0)); const total = days.reduce((a, x) => a + (x[key] || 0), 0);
+    const lab = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `<div class="card chart"><div class="charthead"><h3>${h(title)}</h3><span class="count">${total} total</span></div>
+      <div class="bars" role="img" aria-label="${h(title)}, last ${days.length} days">${days.map((x, i) => `<i tabindex="0" style="height:${Math.max(2, Math.round(100 * (x[key] || 0) / max))}%" data-tip="${h(lab(x.date))}: ${x[key] || 0}" aria-label="${h(lab(x.date))}: ${x[key] || 0}"></i>`).join("")}</div>
+      <div class="axis"><span>${h(lab(days[0]?.date || ""))}</span><span>${h(lab(days[days.length - 1]?.date || ""))}</span></div>
+      <table class="sr"><caption>${h(title)}</caption><tbody>${days.map((x) => `<tr><td>${h(x.date)}</td><td>${x[key] || 0}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  function showTip(b) { let t = $("#tip"); if (!t) { t = document.createElement("div"); t.id = "tip"; t.className = "tip"; document.body.appendChild(t); } t.textContent = b.dataset.tip; const r = b.getBoundingClientRect(); t.style.left = Math.round(r.left + r.width / 2) + "px"; t.style.top = Math.round(r.top - 8) + "px"; t.hidden = false; }
+  function hideTip() { const t = $("#tip"); if (t) t.hidden = true; }
 
   /* ---------------- Progress ---------------- */
   function renderProgress() {
@@ -179,7 +217,7 @@
   $("#drawerclose").onclick = () => ($("#drawer").hidden = true);
   $("#drawer").onclick = (e) => { if (e.target.id === "drawer") $("#drawer").hidden = true; };
   $("#loginform").onsubmit = (e) => { e.preventDefault(); try { localStorage.setItem("titan_key", $("#pw").value); } catch {} load(); };
-  try { tab = localStorage.getItem("titan_tab") || "progress"; } catch {}
+  try { tab = localStorage.getItem("titan_tab") || "board"; } catch {}
   setAuto(true);
   load();
 })();

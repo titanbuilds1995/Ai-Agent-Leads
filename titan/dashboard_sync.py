@@ -38,7 +38,7 @@ def _agent(conn, aid) -> dict[str, Any] | None:
     return db.row_to_dict(r) if r else None
 
 
-def build_snapshot(conn, cfg, include_connections: bool = False) -> dict[str, Any]:
+def build_snapshot(conn, cfg, include_connections: bool = False, include_asana: bool = True) -> dict[str, Any]:
     run_date = today_et()
     since24 = iso(now_utc() - timedelta(hours=24))
     snap: dict[str, Any] = {
@@ -110,6 +110,9 @@ def build_snapshot(conn, cfg, include_connections: bool = False) -> dict[str, An
     snap["do_not_contact"] = [db.row_to_dict(r) for r in conn.execute("SELECT * FROM do_not_contact ORDER BY id DESC LIMIT 200").fetchall()]
     # --- live event feed -------------------------------------------------------------------
     snap["events"] = build_events(conn, snap)
+    # --- scoreboard: the Board tab (reply / answer rates, daily series, conversations by stage, Asana card counts) ---
+    from .stats import compute_stats
+    snap["stats"] = compute_stats(conn, cfg, with_asana=include_asana)
     if include_connections:
         from . import doctor
         snap["connections"] = [{k: v for k, v in r.items()} for r in doctor.run(cfg)]

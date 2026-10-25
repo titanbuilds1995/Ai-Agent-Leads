@@ -382,6 +382,16 @@ def cmd_gmail_auth(cfg, args):
     print("gmail ok" if c["gmail"] else f"gmail not configured: {c['missing']}")
 
 
+def cmd_inbox(cfg, args):
+    """Print the outreach mailbox's threads matching a Gmail query (newest first). Read-only; nothing is sent or labelled."""
+    from .outreach.gmail_client import dump_threads
+    c = build_clients(cfg, None, need=("gmail",), interactive=False)
+    if not c["gmail"]:
+        print(f"gmail not available: {c['missing']}")
+        sys.exit(1)
+    print(dump_threads(c["gmail"], args.query, args.limit))
+
+
 def cmd_gmail_test(cfg, args):
     """Prove the outreach mailbox works end to end: one draft to itself under the review label. Sends nothing."""
     conn = _open(cfg)
@@ -419,6 +429,9 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
     sub.add_parser("gmail-test", help="make one test draft in the outreach mailbox (sends nothing)")
+    ib = sub.add_parser("inbox", help="print the threads in Charles's mailbox that match a Gmail query, e.g. from:agent@x.com (read-only)")
+    ib.add_argument("query")
+    ib.add_argument("--limit", type=int, default=10, help="threads to print (default 10)")
     dl = sub.add_parser("dashboard", help="open the dashboard from this machine (no hosting needed)")
     dl.add_argument("--port", type=int, default=8765)
     dl.add_argument("--no-open", action="store_true")
@@ -450,7 +463,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "inbox": cmd_inbox, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
     return 0
 
 

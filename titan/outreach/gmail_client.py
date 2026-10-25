@@ -28,8 +28,16 @@ class GmailClient:
         self.sender, self.sender_name = sender, sender_name
         token_path = Path(token_json)
         creds = None
+        self.bare_token = False
         if token_path.exists():
-            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            text = token_path.read_text().strip()
+            if text.startswith("{"):
+                creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            elif text:
+                # a bare access token (what a browser session / OAuth playground hands out, "ya29...."): works for about an
+                # hour and cannot refresh. Cloud sessions sometimes get this instead of the token file's JSON.
+                creds = Credentials(token=text)
+                self.bare_token = True
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
@@ -48,6 +56,13 @@ class GmailClient:
             token_path.write_text(creds.to_json())
         self.svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
         self._labels: dict[str, str] = {}
+        if self.bare_token:
+            try:
+                self.svc.users().getProfile(userId="me").execute()
+            except Exception as e:  # noqa: BLE001
+                raise GmailUnavailable("the Gmail token is a bare access token and it no longer works (they expire after ~1 hour): "
+                                       "put the whole contents of secrets/gmail_token.json (a JSON with refresh_token, client_id, "
+                                       f"client_secret) in GMAIL_TOKEN_JSON_CONTENT instead ({type(e).__name__})") from e
 
     # --- labels ---------------------------------------------------------------------------
     def label_id(self, name: str) -> str:
@@ -114,6 +129,31 @@ class GmailClient:
         return {"id": m["id"], "thread_id": m.get("threadId"), "from": headers.get("from", ""), "subject": headers.get("subject", ""),
                 "message_id_header": headers.get("message-id"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
                 "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", [])}
+
+
+def dump_threads(gmail: "GmailClient", query: str, limit: int = 10) -> str:
+    """Readable printout of every thread matching a Gmail query (newest first). Read-only; for `titan.cli inbox`."""
+    import datetime as dt
+    seen: list[str] = []
+    for mid in gmail.search(query, max_results=limit * 5):
+        tid = gmail.message(mid)["thread_id"]
+        if tid and tid not in seen:
+            seen.append(tid)
+        if len(seen) >= limit:
+            break
+    if not seen:
+        return f"no threads match: {query}"
+    out: list[str] = []
+    for tid in seen:
+        msgs = gmail.thread_messages(tid)
+        out.append("=" * 78)
+        out.append(f"THREAD {tid} · {msgs[0]['subject'] if msgs else ''} · {len(msgs)} message(s)")
+        for m in msgs:
+            when = dt.datetime.fromtimestamp(m["internal_ts"], dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC") if m.get("internal_ts") else m.get("date", "")
+            out.append("-" * 78)
+            out.append(f"From: {m['from']}\nTo: {m['to']}\nDate: {when}\n")
+            out.append((m.get("body") or "").strip())
+    return "\n".join(out)
 
 
 def _plain_body(payload: dict[str, Any]) -> str:

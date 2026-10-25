@@ -97,6 +97,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-25 3:30pm ET, RESUME HERE: **Lise Freeman's reply is still unread and unanswered.** The cloud variable
+  GMAIL_TOKEN_JSON_CONTENT holds a bare `ya29…` access token (expires after ~1 hour), not the token file's JSON, so the cloud
+  cannot read Charles's inbox. Fix (Rodrigo, environment settings, not chat): paste the whole contents of `secrets/gmail_token.json`
+  from the Mac (JSON with refresh_token/client_id/client_secret) into GMAIL_TOKEN_JSON_CONTENT. The engine now also accepts a
+  freshly pasted bare token for its hour and says exactly this when it has expired. New Mac command prints any agent thread:
+  `.venv/bin/python -m titan.cli inbox "from:lisefreeman@gmail.com"` (read-only). Her listing's internal screening range
+  (never sent): $264k–$346k, ARV $481,882 on 14 comps, list $299,900. Board at 3:30pm ET: 4 Sent, 0 Approved, 49 To Review (all
+  rewritten by the Mac cron at 2:43–3:20pm ET with intro + analysis, so the Mac is current), 3 Skip; no Rodrigo comments today.
+  Nothing sends until he drags cards to Approved (window closes 5:30pm ET, 2 per 20-min tick). 173 tests.
 - 2026-10-25 3:15pm ET, RESUME HERE: Mac is current (cron self-updates every 10 min via `git pull --ff-only`), Claude Code token
   works from cron (`make score-test` OK), all 37 To Review cards rewritten with the intro; Rodrigo was told to run
   `run-daily --steps value && rewrite-pending --all` so the bad "close to asking" lines drop. Rodrigo set GMAIL_TOKEN_JSON_CONTENT

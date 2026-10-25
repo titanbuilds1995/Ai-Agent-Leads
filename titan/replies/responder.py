@@ -53,7 +53,7 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     facts: list[str] = []
     unanswered: list[str] = []
     if re.search(r"inspection|contingenc|due diligence", low):
-        facts.append("we buy as-is with no inspection contingency" if not t.get("inspection_contingency") else f"we buy as-is and only need {inspection_phrase(t)}")
+        facts.append("it would be as-is with no inspection contingency" if not t.get("inspection_contingency") else f"it would be as-is and we only need {inspection_phrase(t)}")
     if re.search(r"closing cost|who pays|title|closing fee", low):
         facts.append("buyer pays closing costs" if t.get("buyer_pays_closing") else "closing costs split the standard way")
     if re.search(r"proof of funds|pof|verif|funds|bank letter", low):
@@ -65,7 +65,7 @@ def answer_question(text: str, ctx: dict[str, Any], cfg: Any, channel: str) -> t
     if re.search(r"financ|loan|mortgage|hard money|cash\b", low):
         facts.append("it's a cash purchase, no financing contingency")
     if re.search(r"who (are you|is this)|what company|are you (a |an )?(agent|realtor|licensed)|represent|your company|titan", low):
-        facts.append(f"this is {op['sender_name'].split()[0]} with {op['company']}; we buy and renovate homes in {ctx.get('county') or 'South Florida'}")
+        facts.append(f"this is {op['sender_name'].split()[0]} with {op['company']}; we're looking for properties in {ctx.get('county') or 'South Florida'}")
     if re.search(r"assign|wholesal|double clos|end buyer|partner", low):
         unanswered.append("deal structure")
     if re.search(r"appraisal|survey|seller concession|lease ?back|post[- ]occupancy|rent ?back|repairs? credit|price\b.*\?|how much|offer\b.*\?", low):

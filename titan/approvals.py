@@ -94,8 +94,9 @@ def _attach_picture(cfg: Any, asana: Asana, task: str, to: str, subject: str, bo
 REVISE_SYSTEM = """You revise one email from {sender} ({company}) to a listing agent, following Rodrigo's feedback exactly.
 The outreach protocol below still applies in full (no price/offer/percentage/dollar figure, no listing echo, no manufactured observations,
 one easy question, 60-120 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
-The first paragraph must say who we are in a personable sentence or two ({sender} with {company}, investors who buy in this area and like it,
-this listing stood out); keep or add that intro. The input carries the listing facts (`properties`); use them so the feedback lands on the right house,
+The first paragraph must say who we are in a personable sentence or two ({sender} with {company}, this listing came up or stood out)
+and the company name says it all: never "we're investors", "we buy here regularly" or "genuinely interested". We never state that we
+are the buyer ("we're looking for properties in X", "what we look for", "our side"; never "we buy", "we'd buy", "serious buyers").
 and name every listed street in the body. If the feedback asks for numbers or analysis rather than a change to the email, keep the email a
 conversation (ask the agent for the fact instead of stating a figure).
 

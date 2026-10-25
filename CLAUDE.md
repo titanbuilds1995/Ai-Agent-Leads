@@ -30,8 +30,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the send**: the card goes back to To Review and the feedback is applied at once. "send me a test" (+ optional address) on
   any card sends a [TEST] copy to Rodrigo (REPORT_TO) from Charles@; `titan.cli test-email <outreach_id>` does it by hand.
   **Every email opens with a short intro** (Rodrigo, Asana 2026-10-24, later: "they don't really know who we are"): first paragraph =
-  Charles with Titan Realty Investments, investors who buy in this area and like it, this listing stood out (protocol §0, `INTRO_RE`
-  requires it; this replaced the earlier no-self-intro rule). A "couldn't rewrite" comment does NOT consume feedback (retried next
+  Charles with Titan Realty Investments, this listing came up / stood out (protocol §0, `INTRO_RE` requires the company name; this
+  replaced the earlier no-self-intro rule). **Tightened 2026-10-25 (Rodrigo, Eugene Schroeder card): the name says it all. Never
+  "we're investors who buy here regularly", never "genuinely interested" (reads as AI), and since we wholesale, never state that we
+  are the buyer: "we're looking for properties in X", "what we look for", "our side"; never "we buy" / "we'd buy" / "serious buyers"
+  (protocol §0b, voice §17, `BUYER_RE` rejects them).** A "couldn't rewrite" comment does NOT consume feedback (retried next
   tick, reason shown, e.g. Claude not logged in from cron). `rewrite-pending` leaves cards that Rodrigo's feedback already shaped
   alone and marks deleted cards skipped. Needs ASANA_TOKEN in the Mac's .env.
 - **Outreach protocol = `docs/style/OUTREACH_PROTOCOL.md`** (Rodrigo, 2026-10-24): think first (facts / signals / inferences /

@@ -21,14 +21,20 @@ PROPERTY DATA → what do we actually know? → what can we reasonably infer? �
 property work for an investor? → what is the most natural question to ask the agent? → WRITE THE MESSAGE.
 The email is the result of the analysis, not the analysis itself.
 
-## 0. Introduce yourself first (Rodrigo, 2026-10-24, later in the day)
+## 0. Introduce yourself first (Rodrigo, 2026-10-24; tightened 2026-10-25)
 The agent has no idea who we are, so don't go straight into the property. The FIRST paragraph, in one or two personable
-sentences directed at the agent, says who is writing and why: Charles with Titan Realty Investments, investors who buy
-(and renovate) in this area and like it, and that this listing stood out. e.g. "Hey Maria, Charles here with Titan
-Realty Investments. We're investors who buy and renovate houses around Miami, and your listing on NW 11th St stood out
-to me." Then the reasoning and the one question. This applies to every email. It is an introduction, not a pitch: no
-"we specialize in", no credentials, no "we buy 50 houses a year". (This replaces the earlier rule that the body never
-names the company.)
+sentences directed at the agent, says who is writing and why: Charles with Titan Realty Investments, and that this listing
+came up or stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name
+says it all (Rodrigo, 2026-10-25): never "we're investors who buy in Pompano Beach regularly", never "genuinely interested"
+(reads as AI, raises a red flag). e.g. "Hey Maria, Charles here with Titan Realty Investments. We're looking for properties
+in and around Miami, and your listing on NW 11th St stood out to me." Then the reasoning and the one question. It is an
+introduction, not a pitch: no "we specialize in", no credentials, no "we buy 50 houses a year".
+
+## 0b. We never say we are the buyer (Rodrigo, 2026-10-25)
+We wholesale, so be conscious of never explicitly stating that we are the buyer. Say "we're looking for properties in X",
+"what we look for", "our side", "something we'd pursue", "close to what works for us", "our team is looking at". Never
+"we buy", "we'd buy", "what we buy", "we're the buyer", "serious buyers", "we're investors". Words that infer buying,
+never the statement. Normal talk, short, no sales words.
 
 ## 1. Never sound like a listing-summarization bot
 Do not repeat the listing back ("I noticed the property needs TLC and may fit our investment criteria"). They wrote

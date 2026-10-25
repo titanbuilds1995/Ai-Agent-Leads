@@ -165,7 +165,7 @@ def test_first_paragraph_introduces_who_we_are(cfg):
 def test_both_listed_streets_must_appear(cfg):
     from titan.outreach.compose import validate_email
     props = [{"street": "202 S A St"}, {"street": "1 NW 75th Way"}]
-    body = "Hey Dror, Charles here with Titan Realty Investments, we're investors who buy around Lake Worth. Quick question on NW 75th Way, is the tenant on a lease and how long does it run? If the rest is in decent shape there may be something we can work with.\n\nBest regards,\n\nCharles Grant"
+    body = "Hey Dror, Charles here with Titan Realty Investments, we're looking for properties around Lake Worth. Quick question on NW 75th Way, is the tenant on a lease and how long does it run? If the rest is in decent shape there may be something we can work with.\n\nBest regards,\n\nCharles Grant"
     assert any("missing from the body" in x for x in validate_email("Quick question", body, props))
 
 

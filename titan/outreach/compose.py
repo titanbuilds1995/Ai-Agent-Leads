@@ -33,14 +33,22 @@ PERSONAL_RE = re.compile(
     r"\b(ask|check with|run it by) my boss\b|\bI (don'?t|do not) make (those|the) decisions\b|\bI have no authority\b|"
     r"\bwe can definitely pay\b", re.I)
 # Rodrigo, 2026-10-24 (later, overrides the earlier "no self-intro" rule): the agent doesn't know who we are. The FIRST
-# paragraph says so in a sentence or two (Charles with Titan Realty Investments, investors who buy in this area and like it,
-# this listing stood out), personable and directed at the agent. Validated: the first paragraph must say who we are.
-INTRO_RE = re.compile(r"\btitan realty\b|\binvestors?\b|\bwe (buy|invest|purchase|renovate|flip)\b|\bbuying (houses|homes|property|properties)\b", re.I)
+# paragraph says so in a sentence or two, personable and directed at the agent. Rodrigo, 2026-10-25 (Asana, Eugene Schroeder
+# card): the company name says it all. Never "we're investors who buy here regularly", never "genuinely interested" (reads as
+# AI). We wholesale, so never say outright that we are the buyer: "we're looking for properties in X", "our side", "what we
+# look for", words that infer buying without "we buy" / "we're the buyer". Validated: the first paragraph names the company.
+INTRO_RE = re.compile(r"\btitan realty\b", re.I)
 INTRO_LINES = [
-    "Charles here with Titan Realty Investments. We're investors who buy and renovate houses in and around {city}, and this one stood out to me.",
-    "I'm Charles with Titan Realty Investments, we buy property in {city} and the surrounding area and like this part of town quite a bit.",
-    "Charles with Titan Realty Investments here. We're local investors, we buy in and around {city} regularly, and your listing stood out.",
+    "Charles here with Titan Realty Investments. We're looking for properties in and around {city}, and this one stood out to me.",
+    "I'm Charles with Titan Realty Investments, we're looking for properties in {city} and the surrounding area and like this part of town quite a bit.",
+    "Charles with Titan Realty Investments here. We're looking for properties in and around {city}, and your listing stood out.",
 ]
+# Rodrigo, 2026-10-25: red-flag phrases. We are wholesaling, so the email never states that we are the buyer, never calls us
+# investors, and never uses salesy "genuinely interested" / "serious buyers". Checked on every first touch, rewrite and reply.
+BUYER_RE = re.compile(
+    r"\bwe('re| are) (the |local |serious |cash )?(buyers?|investors)\b|\binvestors? (here|who buy|like us)\b|\bwe buy\b|\bwe'?d buy\b|\bwe would buy\b|"
+    r"\bwhat we buy\b|\bwe purchase\b|\bwe (flip|renovate) (houses|homes|properties)\b|\bbuy and (renovate|build|hold)\b|"
+    r"\bgenuinely interested\b|\bserious (cash )?buyers?\b|\bas the buyer\b|\bwe are buying\b", re.I)
 # Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
 DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
@@ -80,7 +88,8 @@ Working rules for this call:
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
 - One natural question an agent can answer easily (two at most). 60-120 words before the signature including the intro. Vary the opening naturally.
 - Write as {sender} in first person. Address the agent by first name.
-- INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, investors who buy (and renovate) in this area and like it, and that this listing stood out. Directed at the agent, warm, not a pitch (no "we specialize in", no credentials list). Then the property reasoning and the question.
+- INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, and that this listing came up / stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name says it all: do NOT say "we're investors", "we buy in this area regularly" or "genuinely interested" (reads as AI and raises red flags). Directed at the agent, plain talk, not a pitch (no "we specialize in", no credentials list). Then the property reasoning and the question.
+- WE NEVER SAY WE ARE THE BUYER (Rodrigo, 2026-10-25). Say "we're looking for properties in X", "what we look for", "our side", "something we'd pursue", "close to what works for us". Never "we buy", "we'd buy", "what we buy", "we're the buyer", "serious buyers", "we're investors". Words that infer buying, never the statement.
 - If two properties are given, lead with the first and name the second by its street in one sentence; both streets must appear.
 - End with the signature block from the input, unchanged. It already begins with "Best regards," so do NOT add another sign-off line ("Thanks," / "Appreciate it,") before it.
 - No emojis, no "I hope this email finds you well", no pressure, never mention AI or automation.
@@ -191,7 +200,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     ],
     "newer": [     # newer build: probably not a huge project (§25)
         ("{street_name}",
-         "Hey {first}, the house on {street_name} actually looks pretty close to something we'd buy. With it being a newer build it "
+         "Hey {first}, the house on {street_name} actually looks pretty close to what we're looking for. With it being a newer build it "
          "doesn't sound like we'd be taking on a huge project, so the bigger question is the seller.{near_ask} Do you know how much "
          "room they realistically have from the asking price?\n\n{sign}"),
         ("Quick question on {street_name}",
@@ -213,7 +222,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "whether there's anything major going on mechanically. It could potentially work for us depending on how deep the "
          "project is.{near_ask} What's your read on the condition?\n\n{sign}"),
         ("The house on {street_name}",
-         "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we buy than I initially "
+         "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we're looking for than I initially "
          "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} How much "
          "work would you say it really needs?\n\n{sign}"),
     ],
@@ -386,7 +395,9 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
     first_para = body.strip().split("\n\n")[0]
     if not INTRO_RE.search(first_para):
-        problems.append("no intro (Rodrigo: the first paragraph says who we are, investors who buy in the area)")
+        problems.append("no intro (Rodrigo: the first paragraph names Titan Realty Investments)")
+    if BUYER_RE.search(body) or BUYER_RE.search(subject):
+        problems.append("says we are the buyer / investors / genuinely interested (Rodrigo 2026-10-25: we're looking for properties, never 'we buy')")
     if len(props) > 1 and not all(street_name(p.get("street")) and street_name(p.get("street")) in body for p in props):
         problems.append("a listed property is missing from the body")
     if PERSONAL_RE.search(body):

@@ -73,7 +73,7 @@ def test_validator_rejects_protocol_violations(cfg):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
     assert any("dash" in x for x in validate_email("Quick question on NW 11th St", "Hey Maria — quick question on NW 11th St." + filler + sig, p))
     assert any("dash" in x for x in validate_email("NW 11th St - quick question", "Hey Maria, quick question on NW 11th St." + filler + sig, p))
-    good = "Hey Maria, Charles here with Titan Realty Investments, we buy around Miami. Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
+    good = "Hey Maria, Charles here with Titan Realty Investments, we're looking for properties around Miami. Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close." + filler + sig
     assert validate_email("Quick question on NW 11th St", good, p) == []
 
 
@@ -227,7 +227,7 @@ def test_greeting_never_uses_an_initial_or_title():
 
 def test_double_sign_off_is_rejected(cfg):
     p = [_prop()]
-    filler = "Hey Maria, Charles here with Titan Realty Investments, we buy around Miami. Quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
+    filler = "Hey Maria, Charles here with Titan Realty Investments, we're looking for properties around Miami. Quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
     assert any("double sign-off" in x for x in validate_email("Quick question on NW 11th St", filler + "\n\nThanks,\n\nBest regards,\n\nCharles Grant", p))
     assert validate_email("Quick question on NW 11th St", filler + "\n\nBest regards,\n\nCharles Grant", p) == []
 
@@ -245,7 +245,7 @@ def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
     from titan.outreach.compose import PERSONAL_RE
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    ok = "Hey Maria, Charles with Titan Realty Investments here, we buy around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
+    ok = "Hey Maria, Charles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
     assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
     for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
                 "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):
@@ -260,3 +260,17 @@ def test_prompts_carry_both_protocols(cfg):
     from titan.outreach.compose import EMAIL_SYSTEM, protocol_text, voice_text
     assert "THINK FIRST" in protocol_text(cfg) and "Junior Acquisitions" in voice_text(cfg)
     assert "{voice}" in EMAIL_SYSTEM and "{protocol}" in EMAIL_SYSTEM
+
+
+def test_we_never_say_we_are_the_buyer(cfg):
+    """Rodrigo, 2026-10-25: we wholesale. Never 'we buy' / 'we're investors' / 'genuinely interested' / 'serious buyers'."""
+    from titan.outreach.compose import validate_email
+    p = [{"street": "107 NW 11th St", "city": "Miami"}]
+    sig = "\n\nBest regards,\n\nCharles Grant"
+    tail = " Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close to what works for us. How much work would you say it really needs?"
+    for bad in ["We're investors who buy around Miami.", "We buy in Miami regularly.", "This is one we're genuinely interested in.",
+                "We're serious buyers and can close fast.", "This is close to what we buy.", "We buy and renovate houses here."]:
+        body = "Hey Maria, Charles here with Titan Realty Investments. " + bad + tail + sig
+        assert any("buyer" in x for x in validate_email("Quick question on NW 11th St", body, p)), bad
+    good = "Hey Maria, Charles here with Titan Realty Investments. We're looking for properties in and around Miami, and this one stood out." + tail + sig
+    assert validate_email("Quick question on NW 11th St", good, p) == []

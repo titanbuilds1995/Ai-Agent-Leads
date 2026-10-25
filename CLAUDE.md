@@ -100,6 +100,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-25 ~5:45pm ET, RESUME HERE: **Lise Freeman is answered**: her reply (full gut: roof, window AC units, kitchen, bath,
+  electrical; seller inherited it) reached Asana through the new conversations mirror; Charles's answer is the card
+  "Reply · Lise Freeman · 529 23rd Ave N" (gid 1219880631430547) in **Approved** on the Email Approvals board and goes out from
+  Charles's Gmail in the same thread at the first tick Monday 8:30–8:50am ET (a check-in is scheduled for 9:00am ET to verify).
+  Built today: (1) conversations mirror (`titan/conversations.py`, every inbound reply → comment on the agent's card, runs with
+  check-replies and approvals); (2) **reply cards** (`(reply to outreach #N)` footer; Approved → sent in the same Gmail thread,
+  `post_reply_card()`); (3) voice rule from Rodrigo's Eugene Schroeder comment: company name says it all, never "we buy" / "we're
+  investors" / "genuinely interested" (`BUYER_RE`, protocol §0/§0b, voice §17); all 48 To Review cards fixed by hand on Asana;
+  (4) reply bugs: Gmail's wrapped "On … wrote:" header leaked into reply text (why Lise's reply drew a canned "who are you"
+  answer), condition rundowns are INTERESTED, unclear replies get no canned answer, canned replies use the real signature;
+  (5) website **Board** tab + `titan/stats.py` (reply rate, answer rate, awaiting answer, needs Rodrigo, daily series, Asana card
+  counts, conversations by stage; snapshot synced on every approvals tick too) and a Scoreboard in the morning report;
+  (6) `make doctor` checks the cron Claude token and Asana. Critic: `docs/CRITIC_2026-10-25.md` (7.9 now, 8.3 after Rodrigo's items).
+  **Rodrigo must do once at the Mac:** `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` in .env (cron rewrites fail with "Not logged
+  in" until then), then `rewrite-pending --all`; paste Charles's `secrets/gmail_token.json` into the cloud's GMAIL_TOKEN_JSON_CONTENT
+  (today's value is Rodrigo's own mailbox); check the Vercel site shows the Board tab. Cards on the Claude Updates board say the same.
+  185 tests.
 - 2026-10-25 ~4:40pm ET, RESUME HERE: **the cloud's `GMAIL_TOKEN_JSON_CONTENT` is Rodrigo's mailbox token, not Charles's**
   (Gmail profile = rodrigo@). Cloud sessions cannot read Charles's inbox or send as Charles until Rodrigo pastes the contents of
   the Mac's `secrets/gmail_token.json` (Charles's token) into that environment variable. Workaround built this session:

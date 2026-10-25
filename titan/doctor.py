@@ -194,7 +194,35 @@ def check_dashboard(cfg) -> Check:
     return _ok(f"Vercel Blob accepts uploads ({(meta.get('url') or '').split('/')[2] if meta.get('url') else 'ok'})")
 
 
+def check_claude_code_cron(cfg) -> Check:
+    """Cron cannot see the Mac's keychain login, so rewrites and scoring from cron need the setup-token in .env."""
+    if cfg.get("scoring.provider") != "claude_code":
+        return _skip("scoring.provider is not claude_code")
+    tok = cfg.secret("CLAUDE_CODE_OAUTH_TOKEN")
+    if tok and tok.startswith("sk-ant-"):
+        return _ok("CLAUDE_CODE_OAUTH_TOKEN set (cron can use the Claude Code plan)")
+    return _warn("CLAUDE_CODE_OAUTH_TOKEN missing: from cron Claude says 'Not logged in', so card rewrites fail and scoring falls back to rules",
+                 "run `claude setup-token` in Terminal, then add the printed token to .env as CLAUDE_CODE_OAUTH_TOKEN=...; check with `make score-test`")
+
+
+def check_asana(cfg) -> Check:
+    if cfg.get("outreach.approval") != "asana":
+        return _skip("outreach.approval is not asana")
+    tok = cfg.secret("ASANA_TOKEN")
+    if not tok:
+        return _fail("ASANA_TOKEN missing: no cards, no approvals, no reply mirror", "Asana → My settings → Apps → Developer apps → Personal access token → .env ASANA_TOKEN=")
+    try:
+        from .asana import Asana
+        a = cfg.get("outreach.asana", {}) or {}
+        n = len(Asana(tok).section_tasks(a["to_review"]))
+        return _ok(f"Asana reachable; {n} card(s) in To Review")
+    except Exception as e:  # noqa: BLE001
+        return _fail(f"Asana: {type(e).__name__}: {str(e)[:100]}", "check ASANA_TOKEN and the section gids in config.yaml → outreach.asana")
+
+
 CHECKS: list[tuple[str, Callable[[Any], Check]]] = [
+    ("Claude Code from cron", check_claude_code_cron),
+    ("Asana approvals", check_asana),
     (".env", check_env_file),
     ("config operator", check_operator),
     ("outreach mode", check_mode),

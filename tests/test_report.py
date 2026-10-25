@@ -38,3 +38,9 @@ def test_report_carries_lead_data_for_the_cloud_reviewer(loaded, cfg):
     if data["leads"]:
         l = data["leads"][0]
         assert {"street", "list_price", "days_on_market", "agent_email", "remarks", "internal_range", "lane"} <= set(l)
+
+
+def test_report_has_a_scoreboard(loaded, cfg):
+    from titan.report import build_report
+    txt = build_report(loaded, cfg)
+    assert "## Scoreboard" in txt and "reply rate" in txt and "awaiting our answer" in txt

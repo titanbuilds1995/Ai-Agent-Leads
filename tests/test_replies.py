@@ -200,3 +200,11 @@ def test_condition_details_keep_the_conversation_going(cfg):
     assert c.label == "INTERESTED"
     a = decide(c, _ctx(history_in="it's a gut. needs a roof, kitchen, bath, electrical. seller inherited it.", history_out="", auto_replies=0), cfg, "email", {"state": "OPEN"})
     assert a.reply and "realistically" in a.reply and "Charles Grant" in a.reply and "$" not in a.reply
+
+
+def test_unclear_reply_gets_no_canned_answer(cfg):
+    from titan.replies.classifier import Classification
+    a = decide(Classification("QUESTION", 0.3, reasons=["unmatched"]), _ctx(), cfg, "email", {"state": "OPEN"})
+    assert a.reply is None and a.thread_state == "OPEN" and "human" in a.note
+    a = decide(Classification("QUESTION", 0.7, reasons=["question"]), _ctx(), cfg, "email", {"state": "OPEN"}, "what is your EMD?")
+    assert a.reply and "5,000" in a.reply

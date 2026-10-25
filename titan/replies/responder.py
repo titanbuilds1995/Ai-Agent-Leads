@@ -167,6 +167,12 @@ def decide(cls: Classification, ctx: dict[str, Any], cfg: Any, channel: str, thr
         return Action(reply, "OPEN", sig, f"{sig.lower()}: asked about {nq[0]}", review=flexible, signal=sig)
 
     # QUESTION
+    if cls.confidence < 0.5:
+        # Rules could not tell what the agent means (and Claude was not available to read it). A canned answer here is
+        # worse than silence: leave it for a human. It shows on the Asana card (conversations mirror) and in the Board's
+        # "agent replied, needs our answer" column.
+        return Action(None, "OPEN", "DISCUSSING", "unclear reply; no automatic answer, left for a human (see the Asana card / Board)",
+                      signal="RESPONDED")
     reply, unanswered = answer_question(text, ctx, cfg, channel)
     if reply is None or "terms outside config" in unanswered:
         return Action(None, "ESCALATED", "NEEDS_REVIEW", f"question we should not answer automatically ({', '.join(unanswered)}); Rodrigo reviews",

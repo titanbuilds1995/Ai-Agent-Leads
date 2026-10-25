@@ -41,3 +41,14 @@ def test_run_isolates_crashing_checks_and_renders(cfg):
     assert "✓ good" in text and "✗ bad" in text and "1 ok · 0 warn · 1 fail" in text
     # secrets never appear in the output
     assert "sk-" not in text and "apify_api" not in text
+
+
+def test_doctor_flags_missing_cron_token_and_asana(cfg, monkeypatch):
+    from titan.doctor import check_asana, check_claude_code_cron
+    monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "")
+    st, detail, fix = check_claude_code_cron(cfg)
+    assert st in ("warn", "skip") and ("setup-token" in fix or st == "skip")
+    monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-xyz")
+    assert check_claude_code_cron(cfg)[0] in ("ok", "skip")
+    monkeypatch.setitem(cfg.secrets, "ASANA_TOKEN", "")
+    assert check_asana(cfg)[0] in ("fail", "skip")

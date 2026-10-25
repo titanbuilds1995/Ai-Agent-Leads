@@ -74,6 +74,16 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
                   f"- Last message ({p.get('channel') or '-'} / {p.get('last_class') or '-'}): {p['last_message']}",
                   f"- Motivation {p.get('score')} · ARV {money(p.get('arv'))} ({p.get('arv_method')}, {p.get('comp_count') or 0} comps, {p.get('repair_tier')} repairs) · internal screening MAO {money(p.get('mao'))} (not an offer) · {p.get('listing_url') or ''}",
                   f"- **Say this:** {p['say_this']}", ""]
+    from .stats import compute_stats
+    st = compute_stats(conn, cfg, with_asana=bool(cfg.secret("ASANA_TOKEN"))).get("totals") or {}
+    if st:
+        pct = lambda v: "n/a" if v is None else f"{v:.0f}%"  # noqa: E731
+        lines += ["## Scoreboard", "",
+                  f"- Emails sent {st.get('emails_sent', 0)} to {st.get('agents_emailed', 0)} agents · {st.get('agents_replied', 0)} replied "
+                  f"(reply rate {pct(st.get('reply_rate_pct'))}) · {st.get('bounces', 0)} bounced",
+                  f"- Conversations {st.get('conversations', 0)} · answered by us {st.get('answered', 0)} (answer rate {pct(st.get('answer_rate_pct'))}) · "
+                  f"**awaiting our answer {st.get('awaiting_our_answer', 0)}** · needs Rodrigo {st.get('needs_rodrigo', 0)} · waiting on the agent {st.get('waiting_on_agent', 0)}",
+                  f"- Today: {st.get('new_today', 0)} new listings · {st.get('sent_today', 0)} sent · {st.get('replies_today', 0)} replies · HOT now {st.get('hot', 0)} · cards waiting {st.get('cards_waiting', 0)}", ""]
     lines += ["## Pipeline", "", "| metric | count |", "|---|---|"]
     for k in ("today_properties_seen", "today_new", "properties", "scored", "valued", "HOT", "WARM", "COLD", "agents", "agents_with_email",
               "today_emails", "today_sms", "emails_sent", "emails_drafted", "sms_sent", "sms_drafted", "replies", "hot_leads", "do_not_contact"):

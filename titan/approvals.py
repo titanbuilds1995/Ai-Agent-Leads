@@ -262,7 +262,17 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
     if "call" in want:
         n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
     if "numbers" in want:
-        posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
+        try:
+            posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
+        except Exception as e:  # noqa: BLE001 — say it once, keep the feedback pending (a Held comment does not consume it)
+            log.exception("numbers snapshot for card %s: %s", t["gid"], e)
+            last = (asana.comments(t["gid"]) or [{}])[-1].get("text") or ""
+            if not last.startswith(f"{BOT} Held: couldn't build the numbers"):
+                asana.comment(t["gid"], f"Held: couldn't build the numbers yet ({str(e)[:120]}). Nothing sends; I'll try again next round.")
+            if where != nr:
+                asana.move(t["gid"], nr)
+            n["revise_failed"] += 1
+            return True
         n["numbers"] += posted
         asana.comment(t["gid"], "Numbers are above (and on the Claude Updates board). The email is held in Needs Revision until you "
                                 "decide: comment what to send, or drag the card to Approved to send it as written."
@@ -275,6 +285,11 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         asana.comment(t["gid"], "Sending it as written (you said send it): moved to Approved, it goes out at the next send round."
                       + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
         n["sent_as_is"] += 1
+        return True
+    if "hold" in want and not want & {"rewrite", "check"}:
+        asana.comment(t["gid"], "Holding it: nothing sends from here until you drag the card to Approved. The text is unchanged."
+                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else "")
+                      + (" Questions on a card are answered by Claude in a chat session, not by the engine." if "?" in " ".join(feedback) else ""))
         return True
     if want == {"call"}:
         asana.comment(t["gid"], "Lead marked hot and a call card is on your board for tomorrow. The email is unchanged"

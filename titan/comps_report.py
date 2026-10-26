@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import json
 import re
+from datetime import datetime, timedelta
 from statistics import mean, median
 from typing import Any, Callable
 
@@ -42,14 +43,30 @@ def _ppsf(c: dict[str, Any]) -> float | None:
 
 
 def pick_comps(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, want: int = 10) -> tuple[list[dict[str, Any]], str]:
-    """6–10 closest sales of the same product: the normal radius, widened step by step only when too few."""
-    for radius in (cfg.get("valuation.comp_radius_miles", 0.5), cfg.get("valuation.fallback_radius_miles", 1.0), 2.0):
-        comps = select_comps(p, candidates, cfg, radius=radius)
-        if len(comps) >= 6:
-            break
+    """6–10 closest sales of the same product: the normal radius, widened step by step only when too few. When our own
+    size is unknown, the nearest sales of the same type (size can't be matched; said under Still open)."""
+    radius = cfg.get("valuation.comp_radius_miles", 0.5)
+    if not p.get("sqft") and p.get("property_type") != "land":
+        same = [c for c in candidates if c.get("sold_price") and (not c.get("property_type") or c["property_type"] == p.get("property_type"))]
+        for c in same:
+            if p.get("lat") and c.get("lat"):
+                c["distance_mi"] = round(haversine_miles(p["lat"], p["lng"], c["lat"], c["lng"]), 2)
+        comps = [c for c in same if c.get("distance_mi") is None or c["distance_mi"] <= 2.0]
+        radius = 2.0
+    else:
+        for radius in (cfg.get("valuation.comp_radius_miles", 0.5), cfg.get("valuation.fallback_radius_miles", 1.0), 2.0):
+            comps = select_comps(p, candidates, cfg, radius=radius)
+            if len(comps) >= 6:
+                break
     comps = sorted(comps, key=lambda c: (c.get("distance_mi") if c.get("distance_mi") is not None else 9, -(_date_key(c))))[:want]
     comps = sorted(comps, key=lambda c: -_date_key(c))
     return comps, f"within {radius:g} mi" if p.get("lat") else f"ZIP {p.get('zip')}"
+
+
+def recent(candidates: list[dict[str, Any]], months: int = 12) -> list[dict[str, Any]]:
+    """Sales inside the window (Rodrigo's comps rule: last 12 months). Undated sales are kept: the pull itself is windowed."""
+    cutoff = int((datetime.now() - timedelta(days=30 * months)).strftime("%Y%m%d"))
+    return [c for c in candidates if not _date_key(c) or _date_key(c) >= cutoff]
 
 
 def _date_key(c: dict[str, Any]) -> int:
@@ -57,16 +74,25 @@ def _date_key(c: dict[str, Any]) -> int:
     return int(d) if d.isdigit() and len(d) == 8 else 0
 
 
+MONTH_RE = re.compile(r"\$?\s?([\d,]{3,6})\s*(?:/\s?mo\b|a month|per month|monthly|/month)", re.I)
+UNIT_RE = re.compile(r"\bunit \w{1,3}\b[^$\d]{0,25}\$?\s?([\d,]{4,5})\b", re.I)
+
+
 def rent_from(texts: list[str]) -> int | None:
-    """Monthly gross rent when the remarks or the agent's messages state it (sums units: '$2,500 ... $2,000')."""
-    total = 0
+    """Monthly gross rent stated in the remarks, the agent's messages or Rodrigo's comment. Per text: each stated unit rent
+    counts once ('unit A is rented for $2,500, unit B $2,000' = 4,500; two units at $2,000 = 4,000), and a stated monthly
+    total wins when larger ('2500 and 2000 a month, that's $4,500 a month' = 4,500). The largest text wins."""
+    best = 0
     for t in texts:
-        found = [int(x.replace(",", "")) for x in RENT_RE.findall(t or "")]
-        found += [int(x.replace(",", "")) for x in re.findall(r"unit \w+ \$?([\d,]{4,5})\b", t or "", re.I)]
-        found = [x for x in found if 500 <= x <= 20000]
-        if found:
-            total = max(total, sum(dict.fromkeys(found)))
-    return total or None
+        found: dict[int, int] = {}                      # position of the number → amount (one number counted once)
+        for rx in (UNIT_RE, RENT_RE):
+            for m in rx.finditer(t or ""):
+                v = int(m.group(1).replace(",", ""))
+                if 500 <= v <= 30000:
+                    found[m.start(1)] = v
+        months = [int(m.group(1).replace(",", "")) for m in MONTH_RE.finditer(t or "") if 500 <= int(m.group(1).replace(",", "")) <= 30000]
+        best = max(best, sum(found.values()), max(months, default=0))
+    return best or None
 
 
 def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None,
@@ -78,15 +104,17 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     v = db.row_to_dict(conn.execute("SELECT * FROM valuations WHERE property_id=?", (property_id,)).fetchone()) or {}
     agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (p.get("agent_id"),)).fetchone()) or {} if p.get("agent_id") else {}
     candidates: list[dict[str, Any]] = []
-    source = "sold homes pulled today (HomeHarvest, last 12 months)"
+    source, period = "sold homes pulled today (HomeHarvest)", "last 12 months"
     if comps_fn:
         try:
-            candidates = comps_fn(p) or []
+            candidates = recent(comps_fn(p) or [])
         except Exception as e:  # noqa: BLE001
             log.warning("comps for %s failed: %s", p.get("street"), e)
     if not candidates and v.get("comps"):
         candidates = [{**c, "property_type": p.get("property_type")} for c in json.loads(v["comps"] or "[]")]
-        source = f"the comps the engine stored on {str(v.get('valued_at') or '')[:10]} (fresh pull not available here)"
+        source = f"the comps the engine stored on {str(v.get('valued_at') or '')[:10]} (no fresh pull on this machine)"
+        period = f"last {cfg.get('valuation.comp_months', 6)} months, stored"
+    land = p.get("property_type") == "land"
     comps, area = pick_comps(p, candidates, cfg)
     for c in comps:
         c["ppsf"] = _ppsf(c)
@@ -96,34 +124,41 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     priced = [c for c in comps if c.get("ppsf")]
     reno = [c for c in priced if c["condition"] == "renovated"]
     sqft = p.get("sqft") or 0
-    land = p.get("property_type") == "land"
-    if len(reno) >= 3:
-        arv_psf, arv_basis = median(c["ppsf"] for c in reno), f"median $/sf of the {len(reno)} renovated sales"
-    elif len(priced) >= 4:
-        top = sorted(c["ppsf"] for c in priced)[len(priced) // 2:]
-        arv_psf, arv_basis = median(top), f"median $/sf of the top half of {len(priced)} sales (few say renovated)"
-    elif priced:
-        arv_psf, arv_basis = median(c["ppsf"] for c in priced), f"median $/sf of only {len(priced)} sales (thin)"
-    else:
-        arv_psf, arv_basis = None, ""
-    arv = int(round(arv_psf * sqft, -3)) if arv_psf and sqft and not land else None
-    if arv is None and v.get("arv"):
-        arv, arv_basis = int(v["arv"]), f"engine value ({v.get('arv_method')}); not enough comparable sales to recompute"
+    suspect = (v.get("arv_method") or "").endswith("_suspect")
     tier = v.get("repair_tier") or repair_tier(p.get("remarks") or "", cfg["repairs"].get("default_tier", "moderate"))
-    repairs = int(v.get("repair_cost") or repair_cost(p, tier, cfg) or 0)
+    repairs = 0 if land else int(v.get("repair_cost") or repair_cost(p, tier, cfg) or 0)
+    arv, arv_basis = None, ""
+    if land:
+        lots = [c for c in comps if c.get("lot_sqft")]
+        if lots and p.get("lot_sqft"):
+            per = median(c["sold_price"] / c["lot_sqft"] for c in lots)
+            arv, arv_basis = int(round(per * p["lot_sqft"], -3)), f"median ${per:,.0f} per lot sf of {len(lots)} lot sales"
+    elif sqft:
+        if len(reno) >= 3:
+            arv_psf, arv_basis = median(c["ppsf"] for c in reno), f"median $/sf of the {len(reno)} renovated sales"
+        elif len(priced) >= 4:
+            top = sorted(c["ppsf"] for c in priced)[len(priced) // 2:]
+            arv_psf, arv_basis = median(top), f"median $/sf of the top half of {len(priced)} sales (few say renovated)"
+        elif priced:
+            arv_psf, arv_basis = median(c["ppsf"] for c in priced), f"median $/sf of only {len(priced)} sales (thin)"
+        else:
+            arv_psf = None
+        arv = int(round(arv_psf * sqft, -3)) if arv_psf else None
+    if arv is None and v.get("arv") and not suspect:
+        arv, arv_basis = int(v["arv"]), f"engine value ({v.get('arv_method')}); not enough matching sales to recompute"
     fee = int(cfg["formula"]["assignment_fee"])
     ratios = {}
     path = cfg.root / cfg["formula"].get("market_ratios_file", "data/market_ratios.csv")
     for pct in ("p25", "median", "p75"):
-        hit = lookup(path, p.get("county"), p.get("zip"), p.get("property_type"), arv or 0, pct, p.get("city")) if arv else None
-        ratios[pct] = hit
+        ratios[pct] = lookup(path, p.get("county"), p.get("zip"), p.get("property_type"), arv or 0, pct, p.get("city")) if arv else None
     mid = ratios["median"] or (buy_ratio(p, arv, cfg) if arv else None)
-    numbers: dict[str, Any] = {"arv": arv, "arv_basis": arv_basis, "repairs": repairs, "repair_tier": tier, "fee": fee}
+    numbers: dict[str, Any] = {"arv": arv, "arv_basis": arv_basis, "repairs": repairs, "repair_tier": "none (land)" if land else tier,
+                               "fee": fee, "land": land}
+    lp = int(p.get("list_price") or 0)
     if arv and mid:
-        exit_ = int(round(arv * mid["ratio"] - repairs, -3))           # what a flipper pays for it as is (deed-record ratio)
-        ours = max(exit_ - fee, 0)
-        lp = int(p.get("list_price") or 0)
-        numbers.update(exit=exit_, ratio=mid["ratio"], ratio_source=mid.get("source"), ratio_n=mid.get("sample_size"),
+        flipper = max(int(round(arv * mid["ratio"] - repairs, -3)), 0)   # what an investor pays for it as is (same formula as the engine)
+        ours = max(flipper - fee, 0)
+        numbers.update(flipper=flipper, ratio=mid["ratio"], ratio_source=mid.get("source") or "", ratio_n=mid.get("sample_size"),
                        ours=ours, list_price=lp, gap=lp - ours if lp else None, gap_pct=round((lp - ours) / lp * 100) if lp else None)
     screen = []
     for label, pct in (("Conservative", "p25"), ("Typical", "median"), ("Aggressive", "p75")):
@@ -133,18 +168,32 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     msgs = [db.row_to_dict(r) for r in conn.execute(
         "SELECT m.direction, m.body, m.created_at, m.classification FROM messages m JOIN threads t ON t.id=m.thread_id "
         "WHERE t.agent_id=? ORDER BY m.created_at", (p.get("agent_id"),)).fetchall()] if p.get("agent_id") and _has_threads(conn) else []
-    rent = rent_from([p.get("remarks") or ""] + [m["body"] for m in msgs if m.get("direction") == "in"])
-    if rent and numbers.get("ours"):
-        numbers["rent"] = rent
-        numbers["gross_yield"] = round(rent * 12 / numbers["ours"] * 100, 1)
-    extra = _land_and_new(p, candidates, cfg) if re.search(r"land|lot|new construction|new build|tear ?down|develop", asked, re.I) or land else []
+    rent = rent_from([p.get("remarks") or "", asked] + [m["body"] for m in msgs if m.get("direction") == "in"])
+    if rent:
+        exp = float(cfg.get("comps_report.expense_ratio", 0.40))
+        noi = rent * 12 * (1 - exp)
+        numbers.update(rent=rent, expense_ratio=exp, noi=int(noi),
+                       cap_prices=[(c, int(round(noi / c, -3))) for c in cfg.get("comps_report.cap_rates", [0.07, 0.08])],
+                       cap_at_ask=round(noi / lp * 100, 1) if lp else None,
+                       cap_at_ours=round(noi / numbers["ours"] * 100, 1) if numbers.get("ours") else None)
+    extra = (_land_and_new(p, candidates, cfg)
+             if re.search(r"\b(?:land|lots?|new construction|new builds?|tear ?down|develop\w*)\b", asked, re.I) and not land else [])
     active = _live_competition(conn, p)
     still_open = ["Comps are not checked on the county site; condition is read from listing remarks only, interiors unseen."]
-    if not reno:
+    if not land and priced and not reno:
         still_open.append("None of the sales say renovated in the remarks, so the ARV may be low; check the top sales on the MLS.")
-    if (v.get("arv_method") or "").endswith("_suspect"):
-        still_open.append("The engine flagged its own value as suspect (resale far above the ask): verify size and unit count.")
-    return {"p": p, "agent": agent, "asked": asked.strip(), "comps": comps, "area": area, "source": source, "numbers": numbers,
+    if suspect:
+        still_open.append("The engine's own value for this house was flagged suspect (far above the ask) and is not used here.")
+    if not sqft and not land:
+        still_open.append("Our size (sq ft) is unknown, so the sales are the nearest of the same type, not size-matched; no ARV per sq ft.")
+    if (p.get("units") or 0) > 1:
+        still_open.append(f"{p['units']} units: sales are matched by size, not unit count; the rent lines matter more than $/sf here.")
+    if numbers.get("ratio") and "flat" in (numbers.get("ratio_source") or ""):
+        still_open.append("No investor deal records for this ZIP and type, so the buy ratio is the flat default, not market data.")
+    if not land and numbers.get("flipper") is not None:
+        still_open.append("Investor ratio × ARV minus repairs is the engine's formula; deed ratios already reflect some rehab, so "
+                          "this leans conservative.")
+    return {"p": p, "agent": agent, "asked": asked.strip(), "comps": comps, "area": area, "source": source, "period": period, "numbers": numbers,
             "screen": screen, "extra": extra, "active": active, "still_open": still_open, "messages": msgs,
             "averages": _averages(priced, reno), "date": today_et(), "outreach_id": outreach_id}
 
@@ -196,7 +245,7 @@ def _live_competition(conn, p: dict[str, Any]) -> str:
     if not rows:
         return "No other active listings of this kind in the ZIP in our data."
     asks = sorted(r[0] for r in rows)
-    return (f"{len(rows)} similar active listings in {p.get('zip')}: median ask {money(median(asks))}, "
+    return (f"{len(rows)} similar active listing{'s' if len(rows) > 1 else ''} in {p.get('zip')}: median ask {money(median(asks))}, "
             f"cheapest {money(asks[0])}.")
 
 
@@ -207,7 +256,7 @@ def _e(x: Any) -> str:
 
 
 def _table(rows: list[list[Any]], head: list[str]) -> str:
-    w = ' width="120" data-cell-widths="120"'
+    w = ""     # plain <td>: no attributes, nothing for Asana's XML check to refuse
     out = "<table><tr>" + "".join(f"<td{w}><strong>{_e(h)}</strong></td>" for h in head) + "</tr>"
     for r in rows:
         out += "<tr>" + "".join(f"<td{w}>{_e(c)}</td>" for c in r) + "</tr>"
@@ -227,21 +276,28 @@ def comp_rows(s: dict[str, Any]) -> list[list[str]]:
 COMP_HEAD = ["Address", "Sold", "Price", "sf", "$/sf", "Pool/Water", "Condition", "Distance", "MLS"]
 
 
+def _num(x: Any) -> str:
+    return f"{x:g}" if isinstance(x, float) else str(x)
+
+
 def headline(s: dict[str, Any]) -> str:
     n = s["numbers"]
     if n.get("ours") is None:
         return "Not enough sales to set a number: see Still open."
     gap = f", {money(n['gap'])} ({n['gap_pct']}%) under the ask" if n.get("gap") and n["gap"] > 0 else (", at or above the ask" if n.get("gap") is not None else "")
-    return f"Where we need to be: about {money(n['ours'])}{gap}. ARV {money(n['arv'])}, exit to a flipper about {money(n['exit'])}."
+    what = "land value" if n.get("land") else "resale after rehab (ARV)"
+    return f"Where we need to be: about {money(n['ours'])}{gap}. {what.capitalize()} {money(n['arv'])}; an investor pays about {money(n['flipper'])}."
 
 
 def house_rows(s: dict[str, Any]) -> list[list[str]]:
     p = s["p"]
-    size = " · ".join(x for x in (f"{p['sqft']:,} sq ft" if p.get("sqft") else "", f"built {p['year_built']}" if p.get("year_built") else "",
-                                  f"{p.get('beds') or '?'} bd / {p.get('baths') or '?'} ba" if p.get("beds") else "",
+    size = " · ".join(x for x in (f"{p['sqft']:,} sq ft" if p.get("sqft") else "", f"{p['lot_sqft']:,} sf lot" if p.get("lot_sqft") else "",
+                                  f"built {p['year_built']}" if p.get("year_built") else "",
+                                  f"{_num(p.get('beds') or '?')} bd / {_num(p.get('baths') or '?')} ba" if p.get("beds") else "",
                                   f"{p['units']} units" if (p.get("units") or 0) > 1 else "") if x)
+    cuts = p.get("price_cuts") or 0
     rows = [["Asking", money(p.get("list_price"))], ["Size / year", size or "?"],
-            ["On market", f"{p.get('days_on_market') or '?'} days" + (f", {p['price_cuts']} price cut(s)" if p.get("price_cuts") else "")],
+            ["On market", f"{p.get('days_on_market') or '?'} days" + (f", {cuts} price cut{'s' if cuts > 1 else ''}" if cuts else "")],
             ["Condition (remarks)", f"{condition_of(p.get('remarks'))}; engine repair tier: {s['numbers']['repair_tier']}"]]
     if s["numbers"].get("rent"):
         rows.append(["Rent (stated)", f"{money(s['numbers']['rent'])}/mo"])
@@ -250,16 +306,26 @@ def house_rows(s: dict[str, Any]) -> list[list[str]]:
 
 def number_rows(s: dict[str, Any]) -> list[list[str]]:
     n = s["numbers"]
-    rows = [["ARV (resale after rehab)", f"{money(n['arv'])} ({n['arv_basis']})" if n.get("arv") else "not enough sales"],
-            ["Repairs (estimate)", f"{money(n['repairs'])} ({n['repair_tier']})"]]
-    if n.get("exit") is not None:
-        rows += [["Exit to end buyer", f"{money(n['exit'])} (ARV × {n['ratio']:.0%} what investors paid here, minus repairs)"],
-                 ["Our spread", money(n["fee"])],
+    label = "Land value (what it sells for as a lot)" if n.get("land") else "Exit: resale after rehab (ARV)"
+    rows = [[label, f"{money(n['arv'])} ({n['arv_basis']})" if n.get("arv") else "not enough sales"]]
+    if not n.get("land"):
+        rows.append(["Repairs (estimate)", f"{money(n['repairs'])} ({n['repair_tier']} tier)"])
+    if n.get("flipper") is not None:
+        src = n.get("ratio_source") or ""
+        rows += [["An investor pays (as is)", f"{money(n['flipper'])} ({'value' if n.get('land') else 'ARV'} × {n['ratio']:.0%}"
+                                              f"{'' if n.get('land') else ' minus repairs'}; ratio: {src or 'engine'})"],
+                 ["Our assignment fee", money(n["fee"])],
                  ["Where we need to be", money(n["ours"])],
                  ["Asking", money(n["list_price"])],
                  ["Gap to the ask", f"{money(n['gap'])} ({n['gap_pct']}%)" if n.get("gap") and n["gap"] > 0 else "none: the ask is at or under our number"]]
-    if n.get("gross_yield"):
-        rows.append(["Gross rent yield at our number", f"{n['gross_yield']}% ({money(n['rent'] * 12)}/yr)"])
+    if n.get("rent"):
+        rows.append(["Rent (stated)", f"{money(n['rent'])}/mo, {money(n['rent'] * 12)}/yr"])
+        rows.append([f"Net after {n['expense_ratio']:.0%} for tax, insurance, upkeep, vacancy", f"{money(n['noi'])}/yr (estimate)"])
+        rows += [[f"Price at a {c:.0%} cap", money(v)] for c, v in n["cap_prices"]]
+        if n.get("cap_at_ask"):
+            rows.append(["Cap rate at the ask", f"{n['cap_at_ask']}%"])
+        if n.get("cap_at_ours"):
+            rows.append(["Cap rate at our number", f"{n['cap_at_ours']}%"])
     return rows
 
 
@@ -280,7 +346,7 @@ def to_html(s: dict[str, Any]) -> str:
              f"<h2>Status</h2><strong>{_e(headline(s))}</strong>\nYou asked: <em>{_e(s['asked'][:300])}</em>\n"
              "The email is held in Needs Revision. Comment what to send, or drag the card to Approved to send it as written.\n<hr/>",
              "<h2>The house</h2>" + _table(house_rows(s), ["Item", "Detail"]),
-             f"<h2>The comps</h2>{_e(len(s['comps']))} sales, same type, {_e(s['area'])}, last 12 months. Source: {_e(s['source'])}.\n"
+             f"<h2>The comps</h2>{_e(len(s['comps']))} sales, same type, {_e(s['area'])}, {_e(s['period'])}. Source: {_e(s['source'])}.\n"
              + (_table(comp_rows(s), COMP_HEAD) if s["comps"] else "<em>No comparable sales found.</em>\n")
              + (_table([list(r) for r in s["averages"]], ["Averages", "Value"]) if s["averages"] else ""),
              "<h2>The numbers</h2>" + _table(number_rows(s), ["Line", "Amount"])]
@@ -298,7 +364,7 @@ def to_comment(s: dict[str, Any], card_url: str | None = None) -> str:
     """The same snapshot as a comment on the lead's own card (comments allow no h1/h2/table/hr: <strong> + lists + <pre>)."""
     p = s["p"]
     lines = [f"<body>🤖 <strong>NUMBERS · {_e(p['street'])}, {_e(p['city'])}</strong>\n<strong>{_e(headline(s))}</strong>\n"]
-    lines.append("<strong>The comps</strong> (" + _e(f"{len(s['comps'])} sales, {s['area']}, last 12 months") + ")\n<pre>" + _e(text_table(s)) + "</pre>\n")
+    lines.append("<strong>The comps</strong> (" + _e(f"{len(s['comps'])} sales, {s['area']}, {s['period']}") + ")\n<pre>" + _e(text_table(s)) + "</pre>\n")
     if s["averages"]:
         lines.append("<ul>" + "".join(f"<li>{_e(k)}: {_e(v)}</li>" for k, v in s["averages"]) + "</ul>\n")
     lines.append("<strong>The numbers</strong>\n<ul>" + "".join(f"<li>{_e(k)}: {_e(v)}</li>" for k, v in number_rows(s)) + "</ul>\n")
@@ -314,12 +380,13 @@ def to_comment(s: dict[str, Any], card_url: str | None = None) -> str:
 
 
 def text_table(s: dict[str, Any]) -> str:
-    rows = [[r[0][:26], r[1], r[2], r[3], r[4], r[6][:10]] for r in comp_rows(s)]
-    head = ["Address", "Sold", "Price", "sf", "$/sf", "Cond"]
+    """His comps rule's one table: address, date, price, sf, $/sf, pool/water, condition, distance, MLS."""
+    rows = [[r[0][:24], r[1], r[2], r[3], r[4], r[5], r[6][:10], r[7], r[8]] for r in comp_rows(s)]
+    head = ["Address", "Sold", "Price", "sf", "$/sf", "Pool/Wtr", "Cond", "Dist", "MLS"]
     if not rows:
         return "No comparable sales found."
     w = [max(len(str(x[i])) for x in rows + [head]) for i in range(len(head))]
-    fmt = lambda r: "  ".join(str(c).ljust(w[i]) for i, c in enumerate(r))  # noqa: E731
+    fmt = lambda r: "  ".join(str(c).ljust(w[i]) for i, c in enumerate(r)).rstrip()  # noqa: E731
     return "\n".join([fmt(head)] + [fmt(r) for r in rows])
 
 
@@ -328,7 +395,7 @@ def to_text(s: dict[str, Any]) -> str:
     p = s["p"]
     out = [f"# {p['street']}, {p['city']}  ({s['date']})", "", f"**{headline(s)}**", "", "## The house"]
     out += [f"- {k}: {v}" for k, v in house_rows(s)]
-    out += ["", f"## The comps ({len(s['comps'])} sales, {s['area']}, last 12 months; {s['source']})", "", text_table(s), ""]
+    out += ["", f"## The comps ({len(s['comps'])} sales, {s['area']}, {s['period']}; {s['source']})", "", text_table(s), ""]
     out += [f"- {k}: {v}" for k, v in s["averages"]]
     out += ["", "## The numbers"] + [f"- {k}: {v}" for k, v in number_rows(s)]
     if s["extra"]:

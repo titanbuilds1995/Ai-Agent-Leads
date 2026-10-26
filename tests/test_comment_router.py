@@ -36,7 +36,7 @@ def test_his_six_comments_are_sorted_right():
     assert "numbers" in classify([MONTAS])
     assert "numbers" in classify([KARA])           # "approve ... send it" loses to "before we send him an email let's comp it"
     f = classify([FOLAND])
-    assert "check" in f and "rewrite" in f and "numbers" not in f and "send" not in f
+    assert "check" in f and "numbers" not in f and "send" not in f      # checked listings go into the rewrite
     assert "numbers" in classify([DIPIETRO])
     assert classify([WORDING]) == {"rewrite"}
     assert classify(["looks good, send it"]) == {"send"}
@@ -94,7 +94,7 @@ def test_numbers_comment_posts_the_snapshot_and_holds_the_email(loaded, cfg, tmp
     assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] == before          # text untouched
     assert asana.where[gid] != _sections(cfg)["approved"]                      # held, never sent
     snap = [s for s in asana.stories[gid] if "NUMBERS" in s][0]
-    assert "Where we need to be" in snap and "The comps" in snap and "ARV" in snap and "Exit to end buyer" in snap
+    assert "Where we need to be" in snap and "The comps" in snap and "ARV" in snap and "An investor pays" in snap and "Exit: resale after rehab" in snap
     html = next(iter(asana.html.values()))
     for section in ("<h1>", "<h2>Status</h2>", "<h2>The house</h2>", "<h2>The comps</h2>", "<h2>The numbers</h2>",
                     "<h2>Still open</h2>", "<h2>Conversation so far</h2>", "Averages", "Median $/sf"):
@@ -128,7 +128,7 @@ def test_snapshot_math_and_compact_table(loaded, cfg, tmp_path, monkeypatch):
     sq = s["p"]["sqft"]
     assert "renovated" in n["arv_basis"] and n["arv"] == round(407500 / sq * sq, -3)      # median of the 4 renovated sales (395k 405k 410k 420k)
     if n.get("exit") is not None:
-        assert n["ours"] == n["exit"] - n["fee"] and n["exit"] == round(n["arv"] * n["ratio"] - n["repairs"], -3)
+        assert n["ours"] == n["flipper"] - n["fee"] and n["flipper"] == round(n["arv"] * n["ratio"] - n["repairs"], -3)
     assert any(k == "Lot sales nearby" for k, _ in s["extra"])                                  # he asked about land
     txt = comps_report.to_text(s)
     assert "Where we need to be" in txt and len(txt.split()) < 600                              # compact (Rodrigo, 2026-09-14)
@@ -137,3 +137,94 @@ def test_snapshot_math_and_compact_table(loaded, cfg, tmp_path, monkeypatch):
 def test_rent_is_read_from_the_agents_reply():
     assert comps_report.rent_from(["Polk Street unit A is rented for $2,500, unit B $2,000 monthly."]) == 4500
     assert comps_report.rent_from(["Beautiful home, no rent stated"]) is None
+
+
+# A false send is the worst mistake: none of these may move a card to Approved (reviewer, 2026-10-26).
+NEVER_SEND = [
+    "don't send it yet", "do not send this", "hold off, don't send it", "not approved", "I don't approve this",
+    "this is not a good email", "looks good but hold it", "why did you send this", "is this approved?", "good to go?",
+    "looks good, I will call him myself, don't send", "send it after I talk to him", "send it Friday after 9", "send it tomorrow",
+    "send him an offer at 250k", "let's send them 240", "send it but cc me", "send it and attach the photo",
+    "send her the email in spanish", "send it to the other listing agent too", "good email. Is this a duplex?",
+    "approved for now, but double check the address first", "don't follow up", "do not mark him hot", "ask a follow-up question",
+    "send it when he calls back", "if he answers send it", "wait on this one", "hold it", "looks good, but comp it first",
+    "good email but what's the ARV?", "send it once Lise answers", "never send this", "no need to send", "send it later",
+    "send it next week", "good email, change the opening to Hey Mike", "send it, but say we saw the listing on Zillow",
+    "did you send this?", "have you sent it?", "send it at 9am", "looks good. how far off is he from where we need to be",
+    "approve after you comp it", "send it, also send it to his partner", "good email, mention the pool",
+]
+PLAIN_SEND = ["send it", "looks good, send it", "approved", "Approved!", "good email", "ship it", "go ahead and send", "this is a really good email, send it"]
+
+
+def test_no_false_sends():
+    for c in NEVER_SEND:
+        assert "send" not in classify([c]), c
+    for c in PLAIN_SEND:
+        assert "send" in classify([c]), c
+
+
+def test_hold_comment_moves_nothing_and_rewrites_nothing(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "don't send it yet")
+    before, where = asana.tasks[gid]["notes"], asana.where[gid]
+    sync_feedback(loaded, cfg, asana, NoLLM())
+    assert asana.tasks[gid]["notes"] == before and asana.where[gid] == where and "Holding it" in asana.stories[gid][-1]
+
+
+def test_failed_snapshot_holds_without_consuming_the_comment(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, CARLTON)
+    def boom(*a, **k):
+        raise RuntimeError("no network")
+    monkeypatch.setattr(comps_report, "build", boom)
+    sync_feedback(loaded, cfg, asana, NoLLM())
+    assert asana.where[gid] != _sections(cfg)["approved"] and "Held: couldn't build the numbers" in asana.stories[gid][-1]
+    sync_feedback(loaded, cfg, asana, NoLLM())                      # said once, not every tick
+    assert sum("Held: couldn't build" in x for x in asana.stories[gid]) == 1
+    from titan.approvals import pending_feedback
+    assert pending_feedback(asana, gid)[0] == [CARLTON]             # still pending: retried next round
+
+
+def _pid(loaded, where="sqft > 0 AND property_type != 'land'"):
+    return loaded.execute(f"SELECT id FROM properties WHERE {where} AND lead_status != 'EXCLUDED' LIMIT 1").fetchone()[0]
+
+
+def test_land_is_valued_from_lot_sales_not_house_math(loaded, cfg, tmp_path):
+    cfg.root = tmp_path
+    pid = _pid(loaded)
+    loaded.execute("UPDATE properties SET property_type='land', lot_sqft=10000, sqft=NULL WHERE id=?", (pid,))
+    loaded.execute("UPDATE valuations SET arv=2000000, arv_method='land_default_suspect' WHERE property_id=?", (pid,))
+
+    def lots(p):
+        return [{"address": f"{i} Lot Rd", "sold_price": 100000 + i * 10000, "lot_sqft": 10000, "property_type": "land",
+                 "lat": p.get("lat"), "lng": p.get("lng"), "sold_date": "2026-05-01"} for i in range(6)]
+    s = comps_report.build(loaded, cfg, pid, lots)
+    n = s["numbers"]
+    assert n["land"] and n["repairs"] == 0 and n["arv"] == 125000 and "lot sf" in n["arv_basis"]
+    assert "2,000,000" not in comps_report.to_text(s)                       # the suspect stored value is never used
+
+
+def test_missing_size_still_shows_the_nearest_sales(loaded, cfg, tmp_path):
+    cfg.root = tmp_path
+    pid = _pid(loaded)
+    loaded.execute("UPDATE properties SET sqft=NULL WHERE id=?", (pid,))
+    s = comps_report.build(loaded, cfg, pid, _fake_comps)
+    assert len(s["comps"]) >= 6 and any("size (sq ft) is unknown" in x for x in s["still_open"])
+
+
+def test_stored_comps_are_labeled_as_stored(loaded, cfg, tmp_path):
+    cfg.root = tmp_path
+    s = comps_report.build(loaded, cfg, _pid(loaded), None)
+    assert "stored" in s["period"] and "stored" in s["source"]
+
+
+def test_rent_from_his_comment_gives_cap_rate_prices(loaded, cfg, tmp_path):
+    cfg.root = tmp_path
+    s = comps_report.build(loaded, cfg, _pid(loaded), _fake_comps, asked=DIPIETRO)
+    n = s["numbers"]
+    assert n["rent"] == 4500 and n["noi"] == int(4500 * 12 * 0.6)
+    assert dict(n["cap_prices"])[0.07] == round(4500 * 12 * 0.6 / 0.07, -3)
+    assert "Price at a 7% cap" in comps_report.to_text(s)
+
+
+def test_old_comps_are_dropped():
+    from titan.comps_report import recent
+    assert [c["a"] for c in recent([{"a": 1, "sold_date": "2020-01-01"}, {"a": 2, "sold_date": "2026-09-01"}, {"a": 3}])] == [2, 3]

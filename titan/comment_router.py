@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from . import db
@@ -21,32 +22,58 @@ from .util import log, now_utc
 
 NUMBERS_RE = re.compile(
     r"\bcomps?\b|\bcomp(?:ed|ing)?\s+(?:it|this|that)|comparab|\barv\b|after[- ]?re?pair|resale value|what (?:it|this|we|they|homes?|"
-    r"houses?|properties|products?)[\w ]{0,20}(?:could|would|can|are)\s+(?:re)?sell|sell (?:it )?for\b|land value|for (?:the )?land|"
+    r"houses?|properties|products?)[\w ]{0,20}(?:could|would|can|are)\s+(?:re)?sell|sell (?:it )?for\b|land value|for (?:the )?land\b|"
     r"new construction|new build|run (?:the )?numbers|numbers (?:look|on)|what the numbers|cash ?flow|cash cow|subfloor|"
-    r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|exit", re.I)
+    r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|\bexit\b", re.I)
 SEND_RE = re.compile(
-    r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|approved?\b(?! the numbers)|"
-    r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)", re.I)
+    r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|"
+    r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)\b|^\s*(?:ok(?:ay)?,? )?approved?[.! ]*$", re.I)
+# Anything that makes a "send" less than a plain go-ahead. A false send is the worst mistake this module can make, so
+# when any of these is present the card is held and nothing moves to Approved (reviewer, 2026-10-26).
+NOT_SEND_RE = re.compile(
+    r"\?|\$|\d|\b(?:don'?t|do not|not|never|no need|hold|wait|yet|until|later|before|tomorrow|tonight|monday|tuesday|wednesday|"
+    r"thursday|friday|saturday|sunday|next week|myself|instead|why|did you|have you|is (?:this|it)|was (?:this|it)|offer|cc|attach|"
+    r"after|when|once|if|talk|speak|hear|"
+    r"translate|spanish|other agent|also send|too\b|but\b)", re.I)
+# "after you send them the emails" / "if you don't hear from him" are follow-up timing, not a hold on the send itself.
+FOLLOWUP_CLAUSE_RE = re.compile(r"\b(?:follow up[^.]*|after you send[^.]*|if you don'?t hear[^.]*|to call tomorrow[^.]*|"
+                                r"call (?:him|her|them) tomorrow[^.]*|by the end of the day)", re.I)
 CHANGE_RE = re.compile(r"\b(?:change|take out|remove|instead|don'?t say|do not say|reword|replace|add (?:a|that|the)|shorter|"
-                       r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention)\b", re.I)
+                       r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention|cc|attach|translate|spanish|offer)\b", re.I)
 CALL_RE = re.compile(r"\b(?:mark (?:him|her|them|it|this)?\s*(?:as )?hot|hot (?:lead|potential)|call (?:him|her|them)?\s*tomorrow|"
-                     r"to call tomorrow|call list|follow[- ]?up|stay on top of)\b", re.I)
+                     r"to call tomorrow|call list|follow[- ]?up with (?:him|her|them)|stay on top of)\b", re.I)
+NEG_BEFORE_RE = re.compile(r"\b(?:don'?t|do not|not|never|no need to)\s+(?:\w+\s+){0,2}$", re.I)
 CHECK_RE = re.compile(r"\b(?:double[- ]?check|confirm (?:that|on|it|this)|is (?:that|this) (?:their|his|her) listing|"
                       r"incongruen|make sure (?:that )?(?:it|this|that) is)\b", re.I)
 
 
+def _positive(rx: re.Pattern, text: str) -> bool:
+    """A match that is not negated just before it ("don't follow up", "do not mark him hot")."""
+    return any(not NEG_BEFORE_RE.search(text[max(0, m.start() - 40):m.start()]) for m in rx.finditer(text))
+
+
 def classify(feedback: list[str]) -> set[str]:
+    """numbers / send / call / check / rewrite / hold. 'send' only for a plain go-ahead; a send with any condition, question,
+    negation, number or extra ask becomes 'hold' (nothing moves) or 'rewrite' (when it also asks for a change)."""
     text = " ".join(feedback)
     out: set[str] = set()
     if NUMBERS_RE.search(text):
         out.add("numbers")
-    if CALL_RE.search(text):
+    if _positive(CALL_RE, text):
         out.add("call")
     if CHECK_RE.search(text):
         out.add("check")
-    if SEND_RE.search(text) and not CHANGE_RE.search(text):
-        out.add("send")
-    if not out & {"numbers", "send", "call"} or CHANGE_RE.search(text) and "numbers" not in out:
+    change = bool(CHANGE_RE.search(text))
+    if SEND_RE.search(text):
+        plain = not NOT_SEND_RE.search(FOLLOWUP_CLAUSE_RE.sub(" ", text))
+        if plain and not change and not out & {"numbers", "check"}:
+            out.add("send")
+        elif not change and not out & {"numbers", "check"}:
+            out.add("hold")
+    elif (re.search(r"\b(?:don'?t|do not) (?:send|approve|follow|mark)|not approved|disapprove|hold (?:it|this|off)|\bwait\b", text, re.I)
+          or "?" in text) and not change and not out & {"numbers", "check", "call"}:
+        out.add("hold")        # a no, a wait or a bare question: nothing moves, nothing is rewritten
+    if change or not out:
         out.add("rewrite")
     return out
 
@@ -85,9 +112,10 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
     from . import comps_report
     a = cfg.get("outreach.asana", {}) or {}
     text = " ".join(feedback)
-    n = 0
-    for p in pick_subjects(card_props(conn, card["outreach_id"]), text):
-        s = comps_report.build(conn, cfg, p["id"], comps_fn, asked=text, outreach_id=card["outreach_id"])
+    snaps = []
+    for p in pick_subjects(card_props(conn, card["outreach_id"]), text):     # build every house first: post nothing half-done
+        snaps.append((p, comps_report.build(conn, cfg, p["id"], comps_fn, asked=text, outreach_id=card["outreach_id"])))
+    for p, s in snaps:
         out_dir = cfg.path("reports") / "comps"
         out_dir.mkdir(parents=True, exist_ok=True)
         slug = re.sub(r"[^a-z0-9]+", "-", f"{p['street']} {p['city']}".lower()).strip("-")
@@ -101,8 +129,7 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
             except Exception as e:  # noqa: BLE001 — the comment on the lead's own card is what matters most
                 log.warning("numbers card for %s: %s", p["street"], e)
         asana.comment_html(card_gid, comps_report.to_comment(s, url))
-        n += 1
-    return n
+    return len(snaps)
 
 
 def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) -> bool:
@@ -115,7 +142,7 @@ def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) 
         db.set_lead_status(conn, p["id"], "NEEDS_CALL", "HOT (Rodrigo): call tomorrow")
     if not (a.get("updates_project") and a.get("needs_rodrigo")):
         return False
-    day = (now_utc() - timedelta(hours=5) + timedelta(days=1)).strftime("%a %b %d")
+    day = (now_utc().astimezone(ZoneInfo("America/New_York")) + timedelta(days=1)).strftime("%a %b %d")
     name, phone = (row["name"] if row else None) or "agent", (row["phone"] if row else None) or "no phone on file"
     houses = "; ".join(f"{p['street']}, {p['city']}" for p in props)
     try:

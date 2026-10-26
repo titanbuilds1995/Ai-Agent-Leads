@@ -416,6 +416,9 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         asana.comment(t["gid"], f"Sent {local.strftime('%a %b %d, %I:%M %p')} from {cfg.secret('GMAIL_SENDER') or 'Charles'}.")
         asana.move(t["gid"], a["sent"])
         res["sent"] += 1
+    if res["sent"]:
+        from .offers import sync_offers
+        res["offers_logged"] = sync_offers(conn, cfg)      # an offer that just went out lands in the offer log
     return res
 
 

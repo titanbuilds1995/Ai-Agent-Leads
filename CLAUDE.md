@@ -136,12 +136,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   invalid). Comments allow no h1/h2/table/hr: use `<strong>` headings + `<ul>` lists and pin the snapshot. Approval-card `notes` stay
   plain text (the engine parses the EMAIL markers). **Always also pin the snapshot as a comment on the lead's OWN card on the
   Email Approvals board** (e.g. in Answered): that is where Rodrigo looks; a separate card alone was missed (Lise, 2026-10-26).
+- **New listings PAUSED for the agent-email strategy (Rodrigo, 2026-10-26):** "let me finish with what we have": `ingest.paused: true`
+  in config.yaml; run-daily skips the scrape, everything else (score, value, enrich, outreach, approvals, replies) keeps working the
+  stored listings. Turn back on only when Rodrigo says. **Offer log** (`titan/offers.py`, table `offers`): every sent email with an
+  offer figure (reply card or approve-offer) is logged on the next approvals tick; status SENT/COUNTERED/ACCEPTED/UNDER_CONTRACT/
+  CLOSED/REJECTED/DEAD via `titan.cli offers <id> <STATUS> --note`; market stats (count, % of list, by city) in the morning report
+  Scoreboard and dashboard stats; `titan.cli offers` writes `reports/offers.csv`. Rodrigo copies offers onto his main results board himself.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-26 ~2:45pm ET, RESUME HERE: Rodrigo paused new listings for this strategy (`ingest.paused: true`) to work the ones we
+  have (email + offers), and asked to track every offer sent: offer log built (`titan.cli offers`, reports/offers.csv, Scoreboard
+  "Offers sent" line with median % of list and per-city stats). Caveat: with the scrape off, stored listings no longer refresh
+  (price cuts, pending/sold aren't seen); check status before an offer. 214 tests.
 - 2026-10-26 ~2:10pm ET: cloud back-up scheduled task created ("Titan · apply Rodrigo's card comments", trig_01DMPwemtJ2ezjUVbtgi1MkN,
   hourly 8:07am–6:07pm ET, fresh session each run) BUT it stores no connectors (this org can't pass them via the tool): Rodrigo must
   add the Asana connector in claude.ai → Routines, else each run stops with "no Asana tools". Flow PDF for Rodrigo:

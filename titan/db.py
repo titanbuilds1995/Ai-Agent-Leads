@@ -113,6 +113,12 @@ CREATE TABLE IF NOT EXISTS lessons (
   id INTEGER PRIMARY KEY, kind TEXT NOT NULL, outreach_id INTEGER, card_gid TEXT, text TEXT NOT NULL,
   before_body TEXT, after_body TEXT, created_at TEXT NOT NULL, UNIQUE(card_gid, text)
 );
+-- Offer log (titan/offers.py): every written offer that went out, and what happened to it.
+CREATE TABLE IF NOT EXISTS offers (
+  id INTEGER PRIMARY KEY, property_id INTEGER, agent_id INTEGER, outreach_id INTEGER UNIQUE, price INTEGER NOT NULL,
+  list_price INTEGER, street TEXT, city TEXT, zip TEXT, county TEXT, internal_low INTEGER, internal_high INTEGER,
+  status TEXT NOT NULL DEFAULT 'SENT', note TEXT, sent_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS price_decisions (
   id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
 );

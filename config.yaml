@@ -225,6 +225,9 @@ enrichment:
   pattern_min_known_emails: 2     # how many known emails at a brokerage before guessing a pattern
 
 ingest:
+  # Rodrigo, 2026-10-26: PAUSED. No new listings for the agent-email strategy; we email and make offers on the ones we have.
+  # Set to false to start scraping new listings again. Scoring, valuation, enrichment and outreach keep running.
+  paused: true
   # Which sources run each morning. homeharvest = free Realtor.com scraper (runs on the Mac; realtor.com blocks cloud IPs).
   # Add "realtor" / "zillow" to also run the paid Apify actors.
   sources: ["homeharvest", "mls", "redfin"]

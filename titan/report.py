@@ -51,6 +51,18 @@ def say_this(p: dict[str, Any], last) -> str:
     return "Read the conversation and decide the next step."
 
 
+def _offer_lines(o: dict[str, Any]) -> list[str]:
+    if not o.get("offers"):
+        return ["- Offers sent: 0"]
+    b = o["by_status"]
+    out = [f"- **Offers sent {o['offers']}** (${o['total_offered']:,} total) · median {o['median_pct_of_list']}% of list "
+           f"(range {o['min_pct_of_list']}–{o['max_pct_of_list']}%) · countered {b['COUNTERED']} · accepted "
+           f"{b['ACCEPTED'] + b['UNDER_CONTRACT'] + b['CLOSED']} · rejected {b['REJECTED']} · no answer yet {b['SENT']}"]
+    for city, c in list(o["by_city"].items())[:5]:
+        out.append(f"  - {city}: {c['offers']} offers, median {c['median_pct_of_list']}% of list, accepted {c['accept_rate_pct']}%")
+    return out
+
+
 def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     run_date = run_date or today_et()
     since = iso(now_utc() - timedelta(hours=24))
@@ -75,7 +87,8 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
                   f"- Motivation {p.get('score')} · ARV {money(p.get('arv'))} ({p.get('arv_method')}, {p.get('comp_count') or 0} comps, {p.get('repair_tier')} repairs) · internal screening MAO {money(p.get('mao'))} (not an offer) · {p.get('listing_url') or ''}",
                   f"- **Say this:** {p['say_this']}", ""]
     from .stats import compute_stats
-    st = compute_stats(conn, cfg, with_asana=bool(cfg.secret("ASANA_TOKEN"))).get("totals") or {}
+    stats = compute_stats(conn, cfg, with_asana=bool(cfg.secret("ASANA_TOKEN")))
+    st = stats.get("totals") or {}
     if st:
         pct = lambda v: "n/a" if v is None else f"{v:.0f}%"  # noqa: E731
         lines += ["## Scoreboard", "",
@@ -83,6 +96,7 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
                   f"(reply rate {pct(st.get('reply_rate_pct'))}) · {st.get('bounces', 0)} bounced",
                   f"- Conversations {st.get('conversations', 0)} · answered by us {st.get('answered', 0)} (answer rate {pct(st.get('answer_rate_pct'))}) · "
                   f"**awaiting our answer {st.get('awaiting_our_answer', 0)}** · needs Rodrigo {st.get('needs_rodrigo', 0)} · waiting on the agent {st.get('waiting_on_agent', 0)}",
+                  *_offer_lines(stats.get("offers") or {}),
                   f"- Today: {st.get('new_today', 0)} new listings · {st.get('sent_today', 0)} sent · {st.get('replies_today', 0)} replies · HOT now {st.get('hot', 0)} · cards waiting {st.get('cards_waiting', 0)}", ""]
     try:
         from .learning import ladder_lines

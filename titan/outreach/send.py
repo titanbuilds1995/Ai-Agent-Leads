@@ -42,7 +42,7 @@ def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
         "SELECT p.*, s.score, s.cited, v.rating, v.lane, v.mao, v.offer_price, v.arv, v.repair_tier, v.repair_cost, v.arv_method, v.comp_count, a.id AS a_id, a.name AS a_name, a.email AS a_email, "
         "a.email_confidence AS a_conf, a.phone AS a_phone, a.is_office_line AS a_office "
         "FROM properties p JOIN scores s ON s.property_id=p.id JOIN valuations v ON v.property_id=p.id JOIN agents a ON a.id=p.agent_id "
-        "WHERE v.rating IN ('HOT','WARM') AND p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED','HOT_LEAD','NEEDS_CALL','NEEDS_REVIEW','DISCUSSING','FLEXIBLE','RESPONDED') "
+        "WHERE v.rating IN ('HOT','WARM') AND p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED','HOT_LEAD','NEEDS_CALL','NEEDS_REVIEW','DISCUSSING','FLEXIBLE','RESPONDED','OFFER_DRAFTED','OFFER_SENT') "
         "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, "
         "CASE v.lane WHEN 'FRESH_DEAL' THEN 0 WHEN 'SITTING' THEN 1 ELSE 2 END, "    # fresh deals expire first; sitting = ideal
         "(p.price_cuts > 0 OR p.back_on_market) DESC, s.score DESC, v.spread_pct ASC").fetchall()

@@ -137,6 +137,9 @@ def compute_stats(conn, cfg: Any, days: int = 14, now: datetime | None = None, a
             "board": {k: v[:40] for k, v in cols.items()},
             "asana": asana_counts(cfg, asana) if with_asana else None,
         }
+        from .offers import offer_stats, sync_offers
+        sync_offers(conn, cfg)
+        stats["offers"] = offer_stats(conn)
         return stats
     except Exception as e:  # noqa: BLE001 — the dashboard and the report must never break on the scoreboard
         log.warning("stats failed: %s", e)

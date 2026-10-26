@@ -88,7 +88,10 @@ def cmd_run_daily(cfg, args):
     steps = args.steps.split(",") if args.steps else ["ingest", "score", "value", "enrich", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
-        if "ingest" in steps:
+        if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
+            # Rodrigo, 2026-10-26: no new listings for the agent-email strategy until we've worked the ones we have
+            summary["ingest"] = {"paused": "ingest.paused is on in config.yaml: no new listings; working the ones we have"}
+        elif "ingest" in steps:
             summary["ingest"] = ingest(conn, cfg, c["apify"], fixture=fixture)
     except Exception as e:  # noqa: BLE001 — a dead scrape must not block scoring of what we already have
         log.exception("ingest failed: %s", e)
@@ -124,7 +127,9 @@ def plain_summary(conn, summary: dict[str, Any], top: int = 10) -> str:
     """The last lines of every run, in plain words: what came in, and the best leads with the offer and the agent."""
     out = ["", "=" * 70, f"RUN SUMMARY {summary.get('date', '')}"]
     ing = summary.get("ingest") or {}
-    if ing.get("error"):
+    if ing.get("paused"):
+        out.append("New listings PAUSED (ingest.paused in config.yaml): emailing and offering on the listings we already have")
+    elif ing.get("error"):
         out.append(f"Scrape failed: {ing['error'][:200]}")
     elif ing:
         for name, st in (ing.get("sources") or {}).items():
@@ -291,6 +296,28 @@ def cmd_approve_offer(cfg, args):
     res = approve_offer(conn, cfg, args.property_id, args.price, gmail, args.note)
     print(json.dumps(res, indent=2))
     print("Draft only: read it in Gmail (Titan/Review) or the file above, then send it yourself." if res["status"] == "draft" else "")
+
+
+def cmd_offers(cfg, args):
+    from .offers import all_offers, export_csv, offer_stats, set_status, sync_offers
+    conn = _open(cfg)
+    if args.offer_id is not None:
+        o = set_status(conn, args.offer_id, args.status or "", args.note)
+        print(f"Offer #{o['id']} ({o['street']}, ${o['price']:,}) is now {o['status']}.")
+        return
+    sync_offers(conn, cfg)
+    offers = all_offers(conn)
+    if not offers:
+        print("No offers sent yet.")
+        return
+    for o in offers:
+        pct = f"{o['pct_of_list']:.0f}% of list" if o["pct_of_list"] else "list ?"
+        print(f"#{o['id']:<3} {o['sent_at'][:10]}  {o['street']}, {o['city']}  ${o['price']:,} ({pct})  {o['status']}  "
+              f"{o.get('agent_name') or ''}" + (f"  · {o['note']}" if o.get("note") else ""))
+    s = offer_stats(conn)
+    print(f"\n{s['offers']} offers · median {s['median_pct_of_list']}% of list · {s['by_status']['COUNTERED']} countered · "
+          f"{s['by_status']['ACCEPTED'] + s['by_status']['UNDER_CONTRACT'] + s['by_status']['CLOSED']} accepted · {s['by_status']['REJECTED']} rejected")
+    print(f"Spreadsheet for the main board: {export_csv(conn, cfg.path('reports') / 'offers.csv')}")
 
 
 def cmd_review_queue(cfg, args):
@@ -572,6 +599,11 @@ def main(argv: list[str] | None = None) -> int:
     ao.add_argument("price", type=int)
     ao.add_argument("--note", default=None)
     sub.add_parser("ladder", help="trust ladder: how close each stage is to running on its own + what was learned")
+    of = sub.add_parser("offers", help="offer log: every offer sent + market stats; writes reports/offers.csv. "
+                                       "Update one: offers 3 COUNTERED --note 'seller wants 250'")
+    of.add_argument("offer_id", type=int, nargs="?")
+    of.add_argument("status", nargs="?", help="SENT, COUNTERED, ACCEPTED, UNDER_CONTRACT, CLOSED, REJECTED, DEAD")
+    of.add_argument("--note", default=None)
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
@@ -590,7 +622,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login}[args.cmd](cfg, args)
     return 0
 
 

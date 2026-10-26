@@ -165,6 +165,8 @@ NEVER_SEND = [
     # round 3 (reviewer)
     "send it ❌", "send it 🛑", "send it 🚫", "send it ✋", "send it 🤔", "looks good 👎", "send it -", "send it, you",
     "Approved. Hold.", "✅ hold", "send it to rodrigo",
+    # round 4 (reviewer)
+    "send it actually", "send it. actually", "perfect", "great", "perfect, thank you", "thank you", "go",
 ]
 PLAIN_SEND = ["send it", "looks good, send it", "approved", "Approved!", "good email", "ship it", "go ahead and send",
               "this is a really good email, send it", "yes send", "approve and send", "send", "👍", "I approve this email, I really like it, send it", BALTHAZAR,
@@ -282,3 +284,8 @@ def test_a_new_call_comment_books_again(loaded, cfg, tmp_path, monkeypatch):
     assert call_card(loaded, cfg, asana, card, ["call him tomorrow"])
     assert not call_card(loaded, cfg, asana, card, ["call him tomorrow"])          # same comment retried
     assert call_card(loaded, cfg, asana, card, ["mark him hot, call him tomorrow again"])   # a new ask books again
+
+
+def test_praise_alone_holds_without_a_rewrite():
+    for c in ("perfect", "great", "perfect, thank you", "thank you", "go"):
+        assert classify([c]) == {"hold"}, c

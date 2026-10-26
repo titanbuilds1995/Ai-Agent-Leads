@@ -45,10 +45,11 @@ _CALL_PHRASES = [
     r"call (?:him|her|them) tomorrow", r"after you send (?:them|him|her) the emails?",
 ]
 _FILLER = {"hey", "so", "and", "then", "please", "now", "asap", "great", "thanks", "perfect", "nice", "cool", "ok",
-           "okay", "yes", "yep", "sure", "it", "this", "one", "i", "really", "actually", "very", "a", "the", "just", "go", "ahead",
+           "okay", "yes", "yep", "sure", "it", "this", "one", "i", "really", "very", "a", "the", "just", "go", "ahead",
            "as", "is", "written", "rodrigo"}
 GO_RE = re.compile(r"\b(?:" + "|".join(_GO_AHEAD) + r")\b", re.I)
 CALLP_RE = re.compile(r"\b(?:" + "|".join(_CALL_PHRASES) + r")\b", re.I)
+PRAISE = {"great", "perfect", "love", "awesome", "excellent", "beautiful", "good", "go", "thank", "you", "nice", "solid"}
 EMOJI_OK_RE = re.compile(r"^\s*(?:👍|✅|💯|🔥)+\s*$")
 
 
@@ -98,6 +99,8 @@ def classify(feedback: list[str]) -> set[str]:
           r"disapprove|\bhold\b|\bwait\b|\bskip\b|[❌🛑🚫✋👎]", text, re.I) or GO_RE.search(text) or "?" in text) and not change \
             and not out & {"numbers", "check"}:
         out.add("hold")        # a go-ahead with anything else in it, a no, a wait or a bare question: nothing moves
+    if not out and not change and set(re.findall(r"[a-z']+", text.lower())) <= _FILLER | PRAISE:
+        out.add("hold")        # plain praise ("perfect", "great, thanks"): don't spend a rewrite on an email he liked
     if change or not out:
         out.add("rewrite")
     return out
@@ -171,8 +174,8 @@ def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) 
                        (card["outreach_id"],)).fetchone()
     import hashlib
     props = card_props(conn, card["outreach_id"])
-    conn.execute("CREATE TABLE IF NOT EXISTS call_bookings (key TEXT PRIMARY KEY, created_at TEXT NOT NULL)")
-    key = hashlib.sha1(f"{card.get('outreach_id')}|{' '.join(feedback)}".encode()).hexdigest()
+    asks = [f for f in feedback if _positive(CALL_RE, f)] or feedback      # only the call ask: a later unrelated comment doesn't re-book
+    key = hashlib.sha1(f"{card.get('outreach_id')}|{' '.join(asks)}".encode()).hexdigest()
     if conn.execute("SELECT 1 FROM call_bookings WHERE key=?", (key,)).fetchone():
         return False          # this comment already booked its call (it is being retried after a failed snapshot): one card only
     for p in props:
@@ -183,11 +186,11 @@ def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) 
     name, phone = (row["name"] if row else None) or "agent", (row["phone"] if row else None) or "no phone on file"
     houses = "; ".join(f"{p['street']}, {p['city']}" for p in props)
     try:
-        conn.execute("INSERT OR IGNORE INTO call_bookings(key, created_at) VALUES(?, ?)", (key, db.iso()))
         asana.create_task(a["updates_project"], a["needs_rodrigo"], f"📞 Call {day}: {name} · {phone} · {houses}",
                           f"HOT lead (your comment): {' '.join(feedback)[:600]}\n\nAgent: {name} · {phone} · {(row['email'] if row else '') or ''}\n"
                           f"Houses: {houses}\n\nThe email follows the normal flow on the Email Approvals board. An automatic "
                           "same-day follow-up email isn't built yet: call, or comment 'follow up' on the card and Claude drafts one.")
+        conn.execute("INSERT OR IGNORE INTO call_bookings(key, created_at) VALUES(?, ?)", (key, db.iso()))   # only once the card exists
         return True
     except Exception as e:  # noqa: BLE001
         log.warning("call card: %s", e)

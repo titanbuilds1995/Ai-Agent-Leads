@@ -151,6 +151,17 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~5pm ET, RESUME HERE: **comments now do what they ask** (Rodrigo: "why would it not give me what I am asking?").
+  `titan/comment_router.py` sorts each card comment: numbers (comps / ARV / land / cash flow / where we need to be) → numbers
+  snapshot (`titan/comps_report.py`, Lise's layout + compact comps table 6–10 sales / last 12 months / averages, ARV = exit,
+  investor price, our number, gap, cap-rate prices when rent is stated) as a NUMBERS card in Claude Updates → Needs Rodrigo +
+  a pinned comment on the lead's card; email held in Needs Revision. send = ONLY a plain go-ahead (allowlist; any condition,
+  question, negation, number, recipient or stop emoji holds) → Approved untouched. call ("mark hot", "call tomorrow") →
+  NEEDS_CALL + 📞 card. check ("double check that's their listing") → the agent's listings go into the rewrite. Reviewed in 4
+  rounds by an independent reviewer: 5 → 6 → 7.5 → 8.5/10. HomeHarvest comps now keep pool/water, MLS #, remarks, year built.
+  The six stuck cards get handled on the next tick: Balthazar → sent as is + call card; Carlton, Montas, Kara, Dipietro →
+  numbers; Foland → rewrite with the agent's listings. Not verified on the live Asana API yet (html_notes / html_text payloads):
+  check the first NUMBERS card. 248 tests.
 - 2026-10-26 ~3:30pm ET, RESUME HERE: **"token refused" on Asana, root fix.** Every rewrite used ONLY the token in .env; when it was
   refused, nothing else was tried, though the Mac's own Claude login (keychain) often worked (hence "fixes itself"). Now `claude -p`
   tries the .env token, then the Mac's login, and keeps the one that works for the run; a card fails only if BOTH are refused

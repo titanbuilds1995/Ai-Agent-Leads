@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS llm_usage (
   cost_usd REAL, ok INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS call_bookings (key TEXT PRIMARY KEY, created_at TEXT NOT NULL);
+
 CREATE TABLE IF NOT EXISTS comps_cache (
   key TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, comps TEXT NOT NULL
 );

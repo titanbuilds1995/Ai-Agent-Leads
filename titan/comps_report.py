@@ -389,7 +389,8 @@ def to_html(s: dict[str, Any]) -> str:
 def to_comment(s: dict[str, Any], card_url: str | None = None) -> str:
     """The same snapshot as a comment on the lead's own card (comments allow no h1/h2/table/hr: <strong> + lists + <pre>)."""
     p = s["p"]
-    lines = [f"<body>🤖 <strong>NUMBERS · {_e(p['street'])}, {_e(p['city'])}</strong>\n<strong>{_e(headline(s))}</strong>\n"]
+    head = _e(headline(s)).replace(" Cash-flow math:", "</strong>\n<strong>Cash-flow math:")     # two lines on his phone
+    lines = [f"<body>🤖 <strong>NUMBERS · {_e(p['street'])}, {_e(p['city'])}</strong>\n<strong>{head}</strong>\n"]
     lines.append("<strong>The comps</strong> (" + _e(f"{len(s['comps'])} sales, {s['area']}, {s['period']}") + ")\n<pre>" + _e(text_table(s)) + "</pre>\n")
     if s["averages"]:
         lines.append("<ul>" + "".join(f"<li>{_e(k)}: {_e(v)}</li>" for k, v in s["averages"]) + "</ul>\n")

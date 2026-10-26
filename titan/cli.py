@@ -325,7 +325,7 @@ def cmd_score_test(cfg, args):
     # This test runs in Terminal, which uses the Mac keychain login. Cron can't, so it needs the saved token.
     if llm.provider == "claude_code" and not cfg.secret("CLAUDE_CODE_OAUTH_TOKEN"):
         print("BUT the background jobs (cron) are NOT logged in: CLAUDE_CODE_OAUTH_TOKEN is missing from .env, so Asana will "
-              "keep saying 'Not logged in'. Run `claude setup-token` and add the token to .env as CLAUDE_CODE_OAUTH_TOKEN=...")
+              "keep saying 'Not logged in'. Fix: `make claude-login`")
     elif llm.provider == "claude_code":
         print("background jobs (cron): logged in (CLAUDE_CODE_OAUTH_TOKEN saved in .env)")
 
@@ -358,7 +358,71 @@ def cmd_approvals(cfg, args):
     mirrored["lead_board"] = lead_board(conn, cfg, asana)    # Answered column + WHERE WE STAND on each answered lead
     from .dashboard_sync import sync as sync_dashboard
     dash = sync_dashboard(conn, cfg)          # the website's Board (card counts, sent, replies) stays current every tick
-    print(json.dumps({"feedback": fb, "learning": learned, "send": sent, "asana_mirror": mirrored, "dashboard": dash}, indent=2))
+    from .llm import login_problem
+    problem = login_problem(cfg, getattr(c["llm"], "last_error", None))
+    if problem:                                # cron is logged out: one card in Needs Rodrigo with the exact fix
+        from .health import alert_claude_login
+        alert_claude_login(cfg, asana, problem)
+    print(json.dumps({"feedback": fb, "learning": learned, "send": sent, "asana_mirror": mirrored, "dashboard": dash,
+                      "claude_login": problem or "ok"}, indent=2))
+
+
+def save_env_value(env_file: Path, key: str, value: str) -> None:
+    """Set KEY=value in .env, replacing any old line for that key (keeps every other line as is)."""
+    lines = env_file.read_text().splitlines() if env_file.exists() else []
+    lines = [ln for ln in lines if not ln.strip().removeprefix("export ").startswith(f"{key}=")
+             and not ln.strip().removeprefix("export ").startswith(f"{key} =")]
+    lines.append(f"{key}={value}")
+    env_file.write_text("\n".join(lines) + "\n")
+    env_file.chmod(0o600)
+
+
+def cron_claude_check(cli: str, token: str) -> tuple[bool, str]:
+    """Call Claude the way cron does: bare environment, no API key, only the saved token."""
+    import subprocess
+    import tempfile
+    env = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": os.path.expanduser("~"), "CLAUDE_CODE_OAUTH_TOKEN": token}
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            p = subprocess.run([cli, "-p", "Reply with the single word OK", "--no-session-persistence"], capture_output=True,
+                               text=True, cwd=tmp, env=env, timeout=180)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return False, str(e)
+    out = (p.stdout + " " + p.stderr).strip()
+    return (p.returncode == 0 and "ok" in p.stdout.lower()), out[:300]
+
+
+def cmd_claude_login(cfg, args):
+    """One command for the cron login: runs `claude setup-token`, saves the token in .env, tests it like cron does."""
+    import subprocess
+    from .llm import find_claude_cli
+    cli = find_claude_cli(cfg.get("scoring.claude_code_cli", "claude"))
+    if not cli:
+        print("Claude Code isn't installed where I can find it. Install it, then run `make claude-login` again.")
+        sys.exit(1)
+    env_file = cfg.root / ".env"
+    if not args.test_only:
+        print(f"Step 1: Claude login (a browser window opens). Using {cli}\n")
+        subprocess.run([cli, "setup-token"])
+        print("\nStep 2: copy the long token it printed (starts with sk-ant-oat) and paste it here, then press Enter.")
+        token = "".join(input("token: ").split())       # drop spaces/line breaks a wrapped copy adds
+        if not token.startswith("sk-ant-"):
+            print("That doesn't look like the token (it starts with sk-ant-oat). Nothing saved; run `make claude-login` again.")
+            sys.exit(1)
+        save_env_value(env_file, "CLAUDE_CODE_OAUTH_TOKEN", token)
+        print(f"Saved in {env_file}.")
+    else:
+        token = cfg.secret("CLAUDE_CODE_OAUTH_TOKEN") or ""
+        if not token:
+            print("No CLAUDE_CODE_OAUTH_TOKEN in .env: that's why cron says 'Not logged in'. Run `make claude-login`.")
+            sys.exit(1)
+    print("Step 3: testing Claude the way the background jobs run it ...")
+    ok, out = cron_claude_check(cli, token)
+    if ok:
+        print("OK: the background jobs are logged in. Stuck cards rewrite on the next round (or now: make approvals-now).")
+    else:
+        print(f"FAILED: {out}\nRun `make claude-login` again and paste the whole token.")
+        sys.exit(1)
 
 
 def cmd_ladder(cfg, args):
@@ -481,6 +545,8 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--to", default=None, help="defaults to REPORT_TO")
     rp = sub.add_parser("rewrite-pending", help="regenerate To Review emails written before the protocol and update their cards")
     rp.add_argument("--all", action="store_true", help="redo every To Review card, not only the old-style ones")
+    cl = sub.add_parser("claude-login", help="log the background jobs (cron) in to Claude: setup-token -> .env -> test")
+    cl.add_argument("--test-only", action="store_true", help="only test the token already in .env")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
@@ -489,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login}[args.cmd](cfg, args)
     return 0
 
 

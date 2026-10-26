@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -57,6 +57,15 @@ automate:         ## daily 5:30am run + 7am report email, and wake the Mac at 5:
 	$(PY) -m titan.cli install-cron
 	sudo pmset repeat wakeorpoweron MTWRFSU 05:25:00
 	@echo "Done. Keep the Mac plugged in. Check: crontab -l ; pmset -g sched"
+
+claude-login:     ## log the background jobs in to Claude (token saved in .env, tested like cron); fixes "Not logged in" on Asana
+	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli claude-login
+
+claude-check:     ## is the background jobs' Claude login working? (tests the token in .env like cron)
+	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli claude-login --test-only
+
+approvals-now:    ## run one approvals round now (rewrites commented cards, sends approved ones in the window)
+	$(PY) -m titan.cli approvals
 
 score-test:       ## score 3 stored listings through Claude Code (your plan, no API spend)
 	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli score-test

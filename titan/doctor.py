@@ -202,7 +202,7 @@ def check_claude_code_cron(cfg) -> Check:
     if tok and tok.startswith("sk-ant-"):
         return _ok("CLAUDE_CODE_OAUTH_TOKEN set (cron can use the Claude Code plan)")
     return _warn("CLAUDE_CODE_OAUTH_TOKEN missing: from cron Claude says 'Not logged in', so card rewrites fail and scoring falls back to rules",
-                 "run `claude setup-token` in Terminal, then add the printed token to .env as CLAUDE_CODE_OAUTH_TOKEN=...; check with `make score-test`")
+                 "run `make claude-login` in Terminal (saves the token in .env and tests it like cron)")
 
 
 def check_asana(cfg) -> Check:

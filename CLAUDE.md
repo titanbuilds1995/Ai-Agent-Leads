@@ -142,6 +142,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~1pm ET, RESUME HERE: **root fix for "Not logged in" on Asana.** Cause (proven by the error text): cron passes
+  CLAUDE_CODE_OAUTH_TOKEN from .env when it exists; "Not logged in" means it isn't in .env on the Mac (a bad token gives an auth
+  error instead). `claude setup-token` only PRINTS the token; it was never saved. It "worked" sometimes because cron can borrow the
+  keychain login while Rodrigo is at the Mac. Built: `make claude-login` (runs setup-token, takes the pasted token, strips wrap
+  breaks, writes .env, tests the way cron runs), `make claude-check`, `make approvals-now`; failure comments now say exactly which
+  case + the fix; one alarm card per day in Claude Updates → Needs Rodrigo (`titan/health.py`). Next: Rodrigo runs
+  `make claude-login` at the Mac; then the Needs Revision cards (Manuel, Eddy, Saidelys, Eugene) rewrite; Richard Dipietro asks for
+  comps + an offer number on 2327 Polk St ($4,500/mo rent) before answering; Jason Welt = auction → Skip + exclude auctions. 209 tests.
 - 2026-10-26 ~1:15pm ET: Lise offer card gets Rodrigo's 3:31pm asks: Cc rodrigo@titanrealtyinvestments.com (his comment had a typo,
   "titanrelatyinvestments") and an opening line that Charles cc'd his acquisitions manager, who approved the numbers. Lead card
   status now says OFFER DRAFTED; Cc support built (card `Cc:` line → Gmail Cc). 206 tests.

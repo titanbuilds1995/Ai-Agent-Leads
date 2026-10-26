@@ -277,8 +277,10 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         if out is None:
-            why = "Claude isn't reachable from this job" + (f": {llm.last_error[:160]}" if llm is not None and getattr(llm, "last_error", None) else
-                                                            " (not logged in, or CLAUDE_CODE_OAUTH_TOKEN missing in .env)")
+            from .llm import login_problem
+            err = getattr(llm, "last_error", None) if llm is not None else None
+            why = login_problem(cfg, err) or ("Claude isn't reachable from this job" + (f": {err[:160]}" if err else
+                                                                                       " (not logged in, or CLAUDE_CODE_OAUTH_TOKEN missing in .env)"))
             problems = [why]
         else:
             from .replies.writer import validate_reply

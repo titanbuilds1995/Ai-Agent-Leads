@@ -220,7 +220,7 @@ def test_failed_rewrite_keeps_the_feedback_pending(loaded, cfg, tmp_path, monkey
     for _ in range(2):
         sync_feedback(loaded, cfg, asana, NoClaude(), FakeGmail())
     fails = [t for t in asana.stories[gid] if t.startswith(f"{BOT} {FAILED_PREFIX}")]
-    assert len(fails) == 1 and "Not logged in" in fails[0]            # said once, not every tick
+    assert len(fails) == 1 and "make claude-login" in fails[0]            # said once, not every tick
     assert pending_feedback(asana, gid)[0] == ["mention the pool"]      # still pending for the next round
     asana.comment(gid, "Held: you left a comment after approving, so this went back to To Review.")
     assert pending_feedback(asana, gid)[0] == ["mention the pool"]      # a Held note doesn't swallow it either

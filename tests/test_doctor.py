@@ -47,7 +47,7 @@ def test_doctor_flags_missing_cron_token_and_asana(cfg, monkeypatch):
     from titan.doctor import check_asana, check_claude_code_cron
     monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "")
     st, detail, fix = check_claude_code_cron(cfg)
-    assert st in ("warn", "skip") and ("setup-token" in fix or st == "skip")
+    assert st in ("warn", "skip") and ("claude-login" in fix or st == "skip")
     monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-xyz")
     assert check_claude_code_cron(cfg)[0] in ("ok", "skip")
     monkeypatch.setitem(cfg.secrets, "ASANA_TOKEN", "")

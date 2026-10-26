@@ -145,6 +145,8 @@ outreach:
     approved: "1219847113107056"
     sent: "1219847113142042"
     skip: "1219846985445292"
+    updates_project: "1219837397052431"   # Titan Lead Engine — Claude Updates (engine alarms go to Needs Rodrigo)
+    needs_rodrigo: "1219837590904714"
     per_tick: 2                     # emails per 20-minute round
     send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email

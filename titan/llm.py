@@ -48,6 +48,20 @@ def find_claude_cli(name: str = "claude") -> str | None:
     return None
 
 
+def login_problem(cfg: Any, err: str | None) -> str | None:
+    """Plain-English reason + fix when `claude -p` fails on the login (cron has no Mac keychain, so it needs the saved
+    setup-token). None when the error is something else."""
+    low = (err or "").lower()
+    if "not logged in" in low or "/login" in low:
+        if not cfg.secret("CLAUDE_CODE_OAUTH_TOKEN"):
+            return ("Claude is logged out for the background jobs: the Claude token is not saved in .env on the Mac. "
+                    "Fix once at the Mac: `make claude-login`")
+        return "Claude says not logged in even with the token in .env. Fix at the Mac: `make claude-login` (saves a fresh token)"
+    if "invalid api key" in low or "oauth token" in low or "401" in low or "authentication" in low:
+        return "the Claude token saved in .env was refused (expired or pasted wrong). Fix at the Mac: `make claude-login`"
+    return None
+
+
 class LLM:
     def __init__(self, cfg: Any, conn=None, provider: str | None = None):
         self.cfg = cfg

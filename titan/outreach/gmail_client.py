@@ -81,9 +81,12 @@ class GmailClient:
         return self._labels[name]
 
     # --- compose ----------------------------------------------------------------------------
-    def _mime(self, to: str, subject: str, body: str, in_reply_to: str | None = None, references: str | None = None) -> dict[str, Any]:
+    def _mime(self, to: str, subject: str, body: str, in_reply_to: str | None = None, references: str | None = None,
+              cc: list[str] | None = None) -> dict[str, Any]:
         msg = EmailMessage()
         msg["To"] = to
+        if cc:
+            msg["Cc"] = ", ".join(cc)
         msg["From"] = formataddr((self.sender_name, self.sender))
         msg["Subject"] = subject
         if in_reply_to:
@@ -103,8 +106,9 @@ class GmailClient:
             retry(lambda: self.svc.users().messages().modify(userId="me", id=mid, body={"addLabelIds": [self.label_id(label)]}).execute(), what="gmail label")
         return {"draft_id": draft["id"], "message_id": draft["message"]["id"], "thread_id": draft["message"].get("threadId")}
 
-    def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None) -> dict[str, Any]:
-        message = self._mime(to, subject, body, in_reply_to)
+    def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None,
+             cc: list[str] | None = None) -> dict[str, Any]:
+        message = self._mime(to, subject, body, in_reply_to, cc=cc)
         if thread_id:
             message["threadId"] = thread_id
         try:

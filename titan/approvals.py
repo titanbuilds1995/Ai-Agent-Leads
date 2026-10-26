@@ -69,8 +69,9 @@ def parse_card(notes: str) -> dict[str, Any] | None:
     oid = re.search(r"\((reply to )?outreach #(\d+)\)", notes or "")
     if not (to and subj and body and oid):
         return None
+    cc = re.search(r"^Cc:\s*(.+)$", (notes or "").split(START)[0], re.M | re.I)   # optional, above the email (Rodrigo, 2026-10-26)
     return {"to": to.group(1), "subject": subj.group(1).strip(), "body": body.group(1).strip(), "outreach_id": int(oid.group(2)),
-            "reply_to": bool(oid.group(1))}
+            "reply_to": bool(oid.group(1)), "cc": [x.strip() for x in re.split(r"[,;\s]+", cc.group(1)) if "@" in x] if cc else []}
 
 
 def reply_card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) -> str:
@@ -382,9 +383,9 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             continue
         try:
             if card.get("reply_to"):      # an answer: same Gmail thread as the email it answers
-                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"))
+                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"), **({"cc": card["cc"]} if card.get("cc") else {}))
             else:
-                ids = gmail.send(card["to"], card["subject"], card["body"])
+                ids = gmail.send(card["to"], card["subject"], card["body"], **({"cc": card["cc"]} if card.get("cc") else {}))
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1
             asana.comment(t["gid"], f"Send failed, will retry next round: {str(e)[:200]}")

@@ -59,7 +59,7 @@ def _cards(loaded, cfg, tmp_path, monkeypatch):
 
 def test_card_round_trip():
     n = card_notes("a@b.com", "Your listing on NW 11th St", "Hey Maria,\n\nBody?\n\nCharles", 7, "Listing: ...")
-    assert parse_card(n) == {"to": "a@b.com", "subject": "Your listing on NW 11th St", "body": "Hey Maria,\n\nBody?\n\nCharles", "outreach_id": 7, "reply_to": False}
+    assert parse_card(n) == {"to": "a@b.com", "subject": "Your listing on NW 11th St", "body": "Hey Maria,\n\nBody?\n\nCharles", "outreach_id": 7, "reply_to": False, "cc": []}
 
 
 def test_outreach_posts_cards_with_a_picture_and_sends_nothing(loaded, cfg, tmp_path, monkeypatch):

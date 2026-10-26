@@ -8,6 +8,7 @@ conversations from Asana alone. Runs after every check-replies and approvals tic
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from . import db
@@ -215,6 +216,14 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             lines = where_we_stand(conn, aid, aid in pending_agents)
             if not lines:
                 continue
+            # Rodrigo, 2026-10-26: the status must move as soon as an offer is drafted, not stay at "decide a number"
+            agent_drafts = [d for o in pending if agent_id(o) == aid for d in drafts.get(o, [])]
+            offer = next((d for d in agent_drafts if re.search(r"\$\s?\d{2,3},\d{3}", d[2]["body"])), None)
+            if offer:
+                price = re.search(r"\$\s?(\d{2,3},\d{3})", offer[2]["body"]).group(1)
+                lines[0] = (f"Status: OFFER DRAFTED (${price}): waiting for your approval in {offer[0]}. Drag the card "
+                            f"\"{offer[1]}\" to Approved to send it." if "Approved" not in offer[0] else
+                            f"Status: OFFER APPROVED (${price}): goes out from Charles on the next run.")
             # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — show the drafted reply right here
             for oid in [o for o in pending if agent_id(o) == aid]:
                 for where, cname, pc2 in drafts.get(oid, []):

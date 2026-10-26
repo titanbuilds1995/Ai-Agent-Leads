@@ -127,6 +127,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (status: NEEDS YOU / OUR TURN / ANSWER DRAFTED / WAITING ON THE AGENT / CLOSED, their last words, counts). `conversations.lead_board`,
   runs with check-replies and approvals. **The drafted reply is shown in that block too** ("DRAFTED ANSWER (not sent yet)", card
   name, column, full text; Rodrigo 2026-10-26: he looks at the lead's own card). Approval still happens by dragging the reply card.
+  **The status moves with the draft**: a pending reply card with a dollar figure → "OFFER DRAFTED ($N)" (in To Review) or "OFFER
+  APPROVED ($N)" (in Approved). **Cc:** a card may carry a `Cc:` line above the email; it is sent as Cc (offers Cc Rodrigo).
 - **Per-lead rundowns on Asana are formatted, not walls of text** (Rodrigo, 2026-10-26): when he asks about a lead, put it on the
   Claude Updates card as `html_notes` with `<h1>` address, `<h2>` sections (Status / The house / Our offer / The numbers / Engine
   screen / Conversation so far), `<table>` for figures (header row in `<strong>`), `<hr/>` between sections. Asana html allows only
@@ -140,6 +142,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~1:15pm ET: Lise offer card gets Rodrigo's 3:31pm asks: Cc rodrigo@titanrealtyinvestments.com (his comment had a typo,
+  "titanrelatyinvestments") and an opening line that Charles cc'd his acquisitions manager, who approved the numbers. Lead card
+  status now says OFFER DRAFTED; Cc support built (card `Cc:` line → Gmail Cc). 206 tests.
 - 2026-10-26 ~1pm ET: Rodrigo asked why Asana keeps saying "couldn't rewrite ... Not logged in". Cause: cron can't use the Mac
   keychain login, so it needs CLAUDE_CODE_OAUTH_TOKEN in .env; `make score-test` ran in Terminal (keychain) and passed, hiding it.
   Rodrigo ran `claude setup-token` today (by full path: `claude` isn't on his Terminal PATH). score-test now also says whether

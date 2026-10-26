@@ -165,3 +165,30 @@ def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):
     assert "DRAFTED ANSWER (not sent yet)" in notes and "$209,000" in notes
     pc = parse_card(notes)
     assert pc["outreach_id"] == o1 and not pc["subject"].startswith("Re:") and "209,000" not in pc["body"]   # still the original card
+
+
+def test_offer_card_changes_the_lead_status_and_cc_is_sent(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-26: Lise's status still said 'decide a number' after the offer was drafted; and CC him on offers."""
+    from titan.approvals import post_reply_card
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s = _sections(cfg)
+    g1 = list(asana.tasks)[0]
+    asana.move(g1, s["approved"])
+    send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)
+    o1 = parse_card(asana.tasks[g1]["notes"])["outreach_id"]
+    a1 = loaded.execute("SELECT agent_id FROM outreach WHERE id=?", (o1,)).fetchone()[0]
+    t1 = loaded.execute("SELECT id FROM threads WHERE agent_id=?", (a1,)).fetchone()[0]
+    log_message(loaded, t1, "in", "Bring your best offer.", external_id="z1", classification="ASK_FOR_OFFER", confidence=0.9)
+    gid = post_reply_card(loaded, cfg, asana, o1, "Hi Lise,\n\nPrice: $209,000, cash, as is.\n\nBest regards,\n\nCharles Grant")
+    asana.tasks[gid]["notes"] = "Cc: rodrigo@example.com\n" + asana.tasks[gid]["notes"]
+    asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
+    lead_board(loaded, cfg, asana)
+    assert "OFFER DRAFTED ($209,000)" in asana.tasks[g1]["notes"]
+    assert parse_card(asana.tasks[gid]["notes"])["cc"] == ["rodrigo@example.com"]
+    sent = []
+    class G(FakeGmail):
+        def send(self, to, subject, body, **kw):
+            sent.append(kw); return super().send(to, subject, body)
+    asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, G(), now=SAT_10AM_ET)
+    assert sent and sent[-1].get("cc") == ["rodrigo@example.com"]

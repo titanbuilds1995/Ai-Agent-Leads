@@ -256,3 +256,23 @@ paths:
   logs: "logs"
   reports: "reports"
   raw: "raw"
+
+# THE TRUST LADDER (Rodrigo, 2026-10-26; titan/learning.py). Every card decision is recorded; his comments become the
+# knowledge base injected into every drafting prompt. A stage unlocks only when its rate clears the bar AND Rodrigo drags the
+# "⚙ Autopilot" control card to Approved (dragging it out turns it off; the engine turns it off itself under pause_below).
+autonomy:
+  first_touch:                     # stage 2: first emails go out on their own
+    window: 30                     # judge on his last 30 decided first-email cards
+    min_decided: 30
+    unlock_rate: 0.80              # approved without changing a word (skips and edits count against)
+    pause_below: 0.65
+    veto_hours: 3                  # an untouched card waits this long in To Review before autopilot moves it to Approved
+  reply:                           # stage 3: Charles answers info questions on his own (measured now, auto-answer not built yet)
+    window: 20
+    min_decided: 20
+    unlock_rate: 0.85
+  ranges:                          # stage 4: ranges go out on their own (measured on approve-offer numbers vs internal range)
+    window: 10
+    min_decided: 10
+    unlock_rate: 0.80
+  knowledge: {max_lessons: 30, max_examples: 3}

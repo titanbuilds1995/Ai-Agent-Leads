@@ -173,6 +173,8 @@ def cmd_check_replies(cfg, args):
     if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
         from .conversations import mirror_replies
         res["asana_mirror"] = mirror_replies(conn, cfg, asana)
+        from .conversations import lead_board
+        res["lead_board"] = lead_board(conn, cfg, asana)
     from .dashboard_sync import sync as sync_dashboard
     res["dashboard"] = sync_dashboard(conn, cfg)
     print(json.dumps(res, indent=2))
@@ -337,12 +339,30 @@ def cmd_approvals(cfg, args):
         sys.exit(1)
     c = build_clients(cfg, conn, need=("llm", "gmail"))
     fb = sync_feedback(conn, cfg, asana, c["llm"], c["gmail"])
+    from .learning import learn_tick
+    learned = learn_tick(conn, cfg, asana)      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])
     from .conversations import mirror_replies
     mirrored = mirror_replies(conn, cfg, asana)
+    from .conversations import lead_board
+    mirrored["lead_board"] = lead_board(conn, cfg, asana)    # Answered column + WHERE WE STAND on each answered lead
     from .dashboard_sync import sync as sync_dashboard
     dash = sync_dashboard(conn, cfg)          # the website's Board (card counts, sent, replies) stays current every tick
-    print(json.dumps({"feedback": fb, "send": sent, "asana_mirror": mirrored, "dashboard": dash}, indent=2))
+    print(json.dumps({"feedback": fb, "learning": learned, "send": sent, "asana_mirror": mirrored, "dashboard": dash}, indent=2))
+
+
+def cmd_ladder(cfg, args):
+    """Where each stage of the trust ladder stands, and what the writer has learned from Rodrigo so far."""
+    from .learning import init, knowledge_path, ladder_lines, write_knowledge
+    conn = _open(cfg)
+    init(conn)
+    asana = _asana(cfg)
+    if asana is not None:
+        from .learning import scan_board
+        scan_board(conn, cfg, asana)
+    write_knowledge(conn, cfg)
+    print("\n".join(ladder_lines(conn, cfg)))
+    print(f"\nWhat the writer has learned from you: {knowledge_path(cfg)}")
 
 
 def cmd_test_email(cfg, args):
@@ -442,6 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     ao.add_argument("property_id", type=int)
     ao.add_argument("price", type=int)
     ao.add_argument("--note", default=None)
+    sub.add_parser("ladder", help="trust ladder: how close each stage is to running on its own + what was learned")
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
@@ -458,7 +479,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
     return 0
 
 

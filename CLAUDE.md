@@ -104,12 +104,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   bands), then `titan/targeting.py` lanes: **SITTING** (60+ days; ideal = with price drops / back on market) and
   **FRESH_DEAL** (≤14 days and list ≤ internal high +5% on real comps; lock it in fast); the rest WATCH. Ranking, Claude
   scoring order (cap `scoring.max_claude_calls_per_run`) and outreach order follow the lanes. Outreach stays focused on HOT.
+- **Trust ladder (Rodrigo, 2026-10-26)**: keep editing until he approves most emails as written, then first emails go out on
+  their own, then replies, then ranges; step by step into a knowledge base. `titan/learning.py`: every card decision is
+  recorded (`card_decisions`: approved as written / after his comments or hand edits / skipped; autopilot sends are not votes),
+  every comment is a lesson (`lessons`), his offer numbers vs the internal range (`price_decisions`). `reports/knowledge/learned.md`
+  (rebuilt every approvals tick) goes into every first-touch and revise prompt. Gates in `autonomy:` (config): stage 2 at 80% as
+  written over 30 cards → engine posts ONE "⚙ Autopilot · first emails" card in To Review; **dragging it to Approved is his
+  go-ahead**, dragging it out turns it off, the engine turns it off under 65%. With it on, a Claude-written first email nobody
+  touched for 3 h moves itself to Approved. Stages 3 (replies) and 4 (ranges) are measured only; nothing automatic yet.
+  `titan.cli ladder` prints where each stage stands; the morning report has a Trust ladder section.
+- **Lead board (Rodrigo, 2026-10-26)**: the Sent column is renamed "Sent · no answer yet" (the unanswered list); cards whose agent
+  really answered (not bounces or auto-replies) move to a new "Answered" column, each with a WHERE WE STAND block at the top
+  (status: NEEDS YOU / OUR TURN / ANSWER DRAFTED / WAITING ON THE AGENT / CLOSED, their last words, counts). `conversations.lead_board`,
+  runs with check-replies and approvals.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-26 ~noon ET, RESUME HERE: built the **trust ladder** (learning from every card decision + knowledge base in the prompts +
+  autopilot for first emails behind his go-ahead card) and the **lead board** (Answered column with WHERE WE STAND; Sent renamed
+  "Sent · no answer yet"). Both appear on the board within ~30 min of the Mac pulling. Next build: the engine writes reply cards
+  itself for info-gathering replies (stage 3 data), so Rodrigo edits those like first emails. Lise still waits on his number. 197 tests.
 - 2026-10-26 ~10am ET, RESUME HERE: **Lise's 9:01am reply went out from rodrigo@ (the Mac's Gmail token is Rodrigo's account
   now, which is also why her thread 404'd); Rodrigo: never again.** Guard added (mailbox must equal GMAIL_SENDER; sends refused
   otherwise). Rodrigo must re-auth the Mac as Charles (`rm secrets/gmail_token.json && make gmail-auth`). Lise then replied again

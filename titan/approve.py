@@ -35,6 +35,8 @@ def approve_offer(conn, cfg: Any, property_id: int, price: int, gmail=None, note
                  "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                  (agent["id"], json.dumps([property_id]), "email", "offer:approved", status, d["subject"], d["body"], agent["email"],
                   ids.get("draft_id"), ids.get("thread_id"), today_et(), iso()))
+    from .learning import record_price
+    record_price(conn, cfg, property_id, int(price))      # stage 4 data: his number next to the engine's internal range
     db.set_lead_status(conn, property_id, "OFFER_DRAFTED", f"Rodrigo approved ${int(price):,}" + (f" ({note})" if note else ""))
     log.info("approved offer %s for property %s → %s", price, property_id, ids)
     return {"property": p["street"], "price": int(price), "to": agent["email"], "status": status, **ids}

@@ -102,6 +102,20 @@ CREATE TABLE IF NOT EXISTS llm_usage (
 CREATE TABLE IF NOT EXISTS comps_cache (
   key TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, comps TEXT NOT NULL
 );
+
+-- The trust ladder (titan/learning.py): Rodrigo's decisions on cards, his comments as lessons, his numbers vs our range.
+CREATE TABLE IF NOT EXISTS card_decisions (
+  id INTEGER PRIMARY KEY, card_gid TEXT UNIQUE, outreach_id INTEGER, kind TEXT NOT NULL,
+  decision TEXT NOT NULL, rounds INTEGER DEFAULT 0, hand_edited INTEGER DEFAULT 0,
+  feedback TEXT, draft_body TEXT, final_body TEXT, decided_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS lessons (
+  id INTEGER PRIMARY KEY, kind TEXT NOT NULL, outreach_id INTEGER, card_gid TEXT, text TEXT NOT NULL,
+  before_body TEXT, after_body TEXT, created_at TEXT NOT NULL, UNIQUE(card_gid, text)
+);
+CREATE TABLE IF NOT EXISTS price_decisions (
+  id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
+);
 """
 
 
@@ -115,7 +129,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT",
-              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT"]   # databases created before the column existed
+              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT", "ALTER TABLE outreach ADD COLUMN draft_body TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

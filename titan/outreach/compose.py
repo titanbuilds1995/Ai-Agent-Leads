@@ -373,6 +373,8 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
     }, ensure_ascii=False)
     system = EMAIL_SYSTEM.format(protocol=protocol_text(cfg), voice=voice_text(cfg), sender=op["sender_name"].split()[0],
                                 company=op["company"], company_short=op.get("company_short", op["company"]))
+    from ..learning import learned_block
+    system += learned_block(cfg)       # Rodrigo's own comments on past cards + emails he approved as written (titan/learning.py)
     out = llm.structured("draft_email", system, user, FIRST_TOUCH_SCHEMA, max_tokens=1800)
     if not out or not isinstance(out, dict):
         return None

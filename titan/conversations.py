@@ -107,3 +107,115 @@ def mirror_replies(conn, cfg: Any, asana, limit: int = 50) -> dict[str, int]:
             log.warning("conversations: could not mirror message %s: %s", msg["id"], e)
             counts["failed"] += 1
     return counts
+
+
+# ---------- the lead board (Rodrigo, 2026-10-26: "see exactly who answered and where we stand with each lead, and a whole
+# tab with the unanswered") ----------
+ANSWERED = "Answered"
+NO_ANSWER = "Sent · no answer yet"
+STAND_START, STAND_END = "-----WHERE WE STAND-----", "-----END WHERE WE STAND-----"
+NOT_AN_ANSWER = ("BOUNCE", "OUT_OF_OFFICE")
+PLAIN = {"INTERESTED": "talked about the house", "ASK_FOR_OFFER": "asked for our offer", "COUNTER_WITH_NUMBER": "gave a number",
+         "QUESTION": "asked a question", "NOT_INTERESTED": "not interested", "SOLD_OR_PENDING": "already under contract or sold",
+         "STOP": "asked us to stop"}
+
+
+def board_sections(cfg: Any, asana) -> tuple[str, str]:
+    """(no-answer section, answered section). The old Sent column becomes "Sent · no answer yet"; "Answered" is created
+    right after it the first time."""
+    a = cfg.get("outreach.asana", {}) or {}
+    cached = getattr(asana, "_lead_board", None)
+    if cached:
+        return cached
+    sent = a["sent"]
+    secs = {x["gid"]: (x.get("name") or "") for x in asana.sections(a["project"])}
+    if secs.get(sent, NO_ANSWER) != NO_ANSWER:
+        asana.rename_section(sent, NO_ANSWER)
+    answered = a.get("answered") or asana.ensure_section(a["project"], ANSWERED, insert_before=a.get("skip"))
+    try:
+        asana._lead_board = (sent, answered)
+    except Exception:  # noqa: BLE001
+        pass
+    return sent, answered
+
+
+def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> list[str] | None:
+    """Plain lines for the top of a card, or None when the agent has not really answered (bounces and auto-replies don't count)."""
+    msgs = [db.row_to_dict(r) for r in conn.execute(
+        "SELECT m.direction, m.classification, m.created_at, m.body, t.state FROM messages m JOIN threads t ON t.id=m.thread_id "
+        "WHERE t.agent_id=? ORDER BY m.created_at, m.id", (agent_id,)).fetchall()]
+    real_in = [m for m in msgs if m["direction"] == "in" and (m.get("classification") or "") not in NOT_AN_ANSWER]
+    if not real_in:
+        return None
+    last_in = real_in[-1]
+    last = [m for m in msgs if not (m["direction"] == "in" and (m.get("classification") or "") in NOT_AN_ANSWER)][-1]
+    cls = last_in.get("classification") or ""
+    outs = [m for m in msgs if m["direction"] == "out"]
+    if cls in ("NOT_INTERESTED", "SOLD_OR_PENDING", "STOP") or (last.get("state") or "") in ("CLOSED", "STOPPED"):
+        turn = f"CLOSED: {PLAIN.get(cls, 'conversation ended')}."
+    elif last["direction"] == "out":
+        turn = f"WAITING ON THE AGENT since {_when(last['created_at'])}."
+    elif pending_reply:
+        turn = "ANSWER DRAFTED: Charles's reply card is on the board waiting for you."
+    elif cls in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
+        turn = "NEEDS YOU: decide a number (comment \"offer N\" on this card) or tell Charles what to ask."
+    else:
+        turn = "OUR TURN: Charles owes an answer."
+    snippet = " ".join((last_in.get("body") or "").split())[:180]
+    return [f"Status: {turn}",
+            f"Agent answered {len(real_in)} time(s); last {_when(last_in['created_at'])}: {PLAIN.get(cls, cls.lower() or 'replied')}.",
+            f"Their last words: \"{snippet}{'…' if len(last_in.get('body') or '') > 180 else ''}\"",
+            f"We wrote {len(outs)} time(s)" + (f"; last {_when(outs[-1]['created_at'])}." if outs else ".")]
+
+
+def _with_stand(notes: str, lines: list[str]) -> str:
+    import re
+    block = f"{STAND_START}\n" + "\n".join(lines) + f"\n{STAND_END}\n\n"
+    rest = re.sub(re.escape(STAND_START) + r".*?" + re.escape(STAND_END) + r"\n*", "", notes or "", count=1, flags=re.S)
+    return block + rest
+
+
+def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
+    """Move sent cards whose agent answered from "Sent · no answer yet" to "Answered", and keep a WHERE WE STAND block at
+    the top of every Answered first-email card. Never raises into the caller."""
+    from .approvals import parse_card
+    n = {"moved": 0, "updated": 0}
+    try:
+        a = cfg.get("outreach.asana", {}) or {}
+        sent, answered = board_sections(cfg, asana)
+        pending = set()
+        for sec in (a.get("to_review"), a.get("approved"), getattr(asana, "_needs_revision_gid", None) or a.get("needs_revision")):
+            for t in (asana.section_tasks(sec) if sec else []):
+                pc = parse_card(t.get("notes") or "")
+                if pc and pc.get("reply_to"):
+                    pending.add(pc["outreach_id"])
+        agent_of: dict[int, int | None] = {}
+
+        def agent_id(oid: int) -> int | None:
+            if oid not in agent_of:
+                r = conn.execute("SELECT agent_id FROM outreach WHERE id=?", (oid,)).fetchone()
+                agent_of[oid] = r["agent_id"] if r else None
+            return agent_of[oid]
+
+        pending_agents = {agent_id(o) for o in pending}
+        for t in asana.section_tasks(sent):
+            pc = parse_card(t.get("notes") or "")
+            if pc and agent_id(pc["outreach_id"]) and where_we_stand(conn, agent_id(pc["outreach_id"])):
+                asana.move(t["gid"], answered)
+                n["moved"] += 1
+        for t in asana.section_tasks(answered):
+            pc = parse_card(t.get("notes") or "")
+            if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
+                continue
+            aid = agent_id(pc["outreach_id"])
+            lines = where_we_stand(conn, aid, aid in pending_agents)
+            if not lines:
+                continue
+            new = _with_stand(t.get("notes") or "", lines)
+            if new != (t.get("notes") or ""):
+                asana.update_notes(t["gid"], new)
+                n["updated"] += 1
+    except Exception as e:  # noqa: BLE001
+        log.warning("lead board: %s", e)
+        n["error"] = str(e)[:200]
+    return n

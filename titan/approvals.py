@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from . import db
 from .asana import BOT, Asana, AsanaError
+from .learning import learned_block
 from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
@@ -131,7 +132,7 @@ def post_card(conn, cfg: Any, asana: Asana, agent: dict[str, Any], props: list[d
     name = f"{agent.get('name') or 'Agent'} · {p.get('street')}, {p.get('city')}" + (" ⚡ fresh deal" if lane == "FRESH_DEAL" else "")
     task = asana.create_task(a["project"], a["to_review"], name, card_notes(agent["email"], d["subject"], d["body"], outreach_id, meta))
     _attach_picture(cfg, asana, task["gid"], agent["email"], d["subject"], d["body"], outreach_id)
-    conn.execute("UPDATE outreach SET asana_task_id=? WHERE id=?", (task["gid"], outreach_id))
+    conn.execute("UPDATE outreach SET asana_task_id=?, draft_body=COALESCE(draft_body, body) WHERE id=?", (task["gid"], outreach_id))
     return task["gid"]
 
 
@@ -162,7 +163,9 @@ conversation (ask the agent for the fact instead of stating a figure).
 === VOICE PROTOCOL ("I" for what {sender} did, "we"/"our side" for criteria; never powerless, never overcommitting) ===
 {voice}
 === END VOICE PROTOCOL ===
+{learned}
 Return JSON: subject and body (body includes the unchanged signature block)."""
+
 
 
 TEST_RE = re.compile(r"\btest\b", re.I)
@@ -258,7 +261,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         facts = [{k: p.get(k) for k in ("street", "city", "zip", "list_price", "original_list_price", "price_cuts", "days_on_market", "beds", "baths",
                                         "sqft", "lot_sqft", "year_built", "property_type", "vacant")} | {"listing_remarks_verbatim": (p.get("remarks") or "")[:2000]}
                  for p in props]
-        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg)),
+        out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg),
+                                                learned=learned_block(cfg)),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         if out is None:
@@ -284,6 +288,10 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         rev = sum(1 for c in comments if (c.get("text") or "").startswith(f"{BOT} Revised")) + 1
         _attach_picture(cfg, asana, t["gid"], card["to"], out["subject"], out["body"], card["outreach_id"], rev)
         conn.execute("UPDATE outreach SET subject=?, body=? WHERE id=?", (out["subject"], out["body"], card["outreach_id"]))
+        from .learning import card_kind, record_lesson
+        for f in feedback:
+            if not (TEST_RE.search(f) and len(f.split()) <= 8):
+                record_lesson(conn, card_kind(t.get("notes") or ""), f, card["outreach_id"], t["gid"], card["body"], out["body"])
         asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good.")
         if where == nr:
             asana.move(t["gid"], a["to_review"])
@@ -315,7 +323,8 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
     from .outreach.send import ensure_thread, log_message
     a = _cfg(cfg)
     res = {"sent": 0, "waiting": 0, "errors": 0, "held_for_feedback": 0}
-    approved = asana.section_tasks(a["approved"])
+    from .learning import APPROVED_AS_IS, card_kind, is_control, record_decision
+    approved = [t for t in asana.section_tasks(a["approved"]) if not is_control(t)]   # the autopilot switch is not an email
     res["waiting"] = len(approved)
     held = []
     for t in list(approved):
@@ -364,6 +373,11 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             res["errors"] += 1
             asana.comment(t["gid"], f"Send failed, will retry next round: {str(e)[:200]}")
             continue
+        try:      # the trust ladder: was this approved as the engine wrote it, or after Rodrigo's comments/edits?
+            record_decision(conn, t["gid"], row["id"], card_kind(t.get("notes") or ""), APPROVED_AS_IS, asana.comments(t["gid"]),
+                            card["body"], None if card.get("reply_to") else row.get("body"))
+        except Exception as e:  # noqa: BLE001 — bookkeeping never blocks a send that already happened
+            log.warning("learning: decision for %s not recorded: %s", t["gid"], e)
         with db.tx(conn):
             pids = json.loads(row["property_ids"])
             if card.get("reply_to"):
@@ -403,6 +417,8 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
         except AsanaError as e:                      # card deleted on the board: nothing to rewrite, don't send it either
             log.warning("card for outreach %s is gone (%s); marking skipped", row["id"], e)
             conn.execute("UPDATE outreach SET status='skipped' WHERE id=?", (row["id"],))
+            from .learning import SKIPPED, record_decision
+            record_decision(conn, row["asana_task_id"], row["id"], "first_touch", SKIPPED, [])
             n["card_deleted"] += 1
             continue
         if feedback or any((c.get("text") or "").startswith(f"{BOT} Revised based on your comment") for c in comments):
@@ -422,8 +438,8 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
             n["failed"] += 1
             log.error("rewrite of outreach %s failed: %s", row["id"], e)
             continue
-        conn.execute("UPDATE outreach SET subject=?, body=?, variant=?, analysis=? WHERE id=?",
-                     (d["subject"], d["body"], d["variant"], json.dumps(d.get("analysis") or {}), row["id"]))
+        conn.execute("UPDATE outreach SET subject=?, body=?, draft_body=?, variant=?, analysis=? WHERE id=?",
+                     (d["subject"], d["body"], d["body"], d["variant"], json.dumps(d.get("analysis") or {}), row["id"]))
         asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
                                                              listing_meta(props[0], agent, d.get("analysis"))))
         _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)

@@ -26,6 +26,8 @@ class FakeAsana:
     def comments(self, task): return [{"text": t} for t in self.stories[task]]
     def comment(self, task, text): self.stories[task].append(f"{BOT} {text}")
     def move(self, task, section): self.where[task] = section
+    def rename_section(self, section, name):
+        secs = getattr(self, "_sections", {}); secs[section] = name; self._sections = secs
     def sections(self, project): return [{"gid": g, "name": n} for g, n in getattr(self, "_sections", {}).items()]
     def ensure_section(self, project, name, insert_before=None):
         secs = getattr(self, "_sections", {})

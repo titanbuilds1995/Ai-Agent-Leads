@@ -63,3 +63,6 @@ class Asana:
         if insert_before:
             data["insert_before"] = insert_before
         return self._req("POST", f"/projects/{project}/sections", json={"data": data})["gid"]
+
+    def rename_section(self, section: str, name: str) -> None:
+        self._req("PUT", f"/sections/{section}", json={"data": {"name": name}})

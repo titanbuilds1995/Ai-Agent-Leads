@@ -84,6 +84,11 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
                   f"- Conversations {st.get('conversations', 0)} · answered by us {st.get('answered', 0)} (answer rate {pct(st.get('answer_rate_pct'))}) · "
                   f"**awaiting our answer {st.get('awaiting_our_answer', 0)}** · needs Rodrigo {st.get('needs_rodrigo', 0)} · waiting on the agent {st.get('waiting_on_agent', 0)}",
                   f"- Today: {st.get('new_today', 0)} new listings · {st.get('sent_today', 0)} sent · {st.get('replies_today', 0)} replies · HOT now {st.get('hot', 0)} · cards waiting {st.get('cards_waiting', 0)}", ""]
+    try:
+        from .learning import ladder_lines
+        lines += ["## Trust ladder (how close Charles is to working on his own)", ""] + ladder_lines(conn, cfg) + [""]
+    except Exception:  # noqa: BLE001
+        pass
     lines += ["## Pipeline", "", "| metric | count |", "|---|---|"]
     for k in ("today_properties_seen", "today_new", "properties", "scored", "valued", "HOT", "WARM", "COLD", "agents", "agents_with_email",
               "today_emails", "today_sms", "emails_sent", "emails_drafted", "sms_sent", "sms_drafted", "replies", "hot_leads", "do_not_contact"):

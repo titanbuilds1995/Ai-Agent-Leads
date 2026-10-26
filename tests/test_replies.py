@@ -208,3 +208,21 @@ def test_unclear_reply_gets_no_canned_answer(cfg):
     assert a.reply is None and a.thread_state == "OPEN" and "human" in a.note
     a = decide(Classification("QUESTION", 0.7, reasons=["question"]), _ctx(), cfg, "email", {"state": "OPEN"}, "what is your EMD?")
     assert a.reply and "5,000" in a.reply
+
+
+def test_heal_bounces_refiles_old_misread_bounces(loaded, cfg):
+    from titan import db
+    from titan.replies.inbox import heal_bounces
+    from titan.util import iso
+    aid = loaded.execute("SELECT id FROM agents LIMIT 1").fetchone()[0]
+    pid = loaded.execute("SELECT id FROM properties LIMIT 1").fetchone()[0]
+    loaded.execute("INSERT INTO threads(agent_id,channel,external_id,property_ids,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                   (aid, "email", "t-bounce", f"[{pid}]", "ESCALATED", iso(), iso()))
+    tid = loaded.execute("SELECT id FROM threads WHERE external_id='t-bounce'").fetchone()[0]
+    loaded.execute("INSERT INTO messages(thread_id,direction,body,external_id,classification,confidence,created_at) VALUES(?,?,?,?,?,?,?)",
+                   (tid, "in", "** Recipient inbox full ** Your message couldn't be delivered to x@yahoo.com. 552 5.2.2 mailbox is full", "m-bounce", "COUNTER_WITH_NUMBER", 0.85, iso()))
+    assert heal_bounces(loaded) == 1
+    assert loaded.execute("SELECT state FROM threads WHERE id=?", (tid,)).fetchone()[0] == "BOUNCED"
+    assert loaded.execute("SELECT classification FROM messages WHERE external_id='m-bounce'").fetchone()[0] == "BOUNCE"
+    assert loaded.execute("SELECT email_confidence FROM agents WHERE id=?", (aid,)).fetchone()[0] == "bounced"
+    assert heal_bounces(loaded) == 0

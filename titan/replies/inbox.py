@@ -156,11 +156,32 @@ def check_handoff_timeouts(conn, cfg: Any, now: datetime | None = None) -> int:
     return n
 
 
+def heal_bounces(conn) -> int:
+    """Delivery failures that an older build filed as replies (e.g. a 'mailbox full' notice read as a $520k counter) are
+    re-filed as BOUNCE: thread BOUNCED, agent email marked bounced, lead NEEDS_CALL. Idempotent; runs before every check."""
+    from .classifier import BOUNCE_RE
+    n = 0
+    rows = conn.execute("SELECT m.id, m.body, m.thread_id, t.agent_id, t.property_ids FROM messages m JOIN threads t ON t.id=m.thread_id "
+                        "WHERE m.direction='in' AND COALESCE(m.classification,'') != 'BOUNCE'").fetchall()
+    for r in rows:
+        if not BOUNCE_RE.search((r["body"] or "").lower()):
+            continue
+        with db.tx(conn):
+            conn.execute("UPDATE messages SET classification='BOUNCE', confidence=0.98 WHERE id=?", (r["id"],))
+            conn.execute("UPDATE threads SET state='BOUNCED', last_class='BOUNCE', updated_at=? WHERE id=?", (iso(), r["thread_id"]))
+            if r["agent_id"]:
+                conn.execute("UPDATE agents SET email_confidence='bounced', updated_at=? WHERE id=?", (iso(), r["agent_id"]))
+            for pid in json.loads(r["property_ids"] or "[]"):
+                db.set_lead_status(conn, pid, "NEEDS_CALL", "email bounced (bad or full mailbox); reach the agent by phone")
+        n += 1
+    return n
+
+
 # --- the 15-minute job -----------------------------------------------------------------------------
 
 def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=None, now: datetime | None = None) -> dict[str, Any]:
     run_id = db.start_run(conn, "check_replies", today_et())
-    counts = {"threads_checked": 0, "new_replies": 0, "errors": 0, "sms_flushed": 0, "handoff_timeouts": 0}
+    counts = {"threads_checked": 0, "new_replies": 0, "errors": 0, "sms_flushed": 0, "handoff_timeouts": 0, "healed_bounces": heal_bounces(conn)}
     sender = (cfg.secret("GMAIL_SENDER") or "").lower()
     if gmail is not None:
         rows = conn.execute("SELECT * FROM threads WHERE channel='email' AND external_id IS NOT NULL AND external_id NOT LIKE 'local-%' "
@@ -171,6 +192,7 @@ def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=Non
                 msgs = gmail.thread_messages(t["external_id"])
             except Exception as e:  # noqa: BLE001
                 counts["errors"] += 1
+                counts.setdefault("first_error", f"gmail thread {t['external_id']}: {str(e)[:200]}")
                 log.error("gmail thread %s: %s", t["external_id"], e)
                 continue
             for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
@@ -186,6 +208,7 @@ def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=Non
                     counts["new_replies"] += 1
                 except Exception as e:  # noqa: BLE001
                     counts["errors"] += 1
+                    counts.setdefault("first_error", f"handle_inbound {m['id']}: {str(e)[:200]}")
                     log.exception("handle_inbound failed: %s", e)
     counts["sms_flushed"] = flush_queued_sms(conn, cfg, twilio, now)
     counts["handoff_timeouts"] = check_handoff_timeouts(conn, cfg, now)

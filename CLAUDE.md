@@ -100,6 +100,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 7:40am ET, RESUME HERE: Monday report read. 5 emails sent total, 2 real replies, 68 new listings, 25 HOT, 78 cards
+  waiting (30 new this morning, intro OK). Lise's answer (card "Reply · Lise Freeman", Approved) goes out 8:30–8:50am ET.
+  **Cloud GMAIL_TOKEN_JSON_CONTENT is still Rodrigo's mailbox** (profile = rodrigo@), so the cloud still cannot read/send as
+  Charles; replies reach Asana through the mirror. Added `heal_bounces()` (old misread bounces → BOUNCED/NEEDS_CALL, so the Dror
+  "counter" stops showing as a conversation) and `first_error` in check_replies counts (28 "partial" runs overnight, cause
+  unknown until the log shows it). Still to decide with Rodrigo: auto-send info-gathering replies; "offer N" comment sends the
+  written offer; the Conversations board columns. 186 tests.
 - 2026-10-25 ~5:45pm ET, RESUME HERE: **Lise Freeman is answered**: her reply (full gut: roof, window AC units, kitchen, bath,
   electrical; seller inherited it) reached Asana through the new conversations mirror; Charles's answer is the card
   "Reply · Lise Freeman · 529 23rd Ave N" (gid 1219880631430547) in **Approved** on the Email Approvals board and goes out from

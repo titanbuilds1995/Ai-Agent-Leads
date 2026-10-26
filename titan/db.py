@@ -129,7 +129,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT",
-              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT", "ALTER TABLE outreach ADD COLUMN draft_body TEXT"]   # databases created before the column existed
+              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT", "ALTER TABLE outreach ADD COLUMN draft_body TEXT",
+              "ALTER TABLE messages ADD COLUMN reply_card TEXT", "ALTER TABLE messages ADD COLUMN reply_draft TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

@@ -111,7 +111,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (rebuilt every approvals tick) goes into every first-touch and revise prompt. Gates in `autonomy:` (config): stage 2 at 80% as
   written over 30 cards → engine posts ONE "⚙ Autopilot · first emails" card in To Review; **dragging it to Approved is his
   go-ahead**, dragging it out turns it off, the engine turns it off under 65%. With it on, a Claude-written first email nobody
-  touched for 3 h moves itself to Approved. Stages 3 (replies) and 4 (ranges) are measured only; nothing automatic yet.
+  touched for 3 h moves itself to Approved. Stage 3: **Charles drafts his own answer** to every agent waiting on us (`titan/replies/writer.py`, reply card in To Review, no
+  number ever, holding answer when they ask for an offer); Rodrigo edits/approves like first emails and that is what stage 3 measures.
+  Stage 4 (ranges) is measured only. Nothing replies or quotes on its own yet.
   `titan.cli ladder` prints where each stage stands; the morning report has a Trust ladder section.
 - **Lead board (Rodrigo, 2026-10-26)**: the Sent column is renamed "Sent · no answer yet" (the unanswered list); cards whose agent
   really answered (not bounces or auto-replies) move to a new "Answered" column, each with a WHERE WE STAND block at the top
@@ -129,6 +131,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~noon ET: **stage 3 started**: the engine writes reply cards itself (check-replies + approvals ticks; one card per
+  agent message; skipped when an answer card is already on the board). Comments on a reply card now rewrite the reply (no intro rule,
+  validate_reply) instead of overwriting the first email's text (old bug). Expect a card for Richard Dipietro on the next tick. 204 tests.
 - 2026-10-26 ~11:30am ET: lead board is LIVE on Asana (Answered: Lise, Richard, Lise reply card). Fixed two wrong reads: Richard's
   rents + broker license # in his signature were read as a $3.6M counter (signature lines and rent amounts no longer count as prices),
   and Lise's "bring your best offer" was filed as a question; `heal_misreads()` re-files old messages on the next check. An offer

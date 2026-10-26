@@ -267,7 +267,7 @@ autonomy:
     unlock_rate: 0.80              # approved without changing a word (skips and edits count against)
     pause_below: 0.65
     veto_hours: 3                  # an untouched card waits this long in To Review before autopilot moves it to Approved
-  reply:                           # stage 3: Charles answers info questions on his own (measured now, auto-answer not built yet)
+  reply:                           # stage 3: Charles drafts every answer as a reply card (titan/replies/writer.py); auto-send comes after this gate
     window: 20
     min_decided: 20
     unlock_rate: 0.85

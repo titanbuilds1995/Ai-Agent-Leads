@@ -168,6 +168,16 @@ Return JSON: subject and body (body includes the unchanged signature block)."""
 
 
 
+REPLY_CARD_NOTE = """
+THIS CARD IS A REPLY in an existing conversation, not a first email: no intro paragraph, ignore the 60-120 word rule (25-90 words),
+keep the subject unchanged, never re-ask what the agent already answered, still one question and no number or offer language."""
+
+
+def _reply_draft(conn, gid: str) -> str | None:
+    r = conn.execute("SELECT reply_draft FROM messages WHERE reply_card=? ORDER BY id DESC LIMIT 1", (gid,)).fetchone()
+    return r[0] if r else None
+
+
 TEST_RE = re.compile(r"\btest\b", re.I)
 EMAIL_IN_TEXT_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
@@ -262,7 +272,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                                         "sqft", "lot_sqft", "year_built", "property_type", "vacant")} | {"listing_remarks_verbatim": (p.get("remarks") or "")[:2000]}
                  for p in props]
         out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg),
-                                                learned=learned_block(cfg)),
+                                                learned=learned_block(cfg)) + (REPLY_CARD_NOTE if card.get("reply_to") else ""),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         if out is None:
@@ -270,7 +280,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                                                             " (not logged in, or CLAUDE_CODE_OAUTH_TOKEN missing in .env)")
             problems = [why]
         else:
-            problems = validate_email(out["subject"], out["body"], props)
+            from .replies.writer import validate_reply
+            problems = validate_reply(out["body"]) if card.get("reply_to") else validate_email(out["subject"], out["body"], props)
         if problems:
             last = (comments[-1].get("text") or "") if comments else ""
             if not last.startswith(f"{BOT} {FAILED_PREFIX}"):      # say it once; the feedback stays pending and is retried next tick
@@ -287,7 +298,10 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         asana.update_notes(t["gid"], notes)
         rev = sum(1 for c in comments if (c.get("text") or "").startswith(f"{BOT} Revised")) + 1
         _attach_picture(cfg, asana, t["gid"], card["to"], out["subject"], out["body"], card["outreach_id"], rev)
-        conn.execute("UPDATE outreach SET subject=?, body=? WHERE id=?", (out["subject"], out["body"], card["outreach_id"]))
+        if card.get("reply_to"):      # an answer card: its text lives with the message it answers, not on the first email
+            conn.execute("UPDATE messages SET reply_draft=? WHERE reply_card=?", (out["body"], t["gid"]))
+        else:
+            conn.execute("UPDATE outreach SET subject=?, body=? WHERE id=?", (out["subject"], out["body"], card["outreach_id"]))
         from .learning import card_kind, record_lesson
         for f in feedback:
             if not (TEST_RE.search(f) and len(f.split()) <= 8):
@@ -375,7 +389,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             continue
         try:      # the trust ladder: was this approved as the engine wrote it, or after Rodrigo's comments/edits?
             record_decision(conn, t["gid"], row["id"], card_kind(t.get("notes") or ""), APPROVED_AS_IS, asana.comments(t["gid"]),
-                            card["body"], None if card.get("reply_to") else row.get("body"))
+                            card["body"], _reply_draft(conn, t["gid"]) if card.get("reply_to") else row.get("body"))
         except Exception as e:  # noqa: BLE001 — bookkeeping never blocks a send that already happened
             log.warning("learning: decision for %s not recorded: %s", t["gid"], e)
         with db.tx(conn):

@@ -173,6 +173,8 @@ def cmd_check_replies(cfg, args):
     if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
         from .conversations import mirror_replies
         res["asana_mirror"] = mirror_replies(conn, cfg, asana)
+        from .replies.writer import draft_reply_cards
+        res["reply_cards"] = draft_reply_cards(conn, cfg, asana, c["llm"])     # stage 3: Charles drafts his answer as a card
         from .conversations import lead_board
         res["lead_board"] = lead_board(conn, cfg, asana)
     from .dashboard_sync import sync as sync_dashboard
@@ -344,6 +346,8 @@ def cmd_approvals(cfg, args):
     sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])
     from .conversations import mirror_replies
     mirrored = mirror_replies(conn, cfg, asana)
+    from .replies.writer import draft_reply_cards
+    mirrored["reply_cards"] = draft_reply_cards(conn, cfg, asana, c["llm"])  # stage 3: Charles drafts his answer as a card
     from .conversations import lead_board
     mirrored["lead_board"] = lead_board(conn, cfg, asana)    # Answered column + WHERE WE STAND on each answered lead
     from .dashboard_sync import sync as sync_dashboard

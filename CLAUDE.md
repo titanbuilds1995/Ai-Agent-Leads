@@ -64,6 +64,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Voice/sender:** outreach is written and signed by **Charles** (Rodrigo's assistant) from Charles@; the style guide and
   Rodrigo's example emails are tone references only. Charles Grant, Junior Acquisitions Agent.
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
+  **Written offers (Rodrigo, 2026-10-26, Lise):** 30-day close ("longer if needed" when not vacant), 9-day inspection, $5k deposit;
+  offer emails thank briefly (no fluff), list the terms, then a human paragraph that owns a below-ask number and explains it
+  (resale range, cost of the work). Unrepresented: listing agent can take 4%, seller saves 2%.
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
@@ -133,6 +136,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~11:30am ET: Rodrigo commented on **Lise's own card** (moved it to Needs Revision) to change the offer: brief thanks,
+  30-day close, 9-day inspection, human last paragraph. Applied by hand to the offer card (gid 1219900327903853, To Review) and the
+  lead card moved back to Answered. **Gap:** the engine applies a comment on a lead card to that card's ORIGINAL first email, not to
+  the pending reply card; feedback on a lead card with a pending reply should rewrite the reply card instead (not built yet).
 - 2026-10-26 ~noon ET: **stage 3 started**: the engine writes reply cards itself (check-replies + approvals ticks; one card per
   agent message; skipped when an answer card is already on the board). Comments on a reply card now rewrite the reply (no intro rule,
   validate_reply) instead of overwriting the first email's text (old bug). Expect a card for Richard Dipietro on the next tick. 204 tests.

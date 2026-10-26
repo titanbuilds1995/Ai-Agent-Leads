@@ -24,7 +24,9 @@ BANNED_RE = re.compile(
     r"good fit for our|meet our (investment )?criteria|we work with properties|reaching out regarding|I am writing to|"
     r"(looked|looking) at the (photos|pictures|images)|from the (photos|pictures)|in the (photos|pictures)|"
     r"the (roof|kitchen|bathroom|interior|exterior) (looks|appears)|(photos|pictures) (show|make it look)|"
-    r"I noticed (the property|your property|the home|this home) (needs|has|is)|the note in the remarks|in the remarks\b", re.I)
+    r"I noticed (the property|your property|the home|this home) (needs|has|is)|the note in the remarks|in the remarks\b|"
+    # Rodrigo, 2026-10-26 (Eugene, Saidelys cards): not how people email
+    r"I'?ll keep this (short|brief)|keep it short|stood out to me|caught my eye|(and|in) the surrounding areas?\b", re.I)
 # Voice protocol: criteria are company framing, never personal opinion; never powerless, never overcommitting.
 PERSONAL_RE = re.compile(
     r"\bI'?m (less|more) (focused|worried|concerned)|\bI (don'?t|do not) (care|mind)\b|\bI wouldn'?t mind\b|\bI'?m comfortable with\b|"
@@ -38,11 +40,43 @@ PERSONAL_RE = re.compile(
 # AI). We wholesale, so never say outright that we are the buyer: "we're looking for properties in X", "our side", "what we
 # look for", words that infer buying without "we buy" / "we're the buyer". Validated: the first paragraph names the company.
 INTRO_RE = re.compile(r"\btitan realty\b", re.I)
-INTRO_LINES = [
-    "Charles here with Titan Realty Investments. We're looking for properties in and around {city}, and this one stood out to me.",
-    "I'm Charles with Titan Realty Investments, we're looking for properties in {city} and the surrounding area and like this part of town quite a bit.",
-    "Charles with Titan Realty Investments here. We're looking for properties in and around {city}, and your listing stood out.",
+INTRO_LINES = [   # Rodrigo, 2026-10-26: plain. "Charles with Titan Realty Investments. We saw your listing." Nothing more.
+    "Charles with Titan Realty Investments. I saw your listing on {street_name}.",
+    "Charles here with Titan Realty Investments. We saw your listing on {street_name} in {city}.",
+    "Charles with Titan Realty Investments. I came across your listing on {street_name}.",
 ]
+GREETING_RE = re.compile(r"^((?:Hey|Hi|Hello) [^\n,]{1,40}|[A-Z][^\s,\n]{0,30}),[ \t]+(?=\S)")
+
+
+def format_paragraphs(body: str) -> str:
+    """Rodrigo, 2026-10-26: "Eugene, space, space, then the paragraph". Greeting on its own line, then short paragraphs
+    (at most 3 sentences each) separated by a blank line. The signature block is left untouched."""
+    sig_at = body.find("\n\nBest regards,")
+    main, sig = (body[:sig_at], body[sig_at:]) if sig_at >= 0 else (body, "")
+    main = main.strip()
+    m = GREETING_RE.match(main)
+    if m:
+        main = m.group(1) + ",\n\n" + main[m.end():].lstrip()
+    paras = [x.strip() for x in re.split(r"\n\s*\n", main) if x.strip()]
+    out = []
+    for i, para in enumerate(paras):
+        if i == 0 and GREETING_RE.match(para + " x") and len(para) < 45:
+            out.append(para)
+            continue
+        if "\n" in para:          # a list of addresses or terms: keep its lines
+            out.append(para)
+            continue
+        sents = re.split(r"(?<=[.?!])\s+(?=[A-Z])", para)
+        for j in range(0, len(sents), 3):
+            out.append(" ".join(sents[j:j + 3]))
+    return "\n\n".join(out) + sig
+
+
+def first_real_paragraph(body: str) -> str:
+    paras = [x for x in body.strip().split("\n\n") if x.strip()]
+    if paras and len(paras[0]) < 45 and paras[0].rstrip().endswith(","):
+        paras = paras[1:]
+    return paras[0] if paras else ""
 # Rodrigo, 2026-10-25: red-flag phrases. We are wholesaling, so the email never states that we are the buyer, never calls us
 # investors, and never uses salesy "genuinely interested" / "serious buyers". Checked on every first touch, rewrite and reply.
 BUYER_RE = re.compile(
@@ -87,6 +121,8 @@ Working rules for this call:
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
 - One natural question an agent can answer easily (two at most). 60-120 words before the signature including the intro. Vary the opening naturally.
+- LAYOUT (Rodrigo, 2026-10-26): greeting alone on the first line ("Hey Eugene,"), then a blank line, then short paragraphs of 1 to 3 sentences separated by blank lines; the question in its own paragraph. Never one block of text.
+- PLAIN INTRO (Rodrigo, 2026-10-26): "Charles with Titan Realty Investments. I saw your listing on <street>." Never "I'll keep this short", "stood out to me", "caught my eye" or "we're looking for properties in X and the surrounding area". Never claim anything about the photos (we have not seen them).
 - Write as {sender} in first person. Address the agent by first name.
 - INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, and that this listing came up / stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name says it all: do NOT say "we're investors", "we buy in this area regularly" or "genuinely interested" (reads as AI and raises red flags). Directed at the agent, plain talk, not a pitch (no "we specialize in", no credentials list). Then the property reasoning and the question.
 - WE NEVER SAY WE ARE THE BUYER (Rodrigo, 2026-10-25). Say "we're looking for properties in X", "what we look for", "our side", "something we'd pursue", "close to what works for us". Never "we buy", "we'd buy", "what we buy", "we're the buyer", "serious buyers", "we're investors". Words that infer buying, never the statement.
@@ -320,14 +356,15 @@ def _ctx(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> dict[s
 
 
 def with_intro(body: str, intro: str) -> str:
-    """Insert the who-we-are sentence right after the greeting ("Hey {first}, quick question" → "Hey {first}, <intro> Quick question")."""
-    return re.sub(r"^((?:Hey )?\{first\}), (\w)", lambda m: f"{m.group(1)}, {intro} {m.group(2).upper()}", body, count=1)
+    """Greeting on its own line, then the who-we-are line as its own paragraph, then the rest:
+    "Hey {first}, quick question" → "Hey {first},\n\n<intro>\n\nQuick question"."""
+    return re.sub(r"^((?:Hey )?\{first\}), (\w)", lambda m: f"{m.group(1)},\n\n{intro}\n\n{m.group(2).upper()}", body, count=1)
 
 
 def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]], seed: int) -> tuple[str, str, str]:
     ctx = _ctx(cfg, agent, props)
     rnd = random.Random(seed)
-    intro = rnd.choice(INTRO_LINES).format(city=ctx["city"] or "South Florida")
+    intro = rnd.choice(INTRO_LINES).replace("{city}", ctx["city"] or "South Florida")   # {street_name} is filled with the body
     if len(props) > 1:
         subj, body = MULTI_TEMPLATE
         variant = "multi"
@@ -337,7 +374,7 @@ def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]],
         i = rnd.randrange(len(options))
         subj, body = options[i]
         variant = f"t:{angle}:{i}"
-    return subj.format(**ctx), with_intro(body, intro).format(**ctx), variant
+    return subj.format(**ctx), format_paragraphs(with_intro(body, intro).format(**ctx)), variant
 
 
 def _history_summary(p: dict[str, Any]) -> list[str]:
@@ -395,7 +432,10 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
-    first_para = body.strip().split("\n\n")[0]
+    first_para = first_real_paragraph(body)
+    head = body.strip().split("\n")
+    if not (len(head) > 2 and head[0].rstrip().endswith(",") and len(head[0]) < 45 and not head[1].strip()):
+        problems.append("greeting not on its own line (Rodrigo: 'Hey Eugene,' then a blank line)")
     if not INTRO_RE.search(first_para):
         problems.append("no intro (Rodrigo: the first paragraph names Titan Realty Investments)")
     if BUYER_RE.search(body) or BUYER_RE.search(subject):
@@ -426,6 +466,7 @@ def compose_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[
         if not res:
             break
         subject, body, analysis = res
+        body = format_paragraphs(body)
         problems = validate_email(subject, body, props)
         if not problems:
             return {"subject": subject, "body": body, "variant": "claude", "analysis": analysis}

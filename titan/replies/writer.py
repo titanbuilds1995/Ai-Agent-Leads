@@ -127,7 +127,8 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
                 out = llm.structured("draft_reply", system, user, REPLY_SCHEMA, max_tokens=900)
                 if not out:
                     break
-                body = str(out.get("body", "")).strip()
+                from ..outreach.compose import format_paragraphs
+                body = format_paragraphs(str(out.get("body", "")).strip())
                 problems = validate_reply(body)
                 if not problems:
                     break

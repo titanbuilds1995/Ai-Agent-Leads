@@ -281,6 +281,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             problems = [why]
         else:
             from .replies.writer import validate_reply
+            from .outreach.compose import format_paragraphs
+            out["body"] = format_paragraphs(out["body"])
             problems = validate_reply(out["body"]) if card.get("reply_to") else validate_email(out["subject"], out["body"], props)
         if problems:
             last = (comments[-1].get("text") or "") if comments else ""

@@ -191,8 +191,10 @@ def test_first_paragraph_introduces_who_we_are(cfg):
     from titan.outreach.compose import compose_email, validate_email
     for seed in range(12):
         d = compose_email(None, cfg, {"name": "Maria Lopez"}, [{"id": 1, "street": "101 NW 11th St", "city": "Miami", "remarks": "", "days_on_market": 90, "price_cuts": 0, "year_built": 1990}], seed)
-        first = d["body"].split("\n\n")[0]
-        assert "Titan Realty Investments" in first and "Miami" in first and first.startswith(("Hey Maria,", "Maria,"))
+        greeting, first = d["body"].split("\n\n")[:2]
+        assert greeting in ("Hey Maria,", "Maria,")                                    # greeting alone on its own line
+        assert "Titan Realty Investments" in first and "NW 11th St" in first
+        assert not any(x in d["body"] for x in ("stood out", "surrounding area", "keep this short"))
         assert not validate_email(d["subject"], d["body"], [{"street": "101 NW 11th St"}])
     p = [{"street": "101 NW 11th St"}]
     bare = "Hey Maria, quick question on NW 11th St. Is it mostly cosmetic or something bigger? How much work would you say it really needs, and is the seller open to some flexibility on price at this point?\n\nBest regards,\n\nCharles Grant"

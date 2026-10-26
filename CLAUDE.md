@@ -34,7 +34,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   replaced the earlier no-self-intro rule). **Tightened 2026-10-25 (Rodrigo, Eugene Schroeder card): the name says it all. Never
   "we're investors who buy here regularly", never "genuinely interested" (reads as AI), and since we wholesale, never state that we
   are the buyer: "we're looking for properties in X", "what we look for", "our side"; never "we buy" / "we'd buy" / "serious buyers"
-  (protocol §0b, voice §17, `BUYER_RE` rejects them).** **Third column "Needs Revision" (Rodrigo, 2026-10-26):** a card he
+  (protocol §0b, voice §17, `BUYER_RE` rejects them).** **Layout + plain intro (Rodrigo, 2026-10-26):** greeting alone on line 1
+  ("Hey Eugene,"), blank line, short paragraphs of 1–3 sentences, question in its own paragraph (`format_paragraphs()` runs on
+  every first email, rewrite and reply; `validate_email` rejects a greeting not on its own line). Intro is just "Charles with Titan
+  Realty Investments. I saw your listing on X."; `BANNED_RE` rejects "I'll keep this short", "stood out to me", "caught my eye",
+  "…and the surrounding area"; never say anything about photos (protocol §0a). **Third column "Needs Revision" (Rodrigo, 2026-10-26):** a card he
   comments on (in To Review or Approved) goes to Needs Revision until the rewrite lands, then back to To Review for his decision;
   nothing ever sends from Needs Revision; a card dragged there without a comment gets one prompt. The engine creates the section
   itself (`needs_revision_section`, between To Review and Approved). **Agent phone on every card** (`agent_line`, older cards
@@ -136,6 +140,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~12:30pm ET: Rodrigo asked to apply his feedback to every waiting card. 74 To Review first-email cards rewritten in
+  the cloud to the new layout + plain intro + human tone (Jason Welt, C Glansen and the Lise offer card left alone; Eugene and
+  Saidelys are in Needs Revision with fresh comments, the Mac's engine rewrites those). Engine now formats every email the same
+  way (`format_paragraphs`), new banned phrases, plainer template intros. Pictures on rewritten cards are stale; the text sends.
 - 2026-10-26 ~11:30am ET: Rodrigo commented on **Lise's own card** (moved it to Needs Revision) to change the offer: brief thanks,
   30-day close, 9-day inspection, human last paragraph. Applied by hand to the offer card (gid 1219900327903853, To Review) and the
   lead card moved back to Answered. **Gap:** the engine applies a comment on a lead card to that card's ORIGINAL first email, not to

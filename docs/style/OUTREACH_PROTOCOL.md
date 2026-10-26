@@ -30,6 +30,13 @@ says it all (Rodrigo, 2026-10-25): never "we're investors who buy in Pompano Bea
 in and around Miami, and your listing on NW 11th St stood out to me." Then the reasoning and the one question. It is an
 introduction, not a pitch: no "we specialize in", no credentials, no "we buy 50 houses a year".
 
+## 0a. Layout and plain intro (Rodrigo, 2026-10-26, Eugene and Saidelys cards)
+Greeting alone on its own line ("Hey Eugene,"), a blank line, then short paragraphs of one to three sentences with a blank line
+between them; the question gets its own paragraph. One big block reads unprofessional. The intro is plain: "Charles with Titan
+Realty Investments. I saw your listing on SW 7th St." Not "I'll keep this short", not "stood out to me", not "we're looking for
+properties in Delray and the surrounding areas" (people don't write that in email). Never say anything about the photos (we
+haven't analyzed them; saying "there are no photos" when there are makes us look careless).
+
 ## 0b. We never say we are the buyer (Rodrigo, 2026-10-25)
 We wholesale, so be conscious of never explicitly stating that we are the buyer. Say "we're looking for properties in X",
 "what we look for", "our side", "something we'd pursue", "close to what works for us", "our team is looking at". Never

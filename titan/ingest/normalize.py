@@ -24,7 +24,9 @@ TYPE_MAP = {
 FLAG_PATTERNS = {
     "short_sale": r"\bshort[\s-]?sale\b",
     "reo": r"\b(reo|bank[\s-]owned|lender[\s-]owned|foreclosed|hud[\s-]owned|hud home|fannie mae|freddie mac|homepath|homesteps)\b|(?<!pre-)(?<!pre )\bforeclosure\b",
-    "auction": r"\bauction\b",
+    # Rodrigo 2026-10-26 (Jason Welt card): bankruptcy / court sales are auctions too, whatever word the listing uses
+    "auction": r"\bauction(s|ed)?\b|\bbankruptcy\b|\btrustee'?s? sale\b|\bcourt[\s-]approv\w*|\bsubject to (bankruptcy )?court\b|"
+               r"\bhighest (and best )?bid(der)?\b|\bbid deadline\b|\bsealed bids?\b|\bchapter (7|11|13)\b",
     "pre_foreclosure": r"\bpre[\s-]?foreclosure\b|\blis pendens\b|\bnotice of default\b",
     "probate": r"\bprobate\b|\bpersonal representative\b|\bletters of administration\b",
     "not_a_home": r"\b(boat slip|boat dock(age)? (for sale|only)|dock slip|marina slip|wet slip|dry slip|parking (space|spot)s? (for sale|only)|"

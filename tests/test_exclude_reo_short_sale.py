@@ -55,3 +55,13 @@ def test_no_assignment_and_no_inspection_listings_are_excluded():
     assert "no_inspection" in detect_flags("Seller wants 0 day inspection period")
     assert "no_inspection" in detect_flags("Sold as-is, no inspection contingency")
     assert not {"no_assignment", "no_inspection"} & set(detect_flags("Assignment of lease included; 7 day inspection period welcome"))
+
+
+def test_bankruptcy_and_court_sales_count_as_auction():
+    """Rodrigo 2026-10-26 (Jason Welt): a bankruptcy auction slipped through because the word 'auction' wasn't used."""
+    from titan.ingest.normalize import detect_flags
+    for text in ("Bankruptcy sale, subject to court approval.", "Sold by the trustee's sale process", "Highest and best bid by Friday",
+                 "Sealed bids due 11/3", "Chapter 7 estate property"):
+        assert "auction" in detect_flags(text), text
+    for text in ("Listed by Trustee Realty Inc.", "Great family home, new roof", "Not an auction"):
+        assert "auction" not in detect_flags(text), text

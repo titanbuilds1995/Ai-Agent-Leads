@@ -142,6 +142,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~1:35pm ET, RESUME HERE: Rodrigo is fed up with the Mac login loop. Cloud applied his comments by hand: Manuel Arce,
+  Eddy Gervais, Saidelys Garcia, Eugene Schroeder rewritten → To Review (🤖 "Revised" comments so the engine won't redo them);
+  Jason Welt → Skip. Auction filter widened (bankruptcy, court approval, trustee's sale, sealed/highest bid, chapter 7/11/13).
+  Still open: Richard Dipietro comps + offer number for 2327 Polk St ($4,500/mo); Mac cron token (`make claude-login`, fixed to
+  read the clipboard). Proposed to Rodrigo: a cloud scheduled task that applies card comments so Asana never waits on the Mac. 211 tests.
 - 2026-10-26 ~1:10pm ET: first `make claude-login` saved HALF a token (setup-token prints it over two lines; input() read one)
   → 401 "OAuth access token is invalid". Fixed: it now reads the token from the Mac clipboard (pbpaste), joins wrapped lines and
   refuses anything under 90 chars. Rodrigo runs `git pull && make claude-login` again (new token each time). 210 tests.

@@ -322,6 +322,12 @@ def cmd_score_test(cfg, args):
         print(f"- {p['street']}, {p['city']} ({p.get('days_on_market')}d): " +
               (f"score {r['score']} · {r['summary']}" if r else f"no result ({llm.last_error or 'see logs'})"))
     print("OK" if res else "FAILED")
+    # This test runs in Terminal, which uses the Mac keychain login. Cron can't, so it needs the saved token.
+    if llm.provider == "claude_code" and not cfg.secret("CLAUDE_CODE_OAUTH_TOKEN"):
+        print("BUT the background jobs (cron) are NOT logged in: CLAUDE_CODE_OAUTH_TOKEN is missing from .env, so Asana will "
+              "keep saying 'Not logged in'. Run `claude setup-token` and add the token to .env as CLAUDE_CODE_OAUTH_TOKEN=...")
+    elif llm.provider == "claude_code":
+        print("background jobs (cron): logged in (CLAUDE_CODE_OAUTH_TOKEN saved in .env)")
 
 
 def _asana(cfg):

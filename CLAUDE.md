@@ -140,6 +140,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~1pm ET: Rodrigo asked why Asana keeps saying "couldn't rewrite ... Not logged in". Cause: cron can't use the Mac
+  keychain login, so it needs CLAUDE_CODE_OAUTH_TOKEN in .env; `make score-test` ran in Terminal (keychain) and passed, hiding it.
+  Rodrigo ran `claude setup-token` today (by full path: `claude` isn't on his Terminal PATH). score-test now also says whether
+  cron is logged in. Intermittent successes before = keychain unlocked while he was at the Mac. Next: confirm the next tick rewrites.
 - 2026-10-26 ~12:30pm ET: Rodrigo asked to apply his feedback to every waiting card. 74 To Review first-email cards rewritten in
   the cloud to the new layout + plain intro + human tone (Jason Welt, C Glansen and the Lise offer card left alone; Eugene and
   Saidelys are in Needs Revision with fresh comments, the Mac's engine rewrites those). Engine now formats every email the same

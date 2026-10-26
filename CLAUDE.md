@@ -161,7 +161,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   rounds by an independent reviewer: 5 → 6 → 7.5 → 8.5/10. HomeHarvest comps now keep pool/water, MLS #, remarks, year built.
   The six stuck cards get handled on the next tick: Balthazar → sent as is + call card; Carlton, Montas, Kara, Dipietro →
   numbers; Foland → rewrite with the agent's listings. Not verified on the live Asana API yet (html_notes / html_text payloads):
-  check the first NUMBERS card. 248 tests.
+  check the first NUMBERS card. 236 tests.
 - 2026-10-26 ~3:30pm ET, RESUME HERE: **"token refused" on Asana, root fix.** Every rewrite used ONLY the token in .env; when it was
   refused, nothing else was tried, though the Mac's own Claude login (keychain) often worked (hence "fixes itself"). Now `claude -p`
   tries the .env token, then the Mac's login, and keeps the one that works for the run; a card fails only if BOTH are refused

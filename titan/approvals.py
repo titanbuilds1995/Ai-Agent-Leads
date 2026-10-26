@@ -25,6 +25,34 @@ def _cfg(cfg: Any) -> dict[str, Any]:
     return cfg.get("outreach.asana", {}) or {}
 
 
+NEEDS_REVISION = "Needs Revision"
+PROMPT_PREFIX = "Tell me what to change"
+
+
+def needs_revision_section(cfg: Any, asana: Asana) -> str:
+    """Rodrigo, 2026-10-26: a third column. To Review = ready for his decision; Needs Revision = he commented and the
+    engine is rewriting (or could not yet); Approved = sends. The section is created on the board the first time."""
+    a = _cfg(cfg)
+    if a.get("needs_revision"):
+        return a["needs_revision"]
+    cached = getattr(asana, "_needs_revision_gid", None)
+    if cached:
+        return cached
+    gid = asana.ensure_section(a["project"], NEEDS_REVISION, insert_before=a.get("approved"))
+    try:
+        asana._needs_revision_gid = gid
+    except Exception:  # noqa: BLE001
+        pass
+    return gid
+
+
+def agent_line(agent: dict[str, Any]) -> str:
+    """Rodrigo, 2026-10-26: the agent's phone on every card so he can call the ones he likes."""
+    from .util import pretty_phone
+    phone = pretty_phone(agent.get("phone")) if agent.get("phone") else ""
+    return f"Agent: {agent.get('name')} · {phone + ' · ' if phone else ''}{agent.get('email')} · {agent.get('brokerage') or ''}"
+
+
 def card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) -> str:
     return (f"To: {to}\nSubject: {subject}\n{START}\n{body}\n{END}\n\n{meta}\n\n"
             f"Comment feedback to get a rewrite. Drag to Approved to send (it goes out during business hours). "
@@ -62,7 +90,7 @@ def post_reply_card(conn, cfg: Any, asana: Asana, outreach_id: int, body: str, s
     street = ", ".join(x["street"] for x in props) or "your listing"
     subject = row.get("subject") or f"Quick question on {street}"
     subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
-    meta = f"Answering {agent.get('name')} about {street}." + (f"\n{note}" if note else "")
+    meta = f"Answering {agent.get('name')} about {street}.\n{agent_line(agent)}" + (f"\n{note}" if note else "")
     task = asana.create_task(a["project"], section or a["to_review"], f"Reply · {agent.get('name')} · {street}",
                              reply_card_notes(row["to_address"] or agent.get("email"), subject, body, outreach_id, meta))
     return task.get("gid")
@@ -89,7 +117,7 @@ def listing_meta(p: dict[str, Any], agent: dict[str, Any], analysis: dict[str, A
     lane = p.get("lane") or ""
     meta = (f"Listing: {p.get('street')}, {p.get('city')} · ${int(p.get('list_price') or 0):,} · {p.get('days_on_market')} days on market · "
             f"{p.get('price_cuts') or 0} price cut(s) · {lane}\n{p.get('listing_url') or ''}\n"
-            f"Agent: {agent.get('name')} · {agent.get('email')} · {agent.get('brokerage') or ''}")
+            f"{agent_line(agent)}")
     at = analysis_text(analysis)
     return f"{meta}\n\n{at}" if at else meta
 
@@ -149,7 +177,7 @@ def pending_feedback(asana: Asana, task_gid: str) -> tuple[list[str], list[dict[
     "Couldn't rewrite" and "Held" comments do not count: the feedback stays pending until a rewrite actually lands."""
     comments = asana.comments(task_gid)
     last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)
-                    and not (c.get("text") or "").startswith((f"{BOT} {FAILED_PREFIX}", f"{BOT} Held:"))), default=-1)
+                    and not (c.get("text") or "").startswith((f"{BOT} {FAILED_PREFIX}", f"{BOT} Held:", f"{BOT} {PROMPT_PREFIX}"))), default=-1)
     return [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)], comments
 
 
@@ -175,16 +203,48 @@ def send_test_copy(cfg: Any, asana: Asana, gmail, task_gid: str, card: dict[str,
     return True
 
 
+AGENT_LINE_RE = re.compile(r"^Agent: .*$", re.M)
+PHONE_IN_LINE_RE = re.compile(r"\(\d{3}\) \d{3}-\d{4}|\+1 ?\d")
+
+
+def _add_phone(conn, asana: Asana, t: dict[str, Any], card: dict[str, Any]) -> bool:
+    """Put the agent's phone on an older card that was written without it. Once per card; never raises."""
+    try:
+        notes = t.get("notes") or ""
+        m = AGENT_LINE_RE.search(notes)
+        if not m or PHONE_IN_LINE_RE.search(m.group(0)):
+            return False
+        row = conn.execute("SELECT a.* FROM agents a JOIN outreach o ON o.agent_id=a.id WHERE o.id=?", (card["outreach_id"],)).fetchone()
+        if not row or not row["phone"]:
+            return False
+        new = notes[:m.start()] + agent_line(db.row_to_dict(row)) + notes[m.end():]
+        asana.update_notes(t["gid"], new)
+        t["notes"] = new
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("phone on card %s: %s", t.get("gid"), e)
+        return False
+
+
 def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, int]:
     """Rewrite To Review cards that got new feedback comments (or send a test copy when asked); mark Skip cards as skipped."""
     a = _cfg(cfg)
-    n = {"revised": 0, "skipped": 0, "revise_failed": 0, "tests_sent": 0}
-    for t in asana.section_tasks(a["to_review"]):
+    nr = needs_revision_section(cfg, asana)
+    n = {"revised": 0, "skipped": 0, "revise_failed": 0, "tests_sent": 0, "moved_to_revision": 0, "phones_added": 0}
+    tasks = [(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
+    for t, where in tasks:
         card = parse_card(t.get("notes") or "")
         if not card:
             continue
+        if _add_phone(conn, asana, t, card):
+            n["phones_added"] += 1
         feedback, comments = pending_feedback(asana, t["gid"])
         if not feedback:
+            if where == nr:
+                last = (comments[-1].get("text") or "") if comments else ""
+                if not last.startswith(BOT):      # Rodrigo dragged it here without saying what to change
+                    asana.comment(t["gid"], f"{PROMPT_PREFIX} in a comment (or edit the text between the EMAIL lines) and I'll rewrite it "
+                                            f"and move it back to To Review.")
             continue
         test_to = test_request(feedback, cfg)
         if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
@@ -212,6 +272,9 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             if not last.startswith(f"{BOT} {FAILED_PREFIX}"):      # say it once; the feedback stays pending and is retried next tick
                 asana.comment(t["gid"], f"{FAILED_PREFIX} ({', '.join(problems)}). I'll retry on the next round; you can also edit the "
                                         f"text on the card yourself or comment again with different wording.")
+            if where != nr:                                         # it is not ready for a decision: park it in Needs Revision
+                asana.move(t["gid"], nr)
+                n["moved_to_revision"] += 1
             n["revise_failed"] += 1
             continue
         notes = (t["notes"] or "")
@@ -221,7 +284,9 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         rev = sum(1 for c in comments if (c.get("text") or "").startswith(f"{BOT} Revised")) + 1
         _attach_picture(cfg, asana, t["gid"], card["to"], out["subject"], out["body"], card["outreach_id"], rev)
         conn.execute("UPDATE outreach SET subject=?, body=? WHERE id=?", (out["subject"], out["body"], card["outreach_id"]))
-        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Drag to Approved when it's good.")
+        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good.")
+        if where == nr:
+            asana.move(t["gid"], a["to_review"])
         n["revised"] += 1
         if test_to:
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], {**card, "subject": out["subject"], "body": out["body"]}, test_to))
@@ -256,15 +321,15 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
     for t in list(approved):
         feedback, _ = pending_feedback(asana, t["gid"])
         if feedback:
-            asana.move(t["gid"], a["to_review"])
+            asana.move(t["gid"], needs_revision_section(cfg, asana))
             approved.remove(t)
             held.append(t["gid"])
     if held:
         res["held_for_feedback"] = len(held)
-        sync_feedback(conn, cfg, asana, llm, gmail)          # apply the comment now, not next tick
         for gid in held:
-            asana.comment(gid, "Held: you left a comment after approving, so this went back to To Review and your feedback was applied "
-                               "above (or the test copy was sent). Drag it to Approved again when it's good.")
+            asana.comment(gid, "Held: you left a comment after approving, so this went to Needs Revision. Nothing sends from there. "
+                               "Your feedback is being applied; the card comes back to To Review when the rewrite lands.")
+        sync_feedback(conn, cfg, asana, llm, gmail)          # apply the comment now, not next tick
     if not approved or not in_window(cfg, now):
         return res
     if gmail is None:

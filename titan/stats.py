@@ -88,7 +88,13 @@ def asana_counts(cfg: Any, asana=None) -> dict[str, int] | None:
         from .asana import Asana
         asana = Asana(cfg.secret("ASANA_TOKEN"))
     try:
-        return {k: len(asana.section_tasks(a[k])) for k in ("to_review", "approved", "sent", "skip") if a.get(k)}
+        out = {k: len(asana.section_tasks(a[k])) for k in ("to_review", "approved", "sent", "skip") if a.get(k)}
+        try:
+            from .approvals import needs_revision_section
+            out["needs_revision"] = len(asana.section_tasks(needs_revision_section(cfg, asana)))
+        except Exception:  # noqa: BLE001
+            pass
+        return out
     except Exception as e:  # noqa: BLE001
         log.warning("stats: Asana counts unavailable: %s", e)
         return None

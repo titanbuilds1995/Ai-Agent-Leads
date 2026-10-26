@@ -34,7 +34,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   replaced the earlier no-self-intro rule). **Tightened 2026-10-25 (Rodrigo, Eugene Schroeder card): the name says it all. Never
   "we're investors who buy here regularly", never "genuinely interested" (reads as AI), and since we wholesale, never state that we
   are the buyer: "we're looking for properties in X", "what we look for", "our side"; never "we buy" / "we'd buy" / "serious buyers"
-  (protocol §0b, voice §17, `BUYER_RE` rejects them).** A "couldn't rewrite" comment does NOT consume feedback (retried next
+  (protocol §0b, voice §17, `BUYER_RE` rejects them).** **Third column "Needs Revision" (Rodrigo, 2026-10-26):** a card he
+  comments on (in To Review or Approved) goes to Needs Revision until the rewrite lands, then back to To Review for his decision;
+  nothing ever sends from Needs Revision; a card dragged there without a comment gets one prompt. The engine creates the section
+  itself (`needs_revision_section`, between To Review and Approved). **Agent phone on every card** (`agent_line`, older cards
+  patched on the next tick), on the reply mirror and on the website's conversation cards (tap to call), so Rodrigo can call
+  the agents he likes. A "couldn't rewrite" comment does NOT consume feedback (retried next
   tick, reason shown, e.g. Claude not logged in from cron). `rewrite-pending` leaves cards that Rodrigo's feedback already shaped
   alone and marks deleted cards skipped. Needs ASANA_TOKEN in the Mac's .env.
 - **Outreach protocol = `docs/style/OUTREACH_PROTOCOL.md`** (Rodrigo, 2026-10-24): think first (facts / signals / inferences /
@@ -100,6 +105,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~9:50am ET, RESUME HERE: Lise Freeman's reply went out Mon 9:01am ET (first try 404'd on the stale Gmail thread id;
+  a parallel session added the fresh-message fallback). **Rodrigo paused sending**: Approved is empty, nothing sends until he drags a
+  card there. Sent so far: Thais Guevara + Lise Freeman (Sat 12:44pm, before his edits), Abraham Elbaz + Dror Gerges (Sat 4:05pm;
+  Dror bounced), Richard Dipietro (Sun 3:41pm), Lise reply (Mon 9:01am). This commit: **Needs Revision column** (engine creates it;
+  commented cards park there until rewritten, then return to To Review; held Approved cards go there) and **agent phones** on cards /
+  mirror / website. Still on Rodrigo: cron Claude token (`claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`), Charles's Gmail token in
+  the cloud env, Vercel redeploy check. 188 tests.
 - 2026-10-26 7:40am ET, RESUME HERE: Monday report read. 5 emails sent total, 2 real replies, 68 new listings, 25 HOT, 78 cards
   waiting (30 new this morning, intro OK). Lise's answer (card "Reply · Lise Freeman", Approved) goes out 8:30–8:50am ET.
   **Cloud GMAIL_TOKEN_JSON_CONTENT is still Rodrigo's mailbox** (profile = rodrigo@), so the cloud still cannot read/send as

@@ -26,6 +26,13 @@ class FakeAsana:
     def comments(self, task): return [{"text": t} for t in self.stories[task]]
     def comment(self, task, text): self.stories[task].append(f"{BOT} {text}")
     def move(self, task, section): self.where[task] = section
+    def sections(self, project): return [{"gid": g, "name": n} for g, n in getattr(self, "_sections", {}).items()]
+    def ensure_section(self, project, name, insert_before=None):
+        secs = getattr(self, "_sections", {})
+        for g, n in secs.items():
+            if n == name: return g
+        gid = f"sec-{name.lower().replace(' ', '-')}"; secs[gid] = name; self._sections = secs
+        return gid
 
 
 class FakeGmail:
@@ -133,8 +140,36 @@ def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monk
             return {"subject": c["subject"], "body": c["body"].replace("Hope you're doing well. ", "")}
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
     assert res["sent"] == 0 and res["held_for_feedback"] == 1 and not gm.sent
-    assert asana.where[gid] == s["to_review"] and any("Held" in c for c in asana.stories[gid])
-    assert any("Revised" in c for c in asana.stories[gid])            # feedback applied right away, not next tick
+    assert any("Held" in c for c in asana.stories[gid]) and any("Revised" in c for c in asana.stories[gid])   # applied right away
+    assert asana.where[gid] == s["to_review"]                           # rewrite landed → back to To Review for his decision
+    # same thing when Claude cannot rewrite: the card parks in Needs Revision, never in Approved, never in To Review
+    gid2 = list(asana.tasks)[1]
+    asana.move(gid2, s["approved"]); asana.stories[gid2].append("mention the pool")
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)
+    nr = asana.ensure_section(None, "Needs Revision")
+    assert res["held_for_feedback"] == 1 and not gm.sent and asana.where[gid2] == nr
+    assert any(c.startswith(f"{BOT} I couldn't rewrite") for c in asana.stories[gid2])
+    # nothing sends from Needs Revision, and a bare drag there gets one prompt
+    gid3 = list(asana.tasks)[2] if len(asana.tasks) > 2 else None
+    if gid3:
+        asana.move(gid3, nr)
+        sync_feedback(loaded, cfg, asana, None)
+        sync_feedback(loaded, cfg, asana, None)
+        assert [c for c in asana.stories[gid3] if "Tell me what to change" in c].__len__() == 1 and asana.where[gid3] == nr
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)["sent"] == 0 and not gm.sent
+
+
+def test_phone_is_added_to_older_cards(loaded, cfg, tmp_path, monkeypatch):
+    from titan.approvals import agent_line
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    gid = next(iter(asana.tasks))
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    loaded.execute("UPDATE agents SET phone='+13055550123' WHERE id=(SELECT agent_id FROM outreach WHERE id=?)", (oid,))
+    import re
+    asana.tasks[gid]["notes"] = re.sub(r"^Agent: .*$", "Agent: Old Card · old@example.com · Brokerage", asana.tasks[gid]["notes"], flags=re.M)
+    n = sync_feedback(loaded, cfg, asana, None)
+    assert n["phones_added"] >= 1 and "(305) 555-0123" in asana.tasks[gid]["notes"]
+    assert "(305) 555-0123" in agent_line({"name": "X", "phone": "+13055550123", "email": "x@y.com"})
 
 
 def test_send_me_a_test_sends_a_copy_to_rodrigo_only(loaded, cfg, tmp_path, monkeypatch):

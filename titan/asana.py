@@ -30,6 +30,14 @@ class Asana:
         return self._req("POST", "/tasks", json={"data": {"name": name, "notes": notes, "projects": [project],
                                                           "memberships": [{"project": project, "section": section}]}})
 
+    def create_task_html(self, project: str, section: str, name: str, html_notes: str) -> dict[str, Any]:
+        return self._req("POST", "/tasks", json={"data": {"name": name, "html_notes": html_notes, "projects": [project],
+                                                          "memberships": [{"project": project, "section": section}]}})
+
+    def comment_html(self, task: str, html_text: str) -> None:
+        """html_text must be a <body>…</body> that starts with BOT, so the engine reads it as its own comment."""
+        self._req("POST", f"/tasks/{task}/stories", json={"data": {"html_text": html_text}})
+
     def update_notes(self, task: str, notes: str) -> None:
         self._req("PUT", f"/tasks/{task}", json={"data": {"notes": notes}})
 

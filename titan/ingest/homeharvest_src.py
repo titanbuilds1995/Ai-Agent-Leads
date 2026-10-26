@@ -102,18 +102,18 @@ def price_bands(lo: int, hi: int, width: int) -> list[tuple[int, int]]:
     return out or [(lo, hi)]
 
 
-def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
+def comps_fn(cfg: Any, conn, scrape: Scrape | None = None, months: int | None = None) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
     """Sold comps for the subject's ZIP (one query per ZIP per day, cached in comps_cache), then valuation.select_comps
     filters by distance/size. A county-wide sold query caps out at the result limit and drops most of a big county, so
     the county query is only the fallback when the ZIP is unknown or too thin."""
     from .. import db
     cache: dict[str, list[dict[str, Any]]] = {}
-    months = cfg.get("valuation.comp_months", 6)
+    months = months or cfg.get("valuation.comp_months", 6)
 
     min_zip = max(cfg.get("valuation.min_comps", 3) * 3, 8)
 
     def load(location: str) -> list[dict[str, Any]]:
-        key = f"hh-sold:{location}:{today_et()}"
+        key = f"hh-sold:{location}:{today_et()}" + (f":{months}m" if months != cfg.get("valuation.comp_months", 6) else "")
         if key in cache:
             return cache[key]
         row = conn.execute("SELECT comps FROM comps_cache WHERE key=?", (key,)).fetchone()
@@ -136,7 +136,8 @@ def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str
                 continue
             comps.append({"address": l.address_line, "sold_price": price, "sqft": l.sqft, "lot_sqft": l.lot_sqft,
                           "property_type": l.property_type, "lat": l.lat, "lng": l.lng, "zip": l.zip,
-                          "sold_date": it.get("last_sold_date") or (it.get("description") or {}).get("sold_date")})
+                          "sold_date": it.get("last_sold_date") or (it.get("description") or {}).get("sold_date"),
+                          **comp_details(it, l)})
         conn.execute("INSERT OR REPLACE INTO comps_cache(key,fetched_at,comps) VALUES(?,?,?)", (key, db.iso(), json.dumps(comps)))
         cache[key] = comps
         return comps
@@ -150,6 +151,15 @@ def comps_fn(cfg: Any, conn, scrape: Scrape | None = None) -> Callable[[dict[str
         return comps
 
     return fn
+
+
+def comp_details(it: dict[str, Any], l) -> dict[str, Any]:
+    """What a comps snapshot shows besides price and size (Rodrigo's compact comps: pool/water, condition, MLS #)."""
+    tags = {str(t).lower() for t in (it.get("tags") or []) if t}
+    src = it.get("source") or {}
+    return {"year_built": l.year_built, "beds": l.beds, "baths": l.baths, "remarks": (l.remarks or "")[:400],
+            "pool": any("pool" in t for t in tags) or None, "water": any(w in t for t in tags for w in ("waterfront", "lake", "canal", "water_view")) or None,
+            "mls": (src.get("listing_id") if isinstance(src, dict) else None) or it.get("mls_id") or it.get("listing_id")}
 
 
 def _sold_price(it: dict[str, Any]) -> int | None:

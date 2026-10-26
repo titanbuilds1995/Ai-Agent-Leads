@@ -1,0 +1,139 @@
+"""Comments do what they ask (Rodrigo, 2026-10-26: 'why would it not give me what I am asking?'): numbers come back as a
+snapshot in Lise's layout with the comps, ARV, exit and where we need to be; 'send it' sends the text as is; 'call him
+tomorrow' puts a call card on his board; wording comments still rewrite."""
+from titan import comps_report
+from titan.approvals import parse_card, sync_feedback
+from titan.comment_router import classify
+
+from tests.test_approvals import FakeAsana, _cards, _sections
+
+# His real comments on 2026-10-26 (Asana, Email Approvals board)
+CARLTON = ("Hey for this property I need us to figure out before we email him what the numbers look like I want to see how far off "
+           "or how close off he is from from where we need to be at and also look at the numbers for baba baba new construction and")
+BALTHAZAR = ("Hey this is a really good email I want us to stay on top of this lead and Mark him as hot cuz I think this could be a hot "
+             "potential so send him the email and follow up with him if you don't hear from him by the end of the day and then put it "
+             "on my on my boards to call tomorrow after you send them the emails")
+MONTAS = ("Hey this property is a cash flow property, so with what it generates we know more or less where we need to be, let's do the "
+          "following I want you to comp this property and I want to see what the products in the area are selling for and where we "
+          "woudl need to be at for this. I think we'll straight send him an offer or a range since it's really a cash cow..")
+KARA = ("Hey I approve this email I actually really like it and what I want you to do is I want you to send it email and then give me "
+        "this property back I want to look at the comparables in the area for what we could potentially who sell the land for and also "
+        "let me know if homes like this are being renovated it seems like it has subfloors so do that research for me take a look at it "
+        "if it does have subfloors that's an issue and if they are being renovated what's after a pair value of properties like this "
+        "actually give that to me before we send him an email let's comp it")
+FOLAND = ("Hey I didn't see that 28th Court is their listing so I want to just double check with that confirm on that and the precise "
+          "with our communication we can't have that type of incongruency")
+DIPIETRO = ("Hey two things here first of all one of the properties that we got from this guy was renovated the one in Riviera Beach, "
+            "for the home that he's talking to us about the 2500 and 2000 a month that's $4,500 a month per for the property I want us "
+            "to run comparables on that and see what could we who sell this property for what would be a good offer for them")
+WORDING = "take out I'll keep this short, people don't say that. Just say we saw your new listing"
+
+
+def test_his_six_comments_are_sorted_right():
+    assert "numbers" in classify([CARLTON]) and "send" not in classify([CARLTON])
+    b = classify([BALTHAZAR])
+    assert {"send", "call"} <= b and "numbers" not in b and "rewrite" not in b
+    assert "numbers" in classify([MONTAS])
+    assert "numbers" in classify([KARA])           # "approve ... send it" loses to "before we send him an email let's comp it"
+    f = classify([FOLAND])
+    assert "check" in f and "rewrite" in f and "numbers" not in f and "send" not in f
+    assert "numbers" in classify([DIPIETRO])
+    assert classify([WORDING]) == {"rewrite"}
+    assert classify(["looks good, send it"]) == {"send"}
+    assert "rewrite" in classify(["send it but change the opening to Hey Mike"])
+
+
+class HtmlAsana(FakeAsana):
+    def __init__(self):
+        super().__init__()
+        self.html = {}
+
+    def create_task_html(self, project, section, name, html_notes):
+        r = self.create_task(project, section, name, "")
+        self.html[r["gid"]] = html_notes
+        return r
+
+    def comment_html(self, task, html_text):
+        assert html_text.startswith("<body>🤖")
+        self.stories[task].append(html_text[len("<body>"):])
+
+
+def _fake_comps(p):
+    base = {"property_type": p.get("property_type"), "lat": p.get("lat"), "lng": p.get("lng"), "zip": p.get("zip")}
+    sq = p.get("sqft") or 1500
+    out = []
+    for i, (price, cond) in enumerate([(410000, "Fully renovated, new kitchen"), (395000, "Remodeled 2024"), (420000, "Turnkey home"),
+                                       (300000, "Sold as-is, needs work"), (330000, ""), (405000, "Renovated with pool"), (280000, "TLC, cash only")]):
+        out.append({**base, "address": f"{100 + i} Test St", "sold_price": price, "sqft": sq, "sold_date": f"2026-0{i + 1}-15",
+                    "remarks": cond, "pool": "pool" in cond.lower() or None, "mls": f"F100{i}"})
+    return out
+
+
+def _setup(loaded, cfg, tmp_path, monkeypatch, comment):
+    asana0, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    asana = HtmlAsana()
+    asana.tasks, asana.where, asana.stories, asana._ids = asana0.tasks, asana0.where, asana0.stories, asana0._ids
+    gid = next(iter(asana.tasks))
+    asana.stories[gid].append(comment)
+    import titan.approvals as ap
+    monkeypatch.setattr(ap, "_comps_fn", lambda cfg, conn, cache: _fake_comps)
+    return asana, gid
+
+
+class NoLLM:
+    available = True
+
+    def structured(self, *a, **k):
+        raise AssertionError("a numbers / send / call comment must not trigger a rewrite")
+
+
+def test_numbers_comment_posts_the_snapshot_and_holds_the_email(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, DIPIETRO)
+    before = asana.tasks[gid]["notes"]
+    n = sync_feedback(loaded, cfg, asana, NoLLM())
+    assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] == before          # text untouched
+    assert asana.where[gid] != _sections(cfg)["approved"]                      # held, never sent
+    snap = [s for s in asana.stories[gid] if "NUMBERS" in s][0]
+    assert "Where we need to be" in snap and "The comps" in snap and "ARV" in snap and "Exit to end buyer" in snap
+    html = next(iter(asana.html.values()))
+    for section in ("<h1>", "<h2>Status</h2>", "<h2>The house</h2>", "<h2>The comps</h2>", "<h2>The numbers</h2>",
+                    "<h2>Still open</h2>", "<h2>Conversation so far</h2>", "Averages", "Median $/sf"):
+        assert section in html
+    for bad in ("<p>", "<br", "<th"):
+        assert bad not in html                                                   # Asana rejects these (400 XML invalid)
+    assert (tmp_path / "reports" / "comps").exists()
+    # handled: the next round does not redo it
+    assert sync_feedback(loaded, cfg, asana, NoLLM())["numbers"] == 0
+
+
+def test_send_it_moves_to_approved_untouched_and_books_the_call(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, BALTHAZAR)
+    before = asana.tasks[gid]["notes"]
+    n = sync_feedback(loaded, cfg, asana, NoLLM())
+    s = _sections(cfg)
+    assert asana.where[gid] == s["approved"] and asana.tasks[gid]["notes"] == before and n["sent_as_is"] == 1
+    calls = [t for g, t in asana.tasks.items() if t["name"].startswith("📞 Call")]
+    assert len(calls) == 1 and asana.where[calls[0]["gid"]] == s["needs_rodrigo"]
+    oid = parse_card(before)["outreach_id"]
+    pid = loaded.execute("SELECT json_extract(property_ids,'$[0]') FROM outreach WHERE id=?", (oid,)).fetchone()[0]
+    assert loaded.execute("SELECT lead_status FROM properties WHERE id=?", (pid,)).fetchone()[0] == "NEEDS_CALL"
+
+
+def test_snapshot_math_and_compact_table(loaded, cfg, tmp_path, monkeypatch):
+    cfg.root = tmp_path
+    pid = loaded.execute("SELECT id FROM properties WHERE sqft > 0 AND property_type != 'land' AND lead_status != 'EXCLUDED' LIMIT 1").fetchone()[0]
+    s = comps_report.build(loaded, cfg, pid, _fake_comps, asked="comp it, what's the ARV and the land value")
+    assert 6 <= len(s["comps"]) <= 10
+    n = s["numbers"]
+    sq = s["p"]["sqft"]
+    assert "renovated" in n["arv_basis"] and n["arv"] == round(407500 / sq * sq, -3)      # median of the 4 renovated sales (395k 405k 410k 420k)
+    if n.get("exit") is not None:
+        assert n["ours"] == n["exit"] - n["fee"] and n["exit"] == round(n["arv"] * n["ratio"] - n["repairs"], -3)
+    assert any(k == "Lot sales nearby" for k, _ in s["extra"])                                  # he asked about land
+    txt = comps_report.to_text(s)
+    assert "Where we need to be" in txt and len(txt.split()) < 600                              # compact (Rodrigo, 2026-09-14)
+
+
+def test_rent_is_read_from_the_agents_reply():
+    assert comps_report.rent_from(["Polk Street unit A is rented for $2,500, unit B $2,000 monthly."]) == 4500
+    assert comps_report.rent_from(["Beautiful home, no rent stated"]) is None

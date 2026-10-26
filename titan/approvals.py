@@ -240,11 +240,60 @@ def _add_phone(conn, asana: Asana, t: dict[str, Any], card: dict[str, Any]) -> b
         return False
 
 
+def _comps_fn(cfg: Any, conn, cache: dict[str, Any]):
+    """Sold comps for the numbers snapshot: free HomeHarvest pull, last 12 months (Rodrigo's comps rule). None off the Mac."""
+    if "fn" not in cache:
+        try:
+            from .ingest.homeharvest_src import comps_fn
+            import homeharvest  # noqa: F401  (only installed on the Mac)
+            cache["fn"] = comps_fn(cfg, conn, months=12)
+        except Exception:  # noqa: BLE001
+            cache["fn"] = None
+    return cache["fn"]
+
+
+def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, card: dict[str, Any], feedback: list[str],
+                  n: dict[str, int], nr: str, comps_cache: dict[str, Any]):
+    """Do what the comment asks (titan/comment_router.py). True = handled, no rewrite. A list = the agent's listings,
+    to put in front of the rewrite (he asked to double-check one). None = plain rewrite."""
+    from . import comment_router as cr
+    want = cr.classify(feedback)
+    a = _cfg(cfg)
+    if "call" in want:
+        n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
+    if "numbers" in want:
+        posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
+        n["numbers"] += posted
+        asana.comment(t["gid"], "Numbers are above (and on the Claude Updates board). The email is held in Needs Revision until you "
+                                "decide: comment what to send, or drag the card to Approved to send it as written."
+                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        if where != nr:
+            asana.move(t["gid"], nr)
+        return True
+    if "send" in want and "rewrite" not in want:
+        asana.move(t["gid"], a["approved"])
+        asana.comment(t["gid"], "Sending it as written (you said send it): moved to Approved, it goes out at the next send round."
+                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        n["sent_as_is"] += 1
+        return True
+    if want == {"call"}:
+        asana.comment(t["gid"], "Lead marked hot and a call card is on your board for tomorrow. The email is unchanged"
+                                + (": back in To Review." if where == nr else "."))
+        if where == nr:
+            asana.move(t["gid"], a["to_review"])
+        return True
+    if "check" in want:
+        return cr.agent_listings(conn, card["outreach_id"]) or ["(none besides this card's)"]
+    return None
+
+
 def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, int]:
     """Rewrite To Review cards that got new feedback comments (or send a test copy when asked); mark Skip cards as skipped."""
     a = _cfg(cfg)
     nr = needs_revision_section(cfg, asana)
-    n = {"revised": 0, "skipped": 0, "revise_failed": 0, "tests_sent": 0, "moved_to_revision": 0, "phones_added": 0}
+    n = {"revised": 0, "skipped": 0, "revise_failed": 0, "tests_sent": 0, "moved_to_revision": 0, "phones_added": 0,
+         "numbers": 0, "sent_as_is": 0, "calls": 0}
+    comps_cache: dict[str, Any] = {}
     tasks = [(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
     for t, where in tasks:
         card = parse_card(t.get("notes") or "")
@@ -264,6 +313,14 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], card, test_to))
             continue
+        try:
+            routed = route_comment(conn, cfg, asana, t, where, card, feedback, n, nr, comps_cache)
+        except Exception as e:  # noqa: BLE001 — leave the feedback pending; the next round tries again
+            log.exception("handling the comment on card %s: %s", t["gid"], e)
+            n["revise_failed"] += 1
+            continue
+        if routed is True:
+            continue
         row = db.row_to_dict(conn.execute("SELECT property_ids FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}
         props = [db.row_to_dict(r) for r in conn.execute(
             f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(json.loads(row.get('property_ids') or '[]'))) or 'NULL'})",
@@ -275,6 +332,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg),
                                                 learned=learned_block(cfg)) + (REPLY_CARD_NOTE if card.get("reply_to") else ""),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
+                                         **({"agent_listings_we_know": routed} if isinstance(routed, list) else {}),
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         if out is None:
             from .llm import login_problem
@@ -311,7 +369,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         for f in feedback:
             if not (TEST_RE.search(f) and len(f.split()) <= 8):
                 record_lesson(conn, card_kind(t.get("notes") or ""), f, card["outreach_id"], t["gid"], card["body"], out["body"])
-        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good.")
+        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good."
+                      + (f" Listings we have for this agent: {'; '.join(routed)}." if isinstance(routed, list) else ""))
         if where == nr:
             asana.move(t["gid"], a["to_review"])
         n["revised"] += 1

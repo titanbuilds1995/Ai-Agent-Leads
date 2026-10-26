@@ -117,12 +117,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   really answered (not bounces or auto-replies) move to a new "Answered" column, each with a WHERE WE STAND block at the top
   (status: NEEDS YOU / OUR TURN / ANSWER DRAFTED / WAITING ON THE AGENT / CLOSED, their last words, counts). `conversations.lead_board`,
   runs with check-replies and approvals.
+- **Per-lead rundowns on Asana are formatted, not walls of text** (Rodrigo, 2026-10-26): when he asks about a lead, put it on the
+  Claude Updates card as `html_notes` with `<h1>` address, `<h2>` sections (Status / The house / Our offer / The numbers / Engine
+  screen / Conversation so far), `<table>` for figures (header row in `<strong>`), `<hr/>` between sections. Asana html allows only
+  body, strong, em, u, s, code, ol, ul, li, a, blockquote, pre, h1, h2, hr, img, table, tr, td: **no `<p>`, `<br>`, `<th>`** (400 XML
+  invalid). Comments allow no h1/h2/table/hr: use `<strong>` headings + `<ul>` lists and pin the snapshot. Approval-card `notes` stay
+  plain text (the engine parses the EMAIL markers).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-26 ~11am ET: **Lise offer card written** ("Offer · Lise Freeman · 529 23rd Ave N · $209,000", gid 1219900327903853, To
+  Review, reply to outreach #2): $209k cash as is, 14 day close, $5k deposit, 7 day inspection, we cover closing costs, 30 days
+  post-occupancy with $5k escrow holdback, unrepresented (she takes 4%, seller saves 2%). Rodrigo's exit ~$240k → spread ~$26.5k.
+  Holding reply moved to Skip. Formatted deal card on Claude Updates (gid 1219896181471379). Sends only when Rodrigo drags it.
 - 2026-10-26 ~noon ET, RESUME HERE: built the **trust ladder** (learning from every card decision + knowledge base in the prompts +
   autopilot for first emails behind his go-ahead card) and the **lead board** (Answered column with WHERE WE STAND; Sent renamed
   "Sent · no answer yet"). Both appear on the board within ~30 min of the Mac pulling. Next build: the engine writes reply cards

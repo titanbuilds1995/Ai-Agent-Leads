@@ -40,3 +40,13 @@ def test_save_env_value_replaces_old_line(tmp_path):
     save_env_value(env, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-new")
     lines = env.read_text().splitlines()
     assert lines == ["APIFY_TOKEN=a", "ASANA_TOKEN=b", "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-new"]
+
+
+def test_token_over_two_lines_is_joined_and_half_tokens_refused():
+    from titan.cli import clean_token
+    full = "sk-ant-oat01-" + "A" * 80 + "-" + "b" * 20
+    wrapped = "  " + full[:60] + "\n  " + full[60:] + "\n"
+    assert clean_token(wrapped) == full
+    assert clean_token("Your token: " + full) == full
+    assert clean_token(full[:60]) is None                 # the first line alone was what got saved and refused (401)
+    assert clean_token("hello") is None and clean_token("") is None

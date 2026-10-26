@@ -142,6 +142,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~1:10pm ET: first `make claude-login` saved HALF a token (setup-token prints it over two lines; input() read one)
+  → 401 "OAuth access token is invalid". Fixed: it now reads the token from the Mac clipboard (pbpaste), joins wrapped lines and
+  refuses anything under 90 chars. Rodrigo runs `git pull && make claude-login` again (new token each time). 210 tests.
 - 2026-10-26 ~1pm ET, RESUME HERE: **root fix for "Not logged in" on Asana.** Cause (proven by the error text): cron passes
   CLAUDE_CODE_OAUTH_TOKEN from .env when it exists; "Not logged in" means it isn't in .env on the Mac (a bad token gives an auth
   error instead). `claude setup-token` only PRINTS the token; it was never saved. It "worked" sometimes because cron can borrow the

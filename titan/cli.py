@@ -392,6 +392,39 @@ def cron_claude_check(cli: str, token: str) -> tuple[bool, str]:
     return (p.returncode == 0 and "ok" in p.stdout.lower()), out[:300]
 
 
+def clean_token(text: str) -> str | None:
+    """The setup-token from copied text: spaces and line breaks removed (it prints over two lines). None when it is
+    missing or cut short (a half token is what got saved the first time and was refused with 401)."""
+    t = "".join((text or "").split())
+    i = t.find("sk-ant-")
+    if i < 0:
+        return None
+    t = t[i:]
+    return t if len(t) >= 90 else None
+
+
+def read_token(typed: str) -> str | None:
+    """Clipboard first (macOS pbpaste); if he pasted into the prompt instead, keep reading lines until an empty one."""
+    import subprocess
+    try:
+        clip = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        clip = ""
+    if typed.strip():
+        lines = [typed]
+        print("(pasted: press Enter once more if the prompt is waiting)")
+        while True:
+            try:
+                more = input()
+            except EOFError:
+                break
+            if not more.strip():
+                break
+            lines.append(more)
+        return clean_token("".join(lines)) or clean_token(clip)
+    return clean_token(clip)
+
+
 def cmd_claude_login(cfg, args):
     """One command for the cron login: runs `claude setup-token`, saves the token in .env, tests it like cron does."""
     import subprocess
@@ -404,10 +437,12 @@ def cmd_claude_login(cfg, args):
     if not args.test_only:
         print(f"Step 1: Claude login (a browser window opens). Using {cli}\n")
         subprocess.run([cli, "setup-token"])
-        print("\nStep 2: copy the long token it printed (starts with sk-ant-oat) and paste it here, then press Enter.")
-        token = "".join(input("token: ").split())       # drop spaces/line breaks a wrapped copy adds
-        if not token.startswith("sk-ant-"):
-            print("That doesn't look like the token (it starts with sk-ant-oat). Nothing saved; run `make claude-login` again.")
+        print("\nStep 2: select the WHOLE token it printed (it starts with sk-ant-oat and runs over two lines), press Cmd+C,")
+        print("then come back here and just press Enter (don't paste).")
+        token = read_token(input("Press Enter once it's copied: "))
+        if not token:
+            print("I couldn't find a complete token (it starts with sk-ant-oat and is about 100 characters). Nothing saved; "
+                  "run `make claude-login` again and copy both lines.")
             sys.exit(1)
         save_env_value(env_file, "CLAUDE_CODE_OAUTH_TOKEN", token)
         print(f"Saved in {env_file}.")

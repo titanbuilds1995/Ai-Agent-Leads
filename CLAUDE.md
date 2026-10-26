@@ -105,7 +105,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-10-26 ~10am ET, RESUME HERE: Rodrigo is filling in the Twilio A2P campaign (brand done). Built the SMS opt-in: public form
+- 2026-10-26 ~11am ET: **Twilio A2P campaign submitted, in review** (Rodrigo). Reviewers visit the opt-in / terms / privacy links, so the
+  Base44 pages (`docs/BASE44_PASTE.txt`) and the Vercel deploy (merge this branch) should be live while it is in review. On approval:
+  `docs/TWILIO_CAMPAIGN.md` → "After it is approved" (Messaging Service, sender pool, inbound webhook, .env, `make doctor`).
+- 2026-10-26 ~10am ET: Rodrigo is filling in the Twilio A2P campaign (brand done). Built the SMS opt-in: public form
   `/sms-consent` + `/sms-terms` + `/privacy` on the Vercel dashboard project (no password), `/api/consent` stores each submission in
   Blob `titan/consents/`, `titan/consent.py` pulls them (`make consents`, also in every check-replies) into `sms_consents` and
   stamps `agents.sms_consent_at`; `plan()` texts only consented numbers; first texts end with "Reply STOP to opt out.";

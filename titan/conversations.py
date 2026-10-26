@@ -185,11 +185,14 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
         a = cfg.get("outreach.asana", {}) or {}
         sent, answered = board_sections(cfg, asana)
         pending = set()
+        drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
+        names = {a.get("to_review"): "To Review", a.get("approved"): "Approved (sends next run)"}
         for sec in (a.get("to_review"), a.get("approved"), getattr(asana, "_needs_revision_gid", None) or a.get("needs_revision")):
             for t in (asana.section_tasks(sec) if sec else []):
                 pc = parse_card(t.get("notes") or "")
                 if pc and pc.get("reply_to"):
                     pending.add(pc["outreach_id"])
+                    drafts.setdefault(pc["outreach_id"], []).append((names.get(sec, "Needs Revision"), t.get("name") or "", pc))
         agent_of: dict[int, int | None] = {}
 
         def agent_id(oid: int) -> int | None:
@@ -212,6 +215,11 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             lines = where_we_stand(conn, aid, aid in pending_agents)
             if not lines:
                 continue
+            # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — show the drafted reply right here
+            for oid in [o for o in pending if agent_id(o) == aid]:
+                for where, cname, pc2 in drafts.get(oid, []):
+                    lines += ["", f"DRAFTED ANSWER (not sent yet) · card \"{cname}\" in {where}. Drag that card to Approved to send it.",
+                              f"Draft subject: {pc2['subject']}", "", pc2["body"]]
             new = _with_stand(t.get("notes") or "", lines)
             if new != (t.get("notes") or ""):
                 asana.update_notes(t["gid"], new)

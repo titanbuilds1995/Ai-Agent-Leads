@@ -144,3 +144,24 @@ def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tm
     log_message(loaded, t1, "out", "Thanks Lise, I'll get back to you today.", external_id="x3", action="reply:manual")
     lead_board(loaded, cfg, asana)
     assert "WAITING ON THE AGENT" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count(STAND_START) == 1
+
+
+def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-26: 'in the card I do not see the answer that you drafted for her'."""
+    from titan.approvals import post_reply_card
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s = _sections(cfg)
+    g1 = list(asana.tasks)[0]
+    asana.move(g1, s["approved"])
+    send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)
+    o1 = parse_card(asana.tasks[g1]["notes"])["outreach_id"]
+    a1 = loaded.execute("SELECT agent_id FROM outreach WHERE id=?", (o1,)).fetchone()[0]
+    t1 = loaded.execute("SELECT id FROM threads WHERE agent_id=?", (a1,)).fetchone()[0]
+    log_message(loaded, t1, "in", "Bring your best offer.", external_id="y1", classification="ASK_FOR_OFFER", confidence=0.9)
+    post_reply_card(loaded, cfg, asana, o1, "Hi Lise,\n\nPrice: $209,000, cash, as is.\n\nBest regards,\n\nCharles Grant")
+    asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
+    lead_board(loaded, cfg, asana)
+    notes = asana.tasks[g1]["notes"]
+    assert "DRAFTED ANSWER (not sent yet)" in notes and "$209,000" in notes
+    pc = parse_card(notes)
+    assert pc["outreach_id"] == o1 and not pc["subject"].startswith("Re:") and "209,000" not in pc["body"]   # still the original card

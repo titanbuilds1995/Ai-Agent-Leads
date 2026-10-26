@@ -285,8 +285,8 @@ def headline(s: dict[str, Any]) -> str:
     if n.get("ours") is None:
         return "Not enough sales to set a number: see Still open."
     gap = f", {money(n['gap'])} ({n['gap_pct']}%) under the ask" if n.get("gap") and n["gap"] > 0 else (", at or above the ask" if n.get("gap") is not None else "")
-    what = "land value" if n.get("land") else "resale after rehab (ARV)"
-    return f"Where we need to be: about {money(n['ours'])}{gap}. {what.capitalize()} {money(n['arv'])}; an investor pays about {money(n['flipper'])}."
+    what = "Land value" if n.get("land") else "Resale after rehab (ARV)"
+    return f"Where we need to be: about {money(n['ours'])}{gap}. {what} {money(n['arv'])}; an investor pays about {money(n['flipper'])}."
 
 
 def house_rows(s: dict[str, Any]) -> list[list[str]]:
@@ -321,7 +321,7 @@ def number_rows(s: dict[str, Any]) -> list[list[str]]:
     if n.get("rent"):
         rows.append(["Rent (stated)", f"{money(n['rent'])}/mo, {money(n['rent'] * 12)}/yr"])
         rows.append([f"Net after {n['expense_ratio']:.0%} for tax, insurance, upkeep, vacancy", f"{money(n['noi'])}/yr (estimate)"])
-        rows += [[f"Price at a {c:.0%} cap", money(v)] for c, v in n["cap_prices"]]
+        rows += [[f"Price at {'an' if str(round(c * 100)).startswith(('8', '11', '18')) else 'a'} {c:.0%} cap", money(v)] for c, v in n["cap_prices"]]
         if n.get("cap_at_ask"):
             rows.append(["Cap rate at the ask", f"{n['cap_at_ask']}%"])
         if n.get("cap_at_ours"):

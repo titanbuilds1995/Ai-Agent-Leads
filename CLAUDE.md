@@ -142,6 +142,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~2:10pm ET: cloud back-up scheduled task created ("Titan · apply Rodrigo's card comments", trig_01DMPwemtJ2ezjUVbtgi1MkN,
+  hourly 8:07am–6:07pm ET, fresh session each run) BUT it stores no connectors (this org can't pass them via the tool): Rodrigo must
+  add the Asana connector in claude.ai → Routines, else each run stops with "no Asana tools". Flow PDF for Rodrigo:
+  docs/flow/Titan_Flow_2026-10-26.pdf (source docs/flow/flow.html, rendered with Playwright).
 - 2026-10-26 ~1:35pm ET, RESUME HERE: Rodrigo is fed up with the Mac login loop. Cloud applied his comments by hand: Manuel Arce,
   Eddy Gervais, Saidelys Garcia, Eugene Schroeder rewritten → To Review (🤖 "Revised" comments so the engine won't redo them);
   Jason Welt → Skip. Auction filter widened (bankruptcy, court approval, trustee's sale, sealed/highest bid, chapter 7/11/13).

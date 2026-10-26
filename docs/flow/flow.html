@@ -1,0 +1,104 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Titan Lead Engine · How it works</title>
+<style>
+@page{size:Letter;margin:0.5in}
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1d2433;margin:0}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:0 0 10px;color:#14324f}
+.sub{color:#5b6475;font-size:13px;margin-bottom:14px}
+.page{page-break-after:always}.page:last-child{page-break-after:auto}
+svg{width:100%;height:auto;display:block}
+.box{font-size:12px}
+table{border-collapse:collapse;width:100%;font-size:12px;margin-top:8px}td,th{border:1px solid #d5dbe5;padding:6px 8px;text-align:left;vertical-align:top}th{background:#eef2f8}
+.note{font-size:12px;color:#3b4456;margin-top:10px;line-height:1.45}
+.warn{background:#fff4e5;border:1px solid #f0b35b;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-top:12px}
+.ok{background:#eaf7ef;border:1px solid #79c49a;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-top:12px}
+</style></head><body>
+
+<div class="page">
+<h1>Titan Lead Engine: how it works today</h1>
+<div class="sub">Monday, October 26, 2026 · listing to agent conversation to offer</div>
+<h2>1 · Every morning: from listings to email cards</h2>
+<svg viewBox="0 0 760 520" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6475"/></marker></defs>
+<style>.b{fill:#f4f7fb;stroke:#9fb0c8;stroke-width:1.5;rx:10}.t{font:600 14px Helvetica,Arial;fill:#14324f}.s{font:12px Helvetica,Arial;fill:#4a5468}.l{stroke:#5b6475;stroke-width:1.6;fill:none;marker-end:url(#a)}.x{fill:#fdecec;stroke:#e08b8b;stroke-width:1.5;rx:10}.g{fill:#eaf7ef;stroke:#79c49a;stroke-width:1.5;rx:10}</style>
+<rect class="b" x="20" y="15" width="330" height="70"/><text class="t" x="35" y="42">1. Scrape every active listing</text><text class="s" x="35" y="64">5:30am on the Mac · free HomeHarvest scraper</text><text class="s" x="35" y="78">South Florida, $50k price bands</text>
+<rect class="x" x="420" y="15" width="320" height="70"/><text class="t" x="435" y="42">Thrown out right away</text><text class="s" x="435" y="62">REO / bank-owned, short sales, auctions,</text><text class="s" x="435" y="77">no assignment, no inspection, not a home</text>
+<path class="l" d="M350,50 L418,50"/>
+<rect class="b" x="20" y="115" width="330" height="70"/><text class="t" x="35" y="142">2. Score each listing</text><text class="s" x="35" y="164">Claude reads the remarks (your Claude plan)</text><text class="s" x="35" y="178">distress, motivation, condition signals</text>
+<path class="l" d="M185,85 L185,113"/>
+<rect class="b" x="20" y="215" width="330" height="70"/><text class="t" x="35" y="242">3. Value it (internal only)</text><text class="s" x="35" y="264">resale value from comps · ZIP flip ratio</text><text class="s" x="35" y="278">screening range, never shown to agents</text>
+<path class="l" d="M185,185 L185,213"/>
+<rect class="b" x="20" y="315" width="330" height="70"/><text class="t" x="35" y="342">4. Rank into lanes</text><text class="s" x="35" y="364">SITTING (60+ days, price drops)</text><text class="s" x="35" y="378">FRESH DEAL (new, priced near our range) · rest WATCH</text>
+<path class="l" d="M185,285 L185,313"/>
+<rect class="b" x="420" y="315" width="320" height="70"/><text class="t" x="435" y="342">5. Find the listing agent</text><text class="s" x="435" y="364">name, email, phone, brokerage</text><text class="s" x="435" y="378">skips generic / flat-fee mailboxes</text>
+<path class="l" d="M350,350 L418,350"/>
+<rect class="b" x="420" y="415" width="320" height="80"/><text class="t" x="435" y="442">6. Charles writes the first email</text><text class="s" x="435" y="462">your protocol + voice + what it learned from</text><text class="s" x="435" y="477">your comments · no price, ever, in a first email</text>
+<path class="l" d="M580,385 L580,413"/>
+<rect class="g" x="20" y="415" width="330" height="80"/><text class="t" x="35" y="442">7. A card lands in Asana: To Review</text><text class="s" x="35" y="462">"Titan Outreach — Email Approvals" board</text><text class="s" x="35" y="477">picture of the email + the text that will send</text>
+<path class="l" d="M420,455 L352,455"/>
+</svg>
+<div class="note">7:00am: the morning report email (new listings, HOT leads, cards waiting, replies, trust ladder). Nothing is ever sent at this stage: every email waits for you on Asana.</div>
+</div>
+
+<div class="page">
+<h2>2 · Your Asana board: what happens to a card</h2>
+<svg viewBox="0 -50 760 610" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="b" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6475"/></marker></defs>
+<style>.c{fill:#f4f7fb;stroke:#9fb0c8;stroke-width:1.5}.h{font:700 13px Helvetica,Arial;fill:#14324f}.s{font:11.5px Helvetica,Arial;fill:#4a5468}.l{stroke:#5b6475;stroke-width:1.6;fill:none;marker-end:url(#b)}.y{fill:#fff4e5;stroke:#f0b35b;stroke-width:1.5}.g{fill:#eaf7ef;stroke:#79c49a;stroke-width:1.5}.r{fill:#fdecec;stroke:#e08b8b;stroke-width:1.5}.p{font:600 11.5px Helvetica,Arial;fill:#7a4d00}</style>
+<rect class="c" x="15" y="20" width="160" height="90" rx="10"/><text class="h" x="28" y="45">TO REVIEW</text><text class="s" x="28" y="66">new cards wait here</text><text class="s" x="28" y="82">you read them</text>
+<rect class="y" x="205" y="20" width="160" height="90" rx="10"/><text class="h" x="218" y="45">NEEDS REVISION</text><text class="s" x="218" y="66">you left a comment</text><text class="s" x="218" y="82">Claude rewrites it</text><text class="s" x="218" y="98">nothing sends from here</text>
+<rect class="g" x="395" y="20" width="160" height="90" rx="10"/><text class="h" x="408" y="45">APPROVED</text><text class="s" x="408" y="66">you dragged it here</text><text class="s" x="408" y="82">= your go-ahead</text>
+<rect class="c" x="585" y="20" width="160" height="90" rx="10"/><text class="h" x="598" y="45">SENT · NO ANSWER</text><text class="s" x="598" y="66">sent from Charles@</text><text class="s" x="598" y="82">8:30am–5:30pm ET</text><text class="s" x="598" y="98">2 per 20-min round</text>
+<path class="l" d="M175,50 L203,50"/><text class="p" x="150" y="10">you comment</text>
+<path class="l" d="M285,110 C285,160 95,160 95,112"/><text class="p" x="150" y="175">rewritten → back for your decision</text>
+<path class="l" d="M95,20 C95,-35 475,-35 475,18"/><text class="p" x="250" y="-28">you drag it to Approved</text>
+<path class="l" d="M555,65 L583,65"/>
+<path class="l" d="M475,110 C475,200 285,200 285,112"/><text class="p" x="340" y="208">a new comment on Approved holds the send</text>
+<rect class="r" x="15" y="250" width="160" height="70" rx="10"/><text class="h" x="28" y="275">SKIP</text><text class="s" x="28" y="295">not a fit / auction</text><text class="s" x="28" y="310">never sends</text>
+<rect class="g" x="585" y="250" width="160" height="90" rx="10"/><text class="h" x="598" y="275">ANSWERED</text><text class="s" x="598" y="295">the agent wrote back</text><text class="s" x="598" y="311">card shows WHERE WE</text><text class="s" x="598" y="326">STAND + drafted answer</text>
+<path class="l" d="M665,110 L665,248"/><text class="p" x="672" y="185">agent replies</text>
+<rect class="c" x="300" y="250" width="240" height="90" rx="10"/><text class="h" x="313" y="275">REPLY CARD (To Review)</text><text class="s" x="313" y="295">Charles drafts his answer</text><text class="s" x="313" y="311">you edit / approve like any card</text><text class="s" x="313" y="326">sent in the same email thread</text>
+<path class="l" d="M585,295 L542,295"/>
+<rect class="y" x="300" y="380" width="440" height="150" rx="10"/><text class="h" x="313" y="405">WHEN THE AGENT ASKS FOR AN OFFER OR GIVES A NUMBER</text>
+<text class="s" x="313" y="428">1. Status says NEEDS YOU · Charles only sends a holding answer (no number)</text>
+<text class="s" x="313" y="446">2. You decide the number (comment "offer N" or tell Claude)</text>
+<text class="s" x="313" y="464">3. Offer card is written: cash as is, 30-day close, 9-day inspection, $5k deposit,</text>
+<text class="s" x="313" y="480">    Cc's you, explains the number in plain words</text>
+<text class="s" x="313" y="498">4. Status shows OFFER DRAFTED ($N) → you drag it to Approved → it sends</text>
+<text class="s" x="313" y="516">A number never reaches an agent without you.</text>
+<path class="l" d="M665,340 L665,378"/>
+</svg>
+<div class="note">On every card: the agent's phone (tap to call), the listing link, the analysis behind the email. Type "send me a test" on any card to get a [TEST] copy in your inbox.</div>
+</div>
+
+<div class="page">
+<h2>3 · Who does what, and when</h2>
+<table>
+<tr><th style="width:22%">Who</th><th style="width:28%">When</th><th>What</th></tr>
+<tr><td><b>Your Mac</b> (background jobs)</td><td>every 10 min</td><td>downloads the latest fixes automatically</td></tr>
+<tr><td></td><td>5:30am daily</td><td>scrape → score → value → rank → find agent → write first emails → cards</td></tr>
+<tr><td></td><td>7:00am daily</td><td>morning report to your inbox</td></tr>
+<tr><td></td><td>every 15 min</td><td>reads Charles's inbox · files replies · bounces · "remove me" · mirrors replies to Asana</td></tr>
+<tr><td></td><td>every 20 min, 8am–5pm</td><td>applies your comments · sends approved cards (8:30–5:30) · updates the Answered column · drafts reply cards</td></tr>
+<tr><td><b>Cloud (Claude)</b></td><td>hourly, 8am–6pm (new today)</td><td>back-up: applies your card comments so edits don't depend on the Mac (needs the Asana connector added, see below)</td></tr>
+<tr><td></td><td>when you ask</td><td>deal analysis, comps, offer cards, fixes and new features</td></tr>
+<tr><td><b>You</b></td><td>whenever</td><td>read cards · comment what to change · drag to Approved or Skip · decide offer numbers</td></tr>
+</table>
+<h2 style="margin-top:22px">The rules the engine follows on its own</h2>
+<table>
+<tr><td style="width:30%"><b>Never sends without you</b></td><td>Only cards you drag to Approved go out. Only from Charles@titanrealtyinvestments.com (it refuses any other mailbox).</td></tr>
+<tr><td><b>How Charles writes</b></td><td>"Hey Name," on its own line, short paragraphs, plain intro ("Charles with Titan Realty Investments. I saw your listing on …"), one easy question. No price, no "we buy", no AI-sounding phrases.</td></tr>
+<tr><td><b>Who we skip</b></td><td>bank-owned, short sales, auctions (now incl. bankruptcy / court / sealed bids), no-assignment, no-inspection, non-homes.</td></tr>
+<tr><td><b>Learning from you</b></td><td>Every comment becomes a lesson used in the next emails. When you approve 80% as written over 30 cards, it asks you whether first emails can go out on their own.</td></tr>
+</table>
+</div>
+
+<div class="page">
+<h2>4 · What's broken right now, and the fix</h2>
+<div class="warn"><b>Claude is logged out on the Mac for the background jobs.</b> That's why Asana says "couldn't rewrite… Not logged in" and your comments sit in Needs Revision.<br><br>
+Why: the background jobs can't use your Mac's normal Claude login, only a token saved in the <code>.env</code> file. The first try saved half the token (it prints on two lines), so it was refused.<br><br>
+Fix, once, at the Mac in Terminal:<br><code>cd ~/Ai-Agent-Leads &amp;&amp; git pull &amp;&amp; make claude-login</code><br>Log in → select the whole token (both lines) → Cmd+C → press Enter (don't paste). It should print <b>OK</b>. If it ever breaks again, a card appears in Claude Updates → Needs Rodrigo with this same fix.</div>
+<div class="warn"><b>The cloud back-up can't reach Asana yet.</b> It was created without the Asana connector. Open claude.ai → Routines → "Titan · apply Rodrigo's card comments" → add the Asana connector. After that, your comments get applied within the hour even if the Mac is off or logged out.</div>
+<div class="ok"><b>Done today:</b> Manuel Arce, Eddy Gervais, Saidelys Garcia, Eugene Schroeder rewritten with your comments (back in To Review); Jason Welt moved to Skip; the auction filter now catches bankruptcy / court sales.<br>
+<b>Next:</b> Richard Dipietro, 2327 Polk St, Hollywood: comps + what it resells for + a good offer at $4,500/month in rent, for you to look at before Charles answers.</div>
+</div>
+</body></html>

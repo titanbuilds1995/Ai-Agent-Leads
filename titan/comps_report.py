@@ -22,7 +22,7 @@ RENOVATED_RE = re.compile(r"\b(renovated|remodel(?:ed)?|fully updated|completely
                           r"move[- ]in ready|rehabbed|newly built|new construction)\b", re.I)
 ASIS_RE = re.compile(r"\b(as[- ]is|tlc|handyman|fixer|needs (?:work|updating|repairs|renovation)|investor special|investors? "
                      r"(?:special|opportunity|delight)|cash only|original condition|bring your contractor)\b", re.I)
-RENT_RE = re.compile(r"(?:rent(?:ed|s|ing)?(?: out)?(?: for| at)?|bringing in|brings in|leased (?:for|at))\s*\$\s?([\d,]{3,6})", re.I)
+RENT_RE = re.compile(r"\b(?:rent(?:ed|s|ing)?|bringing in|brings in|leased|lease|income)\b(?:\s+(?:out|for|at|about|around|approx\w*|is|are|of|currently|each))*\s*\$\s?([\d,]{3,6})", re.I)
 
 
 def money(n: Any) -> str:
@@ -75,6 +75,8 @@ def _date_key(c: dict[str, Any]) -> int:
 
 
 MONTH_RE = re.compile(r"\$?\s?([\d,]{3,6})\s*(?:/\s?mo\b|a month|per month|monthly|/month)", re.I)
+EXPENSE_RE = re.compile(r"\b(?:tax(?:es)?|insurance|hoa|fees?|mortgage|payment|association|dues|utilit\w*|electric|water bill)\b", re.I)
+ROLL_RE = re.compile(r"rent roll[:\s]*((?:\$?\s?[\d,]{3,6}[\s,;/and]*){1,12})", re.I)
 UNIT_RE = re.compile(r"\bunit \w{1,3}\b[^$\d]{0,25}\$?\s?([\d,]{4,5})\b", re.I)
 
 
@@ -90,13 +92,19 @@ def rent_from(texts: list[str]) -> int | None:
                 v = int(m.group(1).replace(",", ""))
                 if 500 <= v <= 30000:
                     found[m.start(1)] = v
-        months = [int(m.group(1).replace(",", "")) for m in MONTH_RE.finditer(t or "") if 500 <= int(m.group(1).replace(",", "")) <= 30000]
+        months = [int(m.group(1).replace(",", "")) for m in MONTH_RE.finditer(t or "")
+                  if 500 <= int(m.group(1).replace(",", "") or 0) <= 30000 and not EXPENSE_RE.search((t or "")[max(0, m.start() - 40):m.start()])]
+        for m in ROLL_RE.finditer(t or ""):
+            for x in re.finditer(r"\$?\s?([\d,]{3,6})", m.group(1)):
+                v = int(x.group(1).replace(",", "") or 0)
+                if 300 <= v <= 30000:
+                    found[m.start(1) + x.start(1)] = v
         best = max(best, sum(found.values()), max(months, default=0))
     return best or None
 
 
 def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None,
-          asked: str = "", outreach_id: int | None = None) -> dict[str, Any]:
+          asked: str = "", outreach_id: int | None = None, rent_from_comment: bool = True) -> dict[str, Any]:
     """Everything the snapshot shows, as data (rendered by to_html / to_comment / to_text)."""
     from .valuation import buy_ratio, repair_cost, repair_tier
     from .market_ratios import lookup
@@ -168,7 +176,7 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     msgs = [db.row_to_dict(r) for r in conn.execute(
         "SELECT m.direction, m.body, m.created_at, m.classification FROM messages m JOIN threads t ON t.id=m.thread_id "
         "WHERE t.agent_id=? ORDER BY m.created_at", (p.get("agent_id"),)).fetchall()] if p.get("agent_id") and _has_threads(conn) else []
-    rent = rent_from([p.get("remarks") or "", asked] + [m["body"] for m in msgs if m.get("direction") == "in"])
+    rent = rent_from([p.get("remarks") or ""] + ([asked] if rent_from_comment else []) + [m["body"] for m in msgs if m.get("direction") == "in"])
     if rent:
         exp = float(cfg.get("comps_report.expense_ratio", 0.40))
         noi = rent * 12 * (1 - exp)
@@ -276,6 +284,12 @@ def comp_rows(s: dict[str, Any]) -> list[list[str]]:
 COMP_HEAD = ["Address", "Sold", "Price", "sf", "$/sf", "Pool/Water", "Condition", "Distance", "MLS"]
 
 
+def cap_label(c: float) -> str:
+    """'a 7% cap' / 'an 8% cap' / 'an 11% cap'."""
+    pct = round(c * 100)
+    return f"{'an' if str(pct).startswith('8') or pct in (11, 18) else 'a'} {pct}% cap"
+
+
 def _num(x: Any) -> str:
     return f"{x:g}" if isinstance(x, float) else str(x)
 
@@ -283,10 +297,20 @@ def _num(x: Any) -> str:
 def headline(s: dict[str, Any]) -> str:
     n = s["numbers"]
     if n.get("ours") is None:
+        if n.get("cap_prices"):
+            c, v = n["cap_prices"][-1]
+            return f"Not enough sales for flip math. Cash-flow math: at {cap_label(c)} it's worth about {money(v)}."
         return "Not enough sales to set a number: see Still open."
     gap = f", {money(n['gap'])} ({n['gap_pct']}%) under the ask" if n.get("gap") and n["gap"] > 0 else (", at or above the ask" if n.get("gap") is not None else "")
     what = "Land value" if n.get("land") else "Resale after rehab (ARV)"
-    return f"Where we need to be: about {money(n['ours'])}{gap}. {what} {money(n['arv'])}; an investor pays about {money(n['flipper'])}."
+    out = f"Flip math: we need to be about {money(n['ours'])}{gap}. {what} {money(n['arv'])}; an investor pays about {money(n['flipper'])}."
+    if n.get("cap_prices"):
+        c, v = n["cap_prices"][-1]
+        out += f" Cash-flow math: at {cap_label(c)} it's worth about {money(v)}"
+        out += f" (the ask is a {n['cap_at_ask']}% cap)" if n.get("cap_at_ask") else ""
+        out += (". The two disagree: for a rental buyer use the cash-flow line, for a flip the first."
+                if abs(v - n["ours"]) > 0.15 * max(v, 1) else ".")
+    return out
 
 
 def house_rows(s: dict[str, Any]) -> list[list[str]]:
@@ -299,8 +323,6 @@ def house_rows(s: dict[str, Any]) -> list[list[str]]:
     rows = [["Asking", money(p.get("list_price"))], ["Size / year", size or "?"],
             ["On market", f"{p.get('days_on_market') or '?'} days" + (f", {cuts} price cut{'s' if cuts > 1 else ''}" if cuts else "")],
             ["Condition (remarks)", f"{condition_of(p.get('remarks'))}; engine repair tier: {s['numbers']['repair_tier']}"]]
-    if s["numbers"].get("rent"):
-        rows.append(["Rent (stated)", f"{money(s['numbers']['rent'])}/mo"])
     return rows
 
 
@@ -321,7 +343,7 @@ def number_rows(s: dict[str, Any]) -> list[list[str]]:
     if n.get("rent"):
         rows.append(["Rent (stated)", f"{money(n['rent'])}/mo, {money(n['rent'] * 12)}/yr"])
         rows.append([f"Net after {n['expense_ratio']:.0%} for tax, insurance, upkeep, vacancy", f"{money(n['noi'])}/yr (estimate)"])
-        rows += [[f"Price at {'an' if str(round(c * 100)).startswith(('8', '11', '18')) else 'a'} {c:.0%} cap", money(v)] for c, v in n["cap_prices"]]
+        rows += [[f"Price at {cap_label(c)}", money(v)] for c, v in n["cap_prices"]]
         if n.get("cap_at_ask"):
             rows.append(["Cap rate at the ask", f"{n['cap_at_ask']}%"])
         if n.get("cap_at_ours"):

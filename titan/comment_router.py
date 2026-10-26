@@ -28,16 +28,41 @@ NUMBERS_RE = re.compile(
 SEND_RE = re.compile(
     r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|"
     r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)\b|^\s*(?:ok(?:ay)?,? )?approved?[.! ]*$", re.I)
-# Anything that makes a "send" less than a plain go-ahead. A false send is the worst mistake this module can make, so
-# when any of these is present the card is held and nothing moves to Approved (reviewer, 2026-10-26).
-NOT_SEND_RE = re.compile(
-    r"\?|\$|\d|\b(?:don'?t|do not|not|never|no need|hold|wait|yet|until|later|before|tomorrow|tonight|monday|tuesday|wednesday|"
-    r"thursday|friday|saturday|sunday|next week|myself|instead|why|did you|have you|is (?:this|it)|was (?:this|it)|offer|cc|attach|"
-    r"after|when|once|if|talk|speak|hear|"
-    r"translate|spanish|other agent|also send|too\b|but\b)", re.I)
-# "after you send them the emails" / "if you don't hear from him" are follow-up timing, not a hold on the send itself.
-FOLLOWUP_CLAUSE_RE = re.compile(r"\b(?:follow up[^.]*|after you send[^.]*|if you don'?t hear[^.]*|to call tomorrow[^.]*|"
-                                r"call (?:him|her|them) tomorrow[^.]*|by the end of the day)", re.I)
+# Allowlist (reviewer round 2): a comment sends only when, after removing the go-ahead phrases and his usual hot / call /
+# follow-up phrases, NOTHING but filler words is left. Any other word ("to Lisa", "minus the last line", "scrap that",
+# "via text", "wrong agent") means it is not a plain go-ahead, so the card is held. Never default to send.
+_GO_AHEAD = [
+    r"send (?:it|this|him|her|them)(?: the email| the emails?| out)?(?: now| asap| as is| as written| please)*",
+    r"send(?:ing)? the email", r"go ahead(?: and send(?: it)?)?", r"(?:approve and )?send(?= *[.!]* *$)", r"i approve(?: this| it)?(?: email)?", r"approved?",
+    r"(?:this is |it'?s |that'?s )?(?:a )?(?:really |very |super )?good email", r"(?:this |it )?looks? (?:really )?(?:good|great)",
+    r"good to go", r"ready to send", r"ship it", r"i (?:actually )?(?:really )?(?:like|love) (?:it|this(?: one)?)",
+]
+_CALL_PHRASES = [
+    r"(?:i want (?:us|you) to )?stay on top of (?:this|the) lead", r"mark (?:him|her|them|it|this)? ?(?:as )?hot",
+    r"(?:cuz|cause|because) i think (?:this|it|he|she) (?:could|might) be a hot (?:lead|potential|one)",
+    r"follow ?up with (?:him|her|them) if (?:you|we) don'?t hear (?:back )?from (?:him|her|them)(?: by (?:the )?end of (?:the )?day| today| by tomorrow)?",
+    r"(?:and )?(?:then )?put (?:it|him|her|them) on my (?:on my )?boards? to call(?: (?:him|her|them))? tomorrow",
+    r"call (?:him|her|them) tomorrow", r"after you send (?:them|him|her) the emails?",
+]
+_FILLER = {"hey", "so", "and", "then", "please", "now", "asap", "great", "thanks", "thank", "you", "perfect", "nice", "cool", "ok",
+           "okay", "yes", "yep", "sure", "it", "this", "one", "i", "really", "actually", "very", "a", "the", "just", "go", "ahead",
+           "as", "is", "written", "rodrigo"}
+GO_RE = re.compile(r"\b(?:" + "|".join(_GO_AHEAD) + r")\b", re.I)
+CALLP_RE = re.compile(r"\b(?:" + "|".join(_CALL_PHRASES) + r")\b", re.I)
+EMOJI_OK_RE = re.compile(r"^\s*(?:👍|✅|💯|🔥)+\s*$")
+
+
+def plain_go_ahead(text: str) -> bool:
+    """True only for 'send it' / 'looks good' / 'I approve this' (+ his hot/call phrases) with nothing else left."""
+    if EMOJI_OK_RE.match(text):
+        return True
+    if not GO_RE.search(text):
+        return False
+    rest = GO_RE.sub(" ", CALLP_RE.sub(" ", text.lower()))      # his call phrases first: they contain 'send them'
+    words = re.findall(r"[a-z0-9$']+", rest)
+    return not [w for w in words if w not in _FILLER] and "?" not in text
+
+
 CHANGE_RE = re.compile(r"\b(?:change|take out|remove|instead|don'?t say|do not say|reword|replace|add (?:a|that|the)|shorter|"
                        r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention|cc|attach|translate|spanish|offer)\b", re.I)
 CALL_RE = re.compile(r"\b(?:mark (?:him|her|them|it|this)?\s*(?:as )?hot|hot (?:lead|potential)|call (?:him|her|them)?\s*tomorrow|"
@@ -64,15 +89,12 @@ def classify(feedback: list[str]) -> set[str]:
     if CHECK_RE.search(text):
         out.add("check")
     change = bool(CHANGE_RE.search(text))
-    if SEND_RE.search(text):
-        plain = not NOT_SEND_RE.search(FOLLOWUP_CLAUSE_RE.sub(" ", text))
-        if plain and not change and not out & {"numbers", "check"}:
-            out.add("send")
-        elif not change and not out & {"numbers", "check"}:
-            out.add("hold")
-    elif (re.search(r"\b(?:don'?t|do not) (?:send|approve|follow|mark)|not approved|disapprove|hold (?:it|this|off)|\bwait\b", text, re.I)
-          or "?" in text) and not change and not out & {"numbers", "check", "call"}:
-        out.add("hold")        # a no, a wait or a bare question: nothing moves, nothing is rewritten
+    if plain_go_ahead(text) and not out & {"numbers", "check"}:
+        out.add("send")
+    elif (SEND_RE.search(text) or EMOJI_OK_RE.match(text) or re.search(r"\bsend\b|\b(?:don'?t|do not) (?:send|approve|follow|mark)|not approved|"
+          r"disapprove|hold (?:it|this|off|the email)|\bwait\b|\bskip\b", text, re.I) or "?" in text) and not change \
+            and not out & {"numbers", "check"}:
+        out.add("hold")        # a go-ahead with anything else in it, a no, a wait or a bare question: nothing moves
     if change or not out:
         out.add("rewrite")
     return out
@@ -112,9 +134,13 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
     from . import comps_report
     a = cfg.get("outreach.asana", {}) or {}
     text = " ".join(feedback)
+    props = card_props(conn, card["outreach_id"])
+    subjects = pick_subjects(props, text)
+    own = len(subjects) == 1          # a rent figure in his comment belongs to the house he named (or the card's only house)
     snaps = []
-    for p in pick_subjects(card_props(conn, card["outreach_id"]), text):     # build every house first: post nothing half-done
-        snaps.append((p, comps_report.build(conn, cfg, p["id"], comps_fn, asked=text, outreach_id=card["outreach_id"])))
+    for p in subjects:                # build every house first: post nothing half-done
+        snaps.append((p, comps_report.build(conn, cfg, p["id"], comps_fn, asked=text, outreach_id=card["outreach_id"],
+                                            rent_from_comment=own)))
     for p, s in snaps:
         out_dir = cfg.path("reports") / "comps"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -132,14 +158,19 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
     return len(snaps)
 
 
+CALL_NOTE = "HOT (Rodrigo): call tomorrow"
+
+
 def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) -> bool:
     """Lead marked HOT for a call, one card in Needs Rodrigo for tomorrow with the agent's phone and his note."""
     a = cfg.get("outreach.asana", {}) or {}
     row = conn.execute("SELECT a.name, a.phone, a.email FROM outreach o LEFT JOIN agents a ON a.id=o.agent_id WHERE o.id=?",
                        (card["outreach_id"],)).fetchone()
     props = card_props(conn, card["outreach_id"])
+    if props and all(p.get("lead_note") == CALL_NOTE and p.get("lead_status") == "NEEDS_CALL" for p in props):
+        return False          # already booked (e.g. the numbers failed and this comment is being retried): one call card only
     for p in props:
-        db.set_lead_status(conn, p["id"], "NEEDS_CALL", "HOT (Rodrigo): call tomorrow")
+        db.set_lead_status(conn, p["id"], "NEEDS_CALL", CALL_NOTE)
     if not (a.get("updates_project") and a.get("needs_rodrigo")):
         return False
     day = (now_utc().astimezone(ZoneInfo("America/New_York")) + timedelta(days=1)).strftime("%a %b %d")

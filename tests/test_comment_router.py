@@ -152,8 +152,19 @@ NEVER_SEND = [
     "send it next week", "good email, change the opening to Hey Mike", "send it, but say we saw the listing on Zillow",
     "did you send this?", "have you sent it?", "send it at 9am", "looks good. how far off is he from where we need to be",
     "approve after you comp it", "send it, also send it to his partner", "good email, mention the pool",
+    # round 2 (reviewer)
+    "send it, call him tomorrow and do not send the email until I talk to him", "looks good, follow up with him but hold the email",
+    "send it after you send the other one, never mind hold it",
+    "looks good send it, if you don't hear from him I'll handle it, scrap that, don't send", "looks good overall, a couple of tweaks",
+    "good email, a few tweaks", "looks good just fix the typo", "looks good minus the last line", "looks good except the greeting",
+    "looks good, swap Hey for Hi", "looks good, switch the subject line", "good email sign it from me", "looks good, use my signature",
+    "put my name on it", "send it with Rodrigo's name", "send it to Lisa", "send to Lisa", "send it to the seller", "send it from rodrigo",
+    "send this one to my personal email", "send it via text", "send it to every agent", "send them all", "looks good, wrong agent though",
+    "looks good wrong address", "send it, it's pending now", "looks good, he is a jerk skip him", "I approve this. Skip", "send it - DNC",
+    "send it, nope", "send it. lol jk", "ok send it lmao no",
 ]
-PLAIN_SEND = ["send it", "looks good, send it", "approved", "Approved!", "good email", "ship it", "go ahead and send", "this is a really good email, send it"]
+PLAIN_SEND = ["send it", "looks good, send it", "approved", "Approved!", "good email", "ship it", "go ahead and send",
+              "this is a really good email, send it", "yes send", "approve and send", "send", "👍", "I approve this email, I really like it, send it", BALTHAZAR]
 
 
 def test_no_false_sends():
@@ -228,3 +239,29 @@ def test_rent_from_his_comment_gives_cap_rate_prices(loaded, cfg, tmp_path):
 def test_old_comps_are_dropped():
     from titan.comps_report import recent
     assert [c["a"] for c in recent([{"a": 1, "sold_date": "2020-01-01"}, {"a": 2, "sold_date": "2026-09-01"}, {"a": 3}])] == [2, 3]
+
+
+def test_failed_numbers_retried_books_one_call_card(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "mark him hot and call him tomorrow. comp it first")
+
+    def boom(*a, **k):
+        raise RuntimeError("no network")
+    monkeypatch.setattr(comps_report, "build", boom)
+    for _ in range(3):
+        sync_feedback(loaded, cfg, asana, NoLLM())
+    assert sum(t["name"].startswith("📞 Call") for t in asana.tasks.values()) == 1
+
+
+def test_rent_reading_edge_cases():
+    r = comps_report.rent_from
+    assert r(["it rents for about $1,800"]) == 1800
+    assert r(["taxes are $900 a month"]) is None
+    assert r(["rent roll: $1,200 $1,200 $1,200"]) == 3600
+    assert r(["unit A $2,000, unit B $2,000"]) == 4000
+
+
+def test_headline_shows_cash_flow_when_rent_is_stated(loaded, cfg, tmp_path):
+    cfg.root = tmp_path
+    s = comps_report.build(loaded, cfg, _pid(loaded), _fake_comps, asked=DIPIETRO)
+    h = comps_report.headline(s)
+    assert "Flip math" in h and "Cash-flow math" in h

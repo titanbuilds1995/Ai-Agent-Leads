@@ -33,6 +33,7 @@ NOT_RE = re.compile(r"\b(not interested|no interest|no thanks|no thank you|pass|
                     r"full (list )?price only|no lowball|not (selling|entertaining) (below|under)|(don'?t|do not) (waste|bother)|only (considering|accepting) (full|list|retail)|"
                     r"wants? (full|list) price|(isn'?t|is not|won'?t be) (going|willing) (below|under)|(seller|they) (said|says) no\b|no (room|flexibility)|not open to)\b", re.I)
 ASK_RE = re.compile(r"\b(send (me |us |over |it )?(your |the |an? |a written )?(best |highest |cash |written |formal )?(offer|number|price|bid|proposal|contract|pof|proof of funds)|"
+                    r"bring (me |us )?(your |an |a |the )?(best |highest |strongest |cash |written )?(offer|number|price|bid)|(best|highest) and final|"
                     r"what('?s| is| would be| are) (your|the) (offer|number|price|bid|best|range|budget)|where are you (at|thinking)|what (are you|were you|would you) (thinking|offering|paying|pay|offer)|"
                     r"(make|submit|put in|write up|shoot me|give me|throw out|email me) (an |your |the |a |me )?(offer|number|price|bid|something)|"
                     r"how much (are you|would you|can you|will you)|(put|get) (it|something|an offer) in writing|(seller|they|owner) (will|would|is open to|wants? to) (review|look at|see|consider|entertain) (it|an offer|your offer|offers|any offer|all offers)|"

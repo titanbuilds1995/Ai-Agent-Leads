@@ -226,3 +226,9 @@ def test_heal_bounces_refiles_old_misread_bounces(loaded, cfg):
     assert loaded.execute("SELECT classification FROM messages WHERE external_id='m-bounce'").fetchone()[0] == "BOUNCE"
     assert loaded.execute("SELECT email_confidence FROM agents WHERE id=?", (aid,)).fetchone()[0] == "bounced"
     assert heal_bounces(loaded) == 0
+
+
+def test_bring_your_best_offer_is_an_ask_for_offer():
+    from titan.replies.classifier import classify_rules
+    c = classify_rules("That's the question isn't it. I would say just bring your best offer. They will ask for flexibility in the move out as they need the money for the next house.", 299900)
+    assert c.label == "ASK_FOR_OFFER"

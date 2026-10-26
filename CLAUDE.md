@@ -72,7 +72,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Scoring runs on the Claude Code plan** (`scoring.provider: claude_code`): `claude -p` on the Mac, 20 listings per call,
   API key stripped from the child env so the plan is billed; plan limit → rest by rules, Claude next run. Paid API only with
   `scoring.allow_paid_api: true`. Check with `make score-test`.
-- **Charles's Gmail is connected on the Mac** (Rodrigo, 2026-10-24) — don't ask again.
+- **Charles's Gmail is connected on the Mac** (Rodrigo, 2026-10-24) — don't ask again. **Never send from any other mailbox**
+  (Rodrigo, 2026-10-26, after Lise got a reply from rodrigo@ signed Charles): `GmailClient` reads the logged-in profile and refuses
+  to start unless it equals `GMAIL_SENDER`. If the token on the Mac is re-authorised as the wrong account, every send stops until
+  `rm secrets/gmail_token.json && make gmail-auth` as Charles.
 - **Scoring in cloud sessions:** no Anthropic key needed. The engine scores with the rules fallback, then Claude (this session)
   reads the remarks and confirms or corrects the scores. Gmail drafts can be made through the session's Gmail connector.
 - **Asana board "Titan Lead Engine — Claude Updates"** (project gid 1219837397052431; sections Updates 1219837472466797,
@@ -105,6 +108,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~10am ET, RESUME HERE: **Lise's 9:01am reply went out from rodrigo@ (the Mac's Gmail token is Rodrigo's account
+  now, which is also why her thread 404'd); Rodrigo: never again.** Guard added (mailbox must equal GMAIL_SENDER; sends refused
+  otherwise). Rodrigo must re-auth the Mac as Charles (`rm secrets/gmail_token.json && make gmail-auth`). Lise then replied again
+  9:31am: "bring your best offer", seller needs move-out flexibility → ASK_FOR_OFFER (classifier taught "bring your best offer").
+  Holding reply card (no number) waits in To Review; "DECIDE A NUMBER" card in Needs Rodrigo with the internal math (ARV ~$482k,
+  gut $80–110k, 65/74/82% ratios → ~$190k / $246k / $300k; my read $230–250k + 30 days post-closing occupancy). When Rodrigo
+  comments "offer N", write the offer as a reply card on the approvals board. 190 tests.
 - 2026-10-26 ~9:50am ET, RESUME HERE: Lise Freeman's reply went out Mon 9:01am ET (first try 404'd on the stale Gmail thread id;
   a parallel session added the fresh-message fallback). **Rodrigo paused sending**: Approved is empty, nothing sends until he drags a
   card there. Sent so far: Thais Guevara + Lise Freeman (Sat 12:44pm, before his edits), Abraham Elbaz + Dror Gerges (Sat 4:05pm;

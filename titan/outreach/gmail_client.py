@@ -57,6 +57,15 @@ class GmailClient:
             token_path.write_text(creds.to_json())
         self.svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
         self._labels: dict[str, str] = {}
+        # Rodrigo, 2026-10-26: an email went to an agent from his own mailbox with Charles's signature because the token on
+        # disk had been re-authorised as the wrong Google account. Never again: the logged-in mailbox must BE the sender.
+        try:
+            self.account = (self.svc.users().getProfile(userId="me").execute().get("emailAddress") or "").lower()
+        except Exception as e:  # noqa: BLE001
+            raise GmailUnavailable(f"could not read the Gmail profile: {e}") from e
+        if sender and self.account != sender.lower():
+            raise GmailUnavailable(f"Gmail is logged in as {self.account}, not {sender}. Nothing is sent from the wrong mailbox. "
+                                   f"Fix: rm {token_path} && make gmail-auth, and sign in as {sender}.")
 
     # --- labels ---------------------------------------------------------------------------
     def label_id(self, name: str) -> str:

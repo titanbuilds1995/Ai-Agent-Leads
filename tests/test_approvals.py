@@ -288,3 +288,27 @@ def test_gmail_send_falls_back_to_a_fresh_message_when_the_thread_is_gone():
     out = g.send("lise@example.com", "Re: Quick question", "Hi Lise", thread_id="stale-thread")
     assert out == {"message_id": "m9", "thread_id": "t-new"}
     assert "threadId" in calls[0] and "threadId" not in calls[-1]
+
+
+def test_gmail_client_refuses_the_wrong_mailbox(tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-26: an agent got an email from his own mailbox signed Charles. The logged-in account must be the sender."""
+    import json
+    from titan.outreach import gmail_client as gc
+    tok = tmp_path / "tok.json"; tok.write_text(json.dumps({"token": "t", "refresh_token": "r", "client_id": "c", "client_secret": "s", "token_uri": "u"}))
+    class Creds:
+        expired, valid, refresh_token = False, True, "r"
+        @staticmethod
+        def from_authorized_user_file(path, scopes): return Creds()
+    class Svc:
+        def __init__(self, addr): self.addr = addr
+        def users(self): return self
+        def getProfile(self, userId): return self
+        def execute(self): return {"emailAddress": self.addr}
+    import google.oauth2.credentials as goc, googleapiclient.discovery as gd
+    monkeypatch.setattr(goc, "Credentials", Creds)
+    monkeypatch.setattr(gd, "build", lambda *a, **k: Svc("rodrigo@example.com"))
+    import pytest
+    with pytest.raises(gc.GmailUnavailable, match="logged in as rodrigo@example.com, not charles@example.com"):
+        gc.GmailClient(tmp_path / "oauth.json", tok, "charles@example.com", "Charles Grant")
+    monkeypatch.setattr(gd, "build", lambda *a, **k: Svc("Charles@example.com"))
+    assert gc.GmailClient(tmp_path / "oauth.json", tok, "charles@example.com", "Charles Grant").account == "charles@example.com"

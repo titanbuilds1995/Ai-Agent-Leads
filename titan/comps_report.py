@@ -284,10 +284,11 @@ def comp_rows(s: dict[str, Any]) -> list[list[str]]:
 COMP_HEAD = ["Address", "Sold", "Price", "sf", "$/sf", "Pool/Water", "Condition", "Distance", "MLS"]
 
 
-def cap_label(c: float) -> str:
-    """'a 7% cap' / 'an 8% cap' / 'an 11% cap'."""
-    pct = round(c * 100)
-    return f"{'an' if str(pct).startswith('8') or pct in (11, 18) else 'a'} {pct}% cap"
+def cap_label(c: float, exact: bool = False) -> str:
+    """'a 7% cap' / 'an 8% cap' / 'an 8.4% cap' / 'an 11% cap'."""
+    pct = round(c * 100, 1) if exact else round(c * 100)
+    txt = f"{pct:g}"
+    return f"{'an' if txt.startswith('8') or txt.split('.')[0] in ('11', '18') else 'a'} {txt}% cap"
 
 
 def _num(x: Any) -> str:
@@ -307,7 +308,7 @@ def headline(s: dict[str, Any]) -> str:
     if n.get("cap_prices"):
         c, v = n["cap_prices"][-1]
         out += f" Cash-flow math: at {cap_label(c)} it's worth about {money(v)}"
-        out += f" (the ask is a {n['cap_at_ask']}% cap)" if n.get("cap_at_ask") else ""
+        out += f" (the ask is {cap_label(n['cap_at_ask'] / 100, exact=True)})" if n.get("cap_at_ask") else ""
         out += (". The two disagree: for a rental buyer use the cash-flow line, for a flip the first."
                 if abs(v - n["ours"]) > 0.15 * max(v, 1) else ".")
     return out

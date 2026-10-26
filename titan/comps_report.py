@@ -309,8 +309,11 @@ def headline(s: dict[str, Any]) -> str:
         c, v = n["cap_prices"][-1]
         out += f" Cash-flow math: at {cap_label(c)} it's worth about {money(v)}"
         out += f" (the ask is {cap_label(n['cap_at_ask'] / 100, exact=True)})" if n.get("cap_at_ask") else ""
-        out += (". The two disagree: for a rental buyer use the cash-flow line, for a flip the first."
-                if abs(v - n["ours"]) > 0.15 * max(v, 1) else ".")
+        if abs(v - n["ours"]) > 0.15 * max(v, 1):
+            out += (f". The two disagree. Selling to a flipper: we need to be about {money(n['ours'])}. Selling to a rental buyer "
+                    f"at that cap: about {money(max(v - n['fee'], 0))} after our fee.")
+        else:
+            out += "."
     return out
 
 

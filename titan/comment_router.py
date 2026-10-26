@@ -44,7 +44,7 @@ _CALL_PHRASES = [
     r"(?:and )?(?:then )?put (?:it|him|her|them) on my (?:on my )?boards? to call(?: (?:him|her|them))? tomorrow",
     r"call (?:him|her|them) tomorrow", r"after you send (?:them|him|her) the emails?",
 ]
-_FILLER = {"hey", "so", "and", "then", "please", "now", "asap", "great", "thanks", "thank", "you", "perfect", "nice", "cool", "ok",
+_FILLER = {"hey", "so", "and", "then", "please", "now", "asap", "great", "thanks", "perfect", "nice", "cool", "ok",
            "okay", "yes", "yep", "sure", "it", "this", "one", "i", "really", "actually", "very", "a", "the", "just", "go", "ahead",
            "as", "is", "written", "rodrigo"}
 GO_RE = re.compile(r"\b(?:" + "|".join(_GO_AHEAD) + r")\b", re.I)
@@ -59,8 +59,11 @@ def plain_go_ahead(text: str) -> bool:
     if not GO_RE.search(text):
         return False
     rest = GO_RE.sub(" ", CALLP_RE.sub(" ", text.lower()))      # his call phrases first: they contain 'send them'
-    words = re.findall(r"[a-z0-9$']+", rest)
-    return not [w for w in words if w not in _FILLER] and "?" not in text
+    rest = re.sub(r"[👍✅💯🔥]|\bthank you\b", " ", rest)
+    if re.search(r"[^a-z0-9'\s.,!]", rest):          # any other symbol or emoji left (❌ 🛑 👎 🤔 - ?) is not a go-ahead
+        return False
+    words = re.findall(r"[a-z0-9']+", rest)
+    return not [w for w in words if w not in _FILLER]
 
 
 CHANGE_RE = re.compile(r"\b(?:change|take out|remove|instead|don'?t say|do not say|reword|replace|add (?:a|that|the)|shorter|"
@@ -92,7 +95,7 @@ def classify(feedback: list[str]) -> set[str]:
     if plain_go_ahead(text) and not out & {"numbers", "check"}:
         out.add("send")
     elif (SEND_RE.search(text) or EMOJI_OK_RE.match(text) or re.search(r"\bsend\b|\b(?:don'?t|do not) (?:send|approve|follow|mark)|not approved|"
-          r"disapprove|hold (?:it|this|off|the email)|\bwait\b|\bskip\b", text, re.I) or "?" in text) and not change \
+          r"disapprove|\bhold\b|\bwait\b|\bskip\b|[❌🛑🚫✋👎]", text, re.I) or GO_RE.search(text) or "?" in text) and not change \
             and not out & {"numbers", "check"}:
         out.add("hold")        # a go-ahead with anything else in it, a no, a wait or a bare question: nothing moves
     if change or not out:
@@ -166,9 +169,12 @@ def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) 
     a = cfg.get("outreach.asana", {}) or {}
     row = conn.execute("SELECT a.name, a.phone, a.email FROM outreach o LEFT JOIN agents a ON a.id=o.agent_id WHERE o.id=?",
                        (card["outreach_id"],)).fetchone()
+    import hashlib
     props = card_props(conn, card["outreach_id"])
-    if props and all(p.get("lead_note") == CALL_NOTE and p.get("lead_status") == "NEEDS_CALL" for p in props):
-        return False          # already booked (e.g. the numbers failed and this comment is being retried): one call card only
+    conn.execute("CREATE TABLE IF NOT EXISTS call_bookings (key TEXT PRIMARY KEY, created_at TEXT NOT NULL)")
+    key = hashlib.sha1(f"{card.get('outreach_id')}|{' '.join(feedback)}".encode()).hexdigest()
+    if conn.execute("SELECT 1 FROM call_bookings WHERE key=?", (key,)).fetchone():
+        return False          # this comment already booked its call (it is being retried after a failed snapshot): one card only
     for p in props:
         db.set_lead_status(conn, p["id"], "NEEDS_CALL", CALL_NOTE)
     if not (a.get("updates_project") and a.get("needs_rodrigo")):
@@ -177,6 +183,7 @@ def call_card(conn, cfg: Any, asana, card: dict[str, Any], feedback: list[str]) 
     name, phone = (row["name"] if row else None) or "agent", (row["phone"] if row else None) or "no phone on file"
     houses = "; ".join(f"{p['street']}, {p['city']}" for p in props)
     try:
+        conn.execute("INSERT OR IGNORE INTO call_bookings(key, created_at) VALUES(?, ?)", (key, db.iso()))
         asana.create_task(a["updates_project"], a["needs_rodrigo"], f"📞 Call {day}: {name} · {phone} · {houses}",
                           f"HOT lead (your comment): {' '.join(feedback)[:600]}\n\nAgent: {name} · {phone} · {(row['email'] if row else '') or ''}\n"
                           f"Houses: {houses}\n\nThe email follows the normal flow on the Email Approvals board. An automatic "

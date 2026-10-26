@@ -162,9 +162,13 @@ NEVER_SEND = [
     "send this one to my personal email", "send it via text", "send it to every agent", "send them all", "looks good, wrong agent though",
     "looks good wrong address", "send it, it's pending now", "looks good, he is a jerk skip him", "I approve this. Skip", "send it - DNC",
     "send it, nope", "send it. lol jk", "ok send it lmao no",
+    # round 3 (reviewer)
+    "send it ❌", "send it 🛑", "send it 🚫", "send it ✋", "send it 🤔", "looks good 👎", "send it -", "send it, you",
+    "Approved. Hold.", "✅ hold", "send it to rodrigo",
 ]
 PLAIN_SEND = ["send it", "looks good, send it", "approved", "Approved!", "good email", "ship it", "go ahead and send",
-              "this is a really good email, send it", "yes send", "approve and send", "send", "👍", "I approve this email, I really like it, send it", BALTHAZAR]
+              "this is a really good email, send it", "yes send", "approve and send", "send", "👍", "I approve this email, I really like it, send it", BALTHAZAR,
+              "approve", "send it rodrigo", "✅", "send it 👍"]
 
 
 def test_no_false_sends():
@@ -265,3 +269,16 @@ def test_headline_shows_cash_flow_when_rent_is_stated(loaded, cfg, tmp_path):
     s = comps_report.build(loaded, cfg, _pid(loaded), _fake_comps, asked=DIPIETRO)
     h = comps_report.headline(s)
     assert "Flip math" in h and "Cash-flow math" in h
+
+
+def test_hold_words_after_a_go_ahead_hold_not_rewrite():
+    assert classify(["Approved. Hold."]) == {"hold"} and classify(["✅ hold"]) == {"hold"}
+
+
+def test_a_new_call_comment_books_again(loaded, cfg, tmp_path, monkeypatch):
+    from titan.comment_router import call_card
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "x")
+    card = parse_card(asana.tasks[gid]["notes"])
+    assert call_card(loaded, cfg, asana, card, ["call him tomorrow"])
+    assert not call_card(loaded, cfg, asana, card, ["call him tomorrow"])          # same comment retried
+    assert call_card(loaded, cfg, asana, card, ["mark him hot, call him tomorrow again"])   # a new ask books again

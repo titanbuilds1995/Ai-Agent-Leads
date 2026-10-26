@@ -1,0 +1,118 @@
+# Brief for Base44: SMS opt-in page on titanrealtyinvestments.com
+
+Base44 builds and hosts the company website, so the opt-in form is built **inside Base44** (not pasted as a script tag,
+which Base44 does not reliably run). The form sends every submission to our API on Vercel, which stores the consent
+record; nothing else changes. Before pasting, replace `YOUR-VERCEL-DOMAIN` with the dashboard project's domain
+(Vercel → project → Domains, e.g. `titan-dashboard.vercel.app`).
+
+Paste everything between the lines into the Base44 chat for the titanrealtyinvestments.com app.
+
+---
+
+Please add a text-message opt-in to this website. It is required for our Twilio A2P 10DLC campaign registration, so
+the wording below must be used exactly as written. Three changes:
+
+**1. New page at `/sms-consent` titled "OK to text you?"**
+
+Intro text under the title:
+"Charles with Titan Realty Investments may be in touch about a property you have listed or discussed with us. If
+texting is easier than email, let us know here. Texting is optional; you can keep talking with us by email or phone
+without it."
+
+Form fields:
+- Your name (text, required)
+- Mobile number (tel, required; accept any format, keep only the digits; must be 10 digits, or 11 starting with 1)
+- Email (optional)
+- Property we are talking about (optional)
+- A required checkbox with exactly this label:
+  "By checking this box and submitting, I agree to receive SMS text messages from Titan Realty Investments at the
+  mobile number above about properties I have listed or discussed with Titan. Message frequency varies (usually a few
+  messages per conversation). Message and data rates may apply. Reply STOP at any time to opt out and HELP for help.
+  Consent is not a condition of any purchase."
+- Small text under the checkbox: "Mobile information is never sold, rented or shared with third parties or affiliates
+  for marketing or promotional purposes. See our SMS terms and privacy policy." with "SMS terms" linking to
+  `/sms-terms` and "privacy policy" linking to the site's privacy page.
+- Submit button: "Yes, you can text me"
+- Footer line: "Titan Realty Investments LLC · 13075 Marcella Blvd, Loxahatchee, FL · Office line +1 (561) 405-7379 ·
+  Charles@titanrealtyinvestments.com"
+
+Pre-fill: if the page URL has query parameters `name`, `phone`, `email` or `property`, fill those fields with them.
+Also read `agent` and `ref` from the URL and send them along (hidden), empty if absent.
+
+On submit, send a POST request with a JSON body to `https://YOUR-VERCEL-DOMAIN/api/consent`:
+
+```json
+{
+  "name": "<name>",
+  "phone": "<10 digits>",
+  "email": "<email or empty string>",
+  "property": "<property or empty string>",
+  "consent": true,
+  "consent_text": "<the exact checkbox label text>",
+  "agent": "<agent from URL or empty>",
+  "ref": "<ref from URL or empty>",
+  "page": "<the page URL without query string>",
+  "tz": "<browser time zone>",
+  "website": ""
+}
+```
+
+Header `Content-Type: application/json`. The field `website` is a honeypot: always send it empty and do not show it.
+On a 200 response, replace the form with: "Thank you. You are opted in. Charles will text you from our office line.
+Reply STOP at any time to stop." On any other response show the `error` text from the JSON, or "Something went wrong.
+Please try again or email Charles@titanrealtyinvestments.com." Do not store the submission anywhere in Base44; the API
+is the record.
+
+**2. New page at `/sms-terms` titled "Text message (SMS) terms"** with these sections, in this order:
+
+- Program: "Titan Realty Investments LLC ("Titan", "we") sends conversational text messages to real estate agents and
+  property owners about specific properties they have listed, offered or discussed with us: questions about a listing,
+  seller flexibility, scheduling a walkthrough, and the status of an offer. Messages come from a member of our
+  acquisitions team and are written for you, not broadcast."
+- How you opt in: "We only text people who have agreed to it. You can agree by submitting our text message opt-in form
+  (link to /sms-consent), by replying to one of our emails or calls saying that texting is fine, or by texting our
+  office line first. We keep a record of when and how you agreed."
+- Message frequency: "Frequency varies with the conversation. A typical exchange about one property is a few messages
+  over a couple of weeks. We do not send recurring alerts, newsletters or promotions by text."
+- Cost: "Message and data rates may apply according to your mobile carrier plan. Titan does not charge for text messages."
+- How to stop: "Reply STOP to any message and you will receive one confirmation text and nothing further. You can also
+  email Charles@titanrealtyinvestments.com or call +1 (561) 405-7379 and ask us to stop. Opting out of texts does not
+  affect email or phone contact unless you ask for that too."
+- Help: "Reply HELP to any message, email Charles@titanrealtyinvestments.com or call +1 (561) 405-7379."
+- Carriers: "Carriers are not liable for delayed or undelivered messages. Supported carriers include AT&T, T-Mobile,
+  Verizon and most other US carriers."
+- Your information: "Mobile information collected for text messaging is never sold, rented or shared with third parties
+  or affiliates for marketing or promotional purposes." with a link to the privacy page.
+
+**3. Privacy policy.** If the site has no privacy page, create one at `/privacy` (sections: who we are, what we collect,
+how we use it, text messaging, who we share it with, how long we keep it, your choices; company details as above).
+Either way, the privacy page must contain this paragraph word for word, under a "Text messaging" heading:
+
+"We send text messages only to people who have agreed to receive them. Mobile information, including phone numbers and
+SMS opt-in consent, is never sold, rented or shared with third parties or affiliates for marketing or promotional
+purposes. Reply STOP to any text to opt out, or HELP for help."
+
+and a link to `/sms-terms`.
+
+**Navigation:** add "SMS terms" and "Privacy" links to the site footer. Add a small "OK to text me" link in the footer
+that goes to `/sms-consent`. Do not add a pop-up that opens on page load.
+
+**Style:** match the site's existing look. Mobile first; the form must work on a phone. No third-party form service
+(no Typeform, no Google Forms, no email-on-submit): submissions go only to the API above.
+
+---
+
+## After Base44 publishes it
+
+1. Open `https://titanrealtyinvestments.com/sms-consent` on your phone, submit it with your own number.
+2. On the Mac: `make consents`. Your name should print with "no matching agent" (you are not an agent in the database).
+   That proves the website → API → engine path works.
+3. In `config.yaml` set `outreach.sms_consent_url: "https://titanrealtyinvestments.com/sms-consent"`.
+4. In the Twilio campaign, use `https://titanrealtyinvestments.com/sms-consent`, `/sms-terms` and the privacy page as
+   the links (the text in `docs/TWILIO_CAMPAIGN.md` with those URLs).
+
+## If Base44 cannot build a page that calls an outside API
+
+Fallback: ask it to add a page `/sms-consent` that contains only a full-width iframe (height 820px) of
+`https://YOUR-VERCEL-DOMAIN/sms-consent`, plus the footer links above and the privacy paragraph. The Vercel copy of the
+form keeps working on its own either way.

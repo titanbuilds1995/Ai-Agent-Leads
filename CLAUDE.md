@@ -110,8 +110,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Blob `titan/consents/`, `titan/consent.py` pulls them (`make consents`, also in every check-replies) into `sms_consents` and
   stamps `agents.sms_consent_at`; `plan()` texts only consented numbers; first texts end with "Reply STOP to opt out.";
   `dashboard/public/sms-consent-embed.js` = one script tag pop-up for the company site. `docs/TWILIO_CAMPAIGN.md` has every field
-  to paste. **Rodrigo:** redeploy on Vercel happens on merge; put the Vercel domain into `outreach.sms_consent_url`, add the script tag
-  + privacy sentence to titanrealtyinvestments.com, then submit the campaign. 195 tests.
+  to paste. **The company site is on Base44** (Rodrigo, 2026-10-26): `docs/BASE44_BRIEF.md` is the prompt he pastes into Base44 to
+  build `/sms-consent`, `/sms-terms` and the privacy paragraph natively, posting to our `/api/consent` (CORS open). **Rodrigo:** merge
+  this branch (Vercel redeploys), put the Vercel domain into the brief, paste it into Base44, test with his own number, then submit
+  the campaign with the titanrealtyinvestments.com links. 195 tests.
 - 2026-10-26 7:40am ET, RESUME HERE: Monday report read. 5 emails sent total, 2 real replies, 68 new listings, 25 HOT, 78 cards
   waiting (30 new this morning, intro OK). Lise's answer (card "Reply · Lise Freeman", Approved) goes out 8:30–8:50am ET.
   **Cloud GMAIL_TOKEN_JSON_CONTENT is still Rodrigo's mailbox** (profile = rodrigo@), so the cloud still cannot read/send as

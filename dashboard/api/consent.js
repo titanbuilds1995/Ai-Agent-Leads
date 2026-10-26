@@ -8,6 +8,11 @@ const MAX_BODY = 8 * 1024;
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  // The company website (titanrealtyinvestments.com, built on Base44) posts the same form from its own domain.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ error: "Blob store not connected to this project" });
   let b = req.body;

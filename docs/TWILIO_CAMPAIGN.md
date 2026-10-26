@@ -22,6 +22,9 @@ subdomain is fine as long as the main site links to it or embeds it.
 
 ## Add to titanrealtyinvestments.com (two things)
 
+**The site is built on Base44 (Rodrigo, 2026-10-26): use `docs/BASE44_BRIEF.md` instead of the script tag below.** Base44 builds the
+form natively and posts to our API; the script-tag route is for a site where you can paste HTML.
+
 **1. The pop-up.** Paste before `</body>` on the site (Wix/Squarespace/WordPress: "custom code" / "code injection" / footer):
 
 ```html

@@ -227,3 +227,29 @@ def test_reply_card_sends_in_the_same_thread(loaded, cfg, tmp_path, monkeypatch)
     assert loaded.execute("SELECT COUNT(*) FROM messages WHERE direction='out' AND action='reply:manual'").fetchone()[0] == 1
     # the original stays sent and is not re-sent; the reply card is not sent twice
     assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == 2
+
+
+def test_gmail_send_falls_back_to_a_fresh_message_when_the_thread_is_gone():
+    from titan.outreach.gmail_client import GmailClient
+    class Resp: status = 404
+    class NotFound(Exception):
+        resp = Resp()
+    calls = []
+    class Msgs:
+        def send(self, userId, body):
+            calls.append(dict(body))
+            class Ex:
+                def execute(_self):
+                    if "threadId" in body:
+                        raise NotFound("Requested entity was not found.")
+                    return {"id": "m9", "threadId": "t-new"}
+            return Ex()
+    class Users:
+        def messages(self): return Msgs()
+    class Svc:
+        def users(self): return Users()
+    g = GmailClient.__new__(GmailClient)
+    g.svc, g.sender, g.sender_name = Svc(), "charles@example.com", "Charles Grant"
+    out = g.send("lise@example.com", "Re: Quick question", "Hi Lise", thread_id="stale-thread")
+    assert out == {"message_id": "m9", "thread_id": "t-new"}
+    assert "threadId" in calls[0] and "threadId" not in calls[-1]

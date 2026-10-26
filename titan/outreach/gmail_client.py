@@ -10,6 +10,15 @@ from typing import Any
 
 from ..util import log, retry
 
+
+class _RetryableSendError(Exception):
+    """Placeholder: with a thread id we do not retry at all on the first pass, so a 404 falls straight to the fallback."""
+
+
+def _is_not_found(e: BaseException) -> bool:
+    status = getattr(getattr(e, "resp", None), "status", None) or getattr(e, "status_code", None)
+    return status == 404 or "404" in str(e)[:80] or "Requested entity was not found" in str(e)
+
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
@@ -89,7 +98,20 @@ class GmailClient:
         message = self._mime(to, subject, body, in_reply_to)
         if thread_id:
             message["threadId"] = thread_id
-        sent = retry(lambda: self.svc.users().messages().send(userId="me", body=message).execute(), what="gmail send")
+        try:
+            sent = retry(lambda: self.svc.users().messages().send(userId="me", body=message).execute(), what="gmail send",
+                         retry_on=(_RetryableSendError,) if thread_id else (Exception,))
+        except _RetryableSendError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            if thread_id and _is_not_found(e):
+                # the stored thread id is not in this mailbox (stale or from another account): send it as a fresh message
+                # with the same subject rather than never answering; the agent's mail client threads by subject anyway
+                log.warning("gmail send: thread %s not found in this mailbox, sending without threadId", thread_id)
+                message.pop("threadId", None)
+                sent = retry(lambda: self.svc.users().messages().send(userId="me", body=message).execute(), what="gmail send")
+            else:
+                raise
         return {"message_id": sent["id"], "thread_id": sent.get("threadId")}
 
     # --- read ----------------------------------------------------------------------------------

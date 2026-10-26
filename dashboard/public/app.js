@@ -60,7 +60,7 @@
   function renderBoard() {
     const el = $("#tab-board"); const st = snap.stats || {}; const t = st.totals || {}; const az = st.asana; const d = st.daily || [];
     if (!st.totals || st.error) { el.innerHTML = `<div class="empty"><h2>No scoreboard in this snapshot yet</h2><p class="muted">It appears after the next run or approvals tick on the Mac.</p></div>`; return; }
-    const asanaTiles = az ? `${tile(az.to_review, "cards to review")}${tile(az.approved, "approved")}${tile(az.sent, "cards sent")}${tile(az.skip, "skipped")}` : tile(t.cards_waiting, "cards waiting");
+    const asanaTiles = az ? `${tile(az.to_review, "cards to review")}${tile(az.needs_revision ?? 0, "needs revision")}${tile(az.approved, "approved")}${tile(az.sent, "cards sent")}${tile(az.skip, "skipped")}` : tile(t.cards_waiting, "cards waiting");
     el.innerHTML = `
       <div><h2>What the outreach is doing</h2><p class="muted">Updated ${ago(snap.generated_at)} · counts since the first email went out · a bounce is never a reply.</p></div>
       <div class="tiles">${tile(t.emails_sent, "emails sent")}${tile(t.agents_replied, "agents replied", "hot")}${pctTile(t.reply_rate_pct, "reply rate", "hot")}${tile(t.answered, "answered by us")}${pctTile(t.answer_rate_pct, "answer rate")}${tile(t.awaiting_our_answer, "awaiting answer", t.awaiting_our_answer ? "hot" : "")}${tile(t.needs_rodrigo, "needs Rodrigo", t.needs_rodrigo ? "hot" : "")}${tile(t.median_hours_to_first_reply == null ? "—" : t.median_hours_to_first_reply + "h", "median reply time")}</div>
@@ -73,7 +73,7 @@
     el.querySelectorAll(".kcard").forEach((c) => (c.onclick = () => openAgent(+c.dataset.agent)));
     el.querySelectorAll(".bars i").forEach((b) => { b.onmouseenter = () => showTip(b); b.onmouseleave = hideTip; b.onfocus = () => showTip(b); b.onblur = hideTip; });
   }
-  const convCard = (c) => `<div class="kcard" data-agent="${c.agent?.id ?? ""}" role="button" tabindex="0"><b>${h(c.agent?.name || "?")}</b><div class="muted">${h((c.properties || []).map((p) => p.street).join(", "))}</div><div class="snip">${h(c.last_snippet || "")}</div><div class="kmeta"><span>${tag(c.channel)} ${c.last_class ? tag(c.last_class) : ""}</span><span class="muted">${c.last_direction === "in" ? "they wrote" : "we wrote"} ${ago(c.last_at)}</span></div></div>`;
+  const convCard = (c) => `<div class="kcard" data-agent="${c.agent?.id ?? ""}" role="button" tabindex="0"><b>${h(c.agent?.name || "?")}</b>${c.agent?.phone ? `<a class="tel mono" href="tel:${h(c.agent.phone)}" onclick="event.stopPropagation()">${h(c.agent.phone)}</a>` : ""}<div class="muted">${h((c.properties || []).map((p) => p.street).join(", "))}</div><div class="snip">${h(c.last_snippet || "")}</div><div class="kmeta"><span>${tag(c.channel)} ${c.last_class ? tag(c.last_class) : ""}</span><span class="muted">${c.last_direction === "in" ? "they wrote" : "we wrote"} ${ago(c.last_at)}</span></div></div>`;
   function barChart(days, key, title) {
     const max = Math.max(1, ...days.map((x) => x[key] || 0)); const total = days.reduce((a, x) => a + (x[key] || 0), 0);
     const lab = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });

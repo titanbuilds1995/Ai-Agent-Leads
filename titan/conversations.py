@@ -64,7 +64,8 @@ def mirror_text(conn, thread: dict[str, Any], msg: dict[str, Any], agent: dict[s
         body = body[:1500].rstrip() + " […]"
     conf = msg.get("confidence")
     read = f"{msg.get('classification') or 'unclassified'}" + (f" ({conf:.0%} sure)" if isinstance(conf, (int, float)) else "")
-    lines = [f"{PREFIX} {who} ({via}, {_when(msg.get('created_at'))}):", "", body or "(empty message)", "",
+    phone = pretty_phone(agent.get("phone")) if agent.get("phone") else ""
+    lines = [f"{PREFIX} {who} ({via}, {_when(msg.get('created_at'))}):" + (f"  ·  call {phone}" if phone else ""), "", body or "(empty message)", "",
              f"Engine read: {read}. Conversation state: {thread.get('state') or 'OPEN'}."]
     for p in props:
         lines.append(f"House: {p['street']}, {p['city']} · list {money(p['list_price'])} · lead {p.get('lead_status') or 'NONE'}"

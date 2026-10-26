@@ -50,3 +50,16 @@ class Asana:
 
     def move(self, task: str, section: str) -> None:
         self._req("POST", f"/sections/{section}/addTask", json={"data": {"task": task}})
+
+    def sections(self, project: str) -> list[dict[str, Any]]:
+        return self._req("GET", f"/projects/{project}/sections", params={"opt_fields": "name"}) or []
+
+    def ensure_section(self, project: str, name: str, insert_before: str | None = None) -> str:
+        """The gid of the section called `name` on the board, created (before `insert_before`) when it does not exist yet."""
+        for sec in self.sections(project):
+            if (sec.get("name") or "").strip().lower() == name.strip().lower():
+                return sec["gid"]
+        data: dict[str, Any] = {"name": name}
+        if insert_before:
+            data["insert_before"] = insert_before
+        return self._req("POST", f"/projects/{project}/sections", json={"data": data})["gid"]

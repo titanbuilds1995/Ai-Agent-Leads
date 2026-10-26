@@ -60,7 +60,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Rodrigo's example emails are tone references only. Charles Grant, Junior Acquisitions Agent.
 - **Terms:** as-is cash, 14-day close, $5,000 EMD, **always keep a 7-day inspection period** (never promise to waive it).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
-- Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
+- Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23). **Brand is
+  registered; the campaign is next (Rodrigo, 2026-10-26).** Opt-in model: email/phone first, text only after the agent opts in on
+  the form `/sms-consent` on the Vercel site (`dashboard/public/sms-consent.html` → `/api/consent` → Blob `titan/consents/` →
+  `make consents` → `agents.sms_consent_at`; `outreach.sms_require_consent: true` so the planner never texts without it). `/sms-terms`,
+  `/privacy` and the one-line pop-up `/sms-consent-embed.js` for titanrealtyinvestments.com live next to it. Every first text ends
+  with "Reply STOP to opt out." Field-by-field campaign text to paste: `docs/TWILIO_CAMPAIGN.md`.
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
   Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379. **No opt-out footer**
   (Rodrigo, 2026-10-24: it reads as marketing). "Remove me"/stop replies are still caught and honored (do-not-contact).
@@ -100,6 +105,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~10am ET, RESUME HERE: Rodrigo is filling in the Twilio A2P campaign (brand done). Built the SMS opt-in: public form
+  `/sms-consent` + `/sms-terms` + `/privacy` on the Vercel dashboard project (no password), `/api/consent` stores each submission in
+  Blob `titan/consents/`, `titan/consent.py` pulls them (`make consents`, also in every check-replies) into `sms_consents` and
+  stamps `agents.sms_consent_at`; `plan()` texts only consented numbers; first texts end with "Reply STOP to opt out.";
+  `dashboard/public/sms-consent-embed.js` = one script tag pop-up for the company site. `docs/TWILIO_CAMPAIGN.md` has every field
+  to paste. **Rodrigo:** redeploy on Vercel happens on merge; put the Vercel domain into `outreach.sms_consent_url`, add the script tag
+  + privacy sentence to titanrealtyinvestments.com, then submit the campaign. 195 tests.
 - 2026-10-26 7:40am ET, RESUME HERE: Monday report read. 5 emails sent total, 2 real replies, 68 new listings, 25 HOT, 78 cards
   waiting (30 new this morning, intro OK). Lise's answer (card "Reply · Lise Freeman", Approved) goes out 8:30–8:50am ET.
   **Cloud GMAIL_TOKEN_JSON_CONTENT is still Rodrigo's mailbox** (profile = rodrigo@), so the cloud still cannot read/send as

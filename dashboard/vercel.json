@@ -1,5 +1,23 @@
 {
   "headers": [
-    { "source": "/api/(.*)", "headers": [ { "key": "Cache-Control", "value": "no-store" } ] }
-  ]
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/(sms-consent|sms-terms|privacy)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    }
+  ],
+  "cleanUrls": true
 }

@@ -40,7 +40,7 @@ def _today_count(conn, channel: str, run_date: str) -> int:
 def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT p.*, s.score, s.cited, v.rating, v.lane, v.mao, v.offer_price, v.arv, v.repair_tier, v.repair_cost, v.arv_method, v.comp_count, a.id AS a_id, a.name AS a_name, a.email AS a_email, "
-        "a.email_confidence AS a_conf, a.phone AS a_phone, a.is_office_line AS a_office "
+        "a.email_confidence AS a_conf, a.phone AS a_phone, a.is_office_line AS a_office, a.sms_consent_at AS a_consent "
         "FROM properties p JOIN scores s ON s.property_id=p.id JOIN valuations v ON v.property_id=p.id JOIN agents a ON a.id=p.agent_id "
         "WHERE v.rating IN ('HOT','WARM') AND p.lead_status NOT IN ('CLOSED','DNC','EXCLUDED','HOT_LEAD','NEEDS_CALL','NEEDS_REVIEW','DISCUSSING','FLEXIBLE','RESPONDED') "
         "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, "
@@ -54,6 +54,7 @@ def plan(conn, cfg: Any, run_date: str, now=None) -> dict[str, list[dict[str, An
     channel_mode = cfg.channel
     o = cfg["outreach"]
     min_conf = CONF_RANK[o.get("email_min_confidence", "medium")]
+    need_consent = bool(o.get("sms_require_consent", True))   # A2P 10DLC: never text a number without an opt-in record
     email_by_agent: dict[int, dict[str, Any]] = {}
     sms_items: list[dict[str, Any]] = []
     for p in candidate_rows(conn, cfg):
@@ -64,7 +65,8 @@ def plan(conn, cfg: Any, run_date: str, now=None) -> dict[str, list[dict[str, An
             continue
         can_email = (bool(p["a_email"]) and not GENERIC_MAILBOX_RE.match(p["a_email"]) and CONF_RANK.get(p["a_conf"] or "low", 1) >= min_conf
                      and not _recent_contact(conn, aid, "email", o["agent_cooldown_days"]))
-        can_sms = bool(p["a_phone"]) and not p["a_office"] and not _recent_contact(conn, aid, "sms", o["agent_cooldown_days"]) and not _sms_blocked(conn, aid, o["max_unanswered_sms"])
+        can_sms = (bool(p["a_phone"]) and not p["a_office"] and (bool(p.get("a_consent")) or not need_consent)
+                   and not _recent_contact(conn, aid, "sms", o["agent_cooldown_days"]) and not _sms_blocked(conn, aid, o["max_unanswered_sms"]))
         use_email = use_sms = False
         if channel_mode == "BOTH":
             use_email, use_sms = can_email, can_sms

@@ -34,7 +34,7 @@ def _j(s: str | None, default):
 def _agent(conn, aid) -> dict[str, Any] | None:
     if not aid:
         return None
-    r = conn.execute("SELECT id, name, brokerage, phone, email, email_confidence, email_source, is_office_line FROM agents WHERE id=?", (aid,)).fetchone()
+    r = conn.execute("SELECT id, name, brokerage, phone, email, email_confidence, email_source, is_office_line, sms_consent_at FROM agents WHERE id=?", (aid,)).fetchone()
     return db.row_to_dict(r) if r else None
 
 
@@ -76,7 +76,7 @@ def build_snapshot(conn, cfg, include_connections: bool = False, include_asana: 
     snap["properties_total"] = conn.execute("SELECT COUNT(*) FROM properties").fetchone()[0]
     # --- agents with counts ----------------------------------------------------------------
     ag = conn.execute(
-        "SELECT a.id, a.name, a.brokerage, a.phone, a.email, a.email_confidence, a.email_source, a.is_office_line, a.updated_at, "
+        "SELECT a.id, a.name, a.brokerage, a.phone, a.email, a.email_confidence, a.email_source, a.is_office_line, a.sms_consent_at, a.updated_at, "
         "(SELECT COUNT(*) FROM properties p WHERE p.agent_id=a.id) AS listings, "
         "(SELECT COUNT(*) FROM outreach o WHERE o.agent_id=a.id AND o.status IN ('sent','draft','queued')) AS touches, "
         "(SELECT MAX(m.created_at) FROM messages m JOIN threads t ON t.id=m.thread_id WHERE t.agent_id=a.id AND m.direction='in') AS last_reply_at, "

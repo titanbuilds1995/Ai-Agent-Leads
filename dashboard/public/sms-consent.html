@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Text message opt-in · Titan Realty Investments</title>
+<meta name="description" content="Agree to receive text messages from Titan Realty Investments about a property you listed or discussed with us.">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .consent { max-width: 560px; margin: 0 auto; }
+  .consent .card { gap: 14px; }
+  .consent label { display: grid; gap: 5px; font-size: 13.5px; color: var(--muted); }
+  .consent label input[type=text], .consent label input[type=tel], .consent label input[type=email] { width: 100%; }
+  .consent .check { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; font-size: 13.5px; color: var(--ink); line-height: 1.45; }
+  .consent .check input { margin-top: 3px; width: 16px; height: 16px; }
+  .consent .legal { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .consent .legal a { color: var(--gold-ink); }
+  .consent .ok { background: var(--good-soft); color: var(--good); border-radius: 6px; padding: 12px 14px; font-size: 14px; }
+  .consent .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .consent .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 520px) { .consent .row2 { grid-template-columns: 1fr; } }
+  .consent .foot { text-align: center; font-size: 12px; color: var(--faint); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">T</span><div><h1>Titan <b>Realty Investments</b></h1><div class="sub">text message opt-in</div></div></div>
+</header>
+
+<main>
+  <section class="consent">
+    <form id="consent" class="card" novalidate>
+      <h2>OK to text you?</h2>
+      <p class="muted">Charles with Titan Realty Investments may be in touch about a property you have listed or discussed with us. If texting is easier than email, let us know here. Texting is optional; you can keep talking with us by email or phone without it.</p>
+      <div class="row2">
+        <label>Your name <input type="text" name="name" autocomplete="name" required placeholder="First and last name"></label>
+        <label>Mobile number <input type="tel" name="phone" autocomplete="tel" required inputmode="tel" placeholder="(305) 555-0100"></label>
+      </div>
+      <label>Email (optional) <input type="email" name="email" autocomplete="email" placeholder="you@brokerage.com"></label>
+      <label>Property we are talking about (optional) <input type="text" name="property" placeholder="123 Main St, Hollywood FL"></label>
+      <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <label class="check"><input type="checkbox" name="consent" id="consentbox" required>
+        <span id="consenttext">By checking this box and submitting, I agree to receive SMS text messages from Titan Realty Investments at the mobile number above about properties I have listed or discussed with Titan. Message frequency varies (usually a few messages per conversation). Message and data rates may apply. Reply STOP at any time to opt out and HELP for help. Consent is not a condition of any purchase.</span>
+      </label>
+      <p class="legal">Mobile information is never sold, rented or shared with third parties or affiliates for marketing or promotional purposes. See our <a href="/sms-terms">SMS terms</a> and <a href="/privacy">privacy policy</a>.</p>
+      <button type="submit" id="submit">Yes, you can text me</button>
+      <p id="err" class="err" hidden></p>
+      <div id="done" class="ok" hidden></div>
+    </form>
+    <p class="foot">Titan Realty Investments LLC · 13075 Marcella Blvd, Loxahatchee, FL · Office line +1 (561) 405-7379 · Charles@titanrealtyinvestments.com</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const form = $("#consent"), err = $("#err"), done = $("#done"), btn = $("#submit");
+  // Prefill from the link we send (?name=&phone=&email=&property=&agent=&ref=). The person still has to tick the box and submit.
+  const q = new URLSearchParams(location.search);
+  for (const k of ["name", "phone", "email", "property"]) { const v = q.get(k); if (v && form.elements[k]) form.elements[k].value = v; }
+  const fail = (m) => { err.textContent = m; err.hidden = false; btn.disabled = false; };
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault(); err.hidden = true;
+    const f = form.elements;
+    const digits = (f.phone.value || "").replace(/\D/g, "").replace(/^1(\d{10})$/, "$1");
+    if (!f.name.value.trim()) return fail("Please enter your name.");
+    if (digits.length !== 10) return fail("Please enter a 10-digit US mobile number.");
+    if (!f.consent.checked) return fail("Please tick the box so we have your OK to text.");
+    btn.disabled = true;
+    const body = { name: f.name.value.trim(), phone: digits, email: (f.email.value || "").trim(), property: (f.property.value || "").trim(),
+      website: f.website.value || "", consent: true, consent_text: $("#consenttext").textContent.trim(),
+      agent: q.get("agent") || "", ref: q.get("ref") || "", page: location.href.split("?")[0], tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "" };
+    try {
+      const r = await fetch("/api/consent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return fail(j.error || "Something went wrong. Please try again or email Charles@titanrealtyinvestments.com.");
+      form.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+      done.textContent = "Thank you. You are opted in. Charles will text you from our office line. Reply STOP at any time to stop.";
+      done.hidden = false;
+    } catch (e) { fail("Could not reach the server. Please try again in a moment."); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -132,6 +132,10 @@ outreach:
   daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
   max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
   daily_sms_cap: 25
+  # A2P 10DLC (2026-10-26): a number is texted only after the agent opted in on the form (dashboard/public/sms-consent.html →
+  # Vercel Blob → `titan.cli consents` → agents.sms_consent_at). The link to send people is sms_consent_url.
+  sms_require_consent: true
+  sms_consent_url: ""                # e.g. https://titan-dashboard.vercel.app/sms-consent (the Vercel project's domain)
   agent_cooldown_days: 7
   max_unanswered_sms: 3
   sms_window: {start_hour: 9, end_hour: 18, weekdays_only: true, timezone: "America/New_York"}

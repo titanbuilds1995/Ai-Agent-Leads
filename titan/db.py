@@ -33,9 +33,20 @@ CREATE TABLE IF NOT EXISTS agents (
   phone TEXT, phone_raw TEXT, is_office_line INTEGER DEFAULT 0,
   email TEXT, email_confidence TEXT, email_source TEXT, enriched_at TEXT, enrich_attempts INTEGER DEFAULT 0,
   portal_urls TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  sms_consent_at TEXT, sms_consent_source TEXT,
   UNIQUE(name_key, brokerage_key)
 );
 CREATE INDEX IF NOT EXISTS idx_agents_phone ON agents(phone);
+
+-- Text-message opt-ins from the public form (dashboard/public/sms-consent.html), pulled from Vercel Blob. The record of
+-- consent the carriers (A2P 10DLC) expect us to keep: who, when, from where, the exact wording they agreed to.
+CREATE TABLE IF NOT EXISTS sms_consents (
+  id INTEGER PRIMARY KEY,
+  blob_path TEXT UNIQUE NOT NULL, agent_id INTEGER REFERENCES agents(id),
+  action TEXT NOT NULL, name TEXT, phone TEXT, email TEXT, property TEXT, consent_text TEXT, ip TEXT, user_agent TEXT,
+  created_at TEXT NOT NULL, pulled_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sms_consents_phone ON sms_consents(phone);
 
 CREATE TABLE IF NOT EXISTS scores (
   property_id INTEGER PRIMARY KEY REFERENCES properties(id),
@@ -115,7 +126,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT",
-              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT"]   # databases created before the column existed
+              "ALTER TABLE messages ADD COLUMN mirrored_at TEXT", "ALTER TABLE agents ADD COLUMN sms_consent_at TEXT",
+              "ALTER TABLE agents ADD COLUMN sms_consent_source TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

@@ -1,4 +1,4 @@
-"""Command line: init-db | run-daily | check-replies | report | status | install-cron | webhook | gmail-auth | doctor | score | value | enrich | outreach"""
+"""Command line: init-db | run-daily | check-replies | report | status | install-cron | webhook | gmail-auth | doctor | consents | approvals | ..."""
 from __future__ import annotations
 
 import argparse
@@ -169,6 +169,8 @@ def cmd_check_replies(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("llm", "gmail", "twilio"))
     res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"])
+    from .consent import pull_consents
+    res["sms_consents"] = pull_consents(conn, cfg)      # opt-ins from the website form → agents.sms_consent_at
     asana = _asana(cfg)
     if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
         from .conversations import mirror_replies
@@ -345,6 +347,22 @@ def cmd_approvals(cfg, args):
     print(json.dumps({"feedback": fb, "send": sent, "asana_mirror": mirrored, "dashboard": dash}, indent=2))
 
 
+def cmd_consents(cfg, args):
+    """Pull text-message opt-ins from the website form (Vercel Blob) and list who has agreed to be texted."""
+    from .consent import pull_consents, summary
+    conn = _open(cfg)
+    res = pull_consents(conn, cfg)
+    print(json.dumps(res, indent=2))
+    rows = summary(conn)
+    if not rows:
+        print("no opt-ins yet")
+    for r in rows[: args.limit]:
+        who = f"{r['agent_name']} ({r['brokerage']})" if r.get("agent_name") else "no matching agent"
+        print(f"{r['created_at'][:16]}  {r['action']:7}  {r['phone'] or '-':15}  {r['name'] or '-':24}  {r['property'] or '':30}  → {who}")
+    url = cfg.get("outreach.sms_consent_url") or ""
+    print(f"\nform link to send people: {url or '(set outreach.sms_consent_url in config.yaml to the Vercel domain + /sms-consent)'}")
+
+
 def cmd_test_email(cfg, args):
     """Send a [TEST] copy of one card's email (by outreach id) to an address, from Charles's Gmail. The agent gets nothing."""
     from .approvals import send_test_copy
@@ -450,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--to", default=None, help="defaults to REPORT_TO")
     rp = sub.add_parser("rewrite-pending", help="regenerate To Review emails written before the protocol and update their cards")
     rp.add_argument("--all", action="store_true", help="redo every To Review card, not only the old-style ones")
+    cs = sub.add_parser("consents", help="pull SMS opt-ins from the website form and list who agreed to be texted")
+    cs.add_argument("--limit", type=int, default=50)
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
     st = sub.add_parser("scrape-test", help="quick live check of the free Realtor.com scraper (run on the Mac)")
     st.add_argument("location", nargs="?", default="33023")
@@ -458,7 +478,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "score-test": cmd_score_test, "approvals": cmd_approvals, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "consents": cmd_consents}[args.cmd](cfg, args)
     return 0
 
 

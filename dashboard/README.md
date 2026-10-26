@@ -37,6 +37,15 @@ From then on every `run-daily`, `check-replies` and `report` pushes a fresh snap
   phrases, ARV/repairs/MAO, agent, every message about it), Agents, Conversations, Messages.
 - **Live**: event feed (runs, drafts, sends, replies, hot leads, opt-outs), AI cost, recent runs.
 
+## Public pages (no password): SMS opt-in
+
+`/sms-consent` is the text-message opt-in form the Twilio A2P 10DLC campaign points to, with `/sms-terms` and `/privacy`
+next to it. A submission POSTs to `/api/consent`, which writes one JSON record to the Blob store under `titan/consents/`
+(name, phone, email, property, consent wording, time, IP, browser). The engine pulls those with `make consents` (and on
+every `check-replies`) into `sms_consents` and stamps `agents.sms_consent_at`; it never texts a number without that stamp.
+`/sms-consent-embed.js` is a one-line pop-up for titanrealtyinvestments.com. Field-by-field campaign text:
+`docs/TWILIO_CAMPAIGN.md`. Prefill links work: `/sms-consent?name=Lise%20Freeman&phone=5615550123&property=529%2023rd%20Ave%20N&agent=42`.
+
 ## Privacy
 
 The snapshot holds agent names, phones and emails (the CRM). The blob lives at a fixed path inside your private store

@@ -129,6 +129,7 @@ def test_sms_under_160_and_varied(cfg):
 
 def _give_contacts(conn):
     conn.execute("UPDATE agents SET email=lower(replace(name,' ','.'))||'@example-brokerage.com', email_confidence='high', email_source='test' WHERE email IS NULL")
+    conn.execute("UPDATE agents SET sms_consent_at='2026-10-20T12:00:00+00:00', sms_consent_source='form'")   # texts need an opt-in (A2P 10DLC)
 
 
 def test_plan_sms_first_prefers_mobile_and_falls_back_to_email(loaded, cfg, monkeypatch):

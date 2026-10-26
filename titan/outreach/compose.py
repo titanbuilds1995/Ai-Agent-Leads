@@ -263,12 +263,15 @@ def angle_for(p: dict[str, Any]) -> str:
     return "default"
 
 
+# First-touch texts. Carriers (A2P 10DLC) want the company name and an opt-out line in the first text to a number;
+# STOP_LINE is appended to every first touch, and the engine only texts numbers with an opt-in record (titan/consent.py).
 SMS_TEMPLATES = [
-    "Hi {first}, {sender} w/ {company_short}. Quick q on {street_name}: mostly cosmetic, or something bigger going on? Any flexibility on price?",
+    "Hi {first}, {sender} w/ {company_short}. Quick q on {street_name}: mostly cosmetic, or something bigger? Any flexibility on price?",
     "{first}, {sender} with {company_short} here. Looking at {street_name} for a renovation. Is the seller open to some flexibility on price?",
-    "Hi {first}, this is {sender} from {company_short}. On {street_name}: how deep is the project really, and does the seller have some flexibility on price?",
-    "{first}, {sender} ({company_short}). Interested in {street_name}. Do you have a sense of the seller's flexibility on price?",
+    "Hi {first}, {sender} from {company_short}. On {street_name}: how deep is the project, and is there some flexibility on price?",
+    "{first}, {sender} ({company_short}). Interested in {street_name}. Any sense of the seller's flexibility on price?",
 ]
+STOP_LINE = " Reply STOP to opt out."
 
 
 def seed_for(agent_id: int, property_ids: list[int], run_date: str) -> int:
@@ -441,13 +444,13 @@ def compose_sms(cfg: Any, agent: dict[str, Any], prop: dict[str, Any], seed: int
     order = list(range(len(SMS_TEMPLATES)))
     random.Random(seed).shuffle(order)
     for i in order:
-        body = SMS_TEMPLATES[i].format(**ctx)
+        body = SMS_TEMPLATES[i].format(**ctx) + STOP_LINE
         if len(body) <= 160:
             return {"body": body, "variant": f"s{i}"}
-    # street too long: shorten
-    ctx["street"] = (ctx["street"][:28] + "…") if len(ctx["street"]) > 29 else ctx["street"]
-    body = SMS_TEMPLATES[2].format(**ctx)
-    return {"body": body[:160], "variant": "s2-short"}
+    # street too long: shorten it, use the shortest template, and never cut the STOP line
+    ctx["street_name"] = (ctx["street_name"][:24] + "…") if len(ctx["street_name"]) > 25 else ctx["street_name"]
+    body = SMS_TEMPLATES[3].format(**ctx)
+    return {"body": body[:160 - len(STOP_LINE)].rstrip() + STOP_LINE, "variant": "s3-short"}
 
 
 def validate_sms(body: str) -> list[str]:

@@ -151,6 +151,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~3:30pm ET, RESUME HERE: **"token refused" on Asana, root fix.** Every rewrite used ONLY the token in .env; when it was
+  refused, nothing else was tried, though the Mac's own Claude login (keychain) often worked (hence "fixes itself"). Now `claude -p`
+  tries the .env token, then the Mac's login, and keeps the one that works for the run; a card fails only if BOTH are refused
+  (comment shows both raw errors). Also: .env token wins over a stale one exported in the shell; timeouts no longer dump the prompt
+  into the error (it could match "401"/"oauth token" and be misread as a login problem). `make claude-check` tests both logins.
+  Stuck Needs Revision cards (Carlton, Balthazar, Montas, Kara, Foland, Dipietro) retry on the next tick. 217 tests.
 - 2026-10-26 ~3:15pm ET: first written offer (Lise, $209k) approved by Rodrigo as the template for future offers (recorded
   under Terms). He expects agents to answer faster once texting (Twilio 10DLC) is live.
 - 2026-10-26 ~2:45pm ET, RESUME HERE: Rodrigo paused new listings for this strategy (`ingest.paused: true`) to work the ones we

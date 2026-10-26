@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 ROOT = Path(os.environ.get("TITAN_ROOT", Path(__file__).resolve().parent.parent))
 
@@ -106,6 +106,10 @@ def load(path: Path | str | None = None, env_path: Path | str | None = None, for
         raw = yaml.safe_load(fh) or {}
     _validate(raw)
     secrets = {k: os.environ.get(k, "") for k in SECRET_KEYS}
+    if env_file.exists():   # the token `make claude-login` saves wins over an old one left exported in the shell profile
+        saved = (dotenv_values(env_file).get("CLAUDE_CODE_OAUTH_TOKEN") or "").strip()
+        if saved:
+            secrets["CLAUDE_CODE_OAUTH_TOKEN"] = saved
     cfg = Config(raw=raw, secrets=secrets, root=cfg_path.parent)
     if path is None:
         _CACHE = cfg

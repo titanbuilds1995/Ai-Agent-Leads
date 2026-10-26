@@ -404,17 +404,20 @@ def save_env_value(env_file: Path, key: str, value: str) -> None:
     env_file.chmod(0o600)
 
 
-def cron_claude_check(cli: str, token: str) -> tuple[bool, str]:
-    """Call Claude the way cron does: bare environment, no API key, only the saved token."""
+def cron_claude_check(cli: str, token: str | None) -> tuple[bool, str]:
+    """Call Claude the way cron does: bare environment, no API key; with the saved token, or (token None) with the Mac's
+    own Claude login, which the engine falls back to when the token is refused."""
     import subprocess
     import tempfile
-    env = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": os.path.expanduser("~"), "CLAUDE_CODE_OAUTH_TOKEN": token}
+    env = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": os.path.expanduser("~")}
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
     with tempfile.TemporaryDirectory() as tmp:
         try:
             p = subprocess.run([cli, "-p", "Reply with the single word OK", "--no-session-persistence"], capture_output=True,
                                text=True, cwd=tmp, env=env, timeout=180)
         except (OSError, subprocess.TimeoutExpired) as e:
-            return False, str(e)
+            return False, str(e)[:300]
     out = (p.stdout + " " + p.stderr).strip()
     return (p.returncode == 0 and "ok" in p.stdout.lower()), out[:300]
 
@@ -474,16 +477,19 @@ def cmd_claude_login(cfg, args):
         save_env_value(env_file, "CLAUDE_CODE_OAUTH_TOKEN", token)
         print(f"Saved in {env_file}.")
     else:
-        token = cfg.secret("CLAUDE_CODE_OAUTH_TOKEN") or ""
+        token = cfg.secret("CLAUDE_CODE_OAUTH_TOKEN") or None
         if not token:
-            print("No CLAUDE_CODE_OAUTH_TOKEN in .env: that's why cron says 'Not logged in'. Run `make claude-login`.")
-            sys.exit(1)
+            print("No CLAUDE_CODE_OAUTH_TOKEN in .env (run `make claude-login` to add one); checking the Mac's own login.")
     print("Step 3: testing Claude the way the background jobs run it ...")
-    ok, out = cron_claude_check(cli, token)
-    if ok:
-        print("OK: the background jobs are logged in. Stuck cards rewrite on the next round (or now: make approvals-now).")
+    ok, out = cron_claude_check(cli, token) if token else (False, "")
+    mac_ok, mac_out = cron_claude_check(cli, None)
+    print(f"  token in .env:          {'OK' if ok else ('REFUSED: ' + out if token else 'none saved')}")
+    print(f"  Mac's own Claude login: {'OK' if mac_ok else 'not usable from here: ' + mac_out}")
+    if ok or mac_ok:
+        print("OK: the background jobs can reach Claude (they try the token first, then the Mac's login). "
+              "Stuck cards rewrite on the next round (or now: make approvals-now).")
     else:
-        print(f"FAILED: {out}\nRun `make claude-login` again and paste the whole token.")
+        print("FAILED: neither login works. Run `make claude-login` again and copy the whole token.")
         sys.exit(1)
 
 

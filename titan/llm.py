@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -48,18 +49,27 @@ def find_claude_cli(name: str = "claude") -> str | None:
     return None
 
 
+AUTH_RE = re.compile(r"not logged in|/login|invalid api key|oauth token|authentication_error|invalid bearer|unauthori[sz]ed|"
+                     r"api error: 401|\b401\b.*(token|auth|key)", re.I)
+
+
+def is_auth_error(err: str | None) -> bool:
+    """A login failure (token refused / not logged in), as opposed to an outage, a timeout or bad output."""
+    return bool(err and AUTH_RE.search(err))
+
+
 def login_problem(cfg: Any, err: str | None) -> str | None:
-    """Plain-English reason + fix when `claude -p` fails on the login (cron has no Mac keychain, so it needs the saved
-    setup-token). None when the error is something else."""
-    low = (err or "").lower()
-    if "not logged in" in low or "/login" in low:
-        if not cfg.secret("CLAUDE_CODE_OAUTH_TOKEN"):
-            return ("Claude is logged out for the background jobs: the Claude token is not saved in .env on the Mac. "
-                    "Fix once at the Mac: `make claude-login`")
-        return "Claude says not logged in even with the token in .env. Fix at the Mac: `make claude-login` (saves a fresh token)"
-    if "invalid api key" in low or "oauth token" in low or "401" in low or "authentication" in low:
-        return "the Claude token saved in .env was refused (expired or pasted wrong). Fix at the Mac: `make claude-login`"
-    return None
+    """Plain-English reason + fix when `claude -p` fails on the login. By the time this is shown the engine has already
+    tried BOTH logins it has (the token saved in .env and the Mac's own Claude login), so one of them alone being bad
+    never stops a rewrite. None when the error is something else."""
+    if not is_auth_error(err):
+        return None
+    raw = " ".join((err or "").split())[:140]
+    if not cfg.secret("CLAUDE_CODE_OAUTH_TOKEN"):
+        return ("Claude is logged out for the background jobs: no token in .env and the Mac's own Claude login didn't work "
+                f"either ({raw}). Fix once at the Mac: `make claude-login`")
+    return ("both Claude logins on the Mac were refused, the token saved in .env and the Mac's own Claude login "
+            f"({raw}). Fix at the Mac: `make claude-login`")
 
 
 class LLM:
@@ -92,6 +102,7 @@ class LLM:
         self.session_failures = 0
         self.session_successes = 0
         self.last_error: str | None = None
+        self.login_used: str | None = None    # 'token' or 'mac_login', whichever worked
 
     @property
     def available(self) -> bool:
@@ -105,20 +116,41 @@ class LLM:
         cmd = [cli, "-p", "--model", self.cfg.get("scoring.claude_code_model", "sonnet"), "--output-format", "json",
                "--json-schema", json.dumps(schema), "--tools", "", "--max-turns", "3", "--no-session-persistence",
                "--system-prompt", system]
-        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+        base = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN")}
         tok = self.cfg.secret("CLAUDE_CODE_OAUTH_TOKEN")
-        if tok:   # `claude setup-token` (plan login that works from cron, where the Mac keychain may be locked)
-            env["CLAUDE_CODE_OAUTH_TOKEN"] = tok
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                proc = subprocess.run(cmd, input=user, capture_output=True, text=True, cwd=tmp, env=env,
-                                      timeout=int(self.cfg.get("scoring.claude_code_timeout_s", 600)))
-        except (OSError, subprocess.TimeoutExpired) as e:
-            return self._cc_fail(purpose, f"{type(e).__name__}: {e}")
-        try:
-            env_out = json.loads(proc.stdout or "{}")
-        except json.JSONDecodeError:
-            env_out = {}
+        # Two logins, tried in turn: the `claude setup-token` token saved in .env, then the Mac's own Claude login (keychain).
+        # Either one alone used to be a single point of failure: a refused token stopped every rewrite even while the Mac's
+        # login worked, which is why it seemed to "fix itself" at times (Rodrigo, 2026-10-26: solve it once and for all).
+        logins = ([("token", {**base, "CLAUDE_CODE_OAUTH_TOKEN": tok})] if tok else []) + [("mac_login", base)]
+        if self.login_used and len(logins) > 1:                       # the one that worked last goes first this run
+            logins.sort(key=lambda kv: kv[0] != self.login_used)
+        errors: list[str] = []
+        for name, env in logins:
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    proc = subprocess.run(cmd, input=user, capture_output=True, text=True, cwd=tmp, env=env,
+                                          timeout=int(self.cfg.get("scoring.claude_code_timeout_s", 600)))
+            except subprocess.TimeoutExpired as e:      # str(e) would carry the whole prompt; keep the error short
+                return self._cc_fail(purpose, f"TimeoutExpired: no answer after {e.timeout:.0f}s")
+            except OSError as e:
+                return self._cc_fail(purpose, f"{type(e).__name__}: {e}")
+            try:
+                out_env = json.loads(proc.stdout or "{}")
+            except json.JSONDecodeError:
+                out_env = {}
+            failed = proc.returncode != 0 or out_env.get("is_error")
+            err = f"{out_env.get('result') or ''} {proc.stderr or ''}".strip()
+            if failed and is_auth_error(err):
+                errors.append(f"{name}: {err[:200]}")
+                log.warning("claude_code login %s refused, trying the next one: %s", name, err[:200])
+                continue
+            if self.login_used != name:
+                log.info("claude_code: using login %s", name)
+            self.login_used = name
+            break
+        else:
+            return self._cc_fail(purpose, " | ".join(errors)[:400])
+        env_out = out_env
         text = f"{env_out.get('result') or ''} {proc.stderr or ''}"
         low = text.lower()
         if "usage limit" in low or "session limit" in low or "weekly limit" in low or "hit your limit" in low:

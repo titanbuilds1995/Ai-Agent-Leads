@@ -27,8 +27,8 @@ def alert_claude_login(cfg: Any, asana: Any, problem: str) -> bool:
         asana.create_task(project, section, "⚠ Claude is logged out on the Mac: card rewrites are stuck",
                           f"{problem}\n\nWhat this breaks: your comments on Email Approvals cards can't be applied (cards wait in Needs "
                           "Revision), reply cards aren't drafted, scoring falls back to rules.\n\nWhy it happens: the background jobs "
-                          "(cron) can't use the login in your Mac's keychain, only a token saved in the Ai-Agent-Leads/.env file. "
-                          "Logging in to Claude in Terminal does not fix cron.\n\nFix (once, at the Mac, in Terminal):\n"
+                          "(cron) try two logins, the token saved in Ai-Agent-Leads/.env and then the Mac's own Claude login, and "
+                          "both were refused this time.\n\nFix (once, at the Mac, in Terminal):\n"
                           "  cd ~/Ai-Agent-Leads && make claude-login\n\nIt opens the Claude login, asks you to paste the token it "
                           "prints, saves it in .env and tests it the same way cron runs. The stuck cards rewrite on the next round.")
         mark.parent.mkdir(parents=True, exist_ok=True)

@@ -73,3 +73,43 @@ def test_batched_scoring_through_claude_code(loaded, cfg, monkeypatch):
     assert sum(batches) == out["claude"] >= 5 and max(batches) <= 5 and len(batches) == -(-sum(batches) // 5)
     assert out["llm_cost_usd"] == 0 and out["claude"] + out["rules"] == out["scored"]
     assert loaded.execute("SELECT model FROM scores WHERE method='claude' LIMIT 1").fetchone()[0] == "claude_code:sonnet"
+
+
+def test_refused_token_falls_back_to_the_mac_login(cfg, monkeypatch):
+    """Rodrigo, 2026-10-26: 'token refused' kept coming back. A bad token no longer stops a rewrite: the Mac's own
+    Claude login is tried next, and the one that works goes first for the rest of the run."""
+    monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-bad")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-stale-shell")
+    seen = []
+
+    def run(cmd, input, capture_output, text, cwd, env, timeout):
+        tok = env.get("CLAUDE_CODE_OAUTH_TOKEN")
+        seen.append(tok)
+        if tok:
+            return Proc(json.dumps({"result": 'API Error: 401 {"type":"authentication_error","message":"Invalid bearer token"}',
+                                    "is_error": True}), returncode=1)
+        return Proc(json.dumps({"result": "", "structured_output": {"ok": 1}}))
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.structured("t", "s", "u", {}) == {"ok": 1}
+    assert seen == ["sk-ant-oat01-bad", None] and llm.login_used == "mac_login"
+    assert llm.structured("t", "s", "u", {}) == {"ok": 1} and seen[-1] is None and len(seen) == 3   # no wasted retry
+
+
+def test_both_logins_refused_reports_both(cfg, monkeypatch):
+    from titan.llm import login_problem
+    monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-bad")
+
+    def run(cmd, **kw):
+        return Proc(json.dumps({"result": "Not logged in · Please run /login", "is_error": True}), returncode=1)
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.structured("t", "s", "u", {}) is None
+    assert "token:" in llm.last_error and "mac_login:" in llm.last_error
+    assert "both Claude logins" in login_problem(cfg, llm.last_error)
+
+
+def test_timeout_error_does_not_carry_the_prompt(cfg, monkeypatch):
+    def run(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 600)
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.structured("t", "secret system prompt 401 oauth token", "u", {}) is None
+    assert "prompt" not in llm.last_error and "TimeoutExpired" in llm.last_error

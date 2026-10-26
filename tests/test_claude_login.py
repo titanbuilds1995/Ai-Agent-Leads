@@ -16,12 +16,15 @@ class FakeAsana:
 
 def test_login_problem_names_missing_token(cfg, monkeypatch):
     monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "")
-    msg = login_problem(cfg, "Not logged in · Please run /login")
-    assert "not saved in .env" in msg and "make claude-login" in msg
+    msg = login_problem(cfg, "mac_login: Not logged in · Please run /login")
+    assert "no token in .env" in msg and "make claude-login" in msg
     monkeypatch.setitem(cfg.secrets, "CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-x")
-    assert "even with the token" in login_problem(cfg, "Not logged in · Please run /login")
-    assert "refused" in login_problem(cfg, "Invalid API key · Fix external API key")
+    assert "both Claude logins" in login_problem(cfg, "token: Invalid API key · Fix external API key | mac_login: Not logged in")
     assert login_problem(cfg, "no structured output") is None and login_problem(cfg, None) is None
+    # an outage or a timeout is not a login problem, even when the text happens to hold "401" (an address, a phone)
+    assert login_problem(cfg, "API Error: 529 overloaded") is None
+    assert login_problem(cfg, "TimeoutExpired: no answer after 600s") is None
+    assert login_problem(cfg, "bad output about 401 NW 3rd Ave") is None
 
 
 def test_alarm_card_once_per_day(cfg, monkeypatch, tmp_path):

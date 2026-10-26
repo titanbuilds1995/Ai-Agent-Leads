@@ -232,3 +232,31 @@ def test_bring_your_best_offer_is_an_ask_for_offer():
     from titan.replies.classifier import classify_rules
     c = classify_rules("That's the question isn't it. I would say just bring your best offer. They will ask for flexibility in the move out as they need the money for the next house.", 299900)
     assert c.label == "ASK_FOR_OFFER"
+
+
+def test_rent_and_license_numbers_are_not_a_counter():
+    """Richard DiPietro, 2026-10-26: rents + a broker license number in the signature were read as a $3.6M counter."""
+    from titan.replies.classifier import classify_rules
+    txt = ("Hi Charles,\n\nThank you for your interest.\n\nPolk Street unit A is rented for $2,500, unit B $2,000 monthly.\n\n"
+           "W 34th Street is occupied by family and will be delivered vacant.\n\nPlease feel free to call me to discuss making an offer "
+           "or if you would like\nto set up a showing.\n\nBest regards,\n\nRichard M. DiPietro\nFL. Licensed Broker Associate\n"
+           "License # BK3659026\nReal REMAX Group Inc.\nP: 347-693-2995\nO: 855-450-0442")
+    c = classify_rules(txt, 639_000)
+    assert c.label != "COUNTER_WITH_NUMBER" and c.number is None
+    assert classify_rules("Seller would take 610k", 639_000).number == 610_000
+    assert classify_rules("They want $585,000 for it", 639_000).number == 585_000
+
+
+def test_heal_misreads_refiles_old_wrong_reads(loaded):
+    from titan.replies.inbox import heal_misreads
+    from titan.outreach.send import ensure_thread, log_message
+    a = loaded.execute("SELECT id FROM agents LIMIT 1").fetchone()[0]
+    pid = loaded.execute("SELECT id FROM properties LIMIT 1").fetchone()[0]
+    tid = ensure_thread(loaded, a, "email", "t-heal", [pid])
+    log_message(loaded, tid, "in", "Unit A is rented for $2,500 monthly. License # BK3659026", external_id="h1", classification="COUNTER_WITH_NUMBER", confidence=0.85)
+    log_message(loaded, tid, "in", "That's the question isn't it. Just bring your best offer.", external_id="h2", classification="QUESTION", confidence=0.7)
+    log_message(loaded, tid, "in", "Seller would take 610k", external_id="h3", classification="COUNTER_WITH_NUMBER", confidence=0.85)
+    assert heal_misreads(loaded) == 2
+    got = dict(loaded.execute("SELECT external_id, classification FROM messages WHERE external_id LIKE 'h%'").fetchall())
+    assert got["h1"] != "COUNTER_WITH_NUMBER" and got["h2"] == "ASK_FOR_OFFER" and got["h3"] == "COUNTER_WITH_NUMBER"
+    assert heal_misreads(loaded) == 0

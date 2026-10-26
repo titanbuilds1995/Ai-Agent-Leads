@@ -129,6 +129,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~11:30am ET: lead board is LIVE on Asana (Answered: Lise, Richard, Lise reply card). Fixed two wrong reads: Richard's
+  rents + broker license # in his signature were read as a $3.6M counter (signature lines and rent amounts no longer count as prices),
+  and Lise's "bring your best offer" was filed as a question; `heal_misreads()` re-files old messages on the next check. An offer
+  request now shows NEEDS YOU even when a holding reply is drafted. 199 tests.
 - 2026-10-26 ~11am ET: **Lise offer card written** ("Offer · Lise Freeman · 529 23rd Ave N · $209,000", gid 1219900327903853, To
   Review, reply to outreach #2): $209k cash as is, 14 day close, $5k deposit, 7 day inspection, we cover closing costs, 30 days
   post-occupancy with $5k escrow holdback, unrepresented (she takes 4%, seller saves 2%). Rodrigo's exit ~$240k → spread ~$26.5k.

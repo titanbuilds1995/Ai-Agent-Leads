@@ -177,11 +177,31 @@ def heal_bounces(conn) -> int:
     return n
 
 
+def heal_misreads(conn) -> int:
+    """Re-read stored replies an older build got wrong: a 'counter' whose only number was rent or a license number in the
+    signature (Richard DiPietro, 2026-10-26), or an offer request filed as a question (Lise: "bring your best offer").
+    Only these two corrections; idempotent; runs before every check."""
+    from .classifier import classify_rules
+    n = 0
+    rows = conn.execute("SELECT m.id, m.body, m.classification, m.thread_id, t.property_ids FROM messages m JOIN threads t ON t.id=m.thread_id "
+                        "WHERE m.direction='in' AND m.classification IN ('COUNTER_WITH_NUMBER','QUESTION','INTERESTED')").fetchall()
+    for r in rows:
+        pids = json.loads(r["property_ids"] or "[]")
+        lp = conn.execute("SELECT list_price FROM properties WHERE id=?", (pids[0],)).fetchone() if pids else None
+        c = classify_rules(r["body"] or "", lp[0] if lp else None)
+        if (r["classification"] == "COUNTER_WITH_NUMBER" and c.number is None) or \
+           (r["classification"] in ("QUESTION", "INTERESTED") and c.label == "ASK_FOR_OFFER"):
+            conn.execute("UPDATE messages SET classification=?, confidence=? WHERE id=?", (c.label, c.confidence, r["id"]))
+            n += 1
+    return n
+
+
 # --- the 15-minute job -----------------------------------------------------------------------------
 
 def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=None, now: datetime | None = None) -> dict[str, Any]:
     run_id = db.start_run(conn, "check_replies", today_et())
-    counts = {"threads_checked": 0, "new_replies": 0, "errors": 0, "sms_flushed": 0, "handoff_timeouts": 0, "healed_bounces": heal_bounces(conn)}
+    counts = {"threads_checked": 0, "new_replies": 0, "errors": 0, "sms_flushed": 0, "handoff_timeouts": 0, "healed_bounces": heal_bounces(conn),
+              "healed_misreads": heal_misreads(conn)}
     sender = (cfg.secret("GMAIL_SENDER") or "").lower()
     if gmail is not None:
         rows = conn.execute("SELECT * FROM threads WHERE channel='email' AND external_id IS NOT NULL AND external_id NOT LIKE 'local-%' "

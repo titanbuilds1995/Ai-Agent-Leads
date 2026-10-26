@@ -155,10 +155,11 @@ def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> list[str
         turn = f"CLOSED: {PLAIN.get(cls, 'conversation ended')}."
     elif last["direction"] == "out":
         turn = f"WAITING ON THE AGENT since {_when(last['created_at'])}."
+    elif cls in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
+        turn = ("NEEDS YOU: decide a number (comment \"offer N\" on this card) or tell Charles what to ask."
+                + (" A holding reply card is drafted." if pending_reply else ""))
     elif pending_reply:
         turn = "ANSWER DRAFTED: Charles's reply card is on the board waiting for you."
-    elif cls in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
-        turn = "NEEDS YOU: decide a number (comment \"offer N\" on this card) or tell Charles what to ask."
     else:
         turn = "OUR TURN: Charles owes an answer."
     snippet = " ".join((last_in.get("body") or "").split())[:180]

@@ -71,6 +71,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   **Written offers (Rodrigo, 2026-10-26, Lise):** 30-day close ("longer if needed" when not vacant), 9-day inspection, $5k deposit;
   offer emails thank briefly (no fluff), list the terms, then a human paragraph that owns a below-ask number and explains it
   (resale range, cost of the work). Unrepresented: listing agent can take 4%, seller saves 2%.
+  **The Lise offer (card 1219900327903853, 2026-10-26) is the model for every written offer** (Rodrigo: "a great starting point"):
+  personable, brief thanks, Charles cc's Rodrigo as acquisitions manager who approved the numbers, terms as a short list, human
+  paragraph owning the number, and **no contract attached** (agents don't care; offer by email first).
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
@@ -148,6 +151,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-26 ~3:15pm ET: first written offer (Lise, $209k) approved by Rodrigo as the template for future offers (recorded
+  under Terms). He expects agents to answer faster once texting (Twilio 10DLC) is live.
 - 2026-10-26 ~2:45pm ET, RESUME HERE: Rodrigo paused new listings for this strategy (`ingest.paused: true`) to work the ones we
   have (email + offers), and asked to track every offer sent: offer log built (`titan.cli offers`, reports/offers.csv, Scoreboard
   "Offers sent" line with median % of list and per-city stats). Caveat: with the scrape off, stored listings no longer refresh

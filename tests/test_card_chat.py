@@ -81,3 +81,26 @@ def test_claude_unreachable_holds_once_and_keeps_the_comment(loaded, cfg, tmp_pa
     llm = ChatLLM({"answer": "Worth a call.", "lead_note": "", "reply_change": ""})
     sync_feedback(loaded, cfg, asana, llm)
     assert asana.stories[g1][-1].startswith(f"{BOT} 💬 Worth a call")
+
+
+def test_a_question_that_also_rewrites_gets_a_chat_answer(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27 (David Carlton / Alex Castro): 'take a look and tell me what you're seeing' got a new email and no answer."""
+    from tests.test_approvals import _cards
+    from titan.approvals import parse_card, sync_feedback
+    from titan.card_chat import is_question
+    assert is_question(["Take a look at it and tell me what you're seeing that i am not"])
+    assert is_question(["knowing this data give me an analysis and feedback on where the price should be"])
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    gid = next(iter(asana.tasks))
+    card = parse_card(asana.tasks[gid]["notes"])
+    asana.stories[gid].append("Something's off with this one, it's priced cheap and not selling. Take a look and tell me what you're seeing, and make the email more direct.")
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            if purpose == "card_chat":
+                return {"answer": "The comps are townhouses, not houses; the ask is market for that cluster.", "lead_note": "", "reply_change": ""}
+            return {"subject": card["subject"], "body": card["body"]}
+    res = sync_feedback(loaded, cfg, asana, L())
+    assert res["revised"] == 1
+    assert any("💬" in c and "townhouses" in c for c in asana.stories[gid])

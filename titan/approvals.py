@@ -330,6 +330,14 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         if where in (nr, nm):
             asana.move(t["gid"], a["to_review"])
         return True
+    from . import card_chat
+    if card_chat.is_question(feedback):
+        # Rodrigo, 2026-10-27 (David Carlton, Alex Castro): "tell me what you're seeing" on a card that also gets rewritten
+        # was answered with a new email and no chat. A question gets its 💬 answer whatever else the comment triggers.
+        try:
+            card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(t["gid"]))
+        except Exception as e:  # noqa: BLE001
+            log.warning("card chat on %s: %s", t["gid"], e)
     if "check" in want:
         return cr.agent_listings(conn, card["outreach_id"]) or ["(none besides this card's)"]
     return None

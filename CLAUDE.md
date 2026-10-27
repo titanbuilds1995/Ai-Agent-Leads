@@ -158,6 +158,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~1:35pm ET, RESUME HERE: the Mac was STUCK on morning code all day (its `git pull` died on an untracked
+  `reports/2026-10-27.md`); Rodrigo cleared it, reports are untracked now, and every approvals tick checks `code_behind()` (alarm
+  card). First API rewrites landed 1:19pm. **Card chat gap:** David Carlton's and Alex Castro's "take a look and tell me what
+  you're seeing" got a rewritten email and no answer (chat only ran on held comments): now any question / ask for analysis
+  gets its 💬 answer whatever else the comment triggers (`route_comment`), QUESTION_RE widened. Both answered by hand on their
+  cards (Carlton: all exits $500–560k, builder/Airbnb play; Castro: wrong comps, townhouse ARV ~$300k, HOA rules, not a deal
+  above ~$175k). Lise / Cheryl / Richard answers were in Approved waiting on `make approvals-now`. 252 tests.
 - 2026-10-27 ~1:15pm ET, RESUME HERE: **Richard** (same as Lise): Rodrigo dictated the answer on the lead card and dragged it to
   Approved; no reply card existed, so the engine kept bouncing it. Reply card made by hand (gid 1219948219758582, Approved).
   Engine now: a dictated answer on a lead card ("Answer the email with: Hey Richard, …") becomes the reply card itself

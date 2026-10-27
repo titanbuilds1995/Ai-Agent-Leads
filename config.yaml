@@ -90,8 +90,9 @@ scoring:
   claude_code_model: "sonnet"
   claude_code_batch_size: 20       # listings per `claude -p` call (fewer calls = less plan usage)
   allow_paid_api: false            # true = fall back to the paid API when the Claude Code CLI is missing
-  paid_fallback_when_login_fails: false   # true = card rewrites / answers / reply drafts use the paid API when BOTH Mac logins
-                                          # are refused (never scoring). Pennies per card. Off until Rodrigo says so (cost rule).
+  communication_provider: "api"    # Rodrigo, 2026-10-27: card rewrites, answers, reply drafts, first emails and reply reading run on
+                                   # the paid API all the time (pennies per card), never on the Mac's Claude login. Scoring stays on the plan.
+  paid_fallback_when_login_fails: true    # and if communication_provider is ever set back to claude_code: paid API when BOTH logins are refused
   model: "claude-sonnet-5-5"       # only used by provider: api
   max_claude_calls_per_run: 1500   # cost cap (~$0.005 each); target lanes first, the rest catch up on later runs
   effort: "low"

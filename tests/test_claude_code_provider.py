@@ -27,7 +27,7 @@ def test_claude_code_uses_the_plan_not_the_api_key(cfg, monkeypatch):
         return Proc(json.dumps({"result": "", "structured_output": {"ok": 1}, "total_cost_usd": 0.01}))
     llm = _cc(cfg, monkeypatch, run)
     assert llm.available and llm.provider == "claude_code"
-    assert llm.structured("t", "sys", "hello", {"type": "object"}) == {"ok": 1}
+    assert llm.structured("score_t", "sys", "hello", {"type": "object"}) == {"ok": 1}
     assert "ANTHROPIC_API_KEY" not in seen["env"]                      # otherwise -p bills the API key
     c = seen["cmd"]
     assert c[1] == "-p" and c[0].endswith("claude") and "--json-schema" in c and c[c.index("--tools") + 1] == "" and "--no-session-persistence" in c
@@ -41,8 +41,8 @@ def test_plan_limit_stops_calls_without_errors_flood(cfg, monkeypatch):
         calls.append(1)
         return Proc(json.dumps({"result": "You've hit your session limit · resets 3pm", "is_error": True}), returncode=1)
     llm = _cc(cfg, monkeypatch, run)
-    assert llm.structured("t", "s", "u", {}) is None
-    assert llm.limit_hit and not llm.available and llm.structured("t", "s", "u", {}) is None and len(calls) == 1
+    assert llm.structured("score_t", "s", "u", {}) is None
+    assert llm.limit_hit and not llm.available and llm.structured("score_t", "s", "u", {}) is None and len(calls) == 1
 
 
 def test_missing_cli_never_falls_back_to_paid_api_unless_allowed(cfg, monkeypatch):
@@ -90,9 +90,9 @@ def test_refused_token_falls_back_to_the_mac_login(cfg, monkeypatch):
                                     "is_error": True}), returncode=1)
         return Proc(json.dumps({"result": "", "structured_output": {"ok": 1}}))
     llm = _cc(cfg, monkeypatch, run)
-    assert llm.structured("t", "s", "u", {}) == {"ok": 1}
+    assert llm.structured("score_t", "s", "u", {}) == {"ok": 1}
     assert seen == ["sk-ant-oat01-bad", None] and llm.login_used == "mac_login"
-    assert llm.structured("t", "s", "u", {}) == {"ok": 1} and seen[-1] is None and len(seen) == 3   # no wasted retry
+    assert llm.structured("score_t", "s", "u", {}) == {"ok": 1} and seen[-1] is None and len(seen) == 3   # no wasted retry
 
 
 def test_both_logins_refused_reports_both(cfg, monkeypatch):
@@ -102,7 +102,7 @@ def test_both_logins_refused_reports_both(cfg, monkeypatch):
     def run(cmd, **kw):
         return Proc(json.dumps({"result": "Not logged in · Please run /login", "is_error": True}), returncode=1)
     llm = _cc(cfg, monkeypatch, run)
-    assert llm.structured("t", "s", "u", {}) is None
+    assert llm.structured("score_t", "s", "u", {}) is None
     assert "token:" in llm.last_error and "mac_login:" in llm.last_error
     assert "both Claude logins" in login_problem(cfg, llm.last_error)
 
@@ -111,7 +111,7 @@ def test_timeout_error_does_not_carry_the_prompt(cfg, monkeypatch):
     def run(cmd, **kw):
         raise subprocess.TimeoutExpired(cmd, 600)
     llm = _cc(cfg, monkeypatch, run)
-    assert llm.structured("t", "secret system prompt 401 oauth token", "u", {}) is None
+    assert llm.structured("score_t", "secret system prompt 401 oauth token", "u", {}) is None
     assert "prompt" not in llm.last_error and "TimeoutExpired" in llm.last_error
 
 
@@ -120,6 +120,7 @@ def test_every_login_refused_falls_back_to_the_paid_api_only_when_switched_on(cf
     def run(cmd, **kw):
         return Proc(json.dumps({"result": "API Error: 401 OAuth access token is invalid", "is_error": True}), returncode=1)
     cfg.raw["scoring"]["paid_fallback_when_login_fails"] = False
+    cfg.raw["scoring"]["communication_provider"] = "claude_code"
     llm = _cc(cfg, monkeypatch, run)
     assert llm.structured("revise_email", "s", "u", {}) is None and llm.login_fallbacks == 0
     cfg.raw["scoring"]["paid_fallback_when_login_fails"] = True
@@ -128,3 +129,18 @@ def test_every_login_refused_falls_back_to_the_paid_api_only_when_switched_on(cf
     llm._api = lambda purpose, system, user, schema, max_tokens=1024: seen.update(purpose=purpose) or {"ok": 1}
     assert llm.structured("revise_email", "s", "u", {}) == {"ok": 1} and seen["purpose"] == "revise_email" and llm.login_fallbacks == 1
     assert llm.structured("score_batch", "s", "u", {}) is None            # scoring never spends money on this path
+
+
+def test_communication_runs_on_the_api_scoring_on_the_plan(cfg, monkeypatch):
+    """Rodrigo, 2026-10-27: 'let's have it run on the API' for the communication part; the Mac keeps the heavy lifting."""
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(1)
+        return Proc(json.dumps({"result": "", "structured_output": {"scored": 1}}))
+    cfg.raw["scoring"]["communication_provider"] = "api"
+    llm = _cc(cfg, monkeypatch, run)
+    llm._api = lambda purpose, system, user, schema, max_tokens=1024: {"api": purpose}
+    assert llm.structured("revise_email", "s", "u", {}) == {"api": "revise_email"} and not calls
+    assert llm.structured("draft_reply", "s", "u", {}) == {"api": "draft_reply"} and not calls
+    assert llm.structured("score_batch", "s", "u", {}) == {"scored": 1} and len(calls) == 1

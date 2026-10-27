@@ -209,8 +209,16 @@ class LLM:
         if not self.available:
             return None
         if self.provider == "claude_code":
+            if self._always_api(purpose):
+                return self._api(purpose, system, user, schema, max_tokens)
             return self._claude_code(purpose, system, user, schema)
         return self._api(purpose, system, user, schema, max_tokens)
+
+    def _always_api(self, purpose: str) -> bool:
+        """Rodrigo, 2026-10-27: the communication part (card rewrites, answers, reply drafts, first emails, reply reading) runs on
+        the paid API all the time, so it never waits on the Mac's Claude login. Scoring stays on the plan (volume)."""
+        return (self.cfg.get("scoring.communication_provider", "claude_code") == "api" and bool(self._api_key)
+                and anthropic is not None and not purpose.startswith("score"))
 
     def _api(self, purpose: str, system: str, user: str, schema: dict[str, Any], max_tokens: int = 1024) -> dict[str, Any] | None:
         """One paid Messages API call (provider api, or the login fallback above)."""

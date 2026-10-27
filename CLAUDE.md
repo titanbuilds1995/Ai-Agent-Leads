@@ -79,6 +79,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
   Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379. **No opt-out footer**
   (Rodrigo, 2026-10-24: it reads as marketing). "Remove me"/stop replies are still caught and honored (do-not-contact).
+- **Communication runs on the paid API (Rodrigo, 2026-10-27: "let's have it run on the API, that's not a problem")**:
+  `scoring.communication_provider: api` → card rewrites, card chat answers, reply drafts, first emails and reply reading go
+  straight to the Anthropic API (key in the Mac's .env), never through the Mac's Claude login, which broke again and again
+  (token revoked / keychain locked). Pennies per card. Scoring stays on the plan (volume). `paid_fallback_when_login_fails: true`
+  is the backstop if communication is ever switched back to claude_code.
 - **Scoring runs on the Claude Code plan** (`scoring.provider: claude_code`): `claude -p` on the Mac, 20 listings per call,
   API key stripped from the child env so the plan is billed; plan limit → rest by rules, Claude next run. Paid API only with
   `scoring.allow_paid_api: true`. Check with `make score-test`.
@@ -162,8 +167,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   answer card waiting for that agent (`sync_feedback`, `_lead_note`); with no answer waiting it says so. **Lead board
   rule changed (Rodrigo): "Answered" = the AGENT wrote last (or closed); once we reply the lead goes back to "Sent · no answer
   yet"; Needs Me = his move.** Mac login still refused on both paths (token 401 invalid + keychain "Not logged in"): cron
-  rewrites fail until `make claude-login` at the Mac; built the fallback behind `scoring.paid_fallback_when_login_fails` (off; card rewrites / answers /
-  reply drafts go to the paid API only when BOTH Mac logins are refused; scoring never). Rodrigo decides whether to flip it. Merged with the parallel "card chat" commit
+  rewrites fail until `make claude-login` at the Mac; **Rodrigo moved the communication part to the paid API** (`scoring.communication_provider: api`;
+  the Mac login is no longer in the path for card work; scoring still on the plan). Lise's card had gone to Answered because the
+  old code read OFFER APPROVED as "waiting on the agent": an approved, unsent offer now stays put. Merged with the parallel "card chat" commit
   (`titan/card_chat.py` answers first when Claude is reachable; this deterministic routing is the no-Claude safety net). 249 tests.
 - 2026-10-27 ~1pm ET, RESUME HERE: **chat on the cards** (Rodrigo: "I asked for input and got nothing back"). Before, a question
   on a card got "Holding it" and comments on sent lead cards (Sent / Answered / Needs Me) were never read. Now

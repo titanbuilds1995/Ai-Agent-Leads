@@ -307,7 +307,7 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
                 card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(t["gid"]))
             except Exception as e:  # noqa: BLE001
                 log.warning("card chat after numbers on %s: %s", t["gid"], e)
-        asana.comment(t["gid"], f"{NUMBERS_HELD} (and on the Claude Updates board). Moved to Needs Me: nothing sends from there. "
+        asana.comment(t["gid"], f"{NUMBERS_HELD}. Moved to Needs Me: nothing sends from there. "
                                 "Comment what to send, or drag the card to Approved to send it as written."
                       + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
         nm = needs_me_section(cfg, asana)
@@ -379,13 +379,117 @@ def asana_name(asana: Asana, gid: str | None) -> str:
         return gid or ""
 
 
-def _lead_note(asana: Asana, lead: tuple[dict[str, Any], str], reply: dict[str, Any], nm: str) -> None:
-    """Close the loop on the lead card: its comment was applied to the answer card, which is where the decision happens."""
+def _lead_note(asana: Asana, lead: tuple[dict[str, Any], str], reply: dict[str, Any], nm: str, what: str = "Your comment") -> None:
+    """Close the loop on the lead card: the part of his comment that changes the answer went to the answer card."""
     t, where = lead
-    asana.comment(t["gid"], f"Your comment went to the answer waiting for this agent, card \"{reply.get('name') or reply['gid']}\" "
-                            f"(see that card for what happened). That card is the one that sends: drag it to Approved.")
+    asana.comment(t["gid"], f"{what} went to the drafted answer for this agent, card \"{reply.get('name') or reply['gid']}\" "
+                            f"(rewritten there). That card is the one that sends: drag it to Approved.")
     if where != nm:
         asana.move(t["gid"], nm)
+
+
+def _hold_reply(asana: Asana, reply: tuple[dict[str, Any], str], a: dict[str, Any], nr: str, why: str) -> None:
+    """A reply card sitting in Approved is not sent while his comment on the lead card is being applied."""
+    rt, rwhere = reply
+    if rwhere == a["approved"]:
+        asana.move(rt["gid"], nr)
+        asana.comment(rt["gid"], f"Held: {why}. Nothing sends from Needs Revision; drag it to Approved again when you're ready.")
+
+
+def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], where: str, card: dict[str, Any], feedback: list[str],
+                      comments: list[dict[str, Any]], reply: tuple[dict[str, Any], str] | None, n: dict[str, int], nr: str, nm: str,
+                      comps_cache: dict[str, Any]) -> None:
+    """Rodrigo's comment on a LEAD card (its first email already went out). Everything he asked for lands on this card
+    (Rodrigo, 2026-10-27, Richard Dipietro: "we are still creating a second card when I ask a question ... it's confusing"):
+    numbers → snapshot comment here; a question → 💬 answer here; nothing new is created on any board. Only what changes the
+    answer to the agent reaches the reply card waiting on the board: a dictated answer (becomes the reply card), a plain
+    "send it" (sends it), a wording change (forwarded and rewritten there, held if it sat in Approved)."""
+    from . import card_chat, comment_router as cr
+    a = _cfg(cfg)
+    rname = (reply[0].get("name") or reply[0]["gid"]) if reply else ""
+    if not reply:
+        body = dictated_answer(feedback, cfg)
+        if body:          # Rodrigo, 2026-10-27 (Richard): "Answer the email with the following: ..." → that IS the reply card
+            gid = post_reply_card(conn, cfg, asana, card["outreach_id"], body,
+                                  section=a["approved"] if where == a["approved"] else a["to_review"],
+                                  note="Your words from the lead card" + (", approved there" if where == a["approved"] else ""))
+            asana.comment(t["gid"], f"Your answer is now its own card, \"{asana_name(asana, gid)}\", in "
+                                    f"{'Approved: it goes out at the next send round' if where == a['approved'] else 'To Review: drag it to Approved to send it'}.")
+            n["reply_cards"] = n.get("reply_cards", 0) + 1
+            if where != nm:
+                asana.move(t["gid"], nm)
+            return
+    want = cr.classify(feedback)
+    question = card_chat.is_question(feedback)
+    if "call" in want:
+        n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
+    if "numbers" in want:
+        try:
+            posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache),
+                                         tail="Internal numbers: nothing reaches the agent until you decide. "
+                                              + (f"The drafted answer (\"{rname}\") is untouched." if reply else
+                                                 "Comment what Charles should answer and it becomes the reply card."))
+        except Exception as e:  # noqa: BLE001 — say it once, keep the comment pending (a Held comment does not consume it)
+            log.exception("numbers snapshot for lead card %s: %s", t["gid"], e)
+            last = (comments[-1].get("text") or "") if comments else ""
+            if not last.startswith(f"{BOT} Held: couldn't build the numbers"):
+                asana.comment(t["gid"], f"Held: couldn't build the numbers yet ({str(e)[:120]}). I'll try again next round.")
+            n["revise_failed"] += 1
+            return
+        n["numbers"] += posted
+        if question:      # "re-check these comps and give me a range": the table AND the read, here
+            try:
+                if card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(t["gid"]), lead_card=True, say_failed=False):
+                    n["chat"] += 1
+            except Exception as e:  # noqa: BLE001
+                log.warning("card chat after numbers on %s: %s", t["gid"], e)
+        if reply:
+            _hold_reply(asana, reply, a, nr, "you asked for numbers on the lead card, so this answer waits for your decision")
+        asana.comment(t["gid"], f"{NUMBERS_HELD}. Waiting here in Needs Me" + (f"; the drafted answer \"{rname}\" is held until you decide: "
+                                "comment what Charles should say, or drag that card to Approved to send it as written." if reply else
+                                ". Comment what Charles should answer and it becomes the reply card.")
+                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        if where != nm:
+            asana.move(t["gid"], nm)
+        return
+    if reply and "send" in want and "rewrite" not in want:
+        asana.move(reply[0]["gid"], a["approved"])
+        asana.comment(reply[0]["gid"], "Sending it as written (you said send it on the lead card): moved to Approved, it goes out at the next send round.")
+        asana.comment(t["gid"], f"Sending the drafted answer \"{rname}\" as written: it is in Approved and goes out at the next send round."
+                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        n["sent_as_is"] += 1
+        if where != nm:
+            asana.move(t["gid"], nm)
+        return
+    if question or not reply:
+        # a question, or input with no answer waiting: Claude answers here (and keeps what he told us about the lead)
+        out = card_chat.answer(conn, cfg, asana, llm, t, card, feedback, comments, lead_card=True, forward_change=False)
+        if out is None:
+            n["chat_failed"] = n.get("chat_failed", 0) + 1       # "Held: couldn't answer yet" is on the card; retried next round
+            return
+        n["chat"] += 1
+        change = (out.get("reply_change") or "").strip()
+        if reply and change:
+            _hold_reply(asana, reply, a, nr, "your comment on the lead card changes this answer")
+            asana.comment_raw(reply[0]["gid"], f"{card_chat.FORWARD_PREFIX} {' '.join(feedback)}")
+            _lead_note(asana, (t, where), reply[0], nm, what="The change in your comment")
+        elif where != nm:
+            asana.move(t["gid"], nm)
+        return
+    # a wording change / check / call for the answer waiting on the board: his words go to that card, rewritten there this round
+    try:
+        if card_chat.answer(conn, cfg, asana, llm, t, card, feedback, comments, lead_card=True, forward_change=False, say_failed=False):
+            n["chat"] += 1
+    except Exception as e:  # noqa: BLE001
+        log.warning("card chat on lead card %s: %s", t["gid"], e)
+    if want == {"call"}:
+        asana.comment(t["gid"], f"Lead marked hot and a call card is on your board for tomorrow. The drafted answer \"{rname}\" is unchanged.")
+        if where != nm:
+            asana.move(t["gid"], nm)
+        return
+    _hold_reply(asana, reply, a, nr, "your comment on the lead card changes this answer")
+    asana.comment_raw(reply[0]["gid"], f"{card_chat.FORWARD_PREFIX} {' '.join(feedback)}")
+    _lead_note(asana, (t, where), reply[0], nm)
 
 
 def _notes(conn, outreach_id: int) -> list[str]:
@@ -402,59 +506,51 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
          "numbers": 0, "sent_as_is": 0, "calls": 0}
     comps_cache: dict[str, Any] = {}
     nm = needs_me_section(cfg, asana)
-    from .card_chat import lead_cards
-    n["chat"] = lead_cards(conn, cfg, asana, llm)["answered"]      # his comments on sent leads get an answer (and reach the reply card)
+    n["chat"] = 0
     from .conversations import board_sections
-    answered = board_sections(cfg, asana)[1] if a.get("project") else None
-    tasks = ([(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
-             + [(t, nm) for t in asana.section_tasks(nm)] + [(t, answered) for t in (asana.section_tasks(answered) if answered else [])])
-    replies = {}                          # outreach id -> (card, section) of the answer waiting to go out to that agent
-    in_approved = [(t, a["approved"]) for t in asana.section_tasks(a["approved"])]
+    sent_sec, answered = board_sections(cfg, asana) if a.get("project") else (None, None)
+    def _board():
+        in_approved = [(t, a["approved"]) for t in asana.section_tasks(a["approved"])]
+        tasks = ([(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
+                 + [(t, nm) for t in asana.section_tasks(nm)] + [(t, answered) for t in (asana.section_tasks(answered) if answered else [])])
+        return tasks, in_approved
+
+    tasks, in_approved = _board()
+    replies: dict[int, tuple[dict[str, Any], str]] = {}     # outreach id -> (card, section) of the answer waiting to go out to that agent
     for t, where in tasks + in_approved:
         pc = parse_card(t.get("notes") or "")
         if pc and pc.get("reply_to") and where != answered:
             replies.setdefault(pc["outreach_id"], (t, where))
+
+    def _sent_lead(card):
+        return not card.get("reply_to") and (conn.execute(
+            "SELECT status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone() or ["sent"])[0] == "sent"
+
+    # Lead cards first (first email already sent; Sent · no answer yet / Answered / Needs Me / Needs Revision / To Review /
+    # Approved): his comment is answered on that card, and what changes the drafted answer is passed to the reply card before
+    # the loop below rewrites it (Rodrigo, 2026-10-27, Lise and Cheryl: comments on the lead card never reached the answer).
+    for t, where in ([(t, sent_sec) for t in (asana.section_tasks(sent_sec) if sent_sec else [])] + tasks + in_approved):
+        card = parse_card(t.get("notes") or "")
+        if not card or not _sent_lead(card):
+            continue
+        feedback, comments = pending_feedback(asana, t["gid"])
+        if not feedback:
+            continue                      # lead_board keeps it in Needs Me / Answered
+        try:
+            lead_card_comment(conn, cfg, asana, llm, t, where, card, feedback, comments, replies.get(card["outreach_id"]), n, nr, nm, comps_cache)
+        except Exception as e:  # noqa: BLE001 — the comment stays pending; next round tries again
+            log.exception("handling the comment on lead card %s: %s", t["gid"], e)
+            n["revise_failed"] += 1
+    tasks, in_approved = _board()         # re-read: a reply card held from Approved by a lead-card comment is rewritten this round
     for t, where in tasks + in_approved:
         card = parse_card(t.get("notes") or "")
-        if not card:
+        if not card or _sent_lead(card):
             continue
-        lead = None
-        sent_lead = not card.get("reply_to") and (conn.execute(
-            "SELECT status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone() or ["sent"])[0] == "sent"
-        if where == a["approved"] and not sent_lead:
-            continue                      # cards in Approved are send_approved's job; a sent lead card dragged there is feedback
-        if sent_lead:
-            # A lead card: its first email already went out (Rodrigo, 2026-10-27, Lise and Cheryl: his comments on the lead
-            # card never reached the answer waiting in To Review). Feedback here goes to that answer card.
-            feedback, _ = pending_feedback(asana, t["gid"])
-            if not feedback:
-                continue                  # lead_board keeps it in Needs Me / Answered
-            if card["outreach_id"] not in replies:
-                body = dictated_answer(feedback, cfg)
-                if body:          # Rodrigo, 2026-10-27 (Richard): "Answer the email with the following: ..." → that IS the reply card
-                    gid = post_reply_card(conn, cfg, asana, card["outreach_id"], body,
-                                          section=a["approved"] if where == a["approved"] else a["to_review"],
-                                          note="Your words from the lead card" + (", approved there" if where == a["approved"] else ""))
-                    asana.comment(t["gid"], f"Your answer is now its own card, \"{asana_name(asana, gid)}\", in "
-                                            f"{'Approved: it goes out at the next send round' if where == a['approved'] else 'To Review: drag it to Approved to send it'}.")
-                    n["reply_cards"] = n.get("reply_cards", 0) + 1
-                else:
-                    asana.comment(t["gid"], "Noted. This agent's first email already went out and no answer to them is waiting on the "
-                                            "board, so there is nothing to rewrite here. Ask Claude in a chat session to draft one with your note.")
-                if where != nm:
-                    asana.move(t["gid"], nm)
-                continue
-            lead = (t, where)
-            t, where = replies[card["outreach_id"]]
-            card = parse_card(t.get("notes") or "")
-            comments = asana.comments(t["gid"])
-            if where == a["approved"]:    # a new comment holds the send, same as a comment on the card itself
-                asana.move(t["gid"], nr)
-                where = nr
-        else:
-            if _add_phone(conn, asana, t, card):
-                n["phones_added"] += 1
-            feedback, comments = pending_feedback(asana, t["gid"])
+        if where == a["approved"]:
+            continue                      # cards in Approved are send_approved's job
+        if _add_phone(conn, asana, t, card):
+            n["phones_added"] += 1
+        feedback, comments = pending_feedback(asana, t["gid"])
         if not feedback:
             if where == nr:
                 last = (comments[-1].get("text") or "") if comments else ""
@@ -478,8 +574,6 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             n["revise_failed"] += 1
             continue
         if routed is True:
-            if lead:
-                _lead_note(asana, lead, t, nm)
             continue
         row = db.row_to_dict(conn.execute("SELECT property_ids FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}
         props = [db.row_to_dict(r) for r in conn.execute(
@@ -542,8 +636,6 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             n["rewritten_and_sent"] = n.get("rewritten_and_sent", 0) + 1
         elif where in (nr, nm):
             asana.move(t["gid"], a["to_review"])
-        if lead:
-            _lead_note(asana, lead, t, nm)
         n["revised"] += 1
         if test_to:
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], {**card, "subject": out["subject"], "body": out["body"]}, test_to))

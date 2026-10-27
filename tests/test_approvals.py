@@ -342,19 +342,20 @@ def test_comment_on_a_lead_card_rewrites_the_waiting_answer(loaded, cfg, tmp_pat
         def structured(self, purpose, system, user, schema, max_tokens=1024):
             import json
             u = json.loads(user)
-            assert u["feedback"] == ["ask her if it's under contract first, we discuss viewing after"]
+            assert u["feedback"] == ["From your comment on the lead card: ask her if it's under contract first, we discuss viewing after"]
             assert "showing" in u["body"]                           # it is the answer being rewritten, not the first email
             return {"subject": u["subject"], "body": "Hi Maria,\n\nThanks for letting me know.\n\nIs it already under contract, or are you still working through that offer?\n\nOnce we know where it stands, we can set up a time to see it.\n\nBest regards,\n\nCharles Grant"}
     res = sync_feedback(loaded, cfg, asana, L())
     assert res["revised"] == 1, (res, asana.stories[gid], asana.stories[rgid])
     assert "under contract" in parse_card(asana.tasks[rgid]["notes"])["body"]
     assert parse_card(asana.tasks[gid]["notes"])["body"] == first_body
-    assert any("went to the answer" in c for c in asana.stories[gid])
+    assert any("went to the drafted answer" in c for c in asana.stories[gid])
     assert asana.where[rgid] == s["to_review"]
     assert sync_feedback(loaded, cfg, asana, L())["revised"] == 0          # not processed twice
 
 
-def test_comment_on_a_lead_card_with_no_answer_waiting_says_so(loaded, cfg, tmp_path, monkeypatch):
+def test_comment_on_a_lead_card_with_no_answer_waiting_is_answered_on_that_card(loaded, cfg, tmp_path, monkeypatch):
+    """No draft to change: Claude answers on the lead card itself; with Claude down the comment is held and retried, never lost."""
     asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
     s, gm = _sections(cfg), FakeGmail()
     gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
@@ -362,9 +363,18 @@ def test_comment_on_a_lead_card_with_no_answer_waiting_says_so(loaded, cfg, tmp_
     from titan.approvals import needs_revision_section
     asana.move(gid, needs_revision_section(cfg, asana))
     asana.stories[gid].append("make it shorter")
+    before = len(asana.tasks)
     res = sync_feedback(loaded, cfg, asana, None)
-    assert res["revised"] == 0 and res["revise_failed"] == 0
-    assert any("nothing to rewrite" in c for c in asana.stories[gid])
+    assert res["revised"] == 0 and res["revise_failed"] == 0 and res["chat"] == 0
+    assert asana.stories[gid][-1].startswith(f"{BOT} Held: couldn't answer yet") and len(asana.tasks) == before
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            assert purpose == "card_chat"
+            return {"answer": "There's no draft to shorten: the first email went out Saturday and the agent hasn't answered.", "lead_note": "", "reply_change": ""}
+    res = sync_feedback(loaded, cfg, asana, L())
+    assert res["chat"] == 1 and "no draft to shorten" in asana.stories[gid][-1] and len(asana.tasks) == before
 
 
 def test_approvals_tick_rewrites_cards_that_ask_how_much_work_a_photographed_listing_needs(loaded, cfg, tmp_path, monkeypatch):

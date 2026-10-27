@@ -161,12 +161,28 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   rewrites, replies), `may_ask_how_much_work` in every prompt, protocol §0c, `few_photos` template angle; every approvals tick
   rewrites up to 15 waiting cards that still break it (`rewrite_pending(violating_only=True)`). Photo counts come from the scraper
   (`photos_count`, shown on the card's listing line).
+- **One card, one place (Rodrigo, 2026-10-27, Richard Dipietro: "we are still creating a second card when I ask a question …
+  it's confusing"):** whatever he asks on a card is answered ON THAT CARD. A numbers ask posts the NUMBERS snapshot as a comment
+  there (no NUMBERS card on Claude Updates any more, `numbers_snapshot`); a question gets its 💬 answer there; a comment on a
+  lead card (Sent / Answered / Needs Me / Needs Revision / To Review / Approved) is handled by `approvals.lead_card_comment`, and
+  only what changes the answer to the agent reaches the reply card: a dictated answer (becomes the reply card), a plain "send
+  it" (sends it), a wording change (forwarded as "From your comment on the lead card: …", rewritten there, held if it sat in
+  Approved). The engine creates no card for a question; the only cards it still creates are the reply card (one per agent
+  answer, completed when sent), the 📞 call card when he asks to call, and the daily alarm cards.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-27 ~3:30pm ET, RESUME HERE: **no more second cards** (Rodrigo: Richard's "re check these comps … give me a range" on the
+  lead card made two new NUMBERS cards on Claude Updates and put the numbers + 💬 answer on the Reply card). Now every answer lands
+  on the card he commented on: numbers snapshot as a comment (no NUMBERS card anywhere), 💬 answer, lead card → Needs Me; a reply
+  card waiting for that agent is left alone (held if it was in Approved); only a dictated answer / "send it" / a wording change
+  reaches it (`lead_card_comment`, one rule for every column a lead card can sit in; the old `card_chat.lead_cards` is gone).
+  Today's two duplicate NUMBERS cards for Richard were completed on Asana; yesterday's two are still in Needs Rodrigo. The
+  re-check he asked for (Polk St duplex, range $400–470k) is in the 💬 comment on the "Reply · Richard Dipietro" card (Needs Me).
+  262 tests.
 - 2026-10-27 ~3pm ET, RESUME HERE: **report graphs redone** (Rodrigo: "the graphs in the email were horrible, not easy to
   understand"). The 14-day column chart (28 thin bars, 9px numbers, no readable dates) is gone. "Day by day" is now one row per day
   for the last 7 days, newest first, Today tinted gold, a navy bar "4 sent" and a gold bar "2 replies" with the number written after

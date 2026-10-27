@@ -4,7 +4,9 @@ Before this, every comment was treated as wording for a rewrite, so "comp this a
 email and no numbers, and "this is a really good email, send it" rewrote an email he liked. Now each comment is sorted:
 
 - numbers:  comps / ARV / exit / land value / new construction / cash flow / "where we need to be"
-            → numbers snapshot (titan/comps_report.py) on the card + Claude Updates; the email is held until he decides.
+            → numbers snapshot (titan/comps_report.py) as a comment ON THE CARD HE ASKED ON; the email is held until he decides.
+            Never a new card: a NUMBERS card on the Claude Updates board was a second place to look (Rodrigo, 2026-10-27,
+            Richard Dipietro: "we are still creating a second card when I ask a question ... it's confusing").
 - send:     "send it", "I approve this", "really good email" (with nothing to change) → straight to Approved, text untouched.
 - call:     "mark him hot", "call tomorrow", "follow up" → lead marked, a call card for tomorrow in Needs Rodrigo.
 - check:    "double check that X is their listing" → the agent's listings we know are put in front of the rewrite and on the card.
@@ -163,11 +165,11 @@ def agent_listings(conn, outreach_id: int) -> list[str]:
                                   "ORDER BY list_price DESC", (row[0],)).fetchall()]
 
 
-def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any], feedback: list[str], comps_fn) -> int:
-    """Build the snapshot for each house asked about, post it (Claude Updates card + comment on the lead's card), save the
-    text under reports/comps/. Returns how many were posted."""
+def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any], feedback: list[str], comps_fn,
+                     tail: str | None = None) -> int:
+    """Build the snapshot for each house asked about and post it as a comment on the card he asked on (no new card anywhere);
+    save the text under reports/comps/. Returns how many were posted."""
     from . import comps_report
-    a = cfg.get("outreach.asana", {}) or {}
     text = " ".join(feedback)
     props = card_props(conn, card["outreach_id"])
     subjects = pick_subjects(props, text)
@@ -181,15 +183,7 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
         out_dir.mkdir(parents=True, exist_ok=True)
         slug = re.sub(r"[^a-z0-9]+", "-", f"{p['street']} {p['city']}".lower()).strip("-")
         (out_dir / f"{slug}.md").write_text(comps_report.to_text(s))
-        url = None
-        if a.get("updates_project") and a.get("needs_rodrigo"):
-            try:
-                t = asana.create_task_html(a["updates_project"], a["needs_rodrigo"],
-                                           f"NUMBERS: {p['street']}, {p['city']} · {comps_report.headline(s)[:90]}", comps_report.to_html(s))
-                url = f"https://app.asana.com/0/0/{t['gid']}/f" if t and t.get("gid") else None
-            except Exception as e:  # noqa: BLE001 — the comment on the lead's own card is what matters most
-                log.warning("numbers card for %s: %s", p["street"], e)
-        asana.comment_html(card_gid, comps_report.to_comment(s, url))
+        asana.comment_html(card_gid, comps_report.to_comment(s, tail))
     return len(snaps)
 
 

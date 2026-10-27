@@ -389,7 +389,8 @@ def convo(s: dict[str, Any]) -> list[str]:
 
 
 def to_html(s: dict[str, Any]) -> str:
-    """Card description (html_notes) in Lise's layout. Only Asana-allowed tags: no <p>, <br>, <th>."""
+    """The snapshot as a card description (html_notes) in Lise's layout, for a rundown Rodrigo asks for in a chat session.
+    The engine itself no longer creates NUMBERS cards (2026-10-27). Only Asana-allowed tags: no <p>, <br>, <th>."""
     p, a = s["p"], s["agent"]
     who = " · ".join(x for x in (a.get("name"), a.get("phone"), a.get("email")) if x)
     parts = [f"<body><h1>{_e(p['street'])}, {_e(p['city'])}</h1>{_e(who)}\n<hr/>",
@@ -410,8 +411,12 @@ def to_html(s: dict[str, Any]) -> str:
     return "".join(parts)
 
 
-def to_comment(s: dict[str, Any], card_url: str | None = None) -> str:
-    """The same snapshot as a comment on the lead's own card (comments allow no h1/h2/table/hr: <strong> + lists + <pre>)."""
+NUMBERS_TAIL = "Waiting in Needs Me: comment what to send, or drag the card to Approved to send it as written."
+
+
+def to_comment(s: dict[str, Any], tail: str | None = None) -> str:
+    """The snapshot as a comment on the card he asked on (comments allow no h1/h2/table/hr: <strong> + lists + <pre>).
+    This is the only place the numbers go (no separate card, Rodrigo 2026-10-27)."""
     p = s["p"]
     head = _e(headline(s)).replace(" Cash-flow math:", "</strong>\n<strong>Cash-flow math:")     # two lines on his phone
     lines = [f"<body>🤖 <strong>NUMBERS · {_e(p['street'])}, {_e(p['city'])}</strong>\n<strong>{head}</strong>\n"]
@@ -425,8 +430,7 @@ def to_comment(s: dict[str, Any], card_url: str | None = None) -> str:
         lines.append("<strong>Engine screen</strong>\n<ul>" + "".join(f"<li>{_e(k)}: {_e(money(v))}</li>" for k, v in s["screen"]) + "</ul>\n")
     lines.append(f"<strong>Live competition</strong>: {_e(s['active'])}\n")
     lines.append("<strong>Still open</strong>\n<ul>" + "".join(f"<li>{_e(x)}</li>" for x in s["still_open"]) + "</ul>\n")
-    lines.append("Email held in Needs Revision until you decide: comment what to send, or drag to Approved to send it as written."
-                 + (f' Full snapshot: <a href="{_e(card_url)}">{_e(card_url)}</a>' if card_url else "") + "</body>")
+    lines.append(_e(tail or NUMBERS_TAIL) + "</body>")
     return "".join(lines)
 
 

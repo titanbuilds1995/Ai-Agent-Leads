@@ -65,7 +65,7 @@ def test_input_on_a_lead_card_is_answered_kept_and_passed_to_the_drafted_answer(
     llm = ChatLLM({"answer": "Got it: an inherited house and a seller in a hurry.", "lead_note": "Seller inherited it and wants out fast.",
                    "reply_change": "mention a 30 day close"})
     n = sync_feedback(loaded, cfg, asana, llm)
-    assert n["chat"] == 1 and asana.stories[g1][-1].startswith(f"{BOT} 💬 Got it")
+    assert n["chat"] == 1 and any(c.startswith(f"{BOT} 💬 Got it") for c in asana.stories[g1])   # answered on the card he wrote on
     assert lead_notes(loaded, a1) == ["Seller inherited it and wants out fast."]
     rgid = reply["gid"] if isinstance(reply, dict) else reply
     assert any(x.startswith(FORWARD_PREFIX) for x in asana.stories[rgid])        # read as his feedback on the reply card

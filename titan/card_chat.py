@@ -10,6 +10,9 @@ comment on a lead card (Sent / Answered / Needs Me) was never read at all. Now:
   goes into every later rewrite and reply draft for that agent, and Claude says what it took from it.
 - on a lead card whose agent has a drafted answer waiting, a change ("make it a 30 day close") is also passed to that reply
   card, where the engine rewrites it (the Lise gap, 2026-10-26).
+The answer always lands on the card he commented on, and nothing new is created on any board (Rodrigo, 2026-10-27, Richard
+Dipietro: "we are still creating a second card when I ask a question ... it's confusing"). Lead cards in every column are
+handled by `approvals.lead_card_comment`, which calls `answer` here.
 Claude here only talks to Rodrigo: it never sends, approves, or puts a number in front of an agent."""
 from __future__ import annotations
 
@@ -107,8 +110,11 @@ def pending_reply_card(asana, cfg: Any, conn, agent_id: int | None) -> str | Non
 
 
 def answer(conn, cfg: Any, asana, llm, t: dict[str, Any], card: dict[str, Any], feedback: list[str], comments: list[dict[str, Any]],
-           lead_card: bool = False, tail: str = "") -> bool:
-    """Answer his comment on the card. True = answered (his comment is consumed); False = Claude unreachable, said once."""
+           lead_card: bool = False, tail: str = "", forward_change: bool = True, say_failed: bool = True) -> dict[str, Any] | None:
+    """Answer his comment on the card, always on the card he commented on. Returns Claude's output (answer / lead_note /
+    reply_change) when answered (his comment is consumed); None = Claude unreachable, said once (unless say_failed is False:
+    the caller has its own deterministic handling and a "Held" comment would be misleading). forward_change=False leaves
+    passing a change to the reply card to the caller (which also holds that card when it sits in Approved)."""
     out = None
     if llm is not None and getattr(llm, "available", False):
         user = json.dumps({"rodrigo_says": feedback, **context(conn, card, t.get("notes") or "", comments)}, ensure_ascii=False, default=str)
@@ -118,9 +124,9 @@ def answer(conn, cfg: Any, asana, llm, t: dict[str, Any], card: dict[str, Any], 
         err = getattr(llm, "last_error", None) if llm is not None else None
         why = login_problem(cfg, err) or "Claude isn't reachable from this job" + (f": {err[:160]}" if err else "")
         last = (comments[-1].get("text") or "") if comments else ""
-        if not last.startswith(f"{BOT} {FAILED}"):
+        if say_failed and not last.startswith(f"{BOT} {FAILED}"):
             asana.comment(t["gid"], f"{FAILED} ({why}). Nothing moved; I'll answer on the next round.")
-        return False
+        return None
     o = conn.execute("SELECT agent_id FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()
     agent_id = o[0] if o else None
     extra = []
@@ -130,40 +136,10 @@ def answer(conn, cfg: Any, asana, llm, t: dict[str, Any], card: dict[str, Any], 
                      (agent_id, card["outreach_id"], note[:600], db.iso()))
         extra.append(f"Noted for this lead (goes into every rewrite and reply from now on): {note}")
     change = (out.get("reply_change") or "").strip()
-    if lead_card and change:
+    if lead_card and change and forward_change:
         gid = pending_reply_card(asana, cfg, conn, agent_id)
         if gid:      # no BOT prefix: on the reply card it reads as his feedback and the engine rewrites the reply
             asana.comment_raw(gid, f"{FORWARD_PREFIX} {' '.join(feedback)}")
             extra.append("Your change was passed to the drafted answer card; it gets rewritten there on this round or the next.")
     asana.comment(t["gid"], "\n\n".join([f"{ANSWER_PREFIX} {out['answer'].strip()}"] + extra + ([tail] if tail else [])))
-    return True
-
-
-def lead_cards(conn, cfg: Any, asana, llm) -> dict[str, int]:
-    """Read his comments on lead cards (first emails already sent: Sent · no answer yet / Answered / Needs Me) and answer them."""
-    from .approvals import needs_me_section, parse_card, pending_feedback
-    from .conversations import board_sections
-    n = {"answered": 0, "failed": 0}
-    try:
-        sent, answered = board_sections(cfg, asana)
-        secs = [sent, answered, needs_me_section(cfg, asana)]
-    except Exception as e:  # noqa: BLE001
-        log.warning("card chat: %s", e)
-        return n
-    for sec in secs:
-        for t in asana.section_tasks(sec):
-            card = parse_card(t.get("notes") or "")
-            if not card or card.get("reply_to"):
-                continue
-            st = conn.execute("SELECT status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()
-            if not st or st[0] != "sent":
-                continue                 # an unsent card parked in Needs Me: sync_feedback handles it
-            feedback, comments = pending_feedback(asana, t["gid"])
-            if not feedback:
-                continue
-            try:
-                n["answered" if answer(conn, cfg, asana, llm, t, card, feedback, comments, lead_card=True) else "failed"] += 1
-            except Exception as e:  # noqa: BLE001 — the comment stays pending; next round tries again
-                log.exception("card chat on %s: %s", t["gid"], e)
-                n["failed"] += 1
-    return n
+    return out

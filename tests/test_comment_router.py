@@ -1,6 +1,7 @@
 """Comments do what they ask (Rodrigo, 2026-10-26: 'why would it not give me what I am asking?'): numbers come back as a
-snapshot in Lise's layout with the comps, ARV, exit and where we need to be; 'send it' sends the text as is; 'call him
-tomorrow' puts a call card on his board; wording comments still rewrite."""
+snapshot in Lise's layout with the comps, ARV, exit and where we need to be, ON THE CARD HE ASKED ON and nowhere else
+(Rodrigo, 2026-10-27, Richard: no second card); 'send it' sends the text as is; 'call him tomorrow' puts a call card on his
+board; wording comments still rewrite."""
 from titan import comps_report
 from titan.approvals import parse_card, sync_feedback
 from titan.comment_router import classify
@@ -96,12 +97,8 @@ def test_numbers_comment_posts_the_snapshot_and_holds_the_email(loaded, cfg, tmp
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")          # done, waiting on Rodrigo (2026-10-27)
     snap = [s for s in asana.stories[gid] if "NUMBERS" in s][0]
     assert "Where we need to be" in snap and "The comps" in snap and "ARV" in snap and "An investor pays" in snap and "Exit: resale after rehab" in snap
-    html = next(iter(asana.html.values()))
-    for section in ("<h1>", "<h2>Status</h2>", "<h2>The house</h2>", "<h2>The comps</h2>", "<h2>The numbers</h2>",
-                    "<h2>Still open</h2>", "<h2>Conversation so far</h2>", "Averages", "Median $/sf"):
-        assert section in html
-    for bad in ("<p>", "<br", "<th"):
-        assert bad not in html                                                   # Asana rejects these (400 XML invalid)
+    assert not asana.html and not [t for t in asana.tasks.values() if t["name"].startswith("NUMBERS")]   # no second card anywhere
+    assert "Claude Updates" not in asana.stories[gid][-1] and "Full snapshot" not in snap
     assert (tmp_path / "reports" / "comps").exists()
     # handled: the next round does not redo it
     assert sync_feedback(loaded, cfg, asana, NoLLM())["numbers"] == 0
@@ -378,3 +375,37 @@ def test_rewrite_without_send_comes_back_to_to_review(loaded, cfg, tmp_path, mon
     asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "make it shorter")
     sync_feedback(loaded, cfg, asana, RewriteLLM(parse_card(asana.tasks[gid]["notes"])))
     assert asana.where[gid] == _sections(cfg)["to_review"] and "Back in To Review" in asana.stories[gid][-1]
+
+
+def test_numbers_question_on_a_lead_card_is_answered_there_and_makes_no_second_card(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27 (Richard Dipietro): 're check these comps ... give me a range' on the lead card made two NUMBERS
+    cards on the Claude Updates board and put the numbers + answer on the Reply card. Now: everything on the card he wrote
+    on, nothing created anywhere, the drafted answer untouched (held if it sat in Approved)."""
+    from titan.approvals import post_reply_card, send_approved
+    from tests.test_approvals import SAT_10AM_ET, FakeGmail
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "")
+    asana.stories[gid].clear()
+    s = _sections(cfg)
+    asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    rgid = post_reply_card(loaded, cfg, asana, oid, "Hi Richard,\n\nThanks, working on it.\n\nBest regards,\n\nCharles Grant")
+    asana.move(rgid, s["approved"])
+    asana.stories[gid].append("I want us to re check these comps, i think they are super highly priced, some of the last comps we made "
+                              "errors so let's take a close look at this and give me a range of where we need to be at for this property.")
+    reply_before, cards_before = asana.tasks[rgid]["notes"], set(asana.tasks)
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            assert purpose == "card_chat", purpose                       # no rewrite of anything
+            return {"answer": "The $3.1M sale is not a comp; on the duplex sales the range is $400k to $470k.", "lead_note": "", "reply_change": ""}
+    n = sync_feedback(loaded, cfg, asana, L())
+    assert n["numbers"] >= 1 and n["chat"] == 1
+    assert set(asana.tasks) == cards_before and not asana.html            # no NUMBERS card, no other card, anywhere
+    lead = asana.stories[gid]
+    assert any("NUMBERS" in c and "Where we need to be" in c for c in lead) and any("💬" in c and "$400k" in c for c in lead)
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
+    assert asana.tasks[rgid]["notes"] == reply_before and asana.where[rgid] != s["approved"]   # held, not sent, not rewritten
+    assert not any("NUMBERS" in c or "💬" in c for c in asana.stories[rgid])                  # nothing landed on the other card
+    assert sync_feedback(loaded, cfg, asana, L())["numbers"] == 0                             # done once

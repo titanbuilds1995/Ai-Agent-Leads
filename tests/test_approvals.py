@@ -1,4 +1,5 @@
 """Asana email approvals (Rodrigo, 2026-10-24): cards → feedback rewrites → approved emails sent in the window only."""
+import json
 import itertools
 from datetime import datetime, timezone
 
@@ -365,6 +366,25 @@ def test_comment_on_a_lead_card_with_no_answer_waiting_says_so(loaded, cfg, tmp_
     assert res["revised"] == 0 and res["revise_failed"] == 0
     assert any("nothing to rewrite" in c for c in asana.stories[gid])
 
+
+def test_approvals_tick_rewrites_cards_that_ask_how_much_work_a_photographed_listing_needs(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27: waiting cards that still ask about the work on a listing with 4+ photos get rewritten on the tick."""
+    from titan.approvals import rewrite_pending
+    from titan.outreach.compose import signature
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    loaded.execute("UPDATE properties SET photos_count=18")
+    gids = list(asana.tasks)
+    oid0 = parse_card(asana.tasks[gids[0]]["notes"])["outreach_id"]
+    pid = json.loads(loaded.execute("SELECT property_ids FROM outreach WHERE id=?", (oid0,)).fetchone()[0])[0]
+    street = loaded.execute("SELECT street FROM properties WHERE id=?", (pid,)).fetchone()[0]
+    bad = (f"Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on {street}. It could work for us.\n\n"
+           f"How much work would you say it really needs? And is the seller open to some flexibility?\n\n{signature(cfg)}")
+    loaded.execute("UPDATE outreach SET body=? WHERE id=?", (bad, oid0))
+    n = rewrite_pending(loaded, cfg, asana, None, violating_only=True)
+    assert n["rewritten"] == 1                                   # only the violating card; the others are left as they are
+    new_body = loaded.execute("SELECT body FROM outreach WHERE id=?", (oid0,)).fetchone()[0]
+    assert "How much work would you say" not in new_body and "18 photos" in asana.stories[gids[0]][-1]
+    assert rewrite_pending(loaded, cfg, asana, None, violating_only=True)["rewritten"] == 0   # done once, not every tick
 
 def test_dictated_answer_on_a_lead_card_becomes_the_reply_card_and_sends_from_approved(loaded, cfg, tmp_path, monkeypatch):
     """Rodrigo, 2026-10-27 (Richard): 'Answer the email with the following: Hey Richard, ...' on the lead card, then dragged to

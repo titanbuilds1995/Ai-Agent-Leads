@@ -152,6 +152,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   offer figure (reply card or approve-offer) is logged on the next approvals tick; status SENT/COUNTERED/ACCEPTED/UNDER_CONTRACT/
   CLOSED/REJECTED/DEAD via `titan.cli offers <id> <STATUS> --note`; market stats (count, % of list, by city) in the morning report
   Scoreboard and dashboard stats; `titan.cli offers` writes `reports/offers.csv`. Rodrigo copies offers onto his main results board himself.
+- **The photos already show the work (Rodrigo, 2026-10-27):** a listing with 10 or 15 pictures makes the condition obvious, so an
+  email that says "we just need to know how much work it needs" (or implies it: "how deep is the project", "mostly cosmetic or
+  something bigger", "what's your read on the condition", "I can't tell from the listing") sounds dumb. Rule: with **4 or more
+  photos** (or an unknown count) never ask or imply it; ask about what pictures can't show (roof/AC age, plumbing, electrical,
+  permits, occupancy, why it's sitting, flexibility). Only with **fewer than 4 photos** may the email say the listing doesn't give
+  much to go on and ask about the work. Code: `WORK_RE` / `FEW_PHOTOS_RE` / `photo_rule_problems()` in compose.py (first emails,
+  rewrites, replies), `may_ask_how_much_work` in every prompt, protocol §0c, `few_photos` template angle; every approvals tick
+  rewrites up to 15 waiting cards that still break it (`rewrite_pending(violating_only=True)`). Photo counts come from the scraper
+  (`photos_count`, shown on the card's listing line).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -165,6 +174,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   gets its 💬 answer whatever else the comment triggers (`route_comment`), QUESTION_RE widened. Both answered by hand on their
   cards (Carlton: all exits $500–560k, builder/Airbnb play; Castro: wrong comps, townhouse ARV ~$300k, HOA rules, not a deal
   above ~$175k). Lise / Cheryl / Richard answers were in Approved waiting on `make approvals-now`. 252 tests.
+- 2026-10-27 ~2:30pm ET, RESUME HERE: **photo rule** (Rodrigo: with 10–15 pictures we can see the work, so "we need to know how much
+  work it needs" sounds dumb; only under 4 pictures). Built into the validator, all three prompts, the protocol (§0c) and the fallback
+  templates (a `few_photos` angle for thin listings). 48 of the 91 To Review cards asked it today: the Mac's next approvals ticks
+  rewrite them on their own (15 per 20-min tick, bot comment "Rewritten: the listing has N photos…"), nothing for Rodrigo to run.
+  Cards his comments already shaped are left alone as before. Cards show "· N photos" on the listing line. 257 tests.
 - 2026-10-27 ~1:15pm ET, RESUME HERE: **Richard** (same as Lise): Rodrigo dictated the answer on the lead card and dragged it to
   Approved; no reply card existed, so the engine kept bouncing it. Reply card made by hand (gid 1219948219758582, Approved).
   Engine now: a dictated answer on a lead card ("Answer the email with: Hey Richard, …") becomes the reply card itself

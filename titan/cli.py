@@ -374,6 +374,9 @@ def cmd_approvals(cfg, args):
         sys.exit(1)
     c = build_clients(cfg, conn, need=("llm", "gmail"))
     fb = sync_feedback(conn, cfg, asana, c["llm"], c["gmail"])
+    if c["llm"] is not None and getattr(c["llm"], "available", False):   # Rodrigo, 2026-10-27: waiting cards that still ask how much
+        from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
+        fb["photo_rule_rewrites"] = rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15)
     from .learning import learn_tick
     learned = learn_tick(conn, cfg, asana)      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])

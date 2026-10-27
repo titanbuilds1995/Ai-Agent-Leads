@@ -217,7 +217,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     "heavy": [     # old house / investor-special signals: how deep does it go? (§24)
         ("Quick question on {street_name}",
          "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us, but I don't want to "
-         "throw a random number at you before we understand what we're actually buying. Are we mostly talking interior rehab, or "
+         "throw a random number at you before we understand the condition. Are we mostly talking interior rehab, or "
          "are roof, plumbing and electrical coming into play too?\n\n{sign}"),
         ("{street_name}: how deep is the project?",
          "{first}, I'm trying to get my head around the condition on {street_name}. The age itself doesn't knock it out for us. What "

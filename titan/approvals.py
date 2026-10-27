@@ -273,7 +273,7 @@ def _comps_fn(cfg: Any, conn, cache: dict[str, Any]):
 
 
 def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, card: dict[str, Any], feedback: list[str],
-                  n: dict[str, int], nr: str, comps_cache: dict[str, Any]):
+                  n: dict[str, int], nr: str, comps_cache: dict[str, Any], llm=None):
     """Do what the comment asks (titan/comment_router.py). True = handled, no rewrite. A list = the agent's listings,
     to put in front of the rewrite (he asked to double-check one). None = plain rewrite."""
     from . import comment_router as cr
@@ -309,9 +309,14 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         n["sent_as_is"] += 1
         return True
     if "hold" in want and not want & {"rewrite", "check"}:
-        asana.comment(t["gid"], "Holding it: nothing sends from here until you drag the card to Approved. The text is unchanged."
-                      + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else "")
-                      + (" Questions on a card are answered by Claude in a chat session, not by the engine." if "?" in " ".join(feedback) else ""))
+        from . import card_chat
+        tail = ("Holding it: nothing sends from here until you drag the card to Approved. The text is unchanged."
+                + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        if card_chat.is_question(feedback):      # Rodrigo, 2026-10-27: a question gets an answer, not a "held"
+            _, comments = pending_feedback(asana, t["gid"])
+            card_chat.answer(conn, cfg, asana, llm, t, card, feedback, comments, tail=tail)
+            return True
+        asana.comment(t["gid"], tail)
         return True
     if want == {"call"}:
         asana.comment(t["gid"], "Lead marked hot and a call card is on your board for tomorrow. The email is unchanged"
@@ -333,6 +338,12 @@ def _lead_note(asana: Asana, lead: tuple[dict[str, Any], str], reply: dict[str, 
         asana.move(t["gid"], nm)
 
 
+def _notes(conn, outreach_id: int) -> list[str]:
+    from .card_chat import lead_notes
+    r = conn.execute("SELECT agent_id FROM outreach WHERE id=?", (outreach_id,)).fetchone()
+    return lead_notes(conn, r[0] if r else None)
+
+
 def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, int]:
     """Rewrite To Review cards that got new feedback comments (or send a test copy when asked); mark Skip cards as skipped."""
     a = _cfg(cfg)
@@ -341,6 +352,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
          "numbers": 0, "sent_as_is": 0, "calls": 0}
     comps_cache: dict[str, Any] = {}
     nm = needs_me_section(cfg, asana)
+    from .card_chat import lead_cards
+    n["chat"] = lead_cards(conn, cfg, asana, llm)["answered"]      # his comments on sent leads get an answer (and reach the reply card)
     from .conversations import board_sections
     answered = board_sections(cfg, asana)[1] if a.get("project") else None
     tasks = ([(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
@@ -396,7 +409,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], card, test_to))
             continue
         try:
-            routed = route_comment(conn, cfg, asana, t, where, card, feedback, n, nr, comps_cache)
+            routed = route_comment(conn, cfg, asana, t, where, card, feedback, n, nr, comps_cache, llm)
         except Exception as e:  # noqa: BLE001 — leave the feedback pending; the next round tries again
             log.exception("handling the comment on card %s: %s", t["gid"], e)
             n["revise_failed"] += 1
@@ -417,6 +430,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                                                 learned=learned_block(cfg)) + (REPLY_CARD_NOTE if card.get("reply_to") else ""),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
                                          **({"agent_listings_we_know": routed} if isinstance(routed, list) else {}),
+                                         "rodrigo_notes_on_this_lead": _notes(conn, card["outreach_id"]),
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
         if out is None:
             from .llm import login_problem

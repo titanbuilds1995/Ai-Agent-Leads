@@ -159,7 +159,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   answer card waiting for that agent (`sync_feedback`, `_lead_note`); with no answer waiting it says so. **Lead board
   rule changed (Rodrigo): "Answered" = the AGENT wrote last (or closed); once we reply the lead goes back to "Sent · no answer
   yet"; Needs Me = his move.** Mac login still refused on both paths (token 401 invalid + keychain "Not logged in"): cron
-  rewrites fail until `make claude-login` at the Mac; proposed to Rodrigo a cloud/paid fallback for rewrites. 245 tests.
+  rewrites fail until `make claude-login` at the Mac; proposed to Rodrigo a cloud/paid fallback for rewrites. Merged with the parallel "card chat" commit
+  (`titan/card_chat.py` answers first when Claude is reachable; this deterministic routing is the no-Claude safety net). 249 tests.
+- 2026-10-27 ~1pm ET, RESUME HERE: **chat on the cards** (Rodrigo: "I asked for input and got nothing back"). Before, a question
+  on a card got "Holding it" and comments on sent lead cards (Sent / Answered / Needs Me) were never read. Now
+  (`titan/card_chat.py`, runs every approvals tick): a question on any card → Claude answers in a "💬" comment from the listing,
+  internal numbers, the agent conversation and the card's comment thread (nothing moves); input about a lead ("seller
+  inherited it") → saved in `lead_notes` and fed into every later rewrite and reply draft for that agent; a change on a lead
+  card with a drafted answer waiting is passed to that reply card ("From your comment on the lead card: …") and rewritten
+  there (closes the Lise gap). Claude unreachable → one "Held: couldn't answer yet", retried next round. Uses the Mac's Claude
+  login like rewrites. Still open: "offer N" on a lead card isn't wired to approve-offer (chat tells him the command).
 - 2026-10-27 ~12:30pm ET, RESUME HERE: Rodrigo never got the "results as graphs" email: the designed report landed at 7:19am,
   after the 7:00am send, so today's was text only. Added two charts to it (`report_html.day_chart`: emails sent vs agent replies
   per day, 14 days; `funnel`: emails → replies → conversations → offers), built from table cells so Gmail/iPhone draw them.

@@ -25,6 +25,7 @@ class FakeAsana:
     def section_tasks(self, section): return [dict(t) for g, t in self.tasks.items() if self.where[g] == section]
     def comments(self, task): return [{"text": t} for t in self.stories[task]]
     def comment(self, task, text): self.stories[task].append(f"{BOT} {text}")
+    def comment_raw(self, task, text): self.stories[task].append(text)
     def move(self, task, section): self.where[task] = section
     def rename_section(self, section, name):
         secs = getattr(self, "_sections", {}); secs[section] = name; self._sections = secs

@@ -317,3 +317,48 @@ def test_gmail_client_refuses_the_wrong_mailbox(tmp_path, monkeypatch):
         gc.GmailClient(tmp_path / "oauth.json", tok, "charles@example.com", "Charles Grant")
     monkeypatch.setattr(gd, "build", lambda *a, **k: Svc("Charles@example.com"))
     assert gc.GmailClient(tmp_path / "oauth.json", tok, "charles@example.com", "Charles Grant").account == "charles@example.com"
+
+
+def test_comment_on_a_lead_card_rewrites_the_waiting_answer(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27 (Lise, Cheryl): he comments on the lead's own card; the answer waiting in To Review must change,
+    not the first email that already went out."""
+    from titan.approvals import post_reply_card
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    first_body = parse_card(asana.tasks[gid]["notes"])["body"]
+    rgid = post_reply_card(loaded, cfg, asana, oid, "Hi Maria,\n\nThanks for letting me know.\n\nWhat day works for a showing?\n\nBest regards,\n\nCharles Grant")
+    from titan.conversations import board_sections
+    asana.move(gid, board_sections(cfg, asana)[1])
+    asana.stories[gid].append("ask her if it's under contract first, we discuss viewing after")
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            import json
+            u = json.loads(user)
+            assert u["feedback"] == ["ask her if it's under contract first, we discuss viewing after"]
+            assert "showing" in u["body"]                           # it is the answer being rewritten, not the first email
+            return {"subject": u["subject"], "body": "Hi Maria,\n\nThanks for letting me know.\n\nIs it already under contract, or are you still working through that offer?\n\nOnce we know where it stands, we can set up a time to see it.\n\nBest regards,\n\nCharles Grant"}
+    res = sync_feedback(loaded, cfg, asana, L())
+    assert res["revised"] == 1, (res, asana.stories[gid], asana.stories[rgid])
+    assert "under contract" in parse_card(asana.tasks[rgid]["notes"])["body"]
+    assert parse_card(asana.tasks[gid]["notes"])["body"] == first_body
+    assert any("went to the answer" in c for c in asana.stories[gid])
+    assert asana.where[rgid] == s["to_review"]
+    assert sync_feedback(loaded, cfg, asana, L())["revised"] == 0          # not processed twice
+
+
+def test_comment_on_a_lead_card_with_no_answer_waiting_says_so(loaded, cfg, tmp_path, monkeypatch):
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    from titan.approvals import needs_revision_section
+    asana.move(gid, needs_revision_section(cfg, asana))
+    asana.stories[gid].append("make it shorter")
+    res = sync_feedback(loaded, cfg, asana, None)
+    assert res["revised"] == 0 and res["revise_failed"] == 0
+    assert any("nothing to rewrite" in c for c in asana.stories[gid])

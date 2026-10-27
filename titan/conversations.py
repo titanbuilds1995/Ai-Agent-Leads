@@ -180,9 +180,10 @@ def _with_stand(notes: str, lines: list[str]) -> str:
 
 
 def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
-    """Move sent cards whose agent answered out of "Sent · no answer yet": to "Needs Me" when the next move is Rodrigo's
-    (status NEEDS YOU / OUR TURN / ANSWER DRAFTED / OFFER DRAFTED), else to "Answered". Keeps a WHERE WE STAND block at
-    the top of every such first-email card. Never raises into the caller."""
+    """Lead cards whose agent really answered: "Needs Me" when the next move is Rodrigo's (NEEDS YOU / OUR TURN / ANSWER
+    DRAFTED / OFFER DRAFTED), "Answered" when the agent wrote last or the conversation closed, back to "Sent · no answer
+    yet" once we replied and wait on them (Rodrigo, 2026-10-27: we answering is not them answering). Keeps a WHERE WE
+    STAND block at the top of every such first-email card. Never raises into the caller."""
     from .approvals import needs_me_section, parse_card
     n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}
     try:
@@ -207,12 +208,8 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             return agent_of[oid]
 
         pending_agents = {agent_id(o) for o in pending}
-        for t in asana.section_tasks(sent):
-            pc = parse_card(t.get("notes") or "")
-            if pc and agent_id(pc["outreach_id"]) and where_we_stand(conn, agent_id(pc["outreach_id"])):
-                asana.move(t["gid"], answered)
-                n["moved"] += 1
-        lead_cards = [(t, answered) for t in asana.section_tasks(answered)] + [(t, nm) for t in asana.section_tasks(nm)]
+        lead_cards = ([(t, sent) for t in asana.section_tasks(sent)] + [(t, answered) for t in asana.section_tasks(answered)]
+                      + [(t, nm) for t in asana.section_tasks(nm)])
         for t, here in lead_cards:
             pc = parse_card(t.get("notes") or "")
             if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
@@ -240,10 +237,19 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             if new != (t.get("notes") or ""):
                 asana.update_notes(t["gid"], new)
                 n["updated"] += 1
-            target = nm if any(lines[0].startswith(f"Status: {k}") for k in NEEDS_ME_STATUS) else answered
+            # Rodrigo, 2026-10-27: "Answered" means the AGENT answered and it is on us; once we reply, the lead goes back to
+            # "Sent · no answer yet" until the agent writes again. Needs Me = the next move is his.
+            if any(lines[0].startswith(f"Status: {k}") for k in NEEDS_ME_STATUS):
+                target = nm
+            elif lines[0].startswith("Status: WAITING ON THE AGENT"):
+                target = sent
+            else:
+                target = answered
             if target != here:
                 asana.move(t["gid"], target)
-                n["to_needs_me" if target == nm else "to_answered"] += 1
+                n["moved"] += 1
+                n["to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered"] = \
+                    n.get("to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered", 0) + 1
     except Exception as e:  # noqa: BLE001
         log.warning("lead board: %s", e)
         n["error"] = str(e)[:200]

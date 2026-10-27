@@ -156,6 +156,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - 2026-10-27 ~1:30pm ET: **rewrite + send** built (see Decisions → Asana). Rodrigo: "I tell it what to write, it rewrites it,
   it already has my tone, so it can just send" — only when his comment says send (his choice). Hand edits between the EMAIL
   lines + drag to Approved still send word for word.
+- 2026-10-27 ~1pm ET, RESUME HERE: **Lise's $209k offer and Cheryl's answer were never sent**: Rodrigo's comments landed on
+  the LEAD cards, and the engine applied them to the first email (already sent) while the answer cards sat in To Review.
+  Both moved to Approved by hand (send at the next tick). Fix: a comment on a lead card now rewrites / sends / holds the
+  answer card waiting for that agent (`sync_feedback`, `_lead_note`); with no answer waiting it says so. **Lead board
+  rule changed (Rodrigo): "Answered" = the AGENT wrote last (or closed); once we reply the lead goes back to "Sent · no answer
+  yet"; Needs Me = his move.** Mac login still refused on both paths (token 401 invalid + keychain "Not logged in"): cron
+  rewrites fail until `make claude-login` at the Mac; proposed to Rodrigo a cloud/paid fallback for rewrites. Merged with the parallel "card chat" commit
+  (`titan/card_chat.py` answers first when Claude is reachable; this deterministic routing is the no-Claude safety net). 249 tests.
 - 2026-10-27 ~1pm ET, RESUME HERE: **chat on the cards** (Rodrigo: "I asked for input and got nothing back"). Before, a question
   on a card got "Holding it" and comments on sent lead cards (Sent / Answered / Needs Me) were never read. Now
   (`titan/card_chat.py`, runs every approvals tick): a question on any card → Claude answers in a "💬" comment from the listing,

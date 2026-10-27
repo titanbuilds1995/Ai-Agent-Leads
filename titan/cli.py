@@ -390,8 +390,12 @@ def cmd_approvals(cfg, args):
     if problem:                                # cron is logged out: one card in Needs Rodrigo with the exact fix
         from .health import alert_claude_login
         alert_claude_login(cfg, asana, problem)
+    from .health import alert_code_behind, code_behind
+    behind = code_behind(cfg.root)             # the Mac's self-update failed silently all morning on 2026-10-27
+    if behind:
+        alert_code_behind(cfg, asana, behind)
     print(json.dumps({"feedback": fb, "learning": learned, "send": sent, "asana_mirror": mirrored, "dashboard": dash,
-                      "claude_login": problem or "ok"}, indent=2))
+                      "claude_login": problem or "ok", "code": behind or "current"}, indent=2))
 
 
 def save_env_value(env_file: Path, key: str, value: str) -> None:

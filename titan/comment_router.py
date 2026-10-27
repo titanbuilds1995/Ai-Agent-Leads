@@ -8,7 +8,7 @@ email and no numbers, and "this is a really good email, send it" rewrote an emai
 - send:     "send it", "I approve this", "really good email" (with nothing to change) → straight to Approved, text untouched.
 - call:     "mark him hot", "call tomorrow", "follow up" → lead marked, a call card for tomorrow in Needs Rodrigo.
 - check:    "double check that X is their listing" → the agent's listings we know are put in front of the rewrite and on the card.
-- rewrite:  everything else (wording), as before.
+- rewrite:  everything else (wording), as before. "...and send it" after a wording ask (send_after) = rewrite, then Approved.
 Numbers always win over send: "send it ... actually comp it before we send" holds the email."""
 from __future__ import annotations
 
@@ -76,6 +76,32 @@ CHECK_RE = re.compile(r"\b(?:double[- ]?check|confirm (?:that|on|it|this)|is (?:
                       r"incongruen|make sure (?:that )?(?:it|this|that) is)\b", re.I)
 
 
+# "Rewrite it like this and send it" (Rodrigo, 2026-10-27: "I tell it what to write, it rewrites it, it already has my tone,
+# so it can just send"). The rewrite goes straight to Approved, but only when the comment both says what to write AND ends
+# with a plain send. Anything that makes the send conditional, later, elsewhere, or about a number keeps the old flow
+# (rewrite → To Review for his look).
+SEND_AFTER_RE = re.compile(r"(?:^|[,.;!]|\band\b|\bthen\b)\s*(?:and\s+)?(?:then\s+)?(?:go ahead and\s+)?(?:send (?:it|this|him|her|them)(?: the email| out| over)?|"
+                           r"send(?:ing)? the email)(?:\s+(?:now|please|asap|out|over|right away))*\s*[.!]*\s*$", re.I)
+WRITE_RE = re.compile(r"\b(?:say|tell|ask|make|add|write|put|mention|use|change|take out|remove|keep|start|open|end|cut|drop|"
+                      r"swap|switch|shorten|replace|reword|rewrite|instead|let (?:him|her|them) know)\b", re.I)
+SEND_BLOCK_RE = re.compile(r"\b(?:don'?t|do not|never|not|no need|hold|wait|until|after|when|if|once|unless|tomorrow|later|next|"
+                           r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|tonight|morning|afternoon|\d{1,2}\s?(?:am|pm)|"
+                           r"actually|jk|lol|lmao|nope|scrap|never ?mind|skip|dnc|wrong|via|text|cc|attach|offer|price|counter|"
+                           r"also send|send (?:it|this|him|her|them) to)\b|\$|\b\d+(?:[.,]\d+)?\s?k\b|\b\d{3},\d{3}\b|\?|[❌🛑🚫✋👎🤔]", re.I)
+
+
+def send_after_rewrite(feedback: list[str]) -> bool:
+    """True when the last comment says what to write and ends with a plain 'send it' (nothing conditional or about a number)."""
+    if not feedback:
+        return False
+    last = feedback[-1].strip()
+    m = SEND_AFTER_RE.search(last)
+    if not m:
+        return False
+    ask = last[:m.start()]
+    return bool(WRITE_RE.search(ask)) and not SEND_BLOCK_RE.search(" ".join(feedback))
+
+
 def _positive(rx: re.Pattern, text: str) -> bool:
     """A match that is not negated just before it ("don't follow up", "do not mark him hot")."""
     return any(not NEG_BEFORE_RE.search(text[max(0, m.start() - 40):m.start()]) for m in rx.finditer(text))
@@ -101,6 +127,9 @@ def classify(feedback: list[str]) -> set[str]:
         out.add("hold")        # a go-ahead with anything else in it, a no, a wait or a bare question: nothing moves
     if not out and not change and set(re.findall(r"[a-z']+", text.lower())) <= _FILLER | PRAISE:
         out.add("hold")        # plain praise ("perfect", "great, thanks"): don't spend a rewrite on an email he liked
+    if send_after_rewrite(feedback) and not out & {"numbers", "check"}:
+        out.discard("hold")
+        out |= {"rewrite", "send_after"}      # rewrite from his words, then straight to Approved
     if change or not out:
         out.add("rewrite")
     return out

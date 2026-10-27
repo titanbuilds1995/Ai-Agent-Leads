@@ -26,7 +26,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Skip 1219846985445292). One card per email with a PNG of the email + the text between EMAIL markers. Rodrigo's comments →
   `sync_feedback` rewrites the card; dragging to Approved is his go-ahead; `titan.cli approvals` (cron every 20 min, 8–17,
   random jitter) sends `per_tick` approved emails from Charles@ inside the send window (8:30–5:30 ET, every day) under
-  `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. **A new comment on an Approved card holds
+  `daily_email_cap`, then moves the card to Sent. Nothing sends from To Review. **"Rewrite + send" (Rodrigo, 2026-10-27):** a comment that says what to write AND ends with a plain "send it" ("say we can close in 30 days and send it") is his go-ahead: Claude rewrites it and the card goes straight to Approved; without "send it" the rewrite returns to To Review. Anything conditional, later, to someone else, or with a number/offer keeps the To Review step (`comment_router.send_after_rewrite`). **A new comment on an Approved card holds
   the send**: the card goes back to To Review and the feedback is applied at once. "send me a test" (+ optional address) on
   any card sends a [TEST] copy to Rodrigo (REPORT_TO) from Charles@; `titan.cli test-email <outreach_id>` does it by hand.
   **Every email opens with a short intro** (Rodrigo, Asana 2026-10-24, later: "they don't really know who we are"): first paragraph =
@@ -153,6 +153,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~1:30pm ET: **rewrite + send** built (see Decisions → Asana). Rodrigo: "I tell it what to write, it rewrites it,
+  it already has my tone, so it can just send" — only when his comment says send (his choice). Hand edits between the EMAIL
+  lines + drag to Approved still send word for word.
 - 2026-10-27 ~1pm ET, RESUME HERE: **Lise's $209k offer and Cheryl's answer were never sent**: Rodrigo's comments landed on
   the LEAD cards, and the engine applied them to the first email (already sent) while the answer cards sat in To Review.
   Both moved to Approved by hand (send at the next tick). Fix: a comment on a lead card now rewrites / sends / holds the

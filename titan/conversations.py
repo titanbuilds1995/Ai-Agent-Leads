@@ -21,6 +21,7 @@ NO_CARD = "no_card"
 def card_for_thread(conn, thread: dict[str, Any]) -> str | None:
     """The agent's most recent card, preferring one about the same house."""
     rows = conn.execute("SELECT asana_task_id, property_ids FROM outreach WHERE agent_id=? AND asana_task_id IS NOT NULL "
+                        "AND COALESCE(kind,'') NOT LIKE 'reply%' "      # the lead's own card, never a (closed) answer card
                         "ORDER BY COALESCE(sent_at, created_at) DESC, id DESC", (thread["agent_id"],)).fetchall()
     want = set(json.loads(thread["property_ids"] or "[]"))
     for r in rows:

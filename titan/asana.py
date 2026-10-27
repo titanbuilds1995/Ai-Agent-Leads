@@ -60,6 +60,12 @@ class Asana:
         """A comment without the engine's prefix: the engine reads it as Rodrigo's own feedback (card chat forwards his change)."""
         self._req("POST", f"/tasks/{task}/stories", json={"data": {"text": text}})
 
+    def complete(self, task: str) -> None:
+        self._req("PUT", f"/tasks/{task}", json={"data": {"completed": True}})
+
+    def task(self, task: str) -> dict[str, Any]:
+        return self._req("GET", f"/tasks/{task}", params={"opt_fields": "name,notes"}) or {}
+
     def move(self, task: str, section: str) -> None:
         self._req("POST", f"/sections/{section}/addTask", json={"data": {"task": task}})
 

@@ -27,6 +27,8 @@ class FakeAsana:
     def comment(self, task, text): self.stories[task].append(f"{BOT} {text}")
     def comment_raw(self, task, text): self.stories[task].append(text)
     def move(self, task, section): self.where[task] = section
+    def complete(self, task): self.tasks[task]["completed"] = True
+    def task(self, task): return dict(self.tasks[task])
     def rename_section(self, section, name):
         secs = getattr(self, "_sections", {}); secs[section] = name; self._sections = secs
     def sections(self, project): return [{"gid": g, "name": n} for g, n in getattr(self, "_sections", {}).items()]
@@ -362,3 +364,28 @@ def test_comment_on_a_lead_card_with_no_answer_waiting_says_so(loaded, cfg, tmp_
     res = sync_feedback(loaded, cfg, asana, None)
     assert res["revised"] == 0 and res["revise_failed"] == 0
     assert any("nothing to rewrite" in c for c in asana.stories[gid])
+
+
+def test_dictated_answer_on_a_lead_card_becomes_the_reply_card_and_sends_from_approved(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27 (Richard): 'Answer the email with the following: Hey Richard, ...' on the lead card, then dragged to
+    Approved, must send that answer, not bounce the card back with 'Holding it'."""
+    from titan.approvals import dictated_answer
+    assert dictated_answer(["make it shorter"], cfg) is None
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    loaded.execute("UPDATE outreach SET gmail_thread_id='thr-9' WHERE id=?", (oid,))
+    asana.move(gid, s["approved"])
+    asana.stories[gid].append("Answer the email with the following: Hey Maria, thanks for getting back to us, we're mostly interested in "
+                              "the Hollywood property but it seems we're quite a bit away from the asking price. Is the seller willing to take a substantial discount on it?")
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)
+    assert res["sent"] == 1 and len(gm.sent) == 2
+    body = gm.sent[-1][2]
+    assert body.startswith("Hey Maria,\n\n") and "substantial discount" in body and "Charles Grant" in body
+    rgid = next(g for g, t in asana.tasks.items() if t["name"].startswith("Reply · "))
+    assert asana.tasks[rgid].get("completed") and asana.where[rgid] == s["sent"]           # answer card closed after the send
+    assert any("📤 Sent to" in c and "substantial discount" in c for c in asana.stories[gid])  # the lead card carries it
+    assert asana.where[gid] != s["approved"]
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == 2

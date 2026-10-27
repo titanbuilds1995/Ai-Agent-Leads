@@ -260,3 +260,11 @@ def test_heal_misreads_refiles_old_wrong_reads(loaded):
     got = dict(loaded.execute("SELECT external_id, classification FROM messages WHERE external_id LIKE 'h%'").fetchall())
     assert got["h1"] != "COUNTER_WITH_NUMBER" and got["h2"] == "ASK_FOR_OFFER" and got["h3"] == "COUNTER_WITH_NUMBER"
     assert heal_misreads(loaded) == 0
+
+
+def test_links_in_a_signature_are_not_prices():
+    """Cheryl's 'testimonialtree.com/?uid=495059' was read as a $495,059 counter (2026-10-26)."""
+    from titan.replies.classifier import parse_money
+    txt = ("We are currently working with an offer. Of course we are always happy to accept a back up offer.\n"
+           "- Click HERE to leave a Testimonial!\n<https://testimonialtree.com/?uid=495059>\n[image: icon] 734-323-7596")
+    assert parse_money(txt, 585000) is None

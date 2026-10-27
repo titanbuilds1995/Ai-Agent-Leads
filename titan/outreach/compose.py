@@ -26,7 +26,7 @@ BANNED_RE = re.compile(
     r"the (roof|kitchen|bathroom|interior|exterior) (looks|appears)|(photos|pictures) (show|make it look)|"
     r"I noticed (the property|your property|the home|this home) (needs|has|is)|the note in the remarks|in the remarks\b|"
     # Rodrigo, 2026-10-26 (Eugene, Saidelys cards): not how people email
-    r"I'?ll keep this (short|brief)|keep it short|stood out to me|caught my eye|(and|in) the surrounding areas?\b", re.I)
+    r"I'?ll keep this (short|brief)|keep it short|stood out to me|caught my eye|(and|in) the surrounding areas?\b|buyer angle", re.I)
 # Voice protocol: criteria are company framing, never personal opinion; never powerless, never overcommitting.
 PERSONAL_RE = re.compile(
     r"\bI'?m (less|more) (focused|worried|concerned)|\bI (don'?t|do not) (care|mind)\b|\bI wouldn'?t mind\b|\bI'?m comfortable with\b|"
@@ -230,7 +230,7 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "If the roof, AC and the major stuff are still in decent shape, this might actually be pretty close to something we'd look "
          "at.{near_ask} How much work would you say it really needs?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, I may have a buyer angle on your {street_name} listing. If what it needs is mostly kitchen, baths and cosmetic "
+         "Hey {first}, quick question on your {street_name} listing. If what it needs is mostly kitchen, baths and cosmetic "
          "updating rather than a bunch of mechanical work, there may be a number where it works for us.{near_ask} How deep of a "
          "project would you say it is?\n\n{sign}"),
     ],

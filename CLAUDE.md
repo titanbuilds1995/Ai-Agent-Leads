@@ -151,6 +151,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~7:45am ET, RESUME HERE: morning review. 9 sent / 3 real replies (Lise, Richard, Cheryl) / 1 bounce. **Lise's $209k offer
+  card is still in To Review (never sent)**: Needs Rodrigo card posted. Cheryl (Sapphire St): "working with an offer, happy to take a
+  backup, happy to show"; her testimonial-link uid was read as a $495,059 counter → links/brackets stripped before price parsing.
+  Charles's reply card (no number) in To Review + Needs Rodrigo card (backup offer?). Adrienne: NW 28th Ct unconfirmed → removed,
+  card back to To Review. **Cron Claude still refused** (30 new cards came out as templates; Montas/Carlton/Foland "token refused"):
+  30 cards being rewritten in the cloud; "buyer angle" template line removed and banned. 241 tests.
 - 2026-10-27 RESUME HERE: **morning report is a designed email** (Rodrigo: "needs to be a nice design, like all of our other
   designs"). `titan/report_html.py` renders it in the house style (navy bar + gold rule, paper, white panels, serif headings, mono
   labels; email-safe tables + inline styles, 640px, phone-checked): headline, 4 KPI tiles, a card per conversation (status pill,

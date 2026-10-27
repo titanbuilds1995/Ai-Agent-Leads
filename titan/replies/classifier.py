@@ -61,6 +61,8 @@ def parse_money(text: str, list_price: int | None = None) -> int | None:
     """Return the most plausible price in the text. '310' → 310,000 when list price is in the hundreds of thousands."""
     cands: list[int] = []
     text = SIGNATURE_LINE_RE.sub("", text)      # license numbers, phones, MLS ids in a signature are not prices (Richard's BK3659026)
+    # links and bracketed images are never prices (Cheryl's "testimonialtree.com/?uid=495059" became a $495,059 counter)
+    text = re.sub(r"<[^>\s]*>|\[[^\]]*\]|https?://\S+|www\.\S+|\b\S+\.(com|net|org|io)\S*", " ", text)
     for m in MONEY_RE.finditer(text):
         num, suffix = m.group(1), (m.group(2) or "").lower()
         # ignore things like phone numbers, dates, percentages, times, bedroom counts

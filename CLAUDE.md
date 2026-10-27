@@ -74,6 +74,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   **The Lise offer (card 1219900327903853, 2026-10-26) is the model for every written offer** (Rodrigo: "a great starting point"):
   personable, brief thanks, Charles cc's Rodrigo as acquisitions manager who approved the numbers, terms as a short list, human
   paragraph owning the number, and **no contract attached** (agents don't care; offer by email first).
+- **Every email goes out as text + HTML (Rodrigo, 2026-10-27: Lise's offer "does not look right, make it look like a regular
+  email").** Gmail showed our text-only messages in a narrow column with no formatting. `titan/outreach/email_html.py`
+  (`body_html`) renders the body the way Gmail's own composer does (one div per line, blank-line divs, a bulleted list when a
+  block is terms like "Price: …" / "Closing: …", signature lines kept, no fonts or colours) and `GmailClient._mime` attaches
+  it to every send and draft (first emails, replies, offers, test copies). Text part stays first (the cloud and reply readers
+  parse it). The morning report keeps its own designed HTML.
 - **Reply-to:** Charles@titanrealtyinvestments.com. Postal address: 13075 Marcella Blvd, Loxahatchee, FL.
 - Texting waits on Twilio A2P 10DLC approval. **Channel = EMAIL_FIRST** until then (Rodrigo, Asana 2026-10-23).
 - **Sender mailbox = Charles@titanrealtyinvestments.com** (`GMAIL_SENDER`). Signature is exactly `operator.signature_lines`:
@@ -158,6 +164,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~2pm ET, RESUME HERE: **Lise's offer looked wrong in Gmail** (narrow column, broken lines, no bullets): it was
+  text-only. Every outgoing email now carries an HTML version in Gmail-composer style (see Decisions → text + HTML); terms
+  blocks become bullets. Takes effect for the next send after the Mac pulls (the merge must land on the default branch).
+  Lise's already-sent email cannot be changed. 255 tests.
 - 2026-10-27 ~1:15pm ET, RESUME HERE: **Richard** (same as Lise): Rodrigo dictated the answer on the lead card and dragged it to
   Approved; no reply card existed, so the engine kept bouncing it. Reply card made by hand (gid 1219948219758582, Approved).
   Engine now: a dictated answer on a lead card ("Answer the email with: Hey Richard, …") becomes the reply card itself

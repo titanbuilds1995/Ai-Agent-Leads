@@ -1,4 +1,5 @@
-"""Gmail API wrapper: drafts (with label), send, read threads. Plain-text only."""
+"""Gmail API wrapper: drafts (with label), send, read threads. Every message goes out as text + the same email in HTML
+(`email_html.body_html`), so it reads like a normal email in Gmail instead of a narrow plain-text column."""
 from __future__ import annotations
 
 import base64
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..util import log, retry
+from .email_html import body_html
 
 
 class _RetryableSendError(Exception):
@@ -92,9 +94,11 @@ class GmailClient:
         if in_reply_to:
             msg["In-Reply-To"] = in_reply_to
             msg["References"] = references or in_reply_to
-        msg.set_content(body)   # text/plain (what agents get, and what the cloud session reads)
-        if html:                # internal mail only (the morning report): a designed HTML version next to the text
-            msg.add_alternative(html, subtype="html")
+        msg.set_content(body)   # text/plain first (what the cloud session and reply readers parse)
+        # Rodrigo, 2026-10-27: the same email in HTML next to the text, like Gmail's composer does, so agents see normal
+        # paragraphs and a bulleted terms list instead of Gmail's narrow plain-text rendering. The morning report passes
+        # its own designed HTML.
+        msg.add_alternative(html or body_html(body), subtype="html")
         return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
     def create_draft(self, to: str, subject: str, body: str, label: str | None = None, thread_id: str | None = None,

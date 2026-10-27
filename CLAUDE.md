@@ -153,6 +153,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~12:30pm ET, RESUME HERE: Rodrigo never got the "results as graphs" email: the designed report landed at 7:19am,
+  after the 7:00am send, so today's was text only. Added two charts to it (`report_html.day_chart`: emails sent vs agent replies
+  per day, 14 days; `funnel`: emails → replies → conversations → offers), built from table cells so Gmail/iPhone draw them.
+  First designed report with graphs arrives tomorrow 7am; `make report` on the Mac sends one now.
 - 2026-10-27 ~9am ET, RESUME HERE: **new "Needs Me" column** (Rodrigo: "one more, it should say needs me"; engine creates it
   before To Review, `needs_me_section`). Needs Me = the next move is his: numbers posted (comment router now parks those here,
   not in Needs Revision; old numbers-held cards migrate on the next tick: Carlton, Montas, Kara, Dipietro), and lead cards with

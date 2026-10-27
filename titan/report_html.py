@@ -79,6 +79,47 @@ def bar(rate: float | None, unlock: float) -> str:
             f'<div style="font-family:{MONO};font-size:10px;color:{FAINT};margin-top:4px">{pct}% now · unlocks at {mark}%</div>')
 
 
+def day_chart(series: list[dict[str, Any]]) -> str:
+    """Last 14 days as a column chart: emails sent (navy) and real replies (gold) per day. Bars are table cells with a
+    pixel height, so Gmail and the iPhone Mail app draw them (no images, SVG or scripts, which email clients block)."""
+    top = max([max(d.get("emails_sent", 0), d.get("replies", 0)) for d in series] + [1])
+    h = lambda v: max(2, round(90 * v / top)) if v else 0  # noqa: E731
+    def col(v: int, color: str) -> str:
+        num = f'<div style="font-family:{MONO};font-size:9px;color:{MUTED};text-align:center">{v}</div>' if v else ""
+        bar_ = (f'<div style="height:{h(v)}px;background:{color};border-radius:2px 2px 0 0;font-size:0;line-height:0">&nbsp;</div>'
+                if v else f'<div style="height:1px;background:{LINE};font-size:0;line-height:0">&nbsp;</div>')
+        return f'<td valign="bottom" style="padding:0 1px">{num}{bar_}</td>'
+    cells = "".join(f'<td valign="bottom" style="height:110px;padding:0 2px">'
+                    f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+                    f'{col(d.get("emails_sent", 0), NAVY)}{col(d.get("replies", 0), GOLD)}</tr></table></td>' for d in series)
+    days = "".join(f'<td style="font-family:{MONO};font-size:9px;color:{FAINT};text-align:center;padding-top:5px">'
+                   f'{datetime.strptime(d["date"], "%Y-%m-%d").strftime("%-d")}</td>' for d in series)
+    key = (f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin-top:10px">'
+           f'<span style="display:inline-block;width:10px;height:10px;background:{NAVY};border-radius:2px"></span> emails sent &nbsp; '
+           f'<span style="display:inline-block;width:10px;height:10px;background:{GOLD};border-radius:2px"></span> agent replies'
+           f' &nbsp;·&nbsp; {e(sum(d.get("emails_sent", 0) for d in series))} sent, '
+           f'{e(sum(d.get("replies", 0) for d in series))} replies in {len(series)} days</div>')
+    return panel(f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed">'
+                 f'<tr>{cells}</tr><tr>{days}</tr></table>{key}')
+
+
+def funnel(steps: list[tuple[str, int]]) -> str:
+    """Horizontal bars, each step as a share of the first (emails sent → replies → conversations → offers)."""
+    top = max(steps[0][1], 1)
+    out = ""
+    for i, (name, v) in enumerate(steps):
+        pct = max(0, min(100, round(100 * v / top)))
+        fill = (f'<td width="{max(pct, 1)}%" style="background:{NAVY if i == 0 else GOLD};height:22px;font-size:0;line-height:0">&nbsp;</td>'
+                if v else "")
+        rest = f'<td style="background:{SUNK};height:22px;font-size:0;line-height:0">&nbsp;</td>' if pct < 100 else ""
+        share = "" if i == 0 else f' <span style="color:{FAINT}">({pct}%)</span>'
+        out += (f'<div style="font-family:{SANS};font-size:13px;color:{INK};margin:{0 if i == 0 else 10}px 0 4px">'
+                f'<b>{e(v)}</b> {e(name)}{share}</div>'
+                f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:4px;overflow:hidden">'
+                f'<tr>{fill}{rest}</tr></table>')
+    return panel(out)
+
+
 def table(head: list[str], rows: list[list[str]], right: set[int] | None = None) -> str:
     """rows are already-escaped HTML cells."""
     right = right or set()
@@ -179,6 +220,14 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
              ["Offers sent", e(o.get("offers", 0)) + (f" · median {e(o.get('median_pct_of_list'))}% of list" if o.get("offers") else "")],
              ["Today", f"{e(st.get('new_today', 0))} new listings · {e(st.get('sent_today', 0))} sent · {e(st.get('replies_today', 0))} replies"]]
     rows.append(section("Scoreboard", table(["", ""], score, right={1}), "How it's going"))
+
+    # charts: the last 14 days, and how far emails get
+    series = stats.get("daily") or []
+    if series:
+        rows.append(section("Last 14 days", day_chart(series), "Emails out, replies in"))
+    rows.append(section("From email to offer", funnel([
+        ("emails sent", st.get("emails_sent", 0) or 0), ("agents replied", st.get("agents_replied", 0) or 0),
+        ("conversations", st.get("conversations", 0) or 0), ("offers sent", o.get("offers", 0) or 0)]), "Where they drop off"))
 
     # trust ladder
     try:

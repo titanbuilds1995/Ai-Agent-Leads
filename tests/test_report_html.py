@@ -7,7 +7,7 @@ def test_html_report_has_the_house_style_and_sections(loaded, cfg, tmp_path):
     cfg.root = tmp_path
     loaded.execute("UPDATE properties SET lead_status='NEEDS_REVIEW', lead_status_at='2026-10-27' WHERE id IN (SELECT id FROM properties LIMIT 2)")
     h = build_html(loaded, cfg)
-    for part in ("Morning Report", "Conversations for you", "Scoreboard", "Trust ladder", "Top targets", "Engine health",
+    for part in ("Morning Report", "Conversations for you", "Scoreboard", "Trust ladder", "Last 14 days", "From email to offer", "Top targets", "Engine health",
                  "#0C1C35", "#B99455", "Next step", "Needs you"):
         assert part in h, part
     assert "BLOCKERS" not in h and "TITAN-DATA" not in h and "<script" not in h

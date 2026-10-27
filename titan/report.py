@@ -63,6 +63,29 @@ def _offer_lines(o: dict[str, Any]) -> list[str]:
     return out
 
 
+def collect_warnings(conn, run_date: str) -> list[str]:
+    """Health warnings for the day; a step that went 'partial' 28 times is one line with a count, not 28 lines."""
+    runs = conn.execute("SELECT step, status, counts, notes FROM daily_runs WHERE run_date=? ORDER BY id", (run_date,)).fetchall()
+    warnings: list[str] = []
+    for r in runs:
+        c = json.loads(r["counts"]) if r["counts"] else {}
+        if r["step"] == "ingest":
+            h = c.get("health") or {}
+            if h.get("warning"):
+                warnings.append(h["warning"])
+            for src, st in (c.get("sources") or {}).items():
+                if not st.get("ok"):
+                    warnings.append(f"source {src} failed: {st.get('error')}")
+        if r["status"] not in ("ok", "running"):
+            warnings.append(f"step {r['step']}: {r['status']} {r['notes'] or ''}".strip())
+    if not runs:
+        warnings.append("no pipeline steps ran today")
+    counted: dict[str, int] = {}
+    for w in warnings:
+        counted[w] = counted.get(w, 0) + 1
+    return [w if n == 1 else f"{w} (×{n} today)" for w, n in counted.items()]
+
+
 def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     run_date = run_date or today_et()
     since = iso(now_utc() - timedelta(hours=24))
@@ -70,7 +93,6 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     usage = db.usage_summary(conn, since)
     usage_total = db.usage_summary(conn)
     leads = hot_leads(conn, cfg.get("report.max_hot_leads", 10))
-    runs = conn.execute("SELECT step, status, counts, notes FROM daily_runs WHERE run_date=? ORDER BY id", (run_date,)).fetchall()
     lines = [f"# Titan morning report — {run_date}", "", f"Mode: **{cfg.mode}** · Channel: **{cfg.channel}**", ""]
     lines += [f"## Conversations for you ({len(leads)})", ""]
     if not leads:
@@ -109,26 +131,8 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
         if k in f:
             lines.append(f"| {k} | {f[k]} |")
     lines += ["", f"API cost last 24h: **${usage['cost_usd']:.2f}** ({usage['calls']} calls, {usage['input_tokens']:,} in / {usage['output_tokens']:,} out) · all-time ${usage_total['cost_usd']:.2f}", ""]
-    warnings = []
-    for r in runs:
-        c = json.loads(r["counts"]) if r["counts"] else {}
-        if r["step"] == "ingest":
-            h = c.get("health") or {}
-            if h.get("warning"):
-                warnings.append(h["warning"])
-            for src, st in (c.get("sources") or {}).items():
-                if not st.get("ok"):
-                    warnings.append(f"source {src} failed: {st.get('error')}")
-        if r["status"] not in ("ok",):
-            warnings.append(f"step {r['step']}: {r['status']} {r['notes'] or ''}".strip())
-    if not runs:
-        warnings.append("no pipeline steps ran today")
+    warnings = collect_warnings(conn, run_date)
     lines += ["## Warnings", ""] + ([f"- {w}" for w in warnings] or ["- none"]) + [""]
-    blockers = (cfg.root / "BLOCKERS.md")
-    if blockers.exists():
-        txt = blockers.read_text().strip()
-        if txt:
-            lines += ["## BLOCKERS.md", "", txt, ""]
     pending = conn.execute("SELECT COUNT(*) FROM outreach WHERE status='draft' AND run_date=?", (run_date,)).fetchone()[0]
     if pending:
         lines += [f"_{pending} drafts are waiting for your review (Gmail label {cfg['outreach']['gmail_review_label']} / reports/drafts/{run_date})._", ""]
@@ -146,7 +150,13 @@ def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
     status = "written"
     if gmail is not None and to:
         try:
-            gmail.send(to, f"Titan morning report {run_date}", text)
+            from .report_html import build_html
+            try:
+                html = build_html(conn, cfg, run_date)
+            except Exception as e:  # noqa: BLE001 — a design bug must never stop the report: send the text alone
+                log.exception("report html failed: %s", e)
+                html = None
+            gmail.send(to, f"Titan morning report {run_date}", text, html=html)
             status = "written+emailed"
         except Exception as e:  # noqa: BLE001
             log.error("report email failed: %s", e)
@@ -155,6 +165,16 @@ def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
     db.finish_run(conn, rid, "ok", {"path": str(path), "status": status})
     log.info("report: %s (%s)", path, status)
     return path
+
+
+def top_targets(conn, limit: int = 15) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT p.id, p.street, p.city, p.list_price, p.days_on_market, p.price_cuts, p.listing_url, v.rating, v.lane, v.mao, "
+        "a.name AS agent_name FROM valuations v JOIN properties p ON p.id=v.property_id JOIN scores s ON s.property_id=p.id "
+        "LEFT JOIN agents a ON a.id=p.agent_id WHERE v.rating IN ('HOT','WARM') AND p.lead_status != 'EXCLUDED' "
+        "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, CASE v.lane WHEN 'FRESH_DEAL' THEN 0 WHEN 'SITTING' THEN 1 ELSE 2 END, "
+        "(p.price_cuts > 0 OR p.back_on_market) DESC, s.score DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def lead_data_section(conn, cfg: Any, limit: int = 40) -> str:

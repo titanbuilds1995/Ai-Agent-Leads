@@ -151,6 +151,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 RESUME HERE: **morning report is a designed email** (Rodrigo: "needs to be a nice design, like all of our other
+  designs"). `titan/report_html.py` renders it in the house style (navy bar + gold rule, paper, white panels, serif headings, mono
+  labels; email-safe tables + inline styles, 640px, phone-checked): headline, 4 KPI tiles, a card per conversation (status pill,
+  agent tap-to-call, their last words, gold "Next step", internal ARV/MAO, Asana card + listing links), scoreboard, trust ladder
+  progress bars, top targets, engine health. Sent as HTML + the same text version (the cloud still reads TITAN-DATA-B64 from the
+  text part). Repeated warnings collapse ("×28 today"); stale BLOCKERS.md no longer pasted into the email. Takes effect at the
+  next 7am report. 239 tests.
 - 2026-10-26 ~5pm ET, RESUME HERE: **comments now do what they ask** (Rodrigo: "why would it not give me what I am asking?").
   `titan/comment_router.py` sorts each card comment: numbers (comps / ARV / land / cash flow / where we need to be) → numbers
   snapshot (`titan/comps_report.py`, Lise's layout + compact comps table 6–10 sales / last 12 months / averages, ARV = exit,

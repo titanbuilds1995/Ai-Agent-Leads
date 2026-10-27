@@ -82,7 +82,7 @@ class GmailClient:
 
     # --- compose ----------------------------------------------------------------------------
     def _mime(self, to: str, subject: str, body: str, in_reply_to: str | None = None, references: str | None = None,
-              cc: list[str] | None = None) -> dict[str, Any]:
+              cc: list[str] | None = None, html: str | None = None) -> dict[str, Any]:
         msg = EmailMessage()
         msg["To"] = to
         if cc:
@@ -92,7 +92,9 @@ class GmailClient:
         if in_reply_to:
             msg["In-Reply-To"] = in_reply_to
             msg["References"] = references or in_reply_to
-        msg.set_content(body)   # text/plain only
+        msg.set_content(body)   # text/plain (what agents get, and what the cloud session reads)
+        if html:                # internal mail only (the morning report): a designed HTML version next to the text
+            msg.add_alternative(html, subtype="html")
         return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
     def create_draft(self, to: str, subject: str, body: str, label: str | None = None, thread_id: str | None = None,
@@ -107,8 +109,8 @@ class GmailClient:
         return {"draft_id": draft["id"], "message_id": draft["message"]["id"], "thread_id": draft["message"].get("threadId")}
 
     def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None,
-             cc: list[str] | None = None) -> dict[str, Any]:
-        message = self._mime(to, subject, body, in_reply_to, cc=cc)
+             cc: list[str] | None = None, html: str | None = None) -> dict[str, Any]:
+        message = self._mime(to, subject, body, in_reply_to, cc=cc, html=html)
         if thread_id:
             message["threadId"] = thread_id
         try:

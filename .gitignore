@@ -15,3 +15,5 @@ reports/dashboard.json
 reports/mls_shortlist_*
 reports/review/
 reports/knowledge/
+reports/*.md
+reports/*.local.md

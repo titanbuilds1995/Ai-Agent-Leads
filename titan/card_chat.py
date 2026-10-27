@@ -26,7 +26,8 @@ FAILED = "Held: couldn't answer yet"          # a "Held:" comment does not consu
 FORWARD_PREFIX = "From your comment on the lead card:"
 QUESTION_RE = re.compile(r"\?|^\s*(?:why|what|how|when|where|who|which|is|are|was|were|do|does|did|can|could|should|would|will|"
                          r"have|has)\b|\b(?:explain|be more clear|clarify|walk me through|tell me|what do you think|thoughts on|"
-                         r"your (?:take|read|opinion)|help me understand|remind me|any idea)\b", re.I)
+                         r"your (?:take|read|opinion)|help me understand|remind me|any idea|analysis|feedback|strategy|advice|"
+                         r"thoughts|what do you think|give me|take a look|look at it again|where .{0,40}should be)\b", re.I)
 
 SYSTEM = """You are Claude, working with Rodrigo Gayoso (Principal, Titan Realty Investments, South Florida wholesaling). Rodrigo
 left a comment on an Asana card about one lead. Answer him like a sharp colleague in a chat: short, plain English, no jargon,

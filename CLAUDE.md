@@ -172,6 +172,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   templates (a `few_photos` angle for thin listings). 48 of the 91 To Review cards asked it today: the Mac's next approvals ticks
   rewrite them on their own (15 per 20-min tick, bot comment "Rewritten: the listing has N photos…"), nothing for Rodrigo to run.
   Cards his comments already shaped are left alone as before. Cards show "· N photos" on the listing line. 257 tests.
+- 2026-10-27 ~1:15pm ET, RESUME HERE: **Richard** (same as Lise): Rodrigo dictated the answer on the lead card and dragged it to
+  Approved; no reply card existed, so the engine kept bouncing it. Reply card made by hand (gid 1219948219758582, Approved).
+  Engine now: a dictated answer on a lead card ("Answer the email with: Hey Richard, …") becomes the reply card itself
+  (`dictated_answer`; Approved when the lead card was dragged to Approved, else To Review); sent lead cards in Approved are
+  feedback, not sends. **One card per lead** (Rodrigo: "two cards for Lise"): when an answer/offer card sends, its text is
+  posted on the lead card ("📤 Sent to …") and the answer card is completed (off the board). Inbound replies always mirror to the
+  lead card, never a reply card. A numbers comment that also asks for analysis (David Carlton, 1:02pm) gets a card-chat answer
+  after the table. **Watch: David Carlton's comment is the first live test of card chat on the API** (needs the Mac to pull;
+  next approvals tick). Lise's offer + Cheryl's + Richard's answers in Approved, not yet sent as of 1:10pm. 251 tests.
 - 2026-10-27 ~1:30pm ET: **rewrite + send** built (see Decisions → Asana). Rodrigo: "I tell it what to write, it rewrites it,
   it already has my tone, so it can just send" — only when his comment says send (his choice). Hand edits between the EMAIL
   lines + drag to Approved still send word for word.

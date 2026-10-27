@@ -135,15 +135,18 @@ def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tm
     asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
     res = lead_board(loaded, cfg, asana)
     answered = next(g for g, n in asana._sections.items() if n == ANSWERED)
+    needs_me = next(g for g, n in asana._sections.items() if n == "Needs Me")
     assert asana._sections[s["sent"]] == NO_ANSWER
-    assert res["moved"] == 1 and asana.where[g1] == answered and asana.where[g2] == s["sent"]   # a bounce is not an answer
+    # she asked for an offer: the next move is Rodrigo's, so Needs Me (2026-10-27); a bounce is not an answer
+    assert res["moved"] == 1 and asana.where[g1] == needs_me and asana.where[g2] == s["sent"]
     notes = asana.tasks[g1]["notes"]
     assert notes.startswith(STAND_START) and "NEEDS YOU: decide a number" in notes and "best offer" in notes
     assert parse_card(notes)["outreach_id"] == o1                       # the card still reads as an email card
-    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0}  # idempotent
+    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}  # idempotent
     log_message(loaded, t1, "out", "Thanks Lise, I'll get back to you today.", external_id="x3", action="reply:manual")
     lead_board(loaded, cfg, asana)
     assert "WAITING ON THE AGENT" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count(STAND_START) == 1
+    assert asana.where[g1] == answered                                  # we answered: the ball is with the agent
 
 
 def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):

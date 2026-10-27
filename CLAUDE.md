@@ -131,7 +131,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   runs with check-replies and approvals. **The drafted reply is shown in that block too** ("DRAFTED ANSWER (not sent yet)", card
   name, column, full text; Rodrigo 2026-10-26: he looks at the lead's own card). Approval still happens by dragging the reply card.
   **The status moves with the draft**: a pending reply card with a dollar figure → "OFFER DRAFTED ($N)" (in To Review) or "OFFER
-  APPROVED ($N)" (in Approved). **Cc:** a card may carry a `Cc:` line above the email; it is sent as Cc (offers Cc Rodrigo).
+  APPROVED ($N)" (in Approved). **"Needs Me" column (Rodrigo, 2026-10-27):** answered leads whose next move is his (NEEDS YOU /
+  OUR TURN / ANSWER DRAFTED / OFFER DRAFTED) and cards with numbers posted sit in Needs Me; Answered = we replied, ball with the
+  agent. **Cc:** a card may carry a `Cc:` line above the email; it is sent as Cc (offers Cc Rodrigo).
 - **Per-lead rundowns on Asana are formatted, not walls of text** (Rodrigo, 2026-10-26): when he asks about a lead, put it on the
   Claude Updates card as `html_notes` with `<h1>` address, `<h2>` sections (Status / The house / Our offer / The numbers / Engine
   screen / Conversation so far), `<table>` for figures (header row in `<strong>`), `<hr/>` between sections. Asana html allows only
@@ -151,6 +153,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~9am ET, RESUME HERE: **new "Needs Me" column** (Rodrigo: "one more, it should say needs me"; engine creates it
+  before To Review, `needs_me_section`). Needs Me = the next move is his: numbers posted (comment router now parks those here,
+  not in Needs Revision; old numbers-held cards migrate on the next tick: Carlton, Montas, Kara, Dipietro), and lead cards with
+  status NEEDS YOU / OUR TURN / ANSWER DRAFTED / OFFER DRAFTED. **Answered** = we replied, waiting on the agent (or closed /
+  offer approved). Lise moves to Needs Me (her $209k offer is still unsent in To Review). Nothing ever sends from Needs Me.
 - 2026-10-27 ~8:30am ET, RESUME HERE: Rodrigo asked why Carlton, Montas, Kara, Dipietro still sit in Needs Revision. They got
   their NUMBERS snapshots yesterday 4:40pm and wait on his call by design (comment what to send, or drag to Approved). Two errors
   fixed in `comps_report`: the same sale listed twice (MLS + public record) now counts once (`dedupe`; Carlton's ARV unchanged),

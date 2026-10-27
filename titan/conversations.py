@@ -116,6 +116,8 @@ ANSWERED = "Answered"
 NO_ANSWER = "Sent · no answer yet"
 STAND_START, STAND_END = "-----WHERE WE STAND-----", "-----END WHERE WE STAND-----"
 NOT_AN_ANSWER = ("BOUNCE", "OUT_OF_OFFICE")
+# Rodrigo, 2026-10-27: a lead whose next move is his goes to "Needs Me"; "Answered" = we replied, the ball is with the agent
+NEEDS_ME_STATUS = ("NEEDS YOU", "OUR TURN", "ANSWER DRAFTED", "OFFER DRAFTED")
 PLAIN = {"INTERESTED": "talked about the house", "ASK_FOR_OFFER": "asked for our offer", "COUNTER_WITH_NUMBER": "gave a number",
          "QUESTION": "asked a question", "NOT_INTERESTED": "not interested", "SOLD_OR_PENDING": "already under contract or sold",
          "STOP": "asked us to stop"}
@@ -178,13 +180,15 @@ def _with_stand(notes: str, lines: list[str]) -> str:
 
 
 def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
-    """Move sent cards whose agent answered from "Sent · no answer yet" to "Answered", and keep a WHERE WE STAND block at
-    the top of every Answered first-email card. Never raises into the caller."""
-    from .approvals import parse_card
-    n = {"moved": 0, "updated": 0}
+    """Move sent cards whose agent answered out of "Sent · no answer yet": to "Needs Me" when the next move is Rodrigo's
+    (status NEEDS YOU / OUR TURN / ANSWER DRAFTED / OFFER DRAFTED), else to "Answered". Keeps a WHERE WE STAND block at
+    the top of every such first-email card. Never raises into the caller."""
+    from .approvals import needs_me_section, parse_card
+    n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}
     try:
         a = cfg.get("outreach.asana", {}) or {}
         sent, answered = board_sections(cfg, asana)
+        nm = needs_me_section(cfg, asana)
         pending = set()
         drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
         names = {a.get("to_review"): "To Review", a.get("approved"): "Approved (sends next run)"}
@@ -208,10 +212,13 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             if pc and agent_id(pc["outreach_id"]) and where_we_stand(conn, agent_id(pc["outreach_id"])):
                 asana.move(t["gid"], answered)
                 n["moved"] += 1
-        for t in asana.section_tasks(answered):
+        lead_cards = [(t, answered) for t in asana.section_tasks(answered)] + [(t, nm) for t in asana.section_tasks(nm)]
+        for t, here in lead_cards:
             pc = parse_card(t.get("notes") or "")
             if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
                 continue
+            if here == nm and (conn.execute("SELECT status FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone() or [""])[0] != "sent":
+                continue          # an unsent first email parked with its numbers: not a lead card
             aid = agent_id(pc["outreach_id"])
             lines = where_we_stand(conn, aid, aid in pending_agents)
             if not lines:
@@ -233,6 +240,10 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             if new != (t.get("notes") or ""):
                 asana.update_notes(t["gid"], new)
                 n["updated"] += 1
+            target = nm if any(lines[0].startswith(f"Status: {k}") for k in NEEDS_ME_STATUS) else answered
+            if target != here:
+                asana.move(t["gid"], target)
+                n["to_needs_me" if target == nm else "to_answered"] += 1
     except Exception as e:  # noqa: BLE001
         log.warning("lead board: %s", e)
         n["error"] = str(e)[:200]

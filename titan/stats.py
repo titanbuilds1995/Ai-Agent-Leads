@@ -90,8 +90,9 @@ def asana_counts(cfg: Any, asana=None) -> dict[str, int] | None:
     try:
         out = {k: len(asana.section_tasks(a[k])) for k in ("to_review", "approved", "sent", "skip") if a.get(k)}
         try:
-            from .approvals import needs_revision_section
+            from .approvals import needs_me_section, needs_revision_section
             out["needs_revision"] = len(asana.section_tasks(needs_revision_section(cfg, asana)))
+            out["needs_me"] = len(asana.section_tasks(needs_me_section(cfg, asana)))
             from .conversations import board_sections
             out["answered"] = len(asana.section_tasks(board_sections(cfg, asana)[1]))
         except Exception:  # noqa: BLE001

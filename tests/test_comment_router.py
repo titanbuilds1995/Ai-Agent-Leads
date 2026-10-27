@@ -93,6 +93,7 @@ def test_numbers_comment_posts_the_snapshot_and_holds_the_email(loaded, cfg, tmp
     n = sync_feedback(loaded, cfg, asana, NoLLM())
     assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] == before          # text untouched
     assert asana.where[gid] != _sections(cfg)["approved"]                      # held, never sent
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")          # done, waiting on Rodrigo (2026-10-27)
     snap = [s for s in asana.stories[gid] if "NUMBERS" in s][0]
     assert "Where we need to be" in snap and "The comps" in snap and "ARV" in snap and "An investor pays" in snap and "Exit: resale after rehab" in snap
     html = next(iter(asana.html.values()))
@@ -319,3 +320,16 @@ def test_agents_rent_stays_on_the_house_his_thread_is_about(loaded, cfg, tmp_pat
                    (cur.lastrowid, "in", "Unit A is rented for $2,500 and unit B for $2,000.", now))
     assert comps_report.build(loaded, cfg, pid, _fake_comps, rent_from_comment=False)["numbers"].get("rent") == 4500
     assert not comps_report.build(loaded, cfg, other, _fake_comps, rent_from_comment=False)["numbers"].get("rent")
+
+
+def test_cards_with_numbers_already_posted_leave_needs_revision(loaded, cfg, tmp_path, monkeypatch):
+    """Carlton, Montas, Kara, Dipietro sat in Needs Revision after their numbers were posted (Rodrigo, 2026-10-27:
+    'move them to another column so I know we answered')."""
+    from titan.asana import BOT
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, DIPIETRO)
+    sync_feedback(loaded, cfg, asana, NoLLM())
+    nr, nm = asana.ensure_section(None, "Needs Revision"), asana.ensure_section(None, "Needs Me")
+    asana.move(gid, nr)                                                         # where the old engine left it
+    n = sync_feedback(loaded, cfg, asana, NoLLM())
+    assert n.get("to_needs_me") == 1 and asana.where[gid] == nm
+    assert sync_feedback(loaded, cfg, asana, NoLLM())["numbers"] == 0 and asana.where[gid] == nm   # stays put, nothing redone

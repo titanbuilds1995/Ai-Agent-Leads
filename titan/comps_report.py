@@ -58,9 +58,31 @@ def pick_comps(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, wa
             comps = select_comps(p, candidates, cfg, radius=radius)
             if len(comps) >= 6:
                 break
-    comps = sorted(comps, key=lambda c: (c.get("distance_mi") if c.get("distance_mi") is not None else 9, -(_date_key(c))))[:want]
+    comps = sorted(comps, key=lambda c: (c.get("distance_mi") if c.get("distance_mi") is not None else 9, -(_date_key(c))))
+    comps = dedupe(comps)[:want]
     comps = sorted(comps, key=lambda c: -_date_key(c))
     return comps, f"within {radius:g} mi" if p.get("lat") else f"ZIP {p.get('zip')}"
+
+
+def _street_key(addr: str | None) -> str:
+    return re.sub(r"[^a-z0-9 ]", "", (addr or "").lower().split(",")[0]).strip()
+
+
+def dedupe(comps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per sale: the same address at the same price shows up twice in the feed (an MLS row and a public-record
+    row, a few days apart: 1424 NE 16th Ave and 1533 NE 16th Ave on Carlton's card). Keep the row with the MLS #."""
+    best: dict[tuple[str, int], dict[str, Any]] = {}
+    order: list[tuple[str, int]] = []
+    for c in comps:
+        k = (_street_key(c.get("address")), int(c.get("sold_price") or 0))
+        if not k[0]:
+            k = (f"#{id(c)}", k[1])
+        if k not in best:
+            best[k] = c
+            order.append(k)
+        elif not best[k].get("mls") and c.get("mls"):
+            best[k] = c
+    return [best[k] for k in order]
 
 
 def recent(candidates: list[dict[str, Any]], months: int = 12) -> list[dict[str, Any]]:
@@ -174,9 +196,11 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
         if arv and r:
             screen.append((f"{label} ({r['ratio']:.0%})", max(int(round(arv * r["ratio"] - repairs - fee, -3)), 0)))
     msgs = [db.row_to_dict(r) for r in conn.execute(
-        "SELECT m.direction, m.body, m.created_at, m.classification FROM messages m JOIN threads t ON t.id=m.thread_id "
+        "SELECT m.direction, m.body, m.created_at, m.classification, t.property_ids FROM messages m JOIN threads t ON t.id=m.thread_id "
         "WHERE t.agent_id=? ORDER BY m.created_at", (p.get("agent_id"),)).fetchall()] if p.get("agent_id") and _has_threads(conn) else []
-    rent = rent_from([p.get("remarks") or ""] + ([asked] if rent_from_comment else []) + [m["body"] for m in msgs if m.get("direction") == "in"])
+    # the agent's words count for rent only on the house his thread is about (Richard's $4,500 Polk St rent landed on Riviera Beach)
+    rent_msgs = [m for m in msgs if rent_from_comment or property_id in json.loads(m.get("property_ids") or "[]")]
+    rent = rent_from([p.get("remarks") or ""] + ([asked] if rent_from_comment else []) + [m["body"] for m in rent_msgs if m.get("direction") == "in"])
     if rent:
         exp = float(cfg.get("comps_report.expense_ratio", 0.40))
         noi = rent * 12 * (1 - exp)

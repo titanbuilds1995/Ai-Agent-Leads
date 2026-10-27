@@ -289,3 +289,33 @@ def test_a_new_call_comment_books_again(loaded, cfg, tmp_path, monkeypatch):
 def test_praise_alone_holds_without_a_rewrite():
     for c in ("perfect", "great", "perfect, thank you", "thank you", "go"):
         assert classify([c]) == {"hold"}, c
+
+
+def test_same_sale_listed_twice_counts_once():
+    """Carlton's card showed 1424 NE 16th Ave and 1533 NE 16th Ave twice each (MLS row + public-record row)."""
+    rows = [{"address": "1424 NE 16th Ave, Fort Lauderdale, FL", "sold_price": 1170000, "mls": None},
+            {"address": "1424 NE 16th Ave, Fort Lauderdale, FL 33304", "sold_price": 1170000, "mls": "B26063497"},
+            {"address": "1533 NE 16th Ave, Fort Lauderdale", "sold_price": 2290000},
+            {"address": "1533 NE 16th Ave, Fort Lauderdale", "sold_price": 2290000},
+            {"address": "1533 NE 16th Ave, Fort Lauderdale", "sold_price": 1500000}]
+    out = comps_report.dedupe(rows)
+    assert len(out) == 3 and out[0]["mls"] == "B26063497"
+
+
+def test_agents_rent_stays_on_the_house_his_thread_is_about(loaded, cfg, tmp_path):
+    """Richard's $4,500 Polk St rent was applied to his Riviera Beach listing too: with two houses asked about, only the
+    thread's own house gets the agent's rent."""
+    import json
+    from titan import db
+    cfg.root = tmp_path
+    pid = _pid(loaded)
+    agent = loaded.execute("SELECT agent_id FROM properties WHERE id=?", (pid,)).fetchone()[0]
+    other = loaded.execute("SELECT id FROM properties WHERE id != ?", (pid,)).fetchone()[0]
+    loaded.execute("UPDATE properties SET agent_id=? WHERE id=?", (agent, other))
+    now = db.now() if hasattr(db, "now") else "2026-10-26T12:00:00"
+    cur = loaded.execute("INSERT INTO threads(agent_id, channel, external_id, property_ids, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                         (agent, "email", "t-rent", json.dumps([pid]), now, now))
+    loaded.execute("INSERT INTO messages(thread_id, direction, body, created_at) VALUES (?,?,?,?)",
+                   (cur.lastrowid, "in", "Unit A is rented for $2,500 and unit B for $2,000.", now))
+    assert comps_report.build(loaded, cfg, pid, _fake_comps, rent_from_comment=False)["numbers"].get("rent") == 4500
+    assert not comps_report.build(loaded, cfg, other, _fake_comps, rent_from_comment=False)["numbers"].get("rent")

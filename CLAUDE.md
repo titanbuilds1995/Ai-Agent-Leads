@@ -151,6 +151,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~8:30am ET, RESUME HERE: Rodrigo asked why Carlton, Montas, Kara, Dipietro still sit in Needs Revision. They got
+  their NUMBERS snapshots yesterday 4:40pm and wait on his call by design (comment what to send, or drag to Approved). Two errors
+  fixed in `comps_report`: the same sale listed twice (MLS + public record) now counts once (`dedupe`; Carlton's ARV unchanged),
+  and an agent's stated rent only applies to the house his thread is about (Richard's $4,500 Polk St rent had landed on Riviera
+  Beach; correction comment posted on his card). Still unanswered from his comments: Kara subfloors, Montas rent figure.
 - 2026-10-27 ~7:45am ET, RESUME HERE: morning review. 9 sent / 3 real replies (Lise, Richard, Cheryl) / 1 bounce. **Lise's $209k offer
   card is still in To Review (never sent)**: Needs Rodrigo card posted. Cheryl (Sapphire St): "working with an offer, happy to take a
   backup, happy to show"; her testimonial-link uid was read as a $495,059 counter → links/brackets stripped before price parsing.

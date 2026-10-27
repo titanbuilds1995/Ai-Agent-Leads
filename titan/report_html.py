@@ -157,7 +157,8 @@ def funnel(steps: list[tuple[str, int]], notes: list[str] | None = None) -> str:
         bar_ = (f'<td width="{max(pct_top, 2)}%" style="background:{NAVY};height:10px;font-size:0;line-height:0;border-radius:0 3px 3px 0">&nbsp;</td>'
                 if v else "")
         rest = f'<td style="background:{SUNK};height:10px;font-size:0;line-height:0">&nbsp;</td>' if pct_top < 100 else ""
-        out += (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"{"" if i == 0 else f" style=\"border-top:1px solid {SUNK}\""}>'
+        top_rule = "" if i == 0 else f' style="border-top:1px solid {SUNK}"'      # no backslash inside an f-string (Python 3.11 on `make setup`)
+        out += (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"{top_rule}>'
                 f'<tr><td width="54" valign="top" style="padding:{0 if i == 0 else 12}px 8px 10px 0;font-family:{SERIF};font-size:28px;line-height:1;color:{INK}">{e(v)}</td>'
                 f'<td valign="top" style="padding:{0 if i == 0 else 12}px 0 10px">'
                 f'<div style="font-family:{SANS};font-size:14px;line-height:1.2;color:{INK};font-weight:700">{e(name)}</div>'

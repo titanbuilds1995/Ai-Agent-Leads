@@ -175,6 +175,17 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~3:35pm ET, RESUME HERE: Rodrigo asked for a board check ("I need to send an email out soon"). Done on Asana by hand:
+  **Peter Dacko** (he called Peter; Peter sends the lockbox once emailed): follow-up email written on the card, To Review, no price;
+  **Olga Montoya**: his ask applied (why no interior photos + would the seller hear a cash proposal), To Review; **Lise**: the
+  1:30pm "reply from Lise" asking "at what number" was Rodrigo's OWN email from rodrigo@ (Cc'd on Charles's thread), the engine
+  read it as her asking for an offer and drafted a holding reply → that reply card moved to Skip, correction on her lead card,
+  ball is with Lise (2 higher offers, she will present our $209k); **Richard** ("pull duplex comps"): the cloud can't rerun
+  HomeHarvest (realtor.com unreachable), so the existing set was cleaned on the reply card: duplex ARV $700–750k, range
+  $400–460k, his call (holding answer as is, or "offer N"). Alan Alcala + Peter Zhuang sit in Needs Revision with no comment.
+  Engine fixes: `is_ours()` skips any inbound mail from GMAIL_SENDER / REPORT_TO / our domain; `street_name()` drops unit
+  suffixes (Olga's "no address" rewrite failure); multi-family comps drop $/sf outliers (`drop_ppsf_outliers`); report_html
+  f-string that broke Python 3.11 (`make setup`) fixed. 265 tests.
 - 2026-10-27 ~3:30pm ET, RESUME HERE: **no more second cards** (Rodrigo: Richard's "re check these comps … give me a range" on the
   lead card made two new NUMBERS cards on Claude Updates and put the numbers + 💬 answer on the Reply card). Now every answer lands
   on the card he commented on: numbers snapshot as a comment (no NUMBERS card anywhere), 💬 answer, lead card → Needs Me; a reply

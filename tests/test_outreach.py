@@ -320,3 +320,15 @@ def test_first_touch_prompt_carries_the_photo_count(cfg):
     assert "fewer than 4 photos" in seen["system"]
     llm_email(L(), cfg, _agent(), [_prop(photos_count=2)])
     assert seen["user"]["may_ask_how_much_work"] is True
+
+
+def test_street_name_drops_the_unit_number():
+    """Olga Montoya's card (2026-10-27): the engine could not rewrite it ('no address') because the street check looked
+    for 'SW 82nd Cir Ln Unit 3-10' and the email, like anyone would, said 'SW 82nd Cir Ln'."""
+    from titan.outreach.compose import street_name
+    assert street_name("15675 SW 82nd Cir Ln Unit 3-10") == "SW 82nd Cir Ln"
+    assert street_name("12028 Royal Palm Blvd Unit 3F") == "Royal Palm Blvd"
+    assert street_name("2327 Polk St Unit A-B") == "Polk St"
+    assert street_name("455 NW 68th Ave Apt 702") == "NW 68th Ave"
+    assert street_name("1960 Rodman St # 1-10") == "Rodman St"
+    assert street_name("107 NW 11th St") == "NW 11th St"

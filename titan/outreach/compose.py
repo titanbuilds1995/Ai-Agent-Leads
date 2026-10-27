@@ -387,6 +387,7 @@ def signature(cfg: Any, closing: str = "Best regards,") -> str:
 def street_name(street: str | None) -> str:
     """'107 NW 11th St' → 'NW 11th St' (how people talk about a listing)."""
     s = (street or "").strip()
+    s = re.sub(r"\s+(?:unit|apt|apartment|ste|suite|#)\s*\S+$", "", s, flags=re.I)   # 'SW 82nd Cir Ln Unit 3-10' → 'SW 82nd Cir Ln'
     return re.sub(r"^\d+[A-Za-z]?\s+", "", s) or s
 
 

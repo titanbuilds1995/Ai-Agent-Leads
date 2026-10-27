@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import statistics
 from datetime import datetime, timedelta
 from statistics import mean, median
 from typing import Any, Callable
@@ -59,9 +60,21 @@ def pick_comps(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, wa
             if len(comps) >= 6:
                 break
     comps = sorted(comps, key=lambda c: (c.get("distance_mi") if c.get("distance_mi") is not None else 9, -(_date_key(c))))
-    comps = dedupe(comps)[:want]
-    comps = sorted(comps, key=lambda c: -_date_key(c))
+    comps = dedupe(comps)
+    if (p.get("units") or 0) > 1:
+        comps = drop_ppsf_outliers(comps)
+    comps = sorted(comps[:want], key=lambda c: -_date_key(c))
     return comps, f"within {radius:g} mi" if p.get("lat") else f"ZIP {p.get('zip')}"
+
+
+def drop_ppsf_outliers(comps: list[dict[str, Any]], low: float = 0.5, high: float = 1.6) -> list[dict[str, Any]]:
+    """Multi-family sales are matched by size, so a $3.1M new build at $977/sf lands next to a 1942 duplex at $260/sf
+    (Richard Dipietro's Polk St card, 2026-10-27). Keep the sales within low..high of the median $/sf; need 4+ priced sales."""
+    priced = [c for c in comps if _ppsf(c)]
+    if len(priced) < 4:
+        return comps
+    med = statistics.median(_ppsf(c) for c in priced)
+    return [c for c in comps if not _ppsf(c) or low * med <= _ppsf(c) <= high * med]
 
 
 def _street_key(addr: str | None) -> str:
@@ -219,7 +232,8 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     if not sqft and not land:
         still_open.append("Our size (sq ft) is unknown, so the sales are the nearest of the same type, not size-matched; no ARV per sq ft.")
     if (p.get("units") or 0) > 1:
-        still_open.append(f"{p['units']} units: sales are matched by size, not unit count; the rent lines matter more than $/sf here.")
+        still_open.append(f"{p['units']} units: sales are matched by size, not unit count (sales far off the median $/sf are dropped); "
+                          "the rent lines matter more than $/sf here.")
     if numbers.get("ratio") and "flat" in (numbers.get("ratio_source") or ""):
         still_open.append("No investor deal records for this ZIP and type, so the buy ratio is the flat default, not market data.")
     if not land and numbers.get("flipper") is not None:

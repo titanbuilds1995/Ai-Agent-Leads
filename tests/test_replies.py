@@ -268,3 +268,20 @@ def test_links_in_a_signature_are_not_prices():
     txt = ("We are currently working with an offer. Of course we are always happy to accept a back up offer.\n"
            "- Click HERE to leave a Testimonial!\n<https://testimonialtree.com/?uid=495059>\n[image: icon] 734-323-7596")
     assert parse_money(txt, 585000) is None
+
+
+def test_our_own_emails_are_never_the_agents_reply():
+    """Rodrigo (2026-10-27, Lise): he answered Lise from rodrigo@ while Cc'd on Charles's thread; the engine read his
+    'At what number could we make it work?' as Lise asking for an offer. Anything from our side is skipped."""
+    from titan.replies.inbox import is_ours
+
+    class C:
+        def secret(self, k):
+            return {"GMAIL_SENDER": "Charles@titanrealtyinvestments.com", "REPORT_TO": "rodrigo@titanrealtyinvestments.com"}.get(k)
+
+    cfg = C()
+    assert is_ours("Rodrigo Gayoso <rodrigo@titanrealtyinvestments.com>", cfg)
+    assert is_ours("charles@titanrealtyinvestments.com", cfg)
+    assert is_ours("Someone Else <ops@titanrealtyinvestments.com>", cfg)
+    assert not is_ours("Lise Freeman <lisefreeman@gmail.com>", cfg)
+    assert not is_ours(None, cfg)

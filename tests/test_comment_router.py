@@ -409,3 +409,16 @@ def test_numbers_question_on_a_lead_card_is_answered_there_and_makes_no_second_c
     assert asana.tasks[rgid]["notes"] == reply_before and asana.where[rgid] != s["approved"]   # held, not sent, not rewritten
     assert not any("NUMBERS" in c or "💬" in c for c in asana.stories[rgid])                  # nothing landed on the other card
     assert sync_feedback(loaded, cfg, asana, L())["numbers"] == 0                             # done once
+
+
+def test_multi_family_comps_drop_the_ppsf_outliers():
+    """Richard Dipietro's Polk St duplex (2026-10-27): a $3.1M sale at $977/sf and a $1.23M at $512/sf sat next to
+    1942 duplexes at $230-300/sf and pushed the ARV to $845k. Multi-family keeps the sales near the median $/sf."""
+    rows = [{"address": a, "sold_price": pr, "sqft": sf} for a, pr, sf in [
+        ("1745 Jefferson St", 3100000, 3172), ("2419 Johnson St", 590000, 2287), ("1633 Tyler St", 1230000, 2400),
+        ("1826 McKinley St", 525000, 1962), ("2226 Taylor St", 573000, 2030), ("2535 Lincoln St", 990000, 3200),
+        ("2459 Pierce St", 965000, 2960), ("2516 Cleveland St", 608000, 2113), ("1960 Rodman St", 572000, 2535),
+        ("1931 Pierce St", 862500, 2850)]]
+    kept = [c["address"] for c in comps_report.drop_ppsf_outliers(rows)]
+    assert "1745 Jefferson St" not in kept and "1633 Tyler St" not in kept and len(kept) == 8
+    assert comps_report.drop_ppsf_outliers(rows[:3]) == rows[:3]      # too few priced sales to judge: untouched

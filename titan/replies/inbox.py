@@ -196,6 +196,21 @@ def heal_misreads(conn) -> int:
     return n
 
 
+def is_ours(from_addr: str | None, cfg: Any) -> bool:
+    """A message written by our side, not the agent: Charles's mailbox, Rodrigo's (REPORT_TO) or anyone on our domain.
+    Rodrigo, 2026-10-27 (Lise): he answered her from rodrigo@ while Cc'd on Charles's thread, and the engine read
+    "At what number could we make it work?" as Lise asking for an offer and drafted a holding reply to her."""
+    f = (from_addr or "").lower()
+    if not f:
+        return False
+    ours = [a.lower() for a in (cfg.secret("GMAIL_SENDER"), cfg.secret("REPORT_TO")) if a]
+    if any(a in f for a in ours):
+        return True
+    m = re.search(r"@([\w.-]+)", f)
+    domains = {a.split("@", 1)[1] for a in ours if "@" in a}
+    return bool(m and m.group(1) in domains)
+
+
 # --- the 15-minute job -----------------------------------------------------------------------------
 
 def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=None, now: datetime | None = None) -> dict[str, Any]:
@@ -216,7 +231,7 @@ def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=Non
                 log.error("gmail thread %s: %s", t["external_id"], e)
                 continue
             for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
-                if sender and sender in (m.get("from") or "").lower():
+                if is_ours(m.get("from"), cfg):
                     continue
                 if "DRAFT" in (m.get("label_ids") or []):
                     continue

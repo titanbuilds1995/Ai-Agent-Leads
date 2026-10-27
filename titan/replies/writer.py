@@ -119,8 +119,10 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
             props = [db.row_to_dict(r) for r in conn.execute(
                 f"SELECT street, city, list_price, days_on_market, price_cuts, beds, baths, sqft, year_built, property_type, remarks "
                 f"FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+            from ..card_chat import lead_notes
             user = json.dumps({"agent_first_name": first_name(agent.get("name")), "their_last_message_class": msg.get("classification"),
-                               "thread": _thread_text(conn, w["agent_id"]), "properties": props, "signature_block": signature(cfg)},
+                               "thread": _thread_text(conn, w["agent_id"]), "properties": props, "signature_block": signature(cfg),
+                               "rodrigo_notes_on_this_lead": lead_notes(conn, w["agent_id"])},
                               ensure_ascii=False, default=str)
             body, problems = None, ["no answer from Claude"]
             for _ in range(2):

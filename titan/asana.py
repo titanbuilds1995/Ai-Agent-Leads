@@ -56,6 +56,10 @@ class Asana:
     def comment(self, task: str, text: str) -> None:
         self._req("POST", f"/tasks/{task}/stories", json={"data": {"text": f"{BOT} {text}"}})
 
+    def comment_raw(self, task: str, text: str) -> None:
+        """A comment without the engine's prefix: the engine reads it as Rodrigo's own feedback (card chat forwards his change)."""
+        self._req("POST", f"/tasks/{task}/stories", json={"data": {"text": text}})
+
     def move(self, task: str, section: str) -> None:
         self._req("POST", f"/sections/{section}/addTask", json={"data": {"task": task}})
 

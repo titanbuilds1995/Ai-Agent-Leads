@@ -121,6 +121,11 @@ CREATE TABLE IF NOT EXISTS offers (
   list_price INTEGER, street TEXT, city TEXT, zip TEXT, county TEXT, internal_low INTEGER, internal_high INTEGER,
   status TEXT NOT NULL DEFAULT 'SENT', note TEXT, sent_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+-- What Rodrigo told us about a lead in a card comment (titan/card_chat.py); goes into every later prompt for that agent.
+CREATE TABLE IF NOT EXISTS lead_notes (
+  id INTEGER PRIMARY KEY, agent_id INTEGER, outreach_id INTEGER, text TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(outreach_id, text)
+);
 CREATE TABLE IF NOT EXISTS price_decisions (
   id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
 );

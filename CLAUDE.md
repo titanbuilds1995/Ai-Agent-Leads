@@ -167,7 +167,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - 2026-10-27 ~2pm ET, RESUME HERE: **Lise's offer looked wrong in Gmail** (narrow column, broken lines, no bullets): it was
   text-only. Every outgoing email now carries an HTML version in Gmail-composer style (see Decisions → text + HTML); terms
   blocks become bullets. Takes effect for the next send after the Mac pulls (the merge must land on the default branch).
-  Lise's already-sent email cannot be changed. 255 tests.
+  Lise's already-sent email cannot be changed. 259 tests.
 - 2026-10-27 ~1:15pm ET, RESUME HERE: **Richard** (same as Lise): Rodrigo dictated the answer on the lead card and dragged it to
   Approved; no reply card existed, so the engine kept bouncing it. Reply card made by hand (gid 1219948219758582, Approved).
   Engine now: a dictated answer on a lead card ("Answer the email with: Hey Richard, …") becomes the reply card itself

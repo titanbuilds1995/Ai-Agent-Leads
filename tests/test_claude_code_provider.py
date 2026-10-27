@@ -113,3 +113,18 @@ def test_timeout_error_does_not_carry_the_prompt(cfg, monkeypatch):
     llm = _cc(cfg, monkeypatch, run)
     assert llm.structured("t", "secret system prompt 401 oauth token", "u", {}) is None
     assert "prompt" not in llm.last_error and "TimeoutExpired" in llm.last_error
+
+
+def test_every_login_refused_falls_back_to_the_paid_api_only_when_switched_on(cfg, monkeypatch):
+    """Rodrigo, 2026-10-27: the Mac login keeps breaking; with the switch on, card work goes to the paid API instead of stalling."""
+    def run(cmd, **kw):
+        return Proc(json.dumps({"result": "API Error: 401 OAuth access token is invalid", "is_error": True}), returncode=1)
+    cfg.raw["scoring"]["paid_fallback_when_login_fails"] = False
+    llm = _cc(cfg, monkeypatch, run)
+    assert llm.structured("revise_email", "s", "u", {}) is None and llm.login_fallbacks == 0
+    cfg.raw["scoring"]["paid_fallback_when_login_fails"] = True
+    llm = _cc(cfg, monkeypatch, run)
+    seen = {}
+    llm._api = lambda purpose, system, user, schema, max_tokens=1024: seen.update(purpose=purpose) or {"ok": 1}
+    assert llm.structured("revise_email", "s", "u", {}) == {"ok": 1} and seen["purpose"] == "revise_email" and llm.login_fallbacks == 1
+    assert llm.structured("score_batch", "s", "u", {}) is None            # scoring never spends money on this path

@@ -159,7 +159,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   answer card waiting for that agent (`sync_feedback`, `_lead_note`); with no answer waiting it says so. **Lead board
   rule changed (Rodrigo): "Answered" = the AGENT wrote last (or closed); once we reply the lead goes back to "Sent · no answer
   yet"; Needs Me = his move.** Mac login still refused on both paths (token 401 invalid + keychain "Not logged in"): cron
-  rewrites fail until `make claude-login` at the Mac; proposed to Rodrigo a cloud/paid fallback for rewrites. Merged with the parallel "card chat" commit
+  rewrites fail until `make claude-login` at the Mac; built the fallback behind `scoring.paid_fallback_when_login_fails` (off; card rewrites / answers /
+  reply drafts go to the paid API only when BOTH Mac logins are refused; scoring never). Rodrigo decides whether to flip it. Merged with the parallel "card chat" commit
   (`titan/card_chat.py` answers first when Claude is reachable; this deterministic routing is the no-Claude safety net). 249 tests.
 - 2026-10-27 ~1pm ET, RESUME HERE: **chat on the cards** (Rodrigo: "I asked for input and got nothing back"). Before, a question
   on a card got "Holding it" and comments on sent lead cards (Sent / Answered / Needs Me) were never read. Now

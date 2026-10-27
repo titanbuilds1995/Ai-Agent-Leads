@@ -90,6 +90,8 @@ scoring:
   claude_code_model: "sonnet"
   claude_code_batch_size: 20       # listings per `claude -p` call (fewer calls = less plan usage)
   allow_paid_api: false            # true = fall back to the paid API when the Claude Code CLI is missing
+  paid_fallback_when_login_fails: false   # true = card rewrites / answers / reply drafts use the paid API when BOTH Mac logins
+                                          # are refused (never scoring). Pennies per card. Off until Rodrigo says so (cost rule).
   model: "claude-sonnet-5-5"       # only used by provider: api
   max_claude_calls_per_run: 1500   # cost cap (~$0.005 each); target lanes first, the rest catch up on later runs
   effort: "low"

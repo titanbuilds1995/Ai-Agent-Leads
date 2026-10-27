@@ -103,6 +103,19 @@ class LLM:
         self.session_successes = 0
         self.last_error: str | None = None
         self.login_used: str | None = None    # 'token' or 'mac_login', whichever worked
+        self._api_key = key
+        self.login_fallbacks = 0              # calls that went to the paid API because every Claude login was refused
+
+    def _paid_fallback_ok(self, purpose: str) -> bool:
+        return (bool(self.cfg.get("scoring.paid_fallback_when_login_fails", False)) and bool(self._api_key)
+                and anthropic is not None and not purpose.startswith("score"))
+
+    def _api_client(self):
+        if self._client is None:
+            if anthropic is None or not self._api_key:
+                raise LLMUnavailable("anthropic SDK or ANTHROPIC_API_KEY missing")
+            self._client = anthropic.Anthropic(api_key=self._api_key, max_retries=0, timeout=120.0)
+        return self._client
 
     @property
     def available(self) -> bool:
@@ -149,7 +162,15 @@ class LLM:
             self.login_used = name
             break
         else:
-            return self._cc_fail(purpose, " | ".join(errors)[:400])
+            err = " | ".join(errors)[:400]
+            if self._paid_fallback_ok(purpose):
+                # Rodrigo, 2026-10-27 ("we've been through this so many times"): the Mac's Claude login is the one thing that
+                # keeps breaking (token revoked, keychain locked when he's away). With scoring.paid_fallback_when_login_fails
+                # on, card work falls back to the paid API instead of stalling. Scoring batches never do (volume).
+                log.warning("claude_code:%s: every login refused (%s); using the paid API for this call", purpose, err[:160])
+                self.login_fallbacks += 1
+                return self._api(purpose, system, user, schema)
+            return self._cc_fail(purpose, err)
         env_out = out_env
         text = f"{env_out.get('result') or ''} {proc.stderr or ''}"
         low = text.lower()
@@ -189,11 +210,15 @@ class LLM:
             return None
         if self.provider == "claude_code":
             return self._claude_code(purpose, system, user, schema)
-        assert self._client is not None
+        return self._api(purpose, system, user, schema, max_tokens)
+
+    def _api(self, purpose: str, system: str, user: str, schema: dict[str, Any], max_tokens: int = 1024) -> dict[str, Any] | None:
+        """One paid Messages API call (provider api, or the login fallback above)."""
+        client = self._api_client()
         a = anthropic
 
         def call():
-            return self._client.messages.create(
+            return client.messages.create(
                 model=self.model, max_tokens=max_tokens,
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user}],

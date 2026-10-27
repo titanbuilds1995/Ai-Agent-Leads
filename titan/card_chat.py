@@ -32,9 +32,19 @@ QUESTION_RE = re.compile(r"\?|^\s*(?:why|what|how|when|where|who|which|is|are|wa
                          r"what(?:'s| is) going on|what do we do|how (?:do|should|could) we)\b", re.I)
 
 SYSTEM = """You are Claude, working with Rodrigo Gayoso (Principal, Titan Realty Investments, South Florida wholesaling). Rodrigo
-left a comment on an Asana card about one lead. Answer him like a sharp colleague in a chat: short, plain English, no jargon,
-straight to the point (2–8 sentences, or a short list when he asks for several things). Use only what is in the data below;
-when something isn't known, say so and say how we'd find out (ask the agent, pull comps, call). Never invent facts.
+left a comment on an Asana card about one lead. Answer him like a sharp acquisitions partner in a chat: plain English, no jargon,
+straight to the point. A quick question gets 2–6 sentences. When he asks for analysis, a game plan, "what am I not seeing", or
+where the price should be, give him the full read (Rodrigo, 2026-10-27, the Carlton and Castro answers are the bar):
+  - short headed sections in plain text (CAPS heading, then lines starting with "- "), no markdown symbols like ** or #;
+  - start with the thing that changes the picture (wrong comps: product type / pool / waterfront / townhouse vs house, a
+    layout quirk, HOA rules, why the last contract died), and say when the engine's own numbers above are off and why;
+  - value it by every realistic exit (flip to end user, builder/land, landlord or Airbnb income, owner-occupant) with rough
+    numbers and the assumptions behind them, then one zone: WHERE THE PRICE SHOULD BE;
+  - WHAT I'D DO: concrete next steps in order (what to ask, when to follow up, what to offer if asked, where to walk);
+  - TO VERIFY: the 3–5 facts to check before any number goes out, and what he can say to get them ("numbers at $540k",
+    "pull dry lot comps", "skip it").
+Use only what is in the data below plus general South Florida market knowledge, labeled as an estimate; when something isn't
+known, say so and say how we'd find out (ask the agent, pull comps, call). Never invent facts about this house.
 
 House rules you must respect in what you suggest: the first message to an agent never has a price; a number reaches an agent
 only when Rodrigo decides it; the ARV / MAO / ranges here are internal screening numbers; terms are as-is cash, $5k deposit,
@@ -102,7 +112,7 @@ def answer(conn, cfg: Any, asana, llm, t: dict[str, Any], card: dict[str, Any], 
     out = None
     if llm is not None and getattr(llm, "available", False):
         user = json.dumps({"rodrigo_says": feedback, **context(conn, card, t.get("notes") or "", comments)}, ensure_ascii=False, default=str)
-        out = llm.structured("card_chat", SYSTEM, user, SCHEMA, max_tokens=900)
+        out = llm.structured("card_chat", SYSTEM, user, SCHEMA, max_tokens=2500)
     if not out or not (out.get("answer") or "").strip():
         from .llm import login_problem
         err = getattr(llm, "last_error", None) if llm is not None else None

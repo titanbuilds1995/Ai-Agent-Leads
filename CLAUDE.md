@@ -169,12 +169,24 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   it" (sends it), a wording change (forwarded as "From your comment on the lead card: …", rewritten there, held if it sat in
   Approved). The engine creates no card for a question; the only cards it still creates are the reply card (one per agent
   answer, completed when sent), the 📞 call card when he asks to call, and the daily alarm cards.
+- **Fresh Leads vs Needs Me (Rodrigo, 2026-10-27: "once you finish something and you send it to me, it never goes into To
+  Review, it goes Needs Me. To Review is only properties that I've not touched yet, and they're fresh"):** the To Review column is
+  renamed **Fresh Leads** (same gid 1219847260413153, config `to_review`; `ensure_fresh_leads_name` renames it once). Fresh Leads =
+  new first emails nobody has touched (the engine's own photo-rule rewrites of untouched cards stay there). **Anything worked on
+  after he touched it goes to Needs Me**, never back to Fresh Leads: a rewrite from his comment, a hold or a question answered
+  (card moves out of Fresh Leads), numbers, a call card, a dictated answer's reply card, every engine-drafted reply card
+  (`post_reply_card` default), the autopilot go-ahead card. Cloud sessions doing card work by hand: same rule.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-27 ~3:50pm ET, RESUME HERE: **Fresh Leads / Needs Me rule** (Rodrigo: "we're making this mistake right now, it's not
+  good"): I had put Peter Dacko's and Olga Montoya's finished emails back in To Review; both moved to Needs Me. To Review renamed
+  Fresh Leads on Asana (board description rewritten); engine changed so every worked-on card lands in Needs Me (see Decisions).
+  Waiting on him in Needs Me: Peter Dacko (drag to Approved to send), Olga Montoya (same), Richard's reply card (range $400–460k
+  posted; holding answer or "offer N"), Lise lead card (ball with Lise). 266 tests.
 - 2026-10-27 ~3:35pm ET, RESUME HERE: Rodrigo asked for a board check ("I need to send an email out soon"). Done on Asana by hand:
   **Peter Dacko** (he called Peter; Peter sends the lockbox once emailed): follow-up email written on the card, To Review, no price;
   **Olga Montoya**: his ask applied (why no interior photos + would the seller hear a cash proposal), To Review; **Lise**: the

@@ -147,7 +147,7 @@ def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monk
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
     assert res["sent"] == 0 and res["held_for_feedback"] == 1 and not gm.sent
     assert any("Held" in c for c in asana.stories[gid]) and any("Revised" in c for c in asana.stories[gid])   # applied right away
-    assert asana.where[gid] == s["to_review"]                           # rewrite landed → back to To Review for his decision
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")  # rewrite landed → Needs Me, his decision (Rodrigo, 2026-10-27)
     # same thing when Claude cannot rewrite: the card parks in Needs Revision, never in Approved, never in To Review
     gid2 = list(asana.tasks)[1]
     asana.move(gid2, s["approved"]); asana.stories[gid2].append("mention the pool")
@@ -259,8 +259,9 @@ def test_reply_card_sends_in_the_same_thread(loaded, cfg, tmp_path, monkeypatch)
     loaded.execute("UPDATE outreach SET gmail_thread_id='thr-1' WHERE id=?", (oid,))
     rgid = post_reply_card(loaded, cfg, asana, oid, "Hi Maria,\n\nThanks, that helps. Where does the seller realistically need to be?\n\nBest regards,\n\nCharles Grant")
     card = parse_card(asana.tasks[rgid]["notes"])
-    assert card["reply_to"] and card["outreach_id"] == oid and card["subject"].startswith("Re: ") and asana.where[rgid] == s["to_review"]
-    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0          # To Review never sends
+    assert card["reply_to"] and card["outreach_id"] == oid and card["subject"].startswith("Re: ")
+    assert asana.where[rgid] == asana.ensure_section(None, "Needs Me")                   # an answer is his to approve
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0          # Needs Me never sends
     asana.move(rgid, s["approved"])
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
     assert res["sent"] == 1 and gm.sent[-1][0] == card["to"] and gm.sent[-1][1] == card["subject"]
@@ -350,7 +351,7 @@ def test_comment_on_a_lead_card_rewrites_the_waiting_answer(loaded, cfg, tmp_pat
     assert "under contract" in parse_card(asana.tasks[rgid]["notes"])["body"]
     assert parse_card(asana.tasks[gid]["notes"])["body"] == first_body
     assert any("went to the drafted answer" in c for c in asana.stories[gid])
-    assert asana.where[rgid] == s["to_review"]
+    assert asana.where[rgid] == asana.ensure_section(None, "Needs Me")     # rewritten for him → Needs Me (Rodrigo, 2026-10-27)
     assert sync_feedback(loaded, cfg, asana, L())["revised"] == 0          # not processed twice
 
 
@@ -419,3 +420,16 @@ def test_dictated_answer_on_a_lead_card_becomes_the_reply_card_and_sends_from_ap
     assert any("📤 Sent to" in c and "substantial discount" in c for c in asana.stories[gid])  # the lead card carries it
     assert asana.where[gid] != s["approved"]
     assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == 2
+
+
+def test_to_review_is_renamed_fresh_leads_once(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27: "To Review is only properties I've not touched yet, and they're fresh … name it fresh leads"."""
+    from titan.approvals import FRESH_LEADS, ensure_fresh_leads_name
+    asana = FakeAsana()
+    s = _sections(cfg)
+    asana._sections = {s["to_review"]: "To Review", s["approved"]: "Approved"}
+    ensure_fresh_leads_name(cfg, asana)
+    assert asana._sections[s["to_review"]] == FRESH_LEADS and asana._sections[s["approved"]] == "Approved"
+    asana._sections[s["to_review"]] = "To Review"
+    ensure_fresh_leads_name(cfg, asana)           # once per process: not renamed again this run
+    assert asana._sections[s["to_review"]] == "To Review"

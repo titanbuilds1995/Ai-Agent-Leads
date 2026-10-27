@@ -92,7 +92,7 @@ def waiting_threads(conn) -> list[dict[str, Any]]:
 
 def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, Any]:
     """Write Charles's answer for each agent waiting on us and put it on the board as a reply card (To Review). Never raises."""
-    from ..approvals import _cfg, needs_revision_section, parse_card, post_reply_card
+    from ..approvals import _cfg, needs_me_section, needs_revision_section, parse_card, post_reply_card
     from ..learning import learned_block
     from ..outreach.compose import signature, voice_text
     from ..util import inspection_phrase
@@ -102,7 +102,7 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
     try:
         a = _cfg(cfg)
         pending_oids = set()
-        for sec in (a.get("to_review"), a.get("approved"), needs_revision_section(cfg, asana)):
+        for sec in (a.get("to_review"), a.get("approved"), needs_revision_section(cfg, asana), needs_me_section(cfg, asana)):
             for t in asana.section_tasks(sec):
                 pc = parse_card(t.get("notes") or "")
                 if pc and pc.get("reply_to"):

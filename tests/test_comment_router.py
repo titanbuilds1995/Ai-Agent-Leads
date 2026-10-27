@@ -178,11 +178,14 @@ def test_no_false_sends():
         assert "send" in classify([c]), c
 
 
-def test_hold_comment_moves_nothing_and_rewrites_nothing(loaded, cfg, tmp_path, monkeypatch):
+def test_hold_comment_rewrites_nothing_and_parks_the_card_in_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """A hold never touches the text and never sends. The card leaves Fresh Leads: he commented, so it is his now
+    (Rodrigo, 2026-10-27)."""
     asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "don't send it yet")
     before, where = asana.tasks[gid]["notes"], asana.where[gid]
     sync_feedback(loaded, cfg, asana, NoLLM())
-    assert asana.tasks[gid]["notes"] == before and asana.where[gid] == where and "Holding it" in asana.stories[gid][-1]
+    assert asana.tasks[gid]["notes"] == before and "Holding it" in asana.stories[gid][-1]
+    assert where == _sections(cfg)["to_review"] and asana.where[gid] == asana.ensure_section(None, "Needs Me")
 
 
 def test_failed_snapshot_holds_without_consuming_the_comment(loaded, cfg, tmp_path, monkeypatch):
@@ -371,10 +374,13 @@ def test_rewrite_then_send_goes_to_approved_and_out(loaded, cfg, tmp_path, monke
     assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and len(gm.sent) == 1
 
 
-def test_rewrite_without_send_comes_back_to_to_review(loaded, cfg, tmp_path, monkeypatch):
+def test_rewrite_without_send_goes_to_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27: "once you finish something and send it to me, it never goes into To Review, it goes Needs Me.
+    To Review is only properties I've not touched yet" (renamed Fresh Leads)."""
     asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "make it shorter")
     sync_feedback(loaded, cfg, asana, RewriteLLM(parse_card(asana.tasks[gid]["notes"])))
-    assert asana.where[gid] == _sections(cfg)["to_review"] and "Back in To Review" in asana.stories[gid][-1]
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me") and "Moved to Needs Me" in asana.stories[gid][-1]
+    assert asana.where[gid] != _sections(cfg)["to_review"]
 
 
 def test_numbers_question_on_a_lead_card_is_answered_there_and_makes_no_second_card(loaded, cfg, tmp_path, monkeypatch):

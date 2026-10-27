@@ -38,12 +38,13 @@ def _setup(loaded, cfg, tmp_path, monkeypatch, cls="INTERESTED", text="Roof is f
     return asana, s, oid
 
 
-def test_reply_card_is_drafted_once_and_waits_in_to_review(loaded, cfg, tmp_path, monkeypatch):
+def test_reply_card_is_drafted_once_and_waits_in_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27: Fresh Leads (the old To Review) holds only first emails he has not touched; a drafted answer is his."""
     asana, s, oid = _setup(loaded, cfg, tmp_path, monkeypatch)
     llm = _LLM()
     assert draft_reply_cards(loaded, cfg, asana, llm)["drafted"] == 1
     replies = [g for g, t in asana.tasks.items() if t["name"].startswith("Reply ·")]
-    assert len(replies) == 1 and asana.where[replies[0]] == s["to_review"]
+    assert len(replies) == 1 and asana.where[replies[0]] == asana.ensure_section(None, "Needs Me")
     card = parse_card(asana.tasks[replies[0]]["notes"])
     assert card["reply_to"] and card["outreach_id"] == oid and "roof is from 2015" in card["body"].lower()
     assert draft_reply_cards(loaded, cfg, asana, llm)["drafted"] == 0            # one card per message, no duplicates

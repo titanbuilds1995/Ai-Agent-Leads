@@ -254,8 +254,8 @@ def learned_block(cfg: Any) -> str:
 def control_card(asana, cfg: Any, kind: str = "first_touch") -> tuple[dict[str, Any] | None, str | None]:
     """The autopilot control card for this stage and the section it sits in."""
     a = cfg.get("outreach.asana", {}) or {}
-    from .approvals import needs_revision_section
-    for sec in (a.get("approved"), a.get("to_review"), a.get("skip"), needs_revision_section(cfg, asana)):
+    from .approvals import needs_me_section, needs_revision_section
+    for sec in (a.get("approved"), a.get("to_review"), a.get("skip"), needs_revision_section(cfg, asana), needs_me_section(cfg, asana)):
         if not sec:
             continue
         for t in asana.section_tasks(sec):
@@ -286,6 +286,7 @@ def autopilot_tick(conn, cfg: Any, asana, now=None) -> dict[str, Any]:
     if not g or g.get("enabled") is False:
         return res
     a = cfg.get("outreach.asana", {}) or {}
+    from .approvals import needs_me_section
     try:
         stage = next(s for s in ladder(conn, cfg) if s["kind"] == "first_touch")
         card, where = control_card(asana, cfg)
@@ -294,14 +295,14 @@ def autopilot_tick(conn, cfg: Any, asana, now=None) -> dict[str, Any]:
                 notes = CONTROL_NOTES.format(kind="first_touch", as_is=stage["as_is"], decided=stage["decided"], rate=f"{stage['rate']:.0%}",
                                              unlock=f"{stage['unlock']:.0%}", need=stage["need"], veto=g.get("veto_hours", 3),
                                              pause=f"{float(g.get('pause_below', 0.65)):.0%}")
-                asana.create_task(a["project"], a["to_review"], f"{CONTROL_PREFIX} · first emails · ready for your go-ahead", notes)
+                asana.create_task(a["project"], needs_me_section(cfg, asana), f"{CONTROL_PREFIX} · first emails · ready for your go-ahead", notes)
                 res["offered"] = True
             return res
         if where != a.get("approved"):
             return res
         res["on"] = True
         if stage["rate"] is not None and stage["decided"] >= int(g.get("min_decided", 30)) and stage["rate"] < float(g.get("pause_below", 0.65)):
-            asana.move(card["gid"], a["to_review"])
+            asana.move(card["gid"], needs_me_section(cfg, asana))
             asana.comment(card["gid"], f"Autopilot OFF: you approved only {stage['rate']:.0%} of the last {stage['decided']} first emails as written. "
                                        f"Back to approving each one. Drag this card to Approved again when you want it back on.")
             res.update(on=False, paused=True)

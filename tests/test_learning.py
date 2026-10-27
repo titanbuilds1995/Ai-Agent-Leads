@@ -90,7 +90,7 @@ def test_autopilot_needs_the_gate_and_his_go_ahead(loaded, cfg, tmp_path, monkey
     assert next(x for x in ladder(loaded, cfg) if x["kind"] == "first_touch")["ready"]
     assert autopilot_tick(loaded, cfg, asana, later)["offered"]
     ctrl = next(g for g, t in asana.tasks.items() if t["name"].startswith(CONTROL_PREFIX))
-    assert asana.where[ctrl] == s["to_review"]
+    assert asana.where[ctrl] == asana.ensure_section(None, "Needs Me")      # his go-ahead card is his to act on (Rodrigo, 2026-10-27)
     assert autopilot_tick(loaded, cfg, asana, later)["moved"] == 0          # offered, but Rodrigo has not said yes
     asana.move(ctrl, s["approved"])                                       # his go-ahead
     cards = [g for g in asana.tasks if g != ctrl]
@@ -115,7 +115,7 @@ def test_autopilot_turns_itself_off_when_the_rate_drops(loaded, cfg, tmp_path, m
     for i in range(15):
         record_decision(loaded, f"bad{i}", None, "first_touch", SKIPPED, [], None, None)
     res = autopilot_tick(loaded, cfg, asana, SAT_10AM_ET)
-    assert res["paused"] and asana.where[ctrl] == s["to_review"]
+    assert res["paused"] and asana.where[ctrl] == asana.ensure_section(None, "Needs Me")
 
 
 def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tmp_path, monkeypatch):

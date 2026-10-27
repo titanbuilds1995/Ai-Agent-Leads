@@ -28,6 +28,7 @@ def _cfg(cfg: Any) -> dict[str, Any]:
 
 NEEDS_REVISION = "Needs Revision"
 NEEDS_ME = "Needs Me"
+FRESH_LEADS = "Fresh Leads"     # Rodrigo, 2026-10-27: the old "To Review" column, fresh cards he has not touched
 NUMBERS_HELD = "Numbers are above"
 PROMPT_PREFIX = "Tell me what to change"
 
@@ -47,6 +48,21 @@ def needs_revision_section(cfg: Any, asana: Asana) -> str:
     except Exception:  # noqa: BLE001
         pass
     return gid
+
+
+def ensure_fresh_leads_name(cfg: Any, asana: Asana) -> None:
+    """Rodrigo, 2026-10-27: "To Review is only properties that I've not touched yet, and they're fresh … name it fresh leads".
+    The section keeps its gid (config `to_review`); only its name changes, once. Never raises."""
+    if getattr(asana, "_fresh_named", False):
+        return
+    a = _cfg(cfg)
+    try:
+        for sec in asana.sections(a["project"]):
+            if sec.get("gid") == a.get("to_review") and (sec.get("name") or "").strip().lower() != FRESH_LEADS.lower():
+                asana.rename_section(sec["gid"], FRESH_LEADS)
+        asana._fresh_named = True
+    except Exception as e:  # noqa: BLE001
+        log.warning("renaming To Review to Fresh Leads: %s", e)
 
 
 def needs_me_section(cfg: Any, asana: Asana) -> str:
@@ -101,7 +117,8 @@ def reply_card_notes(to: str, subject: str, body: str, outreach_id: int, meta: s
 
 
 def post_reply_card(conn, cfg: Any, asana: Asana, outreach_id: int, body: str, section: str | None = None, note: str = "") -> str | None:
-    """Put an answer to an agent on the approvals board as a reply card (To Review by default). Returns the card gid."""
+    """Put an answer to an agent on the approvals board as a reply card (Needs Me by default: it is his to approve;
+    Fresh Leads holds only first emails he has not touched). Returns the card gid."""
     a = _cfg(cfg)
     row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (outreach_id,)).fetchone())
     if not row:
@@ -113,7 +130,7 @@ def post_reply_card(conn, cfg: Any, asana: Asana, outreach_id: int, body: str, s
     subject = row.get("subject") or f"Quick question on {street}"
     subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
     meta = f"Answering {agent.get('name')} about {street}.\n{agent_line(agent)}" + (f"\n{note}" if note else "")
-    task = asana.create_task(a["project"], section or a["to_review"], f"Reply · {agent.get('name')} · {street}",
+    task = asana.create_task(a["project"], section or needs_me_section(cfg, asana), f"Reply · {agent.get('name')} · {street}",
                              reply_card_notes(row["to_address"] or agent.get("email"), subject, body, outreach_id, meta))
     return task.get("gid")
 
@@ -327,14 +344,16 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         if card_chat.is_question(feedback):      # Rodrigo, 2026-10-27: a question gets an answer, not a "held"
             _, comments = pending_feedback(asana, t["gid"])
             card_chat.answer(conn, cfg, asana, llm, t, card, feedback, comments, tail=tail)
-            return True
-        asana.comment(t["gid"], tail)
+        else:
+            asana.comment(t["gid"], tail)
+        if where == a["to_review"]:              # he touched it: it is not a fresh lead any more (Rodrigo, 2026-10-27)
+            asana.move(t["gid"], nm)
         return True
     if want == {"call"}:
         asana.comment(t["gid"], "Lead marked hot and a call card is on your board for tomorrow. The email is unchanged"
-                                + (": back in To Review." if where in (nr, nm) else "."))
-        if where in (nr, nm):
-            asana.move(t["gid"], a["to_review"])
+                                + (": moved to Needs Me." if where != nm else "."))
+        if where != nm:
+            asana.move(t["gid"], nm)
         return True
     from . import card_chat
     if card_chat.is_question(feedback):
@@ -411,10 +430,10 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         body = dictated_answer(feedback, cfg)
         if body:          # Rodrigo, 2026-10-27 (Richard): "Answer the email with the following: ..." → that IS the reply card
             gid = post_reply_card(conn, cfg, asana, card["outreach_id"], body,
-                                  section=a["approved"] if where == a["approved"] else a["to_review"],
+                                  section=a["approved"] if where == a["approved"] else nm,
                                   note="Your words from the lead card" + (", approved there" if where == a["approved"] else ""))
             asana.comment(t["gid"], f"Your answer is now its own card, \"{asana_name(asana, gid)}\", in "
-                                    f"{'Approved: it goes out at the next send round' if where == a['approved'] else 'To Review: drag it to Approved to send it'}.")
+                                    f"{'Approved: it goes out at the next send round' if where == a['approved'] else 'Needs Me: drag it to Approved to send it'}.")
             n["reply_cards"] = n.get("reply_cards", 0) + 1
             if where != nm:
                 asana.move(t["gid"], nm)
@@ -506,6 +525,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
          "numbers": 0, "sent_as_is": 0, "calls": 0}
     comps_cache: dict[str, Any] = {}
     nm = needs_me_section(cfg, asana)
+    ensure_fresh_leads_name(cfg, asana)
     n["chat"] = 0
     from .conversations import board_sections
     sent_sec, answered = board_sections(cfg, asana) if a.get("project") else (None, None)
@@ -561,7 +581,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                     continue
                 if not last.startswith(BOT):      # Rodrigo dragged it here without saying what to change
                     asana.comment(t["gid"], f"{PROMPT_PREFIX} in a comment (or edit the text between the EMAIL lines) and I'll rewrite it "
-                                            f"and move it back to To Review.")
+                                            f"and move it to Needs Me.")
             continue
         test_to = test_request(feedback, cfg)
         if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
@@ -628,14 +648,14 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         from .comment_router import classify as _classify
         go = "send_after" in _classify(feedback)          # he said what to write AND "send it": his go-ahead for this rewrite
         asana.comment(t["gid"], (f"Revised based on your comment (picture v{rev} attached). You said send it: moved to Approved, it goes "
-                                 f"out at the next send round (8:30am–5:30pm). Drag it back to To Review to stop it." if go else
-                                 f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good.")
+                                 f"out at the next send round (8:30am–5:30pm). Drag it to Needs Me to stop it." if go else
+                                 f"Revised based on your comment (picture v{rev} attached). Moved to Needs Me: drag to Approved when it's good.")
                       + (f" Listings we have for this agent: {'; '.join(routed)}." if isinstance(routed, list) else ""))
         if go:
             asana.move(t["gid"], a["approved"])
             n["rewritten_and_sent"] = n.get("rewritten_and_sent", 0) + 1
-        elif where in (nr, nm):
-            asana.move(t["gid"], a["to_review"])
+        elif where != nm:           # Rodrigo, 2026-10-27: once he touched it and we worked on it, it is his: Needs Me, never Fresh Leads
+            asana.move(t["gid"], nm)
         n["revised"] += 1
         if test_to:
             n["tests_sent"] += int(send_test_copy(cfg, asana, gmail, t["gid"], {**card, "subject": out["subject"], "body": out["body"]}, test_to))
@@ -685,7 +705,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         res["held_for_feedback"] = len(held)
         for gid in held:
             asana.comment(gid, "Held: you left a comment after approving, so this went to Needs Revision. Nothing sends from there. "
-                               "Your feedback is being applied; the card comes back to To Review when the rewrite lands.")
+                               "Your feedback is being applied; the card moves to Needs Me when the rewrite lands.")
     if held or lead_cards:
         sync_feedback(conn, cfg, asana, llm, gmail)          # apply the comment now, not next tick
         approved = [t for t in asana.section_tasks(a["approved"]) if not is_control(t) and t["gid"] not in {h for h in held}

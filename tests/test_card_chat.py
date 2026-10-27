@@ -28,7 +28,9 @@ def test_questions_are_told_apart():
     assert is_question(["explain the lane"]) and not is_question(["don't send it yet"])
 
 
-def test_a_question_on_a_to_review_card_is_answered_and_nothing_moves(loaded, cfg, tmp_path, monkeypatch):
+def test_a_question_on_a_fresh_card_is_answered_and_the_card_goes_to_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """The text never changes on a question. The card does move: he touched it, so it is not a fresh lead any more
+    (Rodrigo, 2026-10-27: Fresh Leads = untouched; everything worked on for him = Needs Me)."""
     asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
     gid = next(iter(asana.tasks))
     before, where = asana.tasks[gid]["notes"], asana.where[gid]
@@ -37,7 +39,8 @@ def test_a_question_on_a_to_review_card_is_answered_and_nothing_moves(loaded, cf
     sync_feedback(loaded, cfg, asana, llm)
     last = asana.stories[gid][-1]
     assert last.startswith(f"{BOT} 💬 Not yet") and "Holding it" in last
-    assert asana.tasks[gid]["notes"] == before and asana.where[gid] == where
+    assert asana.tasks[gid]["notes"] == before and where == _sections(cfg)["to_review"]
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
     ctx = llm.calls[0][1]
     assert ctx["rodrigo_says"] == ["is this approved?"] and ctx["properties"] and "card_text" in ctx
     sync_feedback(loaded, cfg, asana, llm)

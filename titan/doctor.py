@@ -215,7 +215,7 @@ def check_asana(cfg) -> Check:
         from .asana import Asana
         a = cfg.get("outreach.asana", {}) or {}
         n = len(Asana(tok).section_tasks(a["to_review"]))
-        return _ok(f"Asana reachable; {n} card(s) in To Review")
+        return _ok(f"Asana reachable; {n} card(s) in Fresh Leads")
     except Exception as e:  # noqa: BLE001
         return _fail(f"Asana: {type(e).__name__}: {str(e)[:100]}", "check ASANA_TOKEN and the section gids in config.yaml → outreach.asana")
 

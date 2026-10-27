@@ -193,8 +193,9 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
         nm = needs_me_section(cfg, asana)
         pending = set()
         drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
-        names = {a.get("to_review"): "To Review", a.get("approved"): "Approved (sends next run)"}
-        for sec in (a.get("to_review"), a.get("approved"), getattr(asana, "_needs_revision_gid", None) or a.get("needs_revision")):
+        names = {a.get("to_review"): "Fresh Leads", a.get("approved"): "Approved (sends next run)", needs_me_section(cfg, asana): "Needs Me"}
+        for sec in (a.get("to_review"), a.get("approved"), getattr(asana, "_needs_revision_gid", None) or a.get("needs_revision"),
+                    needs_me_section(cfg, asana)):
             for t in (asana.section_tasks(sec) if sec else []):
                 pc = parse_card(t.get("notes") or "")
                 if pc and pc.get("reply_to"):

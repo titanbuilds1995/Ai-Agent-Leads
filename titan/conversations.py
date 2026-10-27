@@ -243,6 +243,8 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 target = nm
             elif lines[0].startswith("Status: WAITING ON THE AGENT"):
                 target = sent
+            elif lines[0].startswith("Status: OFFER APPROVED"):
+                target = here             # sends on the next run; it then reads WAITING ON THE AGENT and goes to Sent
             else:
                 target = answered
             if target != here:

@@ -333,3 +333,48 @@ def test_cards_with_numbers_already_posted_leave_needs_revision(loaded, cfg, tmp
     n = sync_feedback(loaded, cfg, asana, NoLLM())
     assert n.get("to_needs_me") == 1 and asana.where[gid] == nm
     assert sync_feedback(loaded, cfg, asana, NoLLM())["numbers"] == 0 and asana.where[gid] == nm   # stays put, nothing redone
+
+
+# Rodrigo, 2026-10-27: "I tell it what to write, it rewrites it ... if it can just send that would be great" (only when he says send)
+SEND_AFTER = ["say we can close in 30 days and send it", "make it shorter and send it", "Mention the big lot, then send it.",
+              "take out the second paragraph and send it out", "tell him we can be flexible on the move out date and send it please"]
+NO_SEND_AFTER = ["make it shorter", "make it shorter and send it tomorrow", "say we can do 230k and send it", "send it, but cc me",
+                 "make it shorter and send it to Lisa", "change the opener, don't send it", "make it shorter and send it?",
+                 "make it shorter and send it after I talk to him", "send it actually", "mention the pool and send it lol jk",
+                 "make it shorter. send it if he hasn't answered", "say $240,000 and send it", "make the offer 9 day inspection and send it"]
+
+
+def test_send_after_rewrite_only_on_a_plain_send_with_a_writing_ask():
+    for c in SEND_AFTER:
+        w = classify([c])
+        assert {"rewrite", "send_after"} <= w and "send" not in w, c
+    for c in NO_SEND_AFTER:
+        assert "send_after" not in classify([c]), c
+    for c in NEVER_SEND + PLAIN_SEND:
+        assert "send_after" not in classify([c]) or c in SEND_AFTER, c
+
+
+class RewriteLLM:
+    available = True
+
+    def __init__(self, card):
+        self.card = card
+
+    def structured(self, purpose, system, user, schema, **k):
+        return {"subject": self.card["subject"], "body": self.card["body"].replace("Hope you're doing well. ", "")}
+
+
+def test_rewrite_then_send_goes_to_approved_and_out(loaded, cfg, tmp_path, monkeypatch):
+    from tests.test_approvals import SAT_10AM_ET, FakeGmail
+    from titan.approvals import send_approved
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "make it shorter and send it")
+    sync_feedback(loaded, cfg, asana, RewriteLLM(parse_card(asana.tasks[gid]["notes"])))
+    assert asana.where[gid] == _sections(cfg)["approved"] and "You said send it" in asana.stories[gid][-1]
+    gm = FakeGmail()
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and len(gm.sent) == 1
+
+
+def test_rewrite_without_send_comes_back_to_to_review(loaded, cfg, tmp_path, monkeypatch):
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "make it shorter")
+    sync_feedback(loaded, cfg, asana, RewriteLLM(parse_card(asana.tasks[gid]["notes"])))
+    assert asana.where[gid] == _sections(cfg)["to_review"] and "Back in To Review" in asana.stories[gid][-1]

@@ -430,9 +430,16 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         for f in feedback:
             if not (TEST_RE.search(f) and len(f.split()) <= 8):
                 record_lesson(conn, card_kind(t.get("notes") or ""), f, card["outreach_id"], t["gid"], card["body"], out["body"])
-        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good."
+        from .comment_router import classify as _classify
+        go = "send_after" in _classify(feedback)          # he said what to write AND "send it": his go-ahead for this rewrite
+        asana.comment(t["gid"], (f"Revised based on your comment (picture v{rev} attached). You said send it: moved to Approved, it goes "
+                                 f"out at the next send round (8:30am–5:30pm). Drag it back to To Review to stop it." if go else
+                                 f"Revised based on your comment (picture v{rev} attached). Back in To Review: drag to Approved when it's good.")
                       + (f" Listings we have for this agent: {'; '.join(routed)}." if isinstance(routed, list) else ""))
-        if where in (nr, nm):
+        if go:
+            asana.move(t["gid"], a["approved"])
+            n["rewritten_and_sent"] = n.get("rewritten_and_sent", 0) + 1
+        elif where in (nr, nm):
             asana.move(t["gid"], a["to_review"])
         n["revised"] += 1
         if test_to:

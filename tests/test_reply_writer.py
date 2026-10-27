@@ -84,6 +84,11 @@ def test_no_claude_no_cards_and_closed_threads_are_left_alone(loaded, cfg, tmp_p
 
 def test_validate_reply():
     assert validate_reply(GOOD) == []
+    # Rodrigo, 2026-10-27: a reply never asks how much work a photographed listing needs either
+    ask = GOOD + " Also, how much work would you say it really needs?"
+    assert any("how much work" in x for x in validate_reply(ask, [{"photos_count": 12}]))
+    assert validate_reply(ask, [{"photos_count": 2}]) == []
+    assert validate_reply(ask) == []                     # no listing given: nothing to judge against
     assert "price or offer language" in validate_reply(GOOD + " We'd come in around 250k.")
     assert "says we are the buyer / investors" in validate_reply(GOOD + " We buy a lot here.")
     assert "dash" in validate_reply(GOOD.replace("Thanks,", "Thanks —"))

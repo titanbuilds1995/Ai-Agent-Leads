@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from . import db
 from .asana import BOT, Asana, AsanaError
 from .learning import learned_block
-from .outreach.compose import EMAIL_SCHEMA, compose_email, protocol_text, seed_for, signature, validate_email, voice_text
+from .outreach.compose import EMAIL_SCHEMA, compose_email, may_ask_how_much_work, photo_rule_problems, protocol_text, seed_for, signature, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
 START, END = "-----EMAIL-----", "-----END EMAIL-----"
@@ -137,8 +137,9 @@ def analysis_text(analysis: dict[str, Any] | None) -> str:
 
 def listing_meta(p: dict[str, Any], agent: dict[str, Any], analysis: dict[str, Any] | None = None) -> str:
     lane = p.get("lane") or ""
+    photos = f" · {p.get('photos_count')} photos" if p.get("photos_count") is not None else ""
     meta = (f"Listing: {p.get('street')}, {p.get('city')} · ${int(p.get('list_price') or 0):,} · {p.get('days_on_market')} days on market · "
-            f"{p.get('price_cuts') or 0} price cut(s) · {lane}\n{p.get('listing_url') or ''}\n"
+            f"{p.get('price_cuts') or 0} price cut(s){photos} · {lane}\n{p.get('listing_url') or ''}\n"
             f"{agent_line(agent)}")
     at = analysis_text(analysis)
     return f"{meta}\n\n{at}" if at else meta
@@ -176,6 +177,11 @@ and the company name says it all: never "we're investors", "we buy here regularl
 are the buyer ("we're looking for properties in X", "what we look for", "our side"; never "we buy", "we'd buy", "serious buyers").
 and name every listed street in the body. If the feedback asks for numbers or analysis rather than a change to the email, keep the email a
 conversation (ask the agent for the fact instead of stating a figure).
+PHOTOS (Rodrigo, 2026-10-27): each property carries photos_count. With 4 or more photos the agent knows the condition is visible in the
+listing, so never ask or imply that we need to find out how much work it needs ("how much work would you say it really needs", "how deep
+is the project", "mostly cosmetic or something bigger", "what's your read on the condition"); ask about what photos can't show instead
+(roof and AC age, plumbing, electrical, permits, occupancy, why it's sitting, seller flexibility). Only when may_ask_how_much_work is true
+(fewer than 4 photos) may the email say the listing doesn't give much to go on and ask about the work. Never describe photos.
 
 === OUTREACH PROTOCOL ===
 {protocol}
@@ -424,11 +430,12 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             json.loads(row.get("property_ids") or "[]"))]
         op = cfg["operator"]
         facts = [{k: p.get(k) for k in ("street", "city", "zip", "list_price", "original_list_price", "price_cuts", "days_on_market", "beds", "baths",
-                                        "sqft", "lot_sqft", "year_built", "property_type", "vacant")} | {"listing_remarks_verbatim": (p.get("remarks") or "")[:2000]}
+                                        "sqft", "lot_sqft", "year_built", "property_type", "vacant", "photos_count")} | {"listing_remarks_verbatim": (p.get("remarks") or "")[:2000]}
                  for p in props]
         out = llm.structured("revise_email", REVISE_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], protocol=protocol_text(cfg), voice=voice_text(cfg),
                                                 learned=learned_block(cfg)) + (REPLY_CARD_NOTE if card.get("reply_to") else ""),
                              json.dumps({"feedback": feedback, "subject": card["subject"], "body": card["body"], "properties": facts,
+                                         "may_ask_how_much_work": may_ask_how_much_work(props),
                                          **({"agent_listings_we_know": routed} if isinstance(routed, list) else {}),
                                          "rodrigo_notes_on_this_lead": _notes(conn, card["outreach_id"]),
                                          "signature_block": signature(cfg)}, ensure_ascii=False), EMAIL_SCHEMA) if llm and llm.available else None
@@ -442,7 +449,7 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             from .replies.writer import validate_reply
             from .outreach.compose import format_paragraphs
             out["body"] = format_paragraphs(out["body"])
-            problems = validate_reply(out["body"]) if card.get("reply_to") else validate_email(out["subject"], out["body"], props)
+            problems = validate_reply(out["body"], props) if card.get("reply_to") else validate_email(out["subject"], out["body"], props)
         if problems:
             last = (comments[-1].get("text") or "") if comments else ""
             if not last.startswith(f"{BOT} {FAILED_PREFIX}"):      # say it once; the feedback stays pending and is retried next tick
@@ -588,16 +595,30 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
     return res
 
 
-def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = True) -> dict[str, int]:
+def _props_for(conn, row: dict[str, Any]) -> list[dict[str, Any]]:
+    pids = json.loads(row.get("property_ids") or "[]")
+    return [db.row_to_dict(r) for r in conn.execute(
+        f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
+        f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
+
+
+def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = True, violating_only: bool = False,
+                    limit: int | None = None) -> dict[str, int]:
     """Regenerate emails still waiting for approval with the current writer and refresh their cards (text, picture, comment).
     By default only cards written before the protocol (no stored analysis); all=True redoes every To Review card.
-    Approved/sent cards are left alone."""
+    violating_only=True (every approvals tick, Rodrigo 2026-10-27): only cards whose text breaks the photo rule (asks how much work
+    a listing with 4+ photos needs), so the board fixes itself without his computer. Approved/sent cards are left alone."""
     a = _cfg(cfg)
     n = {"rewritten": 0, "failed": 0, "skipped_already_protocol": 0, "left_to_feedback": 0, "card_deleted": 0}
     rows = [db.row_to_dict(r) for r in conn.execute(
         "SELECT * FROM outreach WHERE status='pending_approval' AND asana_task_id IS NOT NULL ORDER BY id").fetchall()]
     for row in rows:
-        if only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
+        if limit is not None and n["rewritten"] + n["failed"] >= limit:
+            break
+        if violating_only:
+            if not photo_rule_problems(row.get("body") or "", _props_for(conn, row)):
+                continue
+        elif only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
             n["skipped_already_protocol"] += 1
             continue
         try:
@@ -614,9 +635,7 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
             continue
         agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
         pids = json.loads(row["property_ids"] or "[]")
-        props = [db.row_to_dict(r) for r in conn.execute(
-            f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
-            f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
+        props = _props_for(conn, row)
         if not props:
             continue
         props = props[: int(cfg.get("outreach.max_properties_per_email", 2))]
@@ -631,6 +650,11 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
         asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
                                                              listing_meta(props[0], agent, d.get("analysis"))))
         _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
-        asana.comment(row["asana_task_id"], "Rewritten under the new outreach protocol (think first, no listing echo). New picture attached.")
+        if violating_only:
+            photos = ", ".join(str(p.get("photos_count")) if p.get("photos_count") is not None else "an unknown number of" for p in props)
+            asana.comment(row["asana_task_id"], f"Rewritten: the listing has {photos} photos, so the email no longer asks how much work "
+                                                "it needs (Rodrigo, 2026-10-27). It asks about what the pictures can't show instead. New picture attached.")
+        else:
+            asana.comment(row["asana_task_id"], "Rewritten under the new outreach protocol (think first, no listing echo). New picture attached.")
         n["rewritten"] += 1
     return n

@@ -34,6 +34,10 @@ Rules (Rodrigo's, all hard):
   "what we look for", "something we'd pursue".
 - "I" only for what {sender} did or will do; "we"/"our side" for criteria. Never powerless ("ask my boss"), never overcommitting.
 - 25 to 90 words before the signature. No dashes of any kind (no em dash, en dash, " - " or "--"). No emojis, no links.
+- PHOTOS (Rodrigo, 2026-10-27): each property carries photos_count. With 4 or more photos the agent knows the condition is visible in the
+  listing, so never ask or imply that we need to find out how much work it needs ("how much work does it need", "how deep is the project",
+  "mostly cosmetic or something bigger"). Ask about what photos can't show: roof and AC age, plumbing, electrical, permits, occupancy,
+  timeline. Only when may_ask_how_much_work is true (fewer than 4 photos) may you ask about the work.
 - End with the signature block from the input, unchanged.
 
 === VOICE PROTOCOL ===
@@ -43,10 +47,12 @@ Rules (Rodrigo's, all hard):
 Return JSON: read (one line: what the agent told us and what we still need to learn) and body (the reply, signature included)."""
 
 
-def validate_reply(body: str) -> list[str]:
-    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE
+def validate_reply(body: str, props: list[dict[str, Any]] | None = None) -> list[str]:
+    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE, photo_rule_problems
     problems = []
     text = body.split("\n\nBest")[0]
+    if props:
+        problems += photo_rule_problems(body, props)      # Rodrigo, 2026-10-27: the photos show the work; don't ask about it
     words = len(text.split())
     if words < 15 or words > 140:
         problems.append(f"length {words}")
@@ -117,11 +123,13 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
             agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (w["agent_id"],)).fetchone()) or {}
             pids = json.loads(row["property_ids"] or "[]")
             props = [db.row_to_dict(r) for r in conn.execute(
-                f"SELECT street, city, list_price, days_on_market, price_cuts, beds, baths, sqft, year_built, property_type, remarks "
+                f"SELECT street, city, list_price, days_on_market, price_cuts, beds, baths, sqft, year_built, property_type, remarks, photos_count "
                 f"FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+            from ..outreach.compose import may_ask_how_much_work
             from ..card_chat import lead_notes
             user = json.dumps({"agent_first_name": first_name(agent.get("name")), "their_last_message_class": msg.get("classification"),
                                "thread": _thread_text(conn, w["agent_id"]), "properties": props, "signature_block": signature(cfg),
+                               "may_ask_how_much_work": may_ask_how_much_work(props),
                                "rodrigo_notes_on_this_lead": lead_notes(conn, w["agent_id"])},
                               ensure_ascii=False, default=str)
             body, problems = None, ["no answer from Claude"]
@@ -131,7 +139,7 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
                     break
                 from ..outreach.compose import format_paragraphs
                 body = format_paragraphs(str(out.get("body", "")).strip())
-                problems = validate_reply(body)
+                problems = validate_reply(body, props)
                 if not problems:
                     break
             if problems:

@@ -37,6 +37,17 @@ Realty Investments. I saw your listing on SW 7th St." Not "I'll keep this short"
 properties in Delray and the surrounding areas" (people don't write that in email). Never say anything about the photos (we
 haven't analyzed them; saying "there are no photos" when there are makes us look careless).
 
+## 0c. The photos already show the work (Rodrigo, 2026-10-27)
+If the listing has 10 or 15 pictures, anyone can see how much work the house needs. So with 4 or more photos up, never ask or
+imply that we need to find out how much work it needs: no "how much work would you say it really needs", "how deep is the
+project", "is it mostly cosmetic or something bigger", "what's your read on the condition", "what we'd want to understand is
+whether it's cosmetic updating or the big systems", "I can't tell from the listing". That sounds dumb to an agent who posted
+the pictures. Ask about what the pictures can't show instead: roof and AC age, plumbing and electrical, permits, occupancy or
+a tenant, why it's sitting, seller flexibility. The one exception: fewer than 4 photos of the property (the engine passes
+`may_ask_how_much_work`). Then we really can't know, and the email may say the listing doesn't give much to go on and ask
+how much work it needs. We still never describe photos (we don't analyze them; we only know how many there are). The
+examples below that ask about the work are for that thin-listing case only.
+
 ## 0b. We never say we are the buyer (Rodrigo, 2026-10-25)
 We wholesale, so be conscious of never explicitly stating that we are the buyer. Say "we're looking for properties in X",
 "what we look for", "our side", "something we'd pursue", "close to what works for us", "our team is looking at". Never
@@ -53,7 +64,7 @@ fit for our portfolio", "I noticed the home needs some updates". Generic enough 
 Ask what the information means from an investor's perspective. "TLC" usually describes cosmetic updating rather than a
 full rehab. So: if the major systems are reasonably solid, is this a flooring/kitchen/paint refresh rather than a gut?
 e.g. "From the description it sounds more dated than truly distressed. If the roof/AC and the major stuff are still in
-decent shape, this might actually be pretty close to something we'd look at. How much work would you say it really needs?"
+decent shape, this might actually be pretty close to something we'd look at. How old are the roof and the AC?"
 
 ## 3. Separate FACTS, SIGNALS, INFERENCES and QUESTIONS
 - FACTS: given by the listing/data (built 1994, 3/2, 1,430 SF, asking $415k, "new roof 2023", 87 DOM, reduced twice,
@@ -91,12 +102,12 @@ the tenant situation and timing."
 ## 7. Write like an investor talking to an agent
 "Hey John — I was going through the house on 17th Court. Honestly this one may be closer to what we buy than I
 initially thought. Sounds like it's dated, but if we're not dealing with a roof/AC/plumbing project on top of everything
-else, there might be something we can do. How much work would you say it really needs?" Not "I am reaching out
+else, there might be something we can do. Do you know how old the roof and the AC are?" Not "I am reaching out
 regarding your listing located at… it appears this property could potentially meet our investment criteria."
 
 ## 8. Use property details selectively
 One or two meaningful things, the detail that changes the thesis. Not "3/2, 1,347 SF built in 1987 with a two-car
-garage" but "The size works for us. I'm mainly trying to figure out how deep the renovation actually goes."
+garage" but "The size works for us. The roof and the AC are what would move the number on our side."
 
 ## 9. First email = conversation, not negotiation
 No hard offer, no "70% of ARV minus repairs". Sequence: 1 property-specific conversation → 2 condition/motivation
@@ -125,15 +136,15 @@ a little room from where they're asking…", "If we're really talking kitchen, f
 "If the roof is still in good shape…", "If there isn't something major I'm missing…". Shows reasoning + uncertainty.
 
 ## 16. Ask questions agents can answer easily
-Not an interrogation list. "How much work would you say it really needs?" / "Is it mostly cosmetic or is there something
-major going on with it?" / "Where do you think the seller realistically needs to be?" / "What's been holding this one
-back?" One natural question can reveal five pieces of information.
+Not an interrogation list. "How old are the roof and the AC?" / "Where do you think the seller realistically needs to be?" /
+"What's been holding this one back?" / "Is anyone living there right now?" (and only on a listing with fewer than 4 photos:
+"How much work would you say it really needs?"). One natural question can reveal five pieces of information.
 
 ## 17. Vary the opening
 "Hey [Name] — I was looking at the house on [Street]…", "Hey [Name], quick question on [Street]…", "[Name] — I went
 through the listing on [Street]…", "Hey [Name] — this one on [Street] actually caught my attention…", "Hey [Name], I may
-have a buyer angle on your [Street] listing…", "Hey [Name] — I'm trying to get my head around the condition on
-[Street]…", "Hey [Name], curious about something on the [Street] property…". Choose naturally, don't rotate mechanically.
+have a buyer angle on your [Street] listing…", "Hey [Name] — I've been watching the house on [Street]…", "Hey [Name],
+curious about something on the [Street] property…". Choose naturally, don't rotate mechanically.
 
 ## 17b. No dashes (Rodrigo, 2026-10-24)
 Never use an em dash (—), en dash (–), spaced hyphen ( - ) or double hyphen (--) in an email. The examples in this
@@ -143,9 +154,8 @@ document that show "Hey John — I was…" must be written "Hey John, I was…".
 
 ## 19. Do not force personalization
 If there is no meaningful property-specific observation, don't invent one. "Hey Sarah — quick question on the house on
-17th Court. I'm trying to figure out whether it's mostly an updating job or whether there's anything major going on
-mechanically. We buy quite a bit in that area and it could potentially work depending on how deep the project is.
-What's your read on the condition?" beats fake hyper-personalization.
+17th Court. It could work for us. What I can't get from the listing is the age of the roof and the AC, and whether the
+seller has any room from asking. Do you know where they stand on both?" beats fake hyper-personalization.
 
 ## 20. Response objective
 Success = the agent gives information we didn't have: "mainly cosmetic", "roof is 4 years old", "seller has some
@@ -159,17 +169,17 @@ IMPORTANT UNKNOWN · CONVERSATION ANGLE. Only then write the email.
 
 ## 22–25. Examples
 - Roof 2020, original kitchen, "needs TLC but great bones", 61 DOM, one reduction: "Hey Susan — I was looking at the
-  house on 17th Court. The newer roof actually makes this one a little more interesting for us. If what it needs is
-  mostly the original kitchen/baths and cosmetic updating—not a bunch of mechanical work—there may be a number where it
-  works. How deep of a project would you say it really is?"
+  house on 17th Court. The newer roof actually makes this one a little more interesting for us. With the kitchen and
+  baths being the main updating, the AC and the plumbing are what would move the number on our side. Do you know how
+  old the AC is, and has the seller shown any flexibility yet?"
 - Long DOM, $575k→$515k, 1974, maintained: "Hey David — I've been looking at the property on Coral Way. I saw they've
   already moved the price quite a bit since it hit the market. The house itself doesn't sound like a major rehab, so
   I'm wondering if this is becoming more of a pricing issue than a condition issue. Do you think the seller is getting
   closer to where they'd entertain an investor number?"
 - Heavy: 1959, roof unknown, original interior, "investor special", cash only: "Hey Mark — quick question on the
-  property on 82nd Ave. This one looks like it could work for us, but I'm trying to understand how deep the project
-  really goes before throwing a meaningless number at you. Are we mostly talking interior rehab or are
-  roof/plumbing/electrical coming into play too?"
+  property on 82nd Ave. This one looks like it could work for us. The age itself doesn't knock it out; what matters on
+  our side is the stuff the listing doesn't show. Do you know roughly how old the roof is, and whether the plumbing and
+  electrical have ever been redone?"
 - Light: 2006, new AC, updated flooring, original kitchen: "Hey Amanda — the house on 42nd Terrace actually looks
   pretty close to something we'd buy. With the AC already handled and the house being newer, it doesn't sound like we'd
   be taking on a huge project. If the seller has some flexibility from the asking price, I think it's worth looking at.

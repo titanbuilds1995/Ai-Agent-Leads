@@ -83,6 +83,45 @@ BUYER_RE = re.compile(
     r"\bwe('re| are) (the |local |serious |cash )?(buyers?|investors)\b|\binvestors? (here|who buy|like us)\b|\bwe buy\b|\bwe'?d buy\b|\bwe would buy\b|"
     r"\bwhat we buy\b|\bwe purchase\b|\bwe (flip|renovate) (houses|homes|properties)\b|\bbuy and (renovate|build|hold)\b|"
     r"\bgenuinely interested\b|\bserious (cash )?buyers?\b|\bas the buyer\b|\bwe are buying\b", re.I)
+# Rodrigo, 2026-10-27: "if the listing has 10 or 15 pictures we get a very clear idea of the work it needs, so saying we need to
+# know how much work it needs sounds dumb." With 4+ photos the email never asks or implies that we need to find out how much work
+# the house needs (ask about what photos can't show instead: roof/AC age, plumbing, electrical, permits, occupancy, flexibility).
+# Only with FEWER than 4 photos (count known) may we say the listing doesn't give much to go on and ask how much work it needs.
+FEW_PHOTOS_MAX = 3
+WORK_RE = re.compile(
+    r"how (much|little) work\b|how deep (of |is |does |the |this |a )|how (big|heavy|large) (of )?(a |the )?(project|rehab|renovation|job)|"
+    r"what('s| is| would be) your (read|take|sense|feel) on (the |its )?(condition|shape|work)|"
+    r"\b(understand|figure out|gauge|get a (sense|feel|read|handle)|get (my|our) head around|learn|know|see|tell)( of| on| about)? "
+    r"(the |its |the overall |the real |the actual |how much |what )?(condition|shape it|work it|scope|extent|what it (really |actually )?needs|how much work|how deep)|"
+    r"what (it|the house|the property|this one|that one) (really |actually )?needs\b|what (would|do) you (say|think) (it|the house|the property|this one) (really |actually )?needs|"
+    r"what (kind|sort) of (shape|condition)|how would you describe the (interior|condition|inside|shape)|"
+    r"(scope|extent|level|amount) of (the )?(work|rehab|renovation)|"
+    r"\b(cosmetic|interior)( updating| work| stuff| job| rehab)?\b[^.?!]*\b(or|rather than|versus|vs\.?|instead of)\b[^.?!]*"
+    r"\b(roof|plumbing|electrical|systems|bigger|mechanical|gut|major|big|deeper|more|something)\b|"
+    r"(mostly|mainly|just|only) (cosmetic|an updating job|updating)\??[,.?!]|need much beyond cosmetic|\bor (is it |something )?(bigger|deeper)\b|"
+    r"(price|number) or (the |its )?condition\b|walk me through the condition|what does it need|"
+    r"(can'?t|cannot|hard to|tough to|difficult to|not able to) (really |quite )?(tell|see|judge|gauge)|not much to go on|without (seeing|walking)", re.I)
+# What a thin listing lets us say (only with fewer than 4 photos; we never claim to have analyzed photos).
+FEW_PHOTOS_RE = re.compile(r"(only|just) (a couple of|a few|one or two|\d) (photos|pictures|pics)|not (many|much) (photos|pictures|to go on)|"
+                           r"no interior (photos|pictures|pics)|(few|no) (photos|pictures) up", re.I)
+
+
+def condition_visible(p: dict[str, Any]) -> bool | None:
+    """True when the listing has 4+ photos (the agent knows we can see the condition), False with fewer, None when unknown."""
+    n = p.get("photos_count")
+    if n is None or n == "":
+        return None
+    try:
+        return int(n) > FEW_PHOTOS_MAX
+    except (TypeError, ValueError):
+        return None
+
+
+def may_ask_how_much_work(props: list[dict[str, Any]]) -> bool:
+    """Only when EVERY listing in the email has fewer than 4 photos (count known). Unknown count = assume the photos are there."""
+    return bool(props) and all(condition_visible(p) is False for p in props)
+
+
 # Rodrigo, 2026-10-24: no dashes in emails (em dash, en dash, spaced hyphen, double hyphen). Hyphenated words ("move-in") are fine.
 DASH_RE = re.compile(r"[—–]|\s-\s|--")
 URL_RE = re.compile(r"https?://|www\.|\.com/|\.net/|\.org/", re.I)
@@ -115,7 +154,8 @@ Follow the protocol below exactly. It is the whole job.
 
 Working rules for this call:
 - THINK FIRST: fill in the analysis (facts / positive signals / negative signals / unknown big-ticket items / rehab level 1-5 / one-sentence investment hypothesis / most important unknown / conversation angle) BEFORE writing the email. The email must follow from it.
-- You have NOT seen any photographs (photos_analyzed is false). Never describe photos or what anything "looks like" visually.
+- You have NOT seen any photographs (photos_analyzed is false); you only know how many the listing has (photos_count). Never describe photos or what anything "looks like" visually.
+- PHOTOS AND THE CONDITION QUESTION (Rodrigo, 2026-10-27): with 4 or more photos on the listing the agent knows anyone can see the condition, so NEVER ask or imply that we need to find out how much work the house needs. No "how much work would you say it really needs", "how deep is the project", "is it mostly cosmetic or something bigger", "what's your read on the condition", "what we'd want to understand is whether it's cosmetic updating or the big systems", "I can't tell from the listing". Ask instead about what photos can't show: roof and AC age, plumbing and electrical, permits, occupancy or tenant, why it's sitting, seller flexibility. Only when may_ask_how_much_work is true (fewer than 4 photos up) may you say the listing doesn't give much to go on and ask how much work it needs.
 - Use only what is in the input. Anything not stated is an unknown; say so conditionally ("if the roof isn't a project…"), never as a fact.
 - Do not quote or paraphrase the listing's own wording back to the agent. Reason one level deeper instead.
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
@@ -194,14 +234,17 @@ def style_guide_text(cfg: Any) -> str:
 # Fallback when Claude is unavailable. Each angle carries a small investment hypothesis + one easy question (protocol §6, §16, §19)
 # and never repeats the listing's wording. {near_ask} is added only when our own numbers support it.
 EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
-    "reduced": [   # price moved, sitting a while: pricing issue vs condition issue (§23)
+    # Rodrigo, 2026-10-27: a listing with photos shows the condition, so no angle below asks how much work the house needs or
+    # whether it's "cosmetic or something bigger". They ask about what photos can't show (roof/AC age, systems, permits,
+    # occupancy, why it's sitting, seller flexibility). Only "few_photos" (fewer than 4 pictures up) may ask about the work.
+    "reduced": [   # price moved, sitting a while: pricing issue vs seller issue (§23)
         ("Quick question on {street_name}",
          "Hey {first}, I've been looking at the property on {street_name}. I saw they've already moved the price since it hit the market, "
-         "and the house itself doesn't sound like a major rehab, so I'm wondering if this is becoming more of a pricing issue than a "
-         "condition issue.{near_ask} Do you think the seller is getting closer to where they'd entertain an investor number?\n\n{sign}"),
+         "so I'm wondering if this is becoming more of a pricing issue than anything about the house.{near_ask} Do you think the "
+         "seller is getting closer to where they'd entertain an investor number?\n\n{sign}"),
         ("{street_name}",
          "{first}, I went through the listing on {street_name}. With the price having come down a bit, I'm curious whether the seller "
-         "is starting to get realistic or whether there's something about the property that's been holding it back.{near_ask} "
+         "is starting to get realistic or whether something else has been holding it back.{near_ask} "
          "What's your read on where they really need to be?\n\n{sign}"),
     ],
     "sitting": [   # long DOM, no cuts: why is it sitting? (§6)
@@ -211,28 +254,28 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "holding this one back?\n\n{sign}"),
         ("Quick question on {street_name}",
          "Hey {first}, quick question on {street_name}. It's been on the market a bit, and before I spend your time on numbers I'd like "
-         "to understand the story. Is it a condition thing, a price thing, or just the market? If it's the first, how deep of a "
-         "project would you say it really is?{near_ask}\n\n{sign}"),
+         "to understand the story. Is it a price thing, a seller thing, or just the market? And has anything fallen through on it "
+         "before?{near_ask}\n\n{sign}"),
     ],
-    "heavy": [     # old house / investor-special signals: how deep does it go? (§24)
+    "heavy": [     # old house / investor-special signals: the big-ticket items photos can't show (§24)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us, but I don't want to "
-         "throw a random number at you before we understand the condition. Are we mostly talking interior rehab, or "
-         "are roof, plumbing and electrical coming into play too?\n\n{sign}"),
-        ("{street_name}: how deep is the project?",
-         "{first}, I'm trying to get my head around the condition on {street_name}. The age itself doesn't knock it out for us. What "
-         "we'd want to understand is whether we're dealing with cosmetic updating or whether the big-ticket systems are starting to "
-         "stack up. What would you say it really needs?\n\n{sign}"),
+         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us. The age itself "
+         "doesn't knock it out; what matters on our side is the stuff a listing doesn't show. Do you know roughly how old "
+         "the roof is, and whether the plumbing and electrical have ever been redone?\n\n{sign}"),
+        ("{street_name}: a couple of questions",
+         "{first}, I went through the listing on {street_name}. A house that age is fine on our side as long as the big-ticket "
+         "items aren't all coming due at once. How old are the roof and the AC? And has the seller had investor offers yet, or is "
+         "this the first one?\n\n{sign}"),
     ],
     "cosmetic": [  # dated-not-distressed hypothesis (§2, §22)
         ("The house on {street_name}",
          "Hey {first}, I was looking at the house on {street_name}. From the description it sounds more dated than truly distressed. "
          "If the roof, AC and the major stuff are still in decent shape, this might actually be pretty close to something we'd look "
-         "at.{near_ask} How much work would you say it really needs?\n\n{sign}"),
+         "at.{near_ask} Do you know roughly how old the roof and the AC are?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on your {street_name} listing. If what it needs is mostly kitchen, baths and cosmetic "
-         "updating rather than a bunch of mechanical work, there may be a number where it works for us.{near_ask} How deep of a "
-         "project would you say it is?\n\n{sign}"),
+         "Hey {first}, quick question on your {street_name} listing. It sounds dated more than anything, and the updating itself is "
+         "fine on our side; the roof, AC and plumbing are what would move the number for us.{near_ask} Have any of those been "
+         "replaced, and is the seller open to some room from asking?\n\n{sign}"),
     ],
     "newer": [     # newer build: probably not a huge project (§25)
         ("{street_name}",
@@ -252,21 +295,31 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
          "{first}, I was looking at the lot on {street_name}. Before I spend your time on numbers, is the seller open to some "
          "flexibility, or are they firm near asking? And is there anything about the parcel that's been holding it back?\n\n{sign}"),
     ],
+    "few_photos": [  # fewer than 4 pictures up: the one case where we may say we can't see the condition (Rodrigo, 2026-10-27)
+        ("Quick question on {street_name}",
+         "Hey {first}, quick question on the house on {street_name}. There's not much to go on in the listing, so I honestly can't "
+         "tell from here how much work it needs. Is it mostly cosmetic, or is there something bigger going on with the roof or "
+         "the systems?{near_ask} And is the seller open to some flexibility?\n\n{sign}"),
+        ("The house on {street_name}",
+         "{first}, I went through your listing on {street_name}. With only a few pictures up it's hard to tell what kind of shape "
+         "it's in, and that's really the piece that decides whether it works for us.{near_ask} How much work would you say it "
+         "really needs?\n\n{sign}"),
+    ],
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the house on {street_name}. I'm trying to figure out whether it's mostly an updating job or "
-         "whether there's anything major going on mechanically. It could potentially work for us depending on how deep the "
-         "project is.{near_ask} What's your read on the condition?\n\n{sign}"),
+         "Hey {first}, quick question on the house on {street_name}. It could potentially work for us. What I can't get from the "
+         "listing is the age of the roof and the AC, and whether the seller has any room from asking.{near_ask} Do you know where "
+         "they stand on both?\n\n{sign}"),
         ("The house on {street_name}",
          "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we're looking for than I initially "
-         "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} How much "
-         "work would you say it really needs?\n\n{sign}"),
+         "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} Do you know "
+         "how old the roof and the AC are?\n\n{sign}"),
     ],
 }
 MULTI_TEMPLATE = ("A few of your listings",
-                  "Hey {first}, I went through a few of your listings and a couple could work for us depending on how deep the projects are:\n{lines}\n\n"
-                  "Before I spend your time on numbers: on any of those, is it mostly cosmetic, or is there something bigger going on? "
-                  "And do any of those sellers have some room from asking?\n\n{sign}")
+                  "Hey {first}, I went through a few of your listings and a couple could work for us:\n{lines}\n\n"
+                  "Before I spend your time on numbers: do any of those sellers have some room from asking? And is there anything about "
+                  "them I should know that isn't in the listing, like roof age or a tenant in place?\n\n{sign}")
 
 NEAR_ASK_LINE = " I did look at the asking price and it doesn't seem too far from where we'd need to be."
 
@@ -283,6 +336,8 @@ def angle_for(p: dict[str, Any]) -> str:
     remarks = p.get("remarks") or ""
     if p.get("property_type") == "land":
         return "land"
+    if condition_visible(p) is False:      # fewer than 4 pictures up: the one case where asking about the work is allowed
+        return "few_photos"
     dom = p.get("days_on_market") or 0
     cuts = p.get("price_cuts") or 0
     yb = p.get("year_built") or 0
@@ -299,10 +354,10 @@ def angle_for(p: dict[str, Any]) -> str:
     return "default"
 
 
-SMS_TEMPLATES = [
-    "Hi {first}, {sender} w/ {company_short}. Quick q on {street_name}: mostly cosmetic, or something bigger going on? Any flexibility on price?",
+SMS_TEMPLATES = [   # Rodrigo, 2026-10-27: texts don't ask how much work it needs either (the photos show it)
+    "Hi {first}, {sender} w/ {company_short}. Quick q on {street_name}: how old are the roof and AC? Any flexibility on price?",
     "{first}, {sender} with {company_short} here. Looking at {street_name} for a renovation. Is the seller open to some flexibility on price?",
-    "Hi {first}, this is {sender} from {company_short}. On {street_name}: how deep is the project really, and does the seller have some flexibility on price?",
+    "Hi {first}, this is {sender} from {company_short}. On {street_name}: is anyone living there, and does the seller have some flexibility on price?",
     "{first}, {sender} ({company_short}). Interested in {street_name}. Do you have a sense of the seller's flexibility on price?",
 ]
 
@@ -399,8 +454,9 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
     user = json.dumps({
         "agent_first_name": first_name(agent.get("name")), "agent_brokerage": agent.get("brokerage"),
         "sender": op["sender_name"].split()[0], "company": op["company"], "company_short": op.get("company_short", op["company"]),
-        "signature_block": signature(cfg), "photos_analyzed": False,
+        "signature_block": signature(cfg), "photos_analyzed": False, "may_ask_how_much_work": may_ask_how_much_work(props),
         "properties": [{"street": p["street"], "city": p["city"], "zip": p.get("zip"), "asking_price": p["list_price"],
+                        "photos_count": p.get("photos_count"), "condition_visible_in_listing_photos": condition_visible(p),
                         "original_list_price": p.get("original_list_price"), "price_cuts": p.get("price_cuts"),
                         "price_history": _history_summary(p), "days_on_market": p.get("days_on_market"), "back_on_market": bool(p.get("back_on_market")),
                         "beds": p.get("beds"), "baths": p.get("baths"), "sqft": p.get("sqft"), "lot_sqft": p.get("lot_sqft"),
@@ -417,6 +473,20 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
         return None
     analysis = out.get("analysis") if isinstance(out.get("analysis"), dict) else {}
     return str(out.get("subject", "")).strip(), str(out.get("body", "")).strip(), analysis
+
+
+def photo_rule_problems(body: str, props: list[dict[str, Any]]) -> list[str]:
+    """Rodrigo, 2026-10-27: with 4+ photos (or an unknown count) the email may not ask or imply we need to know how much work
+    it needs, nor claim the listing is thin. Checked on first emails, rewrites and replies."""
+    if may_ask_how_much_work(props):
+        return []
+    text = body.split("\n\nBest")[0]
+    m = WORK_RE.search(text) or FEW_PHOTOS_RE.search(text)
+    if not m:
+        return []
+    counts = ", ".join(str(p.get("photos_count")) if p.get("photos_count") is not None else "unknown" for p in props)
+    return [f"asks how much work it needs ('{m.group(0)}'); the listing has {counts} photos, so we can see that. "
+            "Rodrigo 2026-10-27: only with fewer than 4 photos. Ask about roof/AC age, systems, permits, occupancy or flexibility instead"]
 
 
 def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list[str]:
@@ -444,6 +514,7 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append("a listed property is missing from the body")
     if PERSONAL_RE.search(body):
         problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
+    problems += photo_rule_problems(body, props)
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):
         problems.append("double sign-off")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):

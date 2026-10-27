@@ -34,7 +34,7 @@ def test_first_touch_is_conversation_first(cfg):
     for seed in range(12):
         d = compose_email(None, cfg, _agent(), [_prop()], seed)
         text = d["body"].split("\n\nBest")[0].lower()
-        assert "?" in text and any(k in text for k in ("flexib", "room", "really need", "how deep", "condition", "entertain", "holding"))
+        assert "?" in text and any(k in text for k in ("flexib", "room", "roof", "entertain", "holding", "offers"))
         assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
         assert "doesn't seem too far" not in text          # no preliminary analysis on this prop → never implied
         assert not BANNED_RE.search(d["body"])             # no listing echo, no fake observations, no corporate phrasing
@@ -67,7 +67,7 @@ def test_angle_follows_the_facts(cfg):
 def test_validator_rejects_protocol_violations(cfg):
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    filler = " This could work for us depending on how deep the project is. What's your read on the condition?"
+    filler = " This could work for us if the big systems aren't all coming due at once. Do you know how old the roof and the AC are?"
     for bad in ("I looked at the photos and the roof looks fine on NW 11th St.", "Your NW 11th St listing caught our attention.",
                 "I noticed the property needs TLC on NW 11th St and it fits our criteria.", "NW 11th St could be a good fit for our portfolio."):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
@@ -227,7 +227,7 @@ def test_greeting_never_uses_an_initial_or_title():
 
 def test_double_sign_off_is_rejected(cfg):
     p = [_prop()]
-    filler = "Hey Maria,\n\nCharles here with Titan Realty Investments, we're looking for properties around Miami. Quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. How much work would you say it really needs?"
+    filler = "Hey Maria,\n\nCharles here with Titan Realty Investments, we're looking for properties around Miami. Quick question on NW 11th St. Sounds more dated than distressed; if the big stuff is fine it may be close. Do you know how old the roof and the AC are?"
     assert any("double sign-off" in x for x in validate_email("Quick question on NW 11th St", filler + "\n\nThanks,\n\nBest regards,\n\nCharles Grant", p))
     assert validate_email("Quick question on NW 11th St", filler + "\n\nBest regards,\n\nCharles Grant", p) == []
 
@@ -245,7 +245,7 @@ def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
     from titan.outreach.compose import PERSONAL_RE
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what we'd want to understand is whether the big systems are coming due. How much work would you say it really needs?"
+    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what matters on our side is whether the big systems are coming due. How old are the roof and the AC?"
     assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
     for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
                 "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):
@@ -267,10 +267,56 @@ def test_we_never_say_we_are_the_buyer(cfg):
     from titan.outreach.compose import validate_email
     p = [{"street": "107 NW 11th St", "city": "Miami"}]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    tail = " Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close to what works for us. How much work would you say it really needs?"
+    tail = " Quick question on NW 11th St. It sounds more dated than distressed; if the major systems are fine it may be close to what works for us. Do you know how old the roof and the AC are?"
     for bad in ["We're investors who buy around Miami.", "We buy in Miami regularly.", "This is one we're genuinely interested in.",
                 "We're serious buyers and can close fast.", "This is close to what we buy.", "We buy and renovate houses here."]:
         body = "Hey Maria,\n\nCharles here with Titan Realty Investments. " + bad + tail + sig
         assert any("buyer" in x for x in validate_email("Quick question on NW 11th St", body, p)), bad
     good = "Hey Maria,\n\nCharles here with Titan Realty Investments. We're looking for properties in and around Miami, and this one stood out." + tail + sig
     assert validate_email("Quick question on NW 11th St", good, p) == []
+
+
+def test_photo_rule_rodrigo_2026_10_27(cfg):
+    """With 4+ photos (or an unknown count) the email never asks or implies we need to know how much work it needs;
+    only with fewer than 4 photos may it (then the template says the listing doesn't give much to go on)."""
+    from titan.outreach.compose import angle_for, may_ask_how_much_work
+    sig = "\n\nBest regards,\n\nCharles Grant"
+    head = "Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St. The age doesn't knock it out for us, as long as the big items aren't all coming due at once. "
+    asks = ("How much work would you say it really needs?", "How deep of a project is it?", "Is it mostly cosmetic, or is there something bigger going on?",
+            "What's your read on the condition?", "What we'd want to understand is whether it's cosmetic updating or whether the big systems are coming due. Any flexibility?",
+            "Does it need much beyond cosmetic work?", "I can't really tell from the listing what it needs. Any flexibility?",
+            "There's not much to go on in the listing. Any flexibility?", "What would you say it really needs?")
+    many, unknown, few = [_prop(photos_count=15)], [_prop()], [_prop(photos_count=3)]
+    for ask in asks:
+        body = head + ask + sig
+        assert any("how much work" in x for x in validate_email("Quick question on NW 11th St", body, many)), ask
+        assert any("how much work" in x for x in validate_email("Quick question on NW 11th St", body, unknown)), ask
+        assert validate_email("Quick question on NW 11th St", body, few) == [], ask
+    ok = head + "Do you know how old the roof and the AC are, and whether the seller has any room from asking?" + sig
+    assert validate_email("Quick question on NW 11th St", ok, many) == []
+    assert may_ask_how_much_work(few) and not may_ask_how_much_work(many) and not may_ask_how_much_work(unknown)
+    assert not may_ask_how_much_work([_prop(photos_count=3), _prop(2, photos_count=20)])     # every listing in the email must be thin
+    assert angle_for({"remarks": "Investor special", "photos_count": 2}) == "few_photos"
+    assert angle_for({"remarks": "Investor special", "photos_count": 4}) == "heavy"
+    assert angle_for({"remarks": "", "property_type": "land", "photos_count": 1}) == "land"
+    for seed in range(8):            # templates: a thin listing gets the work question, a photographed one never does
+        thin = compose_email(None, cfg, _agent(), few, seed)["body"]
+        assert "work" in thin.lower() and validate_email("s", thin, few) == []
+        full = compose_email(None, cfg, _agent(), many, seed)["body"]
+        assert validate_email("s", full, many) == []
+
+
+def test_first_touch_prompt_carries_the_photo_count(cfg):
+    import json as _json
+    from titan.outreach.compose import llm_email
+    seen = {}
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, **kw):
+            seen["system"], seen["user"] = system, _json.loads(user)
+            return None
+    llm_email(L(), cfg, _agent(), [_prop(photos_count=15)])
+    assert seen["user"]["properties"][0]["photos_count"] == 15 and seen["user"]["may_ask_how_much_work"] is False
+    assert "fewer than 4 photos" in seen["system"]
+    llm_email(L(), cfg, _agent(), [_prop(photos_count=2)])
+    assert seen["user"]["may_ask_how_much_work"] is True

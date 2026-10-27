@@ -146,7 +146,10 @@ def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tm
     log_message(loaded, t1, "out", "Thanks Lise, I'll get back to you today.", external_id="x3", action="reply:manual")
     lead_board(loaded, cfg, asana)
     assert "WAITING ON THE AGENT" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count(STAND_START) == 1
-    assert asana.where[g1] == answered                                  # we answered: the ball is with the agent
+    assert asana.where[g1] == s["sent"]                                 # we answered, not the agent: back to "Sent · no answer yet" (Rodrigo, 2026-10-27)
+    log_message(loaded, t1, "in", "Seller says no, he is going with another buyer.", external_id="x4", classification="NOT_INTERESTED", confidence=0.9)
+    lead_board(loaded, cfg, asana)
+    assert asana.where[g1] == answered and "CLOSED" in asana.tasks[g1]["notes"]
 
 
 def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):

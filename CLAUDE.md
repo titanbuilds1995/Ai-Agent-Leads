@@ -153,6 +153,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~1pm ET, RESUME HERE: **Lise's $209k offer and Cheryl's answer were never sent**: Rodrigo's comments landed on
+  the LEAD cards, and the engine applied them to the first email (already sent) while the answer cards sat in To Review.
+  Both moved to Approved by hand (send at the next tick). Fix: a comment on a lead card now rewrites / sends / holds the
+  answer card waiting for that agent (`sync_feedback`, `_lead_note`); with no answer waiting it says so. **Lead board
+  rule changed (Rodrigo): "Answered" = the AGENT wrote last (or closed); once we reply the lead goes back to "Sent · no answer
+  yet"; Needs Me = his move.** Mac login still refused on both paths (token 401 invalid + keychain "Not logged in"): cron
+  rewrites fail until `make claude-login` at the Mac; proposed to Rodrigo a cloud/paid fallback for rewrites. 245 tests.
 - 2026-10-27 ~12:30pm ET, RESUME HERE: Rodrigo never got the "results as graphs" email: the designed report landed at 7:19am,
   after the 7:00am send, so today's was text only. Added two charts to it (`report_html.day_chart`: emails sent vs agent replies
   per day, 14 days; `funnel`: emails → replies → conversations → offers), built from table cells so Gmail/iPhone draw them.

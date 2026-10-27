@@ -79,44 +79,92 @@ def bar(rate: float | None, unlock: float) -> str:
             f'<div style="font-family:{MONO};font-size:10px;color:{FAINT};margin-top:4px">{pct}% now · unlocks at {mark}%</div>')
 
 
-def day_chart(series: list[dict[str, Any]]) -> str:
-    """Last 14 days as a column chart: emails sent (navy) and real replies (gold) per day. Bars are table cells with a
-    pixel height, so Gmail and the iPhone Mail app draw them (no images, SVG or scripts, which email clients block)."""
-    top = max([max(d.get("emails_sent", 0), d.get("replies", 0)) for d in series] + [1])
-    h = lambda v: max(2, round(90 * v / top)) if v else 0  # noqa: E731
-    def col(v: int, color: str) -> str:
-        num = f'<div style="font-family:{MONO};font-size:9px;color:{MUTED};text-align:center">{v}</div>' if v else ""
-        bar_ = (f'<div style="height:{h(v)}px;background:{color};border-radius:2px 2px 0 0;font-size:0;line-height:0">&nbsp;</div>'
-                if v else f'<div style="height:1px;background:{LINE};font-size:0;line-height:0">&nbsp;</div>')
-        return f'<td valign="bottom" style="padding:0 1px">{num}{bar_}</td>'
-    cells = "".join(f'<td valign="bottom" style="height:110px;padding:0 2px">'
-                    f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-                    f'{col(d.get("emails_sent", 0), NAVY)}{col(d.get("replies", 0), GOLD)}</tr></table></td>' for d in series)
-    days = "".join(f'<td style="font-family:{MONO};font-size:9px;color:{FAINT};text-align:center;padding-top:5px">'
-                   f'{datetime.strptime(d["date"], "%Y-%m-%d").strftime("%-d")}</td>' for d in series)
-    key = (f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin-top:10px">'
-           f'<span style="display:inline-block;width:10px;height:10px;background:{NAVY};border-radius:2px"></span> emails sent &nbsp; '
-           f'<span style="display:inline-block;width:10px;height:10px;background:{GOLD};border-radius:2px"></span> agent replies'
-           f' &nbsp;·&nbsp; {e(sum(d.get("emails_sent", 0) for d in series))} sent, '
-           f'{e(sum(d.get("replies", 0) for d in series))} replies in {len(series)} days</div>')
-    return panel(f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed">'
-                 f'<tr>{cells}</tr><tr>{days}</tr></table>{key}')
+def _hbar(v: int, top: int, color: str, text: str, zero: str) -> str:
+    """One horizontal bar with its value written right after it (Gmail and the iPhone draw percent-width cells reliably;
+    the old column chart's pixel-high divs did not). Zero draws no bar, just the faint word."""
+    if not v:
+        return (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+                f'<td style="font-family:{SANS};font-size:12px;line-height:14px;color:{FAINT}">{e(zero)}</td></tr></table>')
+    pct = max(3, round(72 * v / max(top, 1)))
+    return (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+            f'<td width="{pct}%" style="background:{color};height:12px;font-size:0;line-height:0;border-radius:0 3px 3px 0">&nbsp;</td>'
+            f'<td style="padding-left:7px;font-family:{SANS};font-size:12px;line-height:14px;color:{INK};white-space:nowrap">{e(text)}</td>'
+            f'</tr></table>')
 
 
-def funnel(steps: list[tuple[str, int]]) -> str:
-    """Horizontal bars, each step as a share of the first (emails sent → replies → conversations → offers)."""
-    top = max(steps[0][1], 1)
+def _plural(n: int, word: str, plural: str | None = None) -> str:
+    return f"{n} {word if n == 1 else (plural or word + 's')}"
+
+
+def day_chart(series: list[dict[str, Any]], show_days: int = 7) -> str:
+    """The last week, one row per day, newest first: a navy bar for emails sent and a gold bar for real agent replies,
+    each with its number written out ("4 sent", "2 replies"). Above it the week's totals; below it, the week before, so
+    nothing has to be read off an axis (Rodrigo, 2026-10-27: the column chart was unreadable in the email)."""
+    recent = series[-show_days:]
+    earlier = series[:-show_days]
+    top = max([max(d.get("emails_sent", 0), d.get("replies", 0)) for d in recent] + [1])
+    sent = sum(d.get("emails_sent", 0) for d in recent)
+    replies = sum(d.get("replies", 0) for d in recent)
+    last_date = series[-1]["date"] if series else None
+
+    def stat(l: str, v: str) -> str:
+        return (f'<td width="33%" valign="top" style="padding:0 10px 0 0">{label(l)}'
+                f'<div style="font-family:{SERIF};font-size:24px;line-height:1;color:{INK}">{e(v)}</div></td>')
+    rate = f"{round(100 * replies / sent)}%" if sent else "–"
+    head = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
+            f'{stat("Sent", str(sent))}{stat("Replies", str(replies))}{stat("Reply rate", rate)}</tr></table>')
+    key = (f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin:14px 0 4px">'
+           f'<span style="display:inline-block;width:10px;height:10px;background:{NAVY};border-radius:2px"></span> emails sent &nbsp;&nbsp; '
+           f'<span style="display:inline-block;width:10px;height:10px;background:{GOLD};border-radius:2px"></span> agent replies</div>')
+
+    rows = ""
+    for d in reversed(recent):
+        when = datetime.strptime(d["date"], "%Y-%m-%d")
+        today = d["date"] == last_date
+        name = "Today" if today else when.strftime("%a %-d")
+        tint = f"background:{GOLD_SOFT};" if today else ""
+        rows += (f'<tr><td width="62" valign="top" style="{tint}padding:9px 6px 9px 8px;border-top:1px solid {SUNK};font-family:{SANS};'
+                 f'font-size:12px;line-height:14px;color:{INK};white-space:nowrap;{"font-weight:700;" if today else ""}">{e(name)}</td>'
+                 f'<td valign="top" style="{tint}padding:8px 8px 8px 0;border-top:1px solid {SUNK}">'
+                 + _hbar(d.get("emails_sent", 0), top, NAVY, _plural(d.get("emails_sent", 0), "sent", "sent"), "0 sent")
+                 + '<div style="height:3px;font-size:0;line-height:0">&nbsp;</div>'
+                 + _hbar(d.get("replies", 0), top, GOLD, _plural(d.get("replies", 0), "reply", "replies"), "0 replies")
+                 + "</td></tr>")
+    body = f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px">{rows}</table>'
+    if earlier:
+        es, er = sum(d.get("emails_sent", 0) for d in earlier), sum(d.get("replies", 0) for d in earlier)
+        body += (f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin-top:10px;padding-top:10px;border-top:1px solid {SUNK}">'
+                 f'The {len(earlier)} days before that: {e(_plural(es, "email"))} sent, {e(_plural(er, "reply", "replies"))}.</div>')
+    return panel(head + key + body)
+
+
+def funnel(steps: list[tuple[str, int]], notes: list[str] | None = None) -> str:
+    """How far the emails get, one step per row: the number large, the step's name, a plain sentence on the drop from the
+    step above ("3 of 9 wrote back · 33%"), and a bar on one shared scale (share of the first step)."""
+    top = steps[0][1] if steps else 0
+    if not top:
+        return panel(f'<span style="color:{MUTED}">No emails sent yet, so nothing to measure.</span>')
+    notes = notes or [""] * len(steps)
     out = ""
+    prev = top
     for i, (name, v) in enumerate(steps):
-        pct = max(0, min(100, round(100 * v / top)))
-        fill = (f'<td width="{max(pct, 1)}%" style="background:{NAVY if i == 0 else GOLD};height:22px;font-size:0;line-height:0">&nbsp;</td>'
+        pct_top = max(0, min(100, round(100 * v / top)))
+        if i == 0:
+            line = notes[i] or "every first email to a listing agent"
+        else:
+            share = f"{round(100 * v / prev)}%" if prev else "–"
+            line = f"{v} of {prev} {notes[i] or 'from the step above'} · {share}"
+        bar_ = (f'<td width="{max(pct_top, 2)}%" style="background:{NAVY};height:10px;font-size:0;line-height:0;border-radius:0 3px 3px 0">&nbsp;</td>'
                 if v else "")
-        rest = f'<td style="background:{SUNK};height:22px;font-size:0;line-height:0">&nbsp;</td>' if pct < 100 else ""
-        share = "" if i == 0 else f' <span style="color:{FAINT}">({pct}%)</span>'
-        out += (f'<div style="font-family:{SANS};font-size:13px;color:{INK};margin:{0 if i == 0 else 10}px 0 4px">'
-                f'<b>{e(v)}</b> {e(name)}{share}</div>'
-                f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:4px;overflow:hidden">'
-                f'<tr>{fill}{rest}</tr></table>')
+        rest = f'<td style="background:{SUNK};height:10px;font-size:0;line-height:0">&nbsp;</td>' if pct_top < 100 else ""
+        out += (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"{"" if i == 0 else f" style=\"border-top:1px solid {SUNK}\""}>'
+                f'<tr><td width="54" valign="top" style="padding:{0 if i == 0 else 12}px 8px 10px 0;font-family:{SERIF};font-size:28px;line-height:1;color:{INK}">{e(v)}</td>'
+                f'<td valign="top" style="padding:{0 if i == 0 else 12}px 0 10px">'
+                f'<div style="font-family:{SANS};font-size:14px;line-height:1.2;color:{INK};font-weight:700">{e(name)}</div>'
+                f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin:3px 0 7px">{e(line)}</div>'
+                f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>{bar_}{rest}</tr></table>'
+                f'</td></tr></table>')
+        prev = v if v else prev
     return panel(out)
 
 
@@ -224,10 +272,11 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
     # charts: the last 14 days, and how far emails get
     series = stats.get("daily") or []
     if series:
-        rows.append(section("Last 14 days", day_chart(series), "Emails out, replies in"))
+        rows.append(section("Day by day", day_chart(series), "Last 7 days, emails out and replies in"))
     rows.append(section("From email to offer", funnel([
-        ("emails sent", st.get("emails_sent", 0) or 0), ("agents replied", st.get("agents_replied", 0) or 0),
-        ("conversations", st.get("conversations", 0) or 0), ("offers sent", o.get("offers", 0) or 0)]), "Where they drop off"))
+        ("Emails sent", st.get("emails_sent", 0) or 0), ("Agents who replied", st.get("agents_replied", 0) or 0),
+        ("Answered by us", st.get("answered", 0) or 0), ("Offers sent", o.get("offers", 0) or 0)],
+        ["", "wrote back", "got an answer from Charles", "got a number"]), "Where they drop off"))
 
     # trust ladder
     try:

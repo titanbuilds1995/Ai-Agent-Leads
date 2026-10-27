@@ -167,6 +167,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-27 ~3pm ET, RESUME HERE: **report graphs redone** (Rodrigo: "the graphs in the email were horrible, not easy to
+  understand"). The 14-day column chart (28 thin bars, 9px numbers, no readable dates) is gone. "Day by day" is now one row per day
+  for the last 7 days, newest first, Today tinted gold, a navy bar "4 sent" and a gold bar "2 replies" with the number written after
+  every bar, zero days in faint words, week totals + reply rate on top, the 7 days before in one sentence. "From email to offer" is
+  four steps (emails sent → agents who replied → answered by us → offers sent), each with a big number, a plain line like
+  "3 of 9 wrote back · 33%", and bars on one shared scale. Percent-width table cells only (what Gmail/iPhone draw reliably).
+  Checked at 640px and 390px with Playwright. Lands in tomorrow's 7am report; `make report` on the Mac sends one now. 261 tests.
 - 2026-10-27 ~1:35pm ET, RESUME HERE: the Mac was STUCK on morning code all day (its `git pull` died on an untracked
   `reports/2026-10-27.md`); Rodrigo cleared it, reports are untracked now, and every approvals tick checks `code_behind()` (alarm
   card). First API rewrites landed 1:19pm. **Card chat gap:** David Carlton's and Alex Castro's "take a look and tell me what

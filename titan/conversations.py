@@ -173,6 +173,76 @@ def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> list[str
             f"We wrote {len(outs)} time(s)" + (f"; last {_when(outs[-1]['created_at'])}." if outs else ".")]
 
 
+WARM_SECTIONS = ("needs_me", "needs_revision", "waiting", "offer_out", "closed")
+WARM_NAMES = {"needs_me": "Needs Me", "needs_revision": "Needs Revision", "waiting": "Waiting on the agent",
+              "offer_out": "Offer out", "closed": "Closed"}
+HOT_STATUSES = ("HOT_LEAD", "NEEDS_CALL")
+OFFER_RE = re.compile(r"\$\s?\d{2,3},\d{3}")
+
+
+def warm_sections(cfg: Any, asana) -> dict[str, str] | None:
+    """{key: section gid} of the warm leads board (Rodrigo, 2026-10-28), or None when no board is configured. Sections
+    missing from config are created by name the first time."""
+    wb = (cfg.get("outreach.asana", {}) or {}).get("warm_board") or {}
+    if not wb.get("project"):
+        return None
+    cached = getattr(asana, "_warm_sections", None)
+    if cached:
+        return cached
+    out = {k: wb.get(k) or asana.ensure_section(wb["project"], WARM_NAMES[k]) for k in WARM_SECTIONS}
+    out["project"] = wb["project"]
+    try:
+        asana.order_sections(wb["project"], [out[k] for k in WARM_SECTIONS])    # columns left to right as listed
+    except Exception as e:  # noqa: BLE001
+        log.warning("warm board column order: %s", e)
+    try:
+        asana._warm_sections = out
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def warm_key(status_line: str, offer_sent: bool) -> str:
+    """Which warm column a WHERE WE STAND status belongs in."""
+    st = status_line.replace("Status: ", "", 1)
+    if any(st.startswith(k) for k in NEEDS_ME_STATUS):
+        return "needs_me"
+    if st.startswith("CLOSED"):
+        return "closed"
+    if st.startswith("OFFER APPROVED") or (st.startswith("WAITING ON THE AGENT") and offer_sent):
+        return "offer_out"
+    return "waiting"
+
+
+def is_hot(conn, property_ids: Any) -> bool:
+    """True when Rodrigo marked one of the card's houses hot / to call (comment "mark him hot", "call tomorrow")."""
+    try:
+        ids = [int(x) for x in (json.loads(property_ids) if isinstance(property_ids, str) else (property_ids or []))]
+    except (TypeError, ValueError):
+        return False
+    if not ids:
+        return False
+    q = ",".join("?" * len(ids))
+    return conn.execute(f"SELECT 1 FROM properties WHERE id IN ({q}) AND lead_status IN (?,?) LIMIT 1",
+                        (*ids, *HOT_STATUSES)).fetchone() is not None
+
+
+def _place_warm(asana, wb: dict[str, str] | None, gid: str, key: str, n: dict[str, int]) -> None:
+    """Put the lead card on the warm board in column `key` (same card, second board). Rodrigo, 2026-10-28: a comment of his
+    the engine has not answered yet puts the card in the warm board's Needs Revision, so he can see the engine reaching his
+    leads; it returns to its status column once the engine has answered. Never raises into the lead board."""
+    if not wb:
+        return
+    try:
+        from .approvals import pending_feedback
+        if pending_feedback(asana, gid)[0]:
+            key = "needs_revision"
+        asana.add_to_project(gid, wb["project"], wb[key])
+        n["warm"] = n.get("warm", 0) + 1
+    except Exception as e:  # noqa: BLE001
+        log.warning("warm board %s: %s", gid, e)
+
+
 def _with_stand(notes: str, lines: list[str]) -> str:
     import re
     block = f"{STAND_START}\n" + "\n".join(lines) + f"\n{STAND_END}\n\n"
@@ -186,11 +256,12 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
     yet" once we replied and wait on them (Rodrigo, 2026-10-27: we answering is not them answering). Keeps a WHERE WE
     STAND block at the top of every such first-email card. Never raises into the caller."""
     from .approvals import needs_me_section, parse_card
-    n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}
+    n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0, "warm": 0}
     try:
         a = cfg.get("outreach.asana", {}) or {}
         sent, answered = board_sections(cfg, asana)
         nm = needs_me_section(cfg, asana)
+        wb = warm_sections(cfg, asana)
         pending = set()
         drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
         names = {a.get("to_review"): "Fresh Leads", a.get("approved"): "Approved (sends next run)", needs_me_section(cfg, asana): "Needs Me"}
@@ -221,6 +292,10 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             aid = agent_id(pc["outreach_id"])
             lines = where_we_stand(conn, aid, aid in pending_agents)
             if not lines:
+                # Rodrigo, 2026-10-28: a lead he marked hot / to call is warm even before the agent answers: his move
+                row = conn.execute("SELECT property_ids FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone()
+                if row and is_hot(conn, row["property_ids"]):
+                    _place_warm(asana, wb, t["gid"], "needs_me", n)
                 continue
             # Rodrigo, 2026-10-26: the status must move as soon as an offer is drafted, not stay at "decide a number"
             agent_drafts = [d for o in pending if agent_id(o) == aid for d in drafts.get(o, [])]
@@ -254,6 +329,11 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 n["moved"] += 1
                 n["to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered"] = \
                     n.get("to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered", 0) + 1
+            # Rodrigo, 2026-10-28: every lead whose agent really answered also sits on the warm leads board (same card)
+            offer_sent = conn.execute("SELECT 1 FROM offers WHERE agent_id=? LIMIT 1", (aid,)).fetchone() is not None or any(
+                OFFER_RE.search(m["body"] or "") for m in conn.execute(
+                    "SELECT m.body FROM messages m JOIN threads t ON t.id=m.thread_id WHERE t.agent_id=? AND m.direction='out'", (aid,)).fetchall())
+            _place_warm(asana, wb, t["gid"], warm_key(lines[0], offer_sent), n)
     except Exception as e:  # noqa: BLE001
         log.warning("lead board: %s", e)
         n["error"] = str(e)[:200]

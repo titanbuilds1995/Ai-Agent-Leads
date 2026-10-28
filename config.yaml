@@ -181,6 +181,16 @@ outreach:
     skip: "1219846985445292"
     updates_project: "1219837397052431"   # Titan Lead Engine — Claude Updates (engine alarms go to Needs Rodrigo)
     needs_rodrigo: "1219837590904714"
+    # Rodrigo, 2026-10-28: "another board for hot and in contact leads, my warm leads, and this one can send leads there".
+    # The engine puts every lead whose agent really answered (and every lead he marked hot / to call) on this board too:
+    # the SAME card on both boards, so comments and answers keep working. Nothing sends from it.
+    warm_board:
+      project: "1219996826543058"   # Titan Warm Leads
+      needs_me: "1219997042008635"
+      needs_revision: "1219997049297604"   # his comment on a lead is being worked on (he sees the engine reached it)
+      waiting: "1219996909805061"   # Waiting on the agent
+      offer_out: "1219996806307425"
+      closed: "1219997042127935"
     per_tick: 2                     # emails per 20-minute round
     send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email

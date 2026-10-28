@@ -28,6 +28,9 @@ class FakeAsana:
     def comment(self, task, text): self.stories[task].append(f"{BOT} {text}")
     def comment_raw(self, task, text): self.stories[task].append(text)
     def move(self, task, section): self.where[task] = section
+    def order_sections(self, project, order): self.order = list(order); return 0
+    def add_to_project(self, task, project, section):
+        self.warm = getattr(self, "warm", {}); self.warm[task] = (project, section)
     def complete(self, task): self.tasks[task]["completed"] = True
     def task(self, task): return dict(self.tasks[task])
     def rename_section(self, section, name):

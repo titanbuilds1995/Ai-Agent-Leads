@@ -69,6 +69,11 @@ class Asana:
     def move(self, task: str, section: str) -> None:
         self._req("POST", f"/sections/{section}/addTask", json={"data": {"task": task}})
 
+    def add_to_project(self, task: str, project: str, section: str) -> None:
+        """Put the task on a second board (Asana multi-homing) in `section`; already there → just moved to that section.
+        The card stays ONE card: same comments, same notes, both boards (Rodrigo, 2026-10-28: warm leads board)."""
+        self._req("POST", f"/tasks/{task}/addProject", json={"data": {"project": project, "section": section}})
+
     def sections(self, project: str) -> list[dict[str, Any]]:
         return self._req("GET", f"/projects/{project}/sections", params={"opt_fields": "name"}) or []
 
@@ -81,6 +86,23 @@ class Asana:
         if insert_before:
             data["insert_before"] = insert_before
         return self._req("POST", f"/projects/{project}/sections", json={"data": data})["gid"]
+
+    def order_sections(self, project: str, order: list[str]) -> int:
+        """Put the board's columns in `order` (gids, left to right); only the ones out of place are moved. Returns moves."""
+        current = [x["gid"] for x in self.sections(project) if x["gid"] in order]
+        moves = 0
+        for i, gid in enumerate(order):
+            if i < len(current) and current[i] == gid:
+                continue
+            body: dict[str, Any] = {"section": gid}
+            if i < len(current):
+                body["before_section"] = current[i]
+            self._req("POST", f"/projects/{project}/sections/insert", json={"data": body})
+            if gid in current:
+                current.remove(gid)
+            current.insert(i, gid)
+            moves += 1
+        return moves
 
     def rename_section(self, section: str, name: str) -> None:
         self._req("PUT", f"/sections/{section}", json={"data": {"name": name}})

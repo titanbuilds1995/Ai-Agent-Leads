@@ -195,19 +195,28 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "potentially", "the bigger question is". 40–90 words. Code: `DIRECT_RE` / `tone_problems()` in compose.py (first emails,
   rewrites, replies), protocol §0d, voice protocol examples rewritten, templates rewritten; every approvals tick rewrites up to
   15 waiting cards that still break it (same path as the photo rule).
+- **Warm leads board = Asana, not Podio (Rodrigo, 2026-10-28: "keep it all in Asana for now … another board for hot and in contact
+  leads, my warm leads, and this one can send leads there … we need results before another build out")**: project **Titan Warm Leads**
+  (gid 1219996826543058; `outreach.asana.warm_board`; columns Needs Me 1219997042008635 · Needs Revision 1219997049297604 · Waiting on
+  the agent 1219996909805061 · Offer out 1219996806307425 · Closed 1219997042127935). The engine puts every lead card whose agent really
+  answered, and every lead he marked hot / to call, on this board too: the **same card on both boards** (Asana multi-homing,
+  `Asana.add_to_project`), so the one-card rule, comments, numbers and answers work unchanged. Column follows WHERE WE STAND
+  (`warm_key`); **a comment of his the engine has not answered yet parks the card in the warm Needs Revision** (so he sees the engine
+  reaching his leads), back to its column once answered. Runs inside `lead_board` every tick; the engine keeps the column order
+  (`order_sections`). Nothing sends from it; Email Approvals stays the place to find properties and approve emails. Podio: dropped.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- **Texting from the cards + Podio (Rodrigo, 2026-10-28):** he asked (a) once Twilio is live, can he text an agent from a card comment
-  ("text him a reminder to send the email") — answer given: yes, the Twilio path is built, only a `text` intent in `comment_router` is
-  missing (today "text"/"via" are hold words); (b) cards are getting heavy: move hot leads to Podio and keep Asana for finding
-  properties, port the card commands to Podio. Recommendation given: first split Asana into Email Approvals (fresh) + a Deals board
-  (one structured card per hot lead); Podio only if that still falls short (full port of approvals/card_chat/lead_board, 1–2 weeks).
-  Waiting on his call: build the `text` command now (dry-run until 10DLC)? Deals board on Asana, or Podio?
+- **Texting from the cards (Rodrigo, 2026-10-28):** once Twilio 10DLC is approved he wants "text him a reminder" on a card to work.
+  The Twilio path is built; only a `text` intent in `comment_router` is missing (today "text"/"via" are hold words). Not built yet:
+  Rodrigo wants results before another build-out; build it the day Twilio approves.
 
 ## Current status
-- 2026-10-28 ~3pm ET: Rodrigo asked about texting agents from the cards once Twilio is approved, and about moving hot leads to
-  Podio. Assessment only, nothing built; the two decisions are under "Still open".
+- 2026-10-28 ~5:15pm ET, RESUME HERE: **Titan Warm Leads board** built (see Decisions). Lise's lead card is already on it by hand
+  (Offer out); the rest (Richard, hot leads) land at the Mac's next approvals tick after it pulls. Rodrigo also asked to **organize the
+  Asana sidebar into folders**: Asana has no folders, only Teams (free) and Portfolios (paid); everything sits in "Rodrigo's first team".
+  Told him the clicks (create teams, Project menu → Move to another team); the cloud cannot move projects between teams (no API for it
+  in the connector). Texting from cards: deferred until Twilio approves (Still open). 283 tests.
 - 2026-10-28 ~2pm ET, RESUME HERE: **comp engine rebuilt + daily comp loop** (Rodrigo: "the comps are just incorrect … fix the engine …
   run a loop daily"). Built from the real misses on the cards: townhouse vs pool houses (Castro), split layout + waterfront lot sales
   (Carlton), $3.1M new build next to a 1942 duplex (Dipietro), unpermitted 4-bed in 1,166 sf (McCarthy). New `titan/comps_engine.py`

@@ -1,5 +1,6 @@
 """Trust ladder (Rodrigo, 2026-10-26): decisions recorded, comments become the knowledge base, autopilot only with his go-ahead,
 and the lead board (Answered / Sent · no answer yet)."""
+import json
 from datetime import timedelta
 
 from titan import db
@@ -142,7 +143,7 @@ def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tm
     notes = asana.tasks[g1]["notes"]
     assert notes.startswith(STAND_START) and "NEEDS YOU: decide a number" in notes and "best offer" in notes
     assert parse_card(notes)["outreach_id"] == o1                       # the card still reads as an email card
-    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}  # idempotent
+    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0, "warm": 1}  # idempotent
     log_message(loaded, t1, "out", "Thanks Lise, I'll get back to you today.", external_id="x3", action="reply:manual")
     lead_board(loaded, cfg, asana)
     assert "WAITING ON THE AGENT" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count(STAND_START) == 1
@@ -198,3 +199,44 @@ def test_offer_card_changes_the_lead_status_and_cc_is_sent(loaded, cfg, tmp_path
     asana.move(gid, s["approved"])
     send_approved(loaded, cfg, asana, G(), now=SAT_10AM_ET)
     assert sent and sent[-1].get("cc") == ["rodrigo@example.com"]
+
+
+def test_warm_leads_board_gets_answered_and_hot_cards_in_the_right_column(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-28: a second board for hot and in-contact leads; the engine sends them there (same card, two boards)."""
+    from titan.conversations import warm_key
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s = _sections(cfg)
+    wb = cfg["outreach"]["asana"]["warm_board"]
+    g1, g2, g3 = list(asana.tasks)[:3]
+    for g in (g1, g2, g3):
+        asana.move(g, s["approved"])
+    send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)
+    oids = {g: parse_card(asana.tasks[g]["notes"])["outreach_id"] for g in (g1, g2, g3)}
+    sent_gids = [g for g in (g1, g2, g3) if asana.where[g] == s["sent"]]
+    assert len(sent_gids) >= 2                                          # per_tick is 2
+    g1, g2 = sent_gids[:2]
+    g3 = next(g for g in (g1, g2, g3) if g not in sent_gids) if len(sent_gids) < 3 else g3
+    aid = {g: loaded.execute("SELECT agent_id FROM outreach WHERE id=?", (oids[g],)).fetchone()[0] for g in (g1, g2)}
+    tid = {g: loaded.execute("SELECT id FROM threads WHERE agent_id=?", (aid[g],)).fetchone()[0] for g in (g1, g2)}
+    log_message(loaded, tid[g1], "in", "Bring your best offer.", external_id="w1", classification="ASK_FOR_OFFER", confidence=0.9)
+    log_message(loaded, tid[g2], "in", "Sure, what do you need to know?", external_id="w2", classification="INTERESTED", confidence=0.9)
+    log_message(loaded, tid[g2], "out", "Thanks, is the roof original? Our number would be $209,000 as is.", external_id="w3", action="reply:manual")
+    pid3 = json.loads(loaded.execute("SELECT property_ids FROM outreach WHERE id=?", (oids[g3],)).fetchone()[0])[0]
+    db.set_lead_status(loaded, pid3, "NEEDS_CALL", "call tomorrow")          # no answer yet, but Rodrigo marked it
+    loaded.execute("UPDATE outreach SET status='sent' WHERE id=?", (oids[g3],)); asana.move(g3, s["sent"])
+    asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
+    res = lead_board(loaded, cfg, asana)
+    assert res["warm"] == 3
+    assert asana.warm[g1] == (wb["project"], wb["needs_me"])       # she asked for a number: his move
+    assert asana.warm[g2] == (wb["project"], wb["offer_out"])      # we sent a figure and wait on the agent
+    assert asana.warm[g3] == (wb["project"], wb["needs_me"])       # hot by his comment; stays in Sent on the main board
+    assert asana.where[g3] == s["sent"]
+    asana.comment_raw(g1, "ask her if the seller would take 30 days post occupancy")   # his comment, not answered yet
+    lead_board(loaded, cfg, asana)
+    assert asana.warm[g1] == (wb["project"], wb["needs_revision"])  # he can see the engine has his comment
+    asana.comment(g1, "Revised based on your comment")
+    lead_board(loaded, cfg, asana)
+    assert asana.warm[g1] == (wb["project"], wb["needs_me"])         # answered: back to its status column
+    assert warm_key("Status: CLOSED: not interested.", False) == "closed"
+    assert warm_key("Status: WAITING ON THE AGENT since Mon.", False) == "waiting"
+    assert warm_key("Status: OFFER APPROVED ($209,000): goes out next run.", False) == "offer_out"

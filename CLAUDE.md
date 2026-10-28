@@ -198,9 +198,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
-- (none)
+- **Texting from the cards + Podio (Rodrigo, 2026-10-28):** he asked (a) once Twilio is live, can he text an agent from a card comment
+  ("text him a reminder to send the email") — answer given: yes, the Twilio path is built, only a `text` intent in `comment_router` is
+  missing (today "text"/"via" are hold words); (b) cards are getting heavy: move hot leads to Podio and keep Asana for finding
+  properties, port the card commands to Podio. Recommendation given: first split Asana into Email Approvals (fresh) + a Deals board
+  (one structured card per hot lead); Podio only if that still falls short (full port of approvals/card_chat/lead_board, 1–2 weeks).
+  Waiting on his call: build the `text` command now (dry-run until 10DLC)? Deals board on Asana, or Podio?
 
 ## Current status
+- 2026-10-28 ~3pm ET: Rodrigo asked about texting agents from the cards once Twilio is approved, and about moving hot leads to
+  Podio. Assessment only, nothing built; the two decisions are under "Still open".
 - 2026-10-28 ~2pm ET, RESUME HERE: **comp engine rebuilt + daily comp loop** (Rodrigo: "the comps are just incorrect … fix the engine …
   run a loop daily"). Built from the real misses on the cards: townhouse vs pool houses (Castro), split layout + waterfront lot sales
   (Carlton), $3.1M new build next to a 1942 duplex (Dipietro), unpermitted 4-bed in 1,166 sf (McCarthy). New `titan/comps_engine.py`

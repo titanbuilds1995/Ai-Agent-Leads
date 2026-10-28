@@ -188,6 +188,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the comp sets behind the houses he is working** (`comps.loop.claude_reviews_per_day` 15, paid API like the other card work; its
   exclusions feed the valuation; his comp comments from the cards are in its prompt). Morning report section "Comps (how good the
   numbers are)". Comps window = last 12 months (his rule) for both paths.
+- **Direct and matter of fact (Rodrigo, 2026-10-28: "stop saying the house doesn't scare us, that sounds dumb, go straight into
+  it ... stop with 'new electrical panel' ... sound more serious, it sounds very AI-ish"):** after the intro line go straight to
+  the question (one short sentence of context at most). Never tell the agent what doesn't scare / bother / worry us or what is
+  "fine on our side"; never recite the listing's upgrades back; never mention the electrical panel; no "curious", "honestly",
+  "potentially", "the bigger question is". 40–90 words. Code: `DIRECT_RE` / `tone_problems()` in compose.py (first emails,
+  rewrites, replies), protocol §0d, voice protocol examples rewritten, templates rewritten; every approvals tick rewrites up to
+  15 waiting cards that still break it (same path as the photo rule).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -203,6 +210,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   loop runs tomorrow 5:30am** (`make comps-loop` on the Mac runs one now; `make comps-check` only measures). Grades and "Comp check"
   appear on cards at their next rewrite / numbers snapshot. 281 tests. Next: read tomorrow's Comps section; if the back-test error is
   high (>12%) look at the by-product breakdown in `reports/comps/loop_<date>.json`.
+- 2026-10-28 ~8am ET, RESUME HERE: **direct tone** (see Decisions). 44 of the first 100 Fresh Leads cards break it ("curious" 11,
+  "doesn't scare us" 10, "fine on our side" 6, "the bigger question" 5…): the Mac rewrites them on its own, 15 per 20-min tick
+  (bot comment "Rewritten to be direct"), on the API; cards his comments shaped are left alone. 268 tests.
 - 2026-10-28 ~7:30am ET, RESUME HERE: **no 7am report today** (none in Rodrigo's inbox by 7:25am; Mac asleep or the run failed:
   `make report` / check `logs/`). The cloud review read yesterday's 2:11pm designed report and found its data block missing: the Gmail
   connector returns the HTML part as text, so `with_data_block()` now also puts TITAN-DATA-B64 in small grey type at the foot of the

@@ -22,12 +22,12 @@ property work for an investor? → what is the most natural question to ask the 
 The email is the result of the analysis, not the analysis itself.
 
 ## 0. Introduce yourself first (Rodrigo, 2026-10-24; tightened 2026-10-25)
-The agent has no idea who we are, so don't go straight into the property. The FIRST paragraph, in one or two personable
+The agent has no idea who we are, so the intro line comes first; then go straight into it (§0d). The FIRST paragraph, in one or two personable
 sentences directed at the agent, says who is writing and why: Charles with Titan Realty Investments, and that this listing
 came up or stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name
 says it all (Rodrigo, 2026-10-25): never "we're investors who buy in Pompano Beach regularly", never "genuinely interested"
 (reads as AI, raises a red flag). e.g. "Hey Maria, Charles here with Titan Realty Investments. We're looking for properties
-in and around Miami, and your listing on NW 11th St stood out to me." Then the reasoning and the one question. It is an
+in and around Miami, and your listing on NW 11th St stood out to me." Then the question. It is an
 introduction, not a pitch: no "we specialize in", no credentials, no "we buy 50 houses a year".
 
 ## 0a. Layout and plain intro (Rodrigo, 2026-10-26, Eugene and Saidelys cards)
@@ -47,6 +47,22 @@ a tenant, why it's sitting, seller flexibility. The one exception: fewer than 4 
 `may_ask_how_much_work`). Then we really can't know, and the email may say the listing doesn't give much to go on and ask
 how much work it needs. We still never describe photos (we don't analyze them; we only know how many there are). The
 examples below that ask about the work are for that thin-listing case only.
+
+## 0d. Direct and matter of fact (Rodrigo, 2026-10-28). Overrides any softer example below.
+"We need to be more direct. Stop saying the house doesn't scare us, that sounds dumb, go straight into it. Stop
+communicating with 'new electrical panel'. Speak more matter of fact and sound more serious; right now it sounds very AI-ish."
+- After the intro line, go straight to the question. At most one short sentence of context, and only when it drives the
+  question ("The roof and the AC decide our number on this one.").
+- Never tell the agent what doesn't scare, bother or worry us, or what is "fine on our side": no "a 1949 block house doesn't
+  scare us", "the age by itself isn't an issue", "adding central AC is fine on our side", "a 2006 build is a good start for us".
+- Never recite the listing's upgrades or features back to the agent ("with the new electrical panel in", "the newer roof
+  helps"). They wrote the listing. Don't mention the electrical panel at all.
+- No hedging or filler: no "curious", "honestly", "potentially", "the bigger question is", "this could be close to something
+  we'd pursue". State it and ask.
+- 40 to 90 words with the intro. Serious and plain, like a busy professional, not a friendly bot.
+BEFORE: "A 1949 block house doesn't scare us. With the new electrical panel in, the bigger questions are the roof and the
+plumbing. Adding central AC is fine on our side. Was the extra bedroom and bath done with permits? And do you know the roof age?"
+AFTER: "Was the extra bedroom and bath permitted? And how old is the roof?"
 
 ## 0b. We never say we are the buyer (Rodrigo, 2026-10-25)
 We wholesale, so be conscious of never explicitly stating that we are the buyer. Say "we're looking for properties in X",
@@ -91,23 +107,19 @@ quite a bit for us", not "white cabinets, tile flooring and an older bathroom".
 
 ## 6. Every message carries a small investment hypothesis
 "Here is what I think may be happening with this property." Cosmetic: "more dated than distressed; if the major
-systems are okay I could probably get comfortable with the cosmetic work." Older: "the age doesn't bother us by
-itself; I mainly need to figure out whether the big-ticket systems are starting to stack up." Price-reduced: "they've
+systems are okay I could probably get comfortable with the cosmetic work." Older: "the roof and the plumbing
+decide the number on this one." Price-reduced: "they've
 moved the price a couple times; I'm wondering if they're getting closer to where they'd entertain an investor number."
-Long DOM: "I've been watching this one because it's been sitting; I'm curious whether that's mostly price or something
-about the property I'm missing." New roof + dated interior: "the new roof helps quite a bit; if most of what's left is
-interior updating there may be a number that makes sense." Tenant occupied: "the house may work; the bigger question is
-the tenant situation and timing."
+Long DOM: "it's been on the market a while; what has held it back?" Tenant occupied: "is there a lease in place,
+and when does it end?" The hypothesis shapes the question; it is not written out as reassurance (§0d).
 
 ## 7. Write like an investor talking to an agent
-"Hey John — I was going through the house on 17th Court. Honestly this one may be closer to what we buy than I
-initially thought. Sounds like it's dated, but if we're not dealing with a roof/AC/plumbing project on top of everything
-else, there might be something we can do. Do you know how old the roof and the AC are?" Not "I am reaching out
+After the intro: "How old are the roof and the AC? And does the seller have any room from asking?" Not "I am reaching out
 regarding your listing located at… it appears this property could potentially meet our investment criteria."
 
 ## 8. Use property details selectively
 One or two meaningful things, the detail that changes the thesis. Not "3/2, 1,347 SF built in 1987 with a two-car
-garage" but "The size works for us. The roof and the AC are what would move the number on our side."
+garage" but "The roof and the AC decide our number on this one."
 
 ## 9. First email = conversation, not negotiation
 No hard offer, no "70% of ARV minus repairs". Sequence: 1 property-specific conversation → 2 condition/motivation
@@ -141,21 +153,17 @@ Not an interrogation list. "How old are the roof and the AC?" / "Where do you th
 "How much work would you say it really needs?"). One natural question can reveal five pieces of information.
 
 ## 17. Vary the opening
-"Hey [Name] — I was looking at the house on [Street]…", "Hey [Name], quick question on [Street]…", "[Name] — I went
-through the listing on [Street]…", "Hey [Name] — this one on [Street] actually caught my attention…", "Hey [Name], I may
-have a buyer angle on your [Street] listing…", "Hey [Name] — I've been watching the house on [Street]…", "Hey [Name],
-curious about something on the [Street] property…". Choose naturally, don't rotate mechanically.
+The intro line is fixed (§0a); vary the question that follows it. Don't rotate mechanically.
 
 ## 17b. No dashes (Rodrigo, 2026-10-24)
 Never use an em dash (—), en dash (–), spaced hyphen ( - ) or double hyphen (--) in an email. The examples in this
 document that show "Hey John — I was…" must be written "Hey John, I was…". Commas and periods only.
 
-## 18. Keep first contact short: ~60–120 words including the intro. Agents get enormous amounts of email. The goal is a response.
+## 18. Keep first contact short: ~40–90 words including the intro. Agents get enormous amounts of email. The goal is a response.
 
 ## 19. Do not force personalization
-If there is no meaningful property-specific observation, don't invent one. "Hey Sarah — quick question on the house on
-17th Court. It could work for us. What I can't get from the listing is the age of the roof and the AC, and whether the
-seller has any room from asking. Do you know where they stand on both?" beats fake hyper-personalization.
+If there is no meaningful property-specific observation, don't invent one. after the intro: "How old are the roof and the
+AC? And does the seller have any room from asking?" beats fake hyper-personalization.
 
 ## 20. Response objective
 Success = the agent gives information we didn't have: "mainly cosmetic", "roof is 4 years old", "seller has some
@@ -167,23 +175,16 @@ PROPERTY (address, asking, beds/baths, SF, year built, DOM, price history) · KN
 NEGATIVE SIGNALS · UNKNOWN BIG-TICKET ITEMS · LIKELY REHAB CLASS (1–5) · INVESTMENT HYPOTHESIS (one sentence) · MOST
 IMPORTANT UNKNOWN · CONVERSATION ANGLE. Only then write the email.
 
-## 22–25. Examples
-- Roof 2020, original kitchen, "needs TLC but great bones", 61 DOM, one reduction: "Hey Susan — I was looking at the
-  house on 17th Court. The newer roof actually makes this one a little more interesting for us. With the kitchen and
-  baths being the main updating, the AC and the plumbing are what would move the number on our side. Do you know how
-  old the AC is, and has the seller shown any flexibility yet?"
-- Long DOM, $575k→$515k, 1974, maintained: "Hey David — I've been looking at the property on Coral Way. I saw they've
-  already moved the price quite a bit since it hit the market. The house itself doesn't sound like a major rehab, so
-  I'm wondering if this is becoming more of a pricing issue than a condition issue. Do you think the seller is getting
-  closer to where they'd entertain an investor number?"
-- Heavy: 1959, roof unknown, original interior, "investor special", cash only: "Hey Mark — quick question on the
-  property on 82nd Ave. This one looks like it could work for us. The age itself doesn't knock it out; what matters on
-  our side is the stuff the listing doesn't show. Do you know roughly how old the roof is, and whether the plumbing and
-  electrical have ever been redone?"
-- Light: 2006, new AC, updated flooring, original kitchen: "Hey Amanda — the house on 42nd Terrace actually looks
-  pretty close to something we'd buy. With the AC already handled and the house being newer, it doesn't sound like we'd
-  be taking on a huge project. If the seller has some flexibility from the asking price, I think it's worth looking at.
-  Do you know how much room they realistically have?"
+## 22–25. Examples (body after the greeting and the intro line)
+- Roof 2020, original kitchen, 61 DOM, one reduction: "How old is the AC, and has the seller shown any flexibility since
+  the reduction?"
+- Long DOM, $575k→$515k, 1974, maintained: "The price has come down twice. Where does the seller realistically need to be,
+  and how soon do they want to close?"
+- Heavy: 1959, roof unknown, original interior, cash only: "Two questions before we run numbers. How old are the roof and
+  the AC, and has the plumbing ever been replaced?"
+- Light: 2006, new AC, updated flooring, original kitchen: "On a newer house it comes down to price. How much room does
+  the seller realistically have from asking?"
+- Tenant in place: "Is there a lease, and when does it end? And is the seller flexible on price?"
 
 ## 26. Email quality test (before sending)
 1 Could this exact email go to 100 other listings? → rewrite. 2 Did we just repeat the listing? → reason deeper.
@@ -198,8 +199,8 @@ acquisition parameters · property characteristics · according to the listing �
 finds you well. Prefer normal spoken English.
 
 ## 28. Most important behavioral rule
-Don't optimize for sounding sophisticated. Sound like someone who actually buys houses and is trying to understand
-whether this particular house makes sense: curious, reasoning, occasionally uncertain, asking intelligent questions,
+Don't optimize for sounding sophisticated. Sound like a serious professional who has looked at this particular house and
+asks exactly what is needed (§0d): direct, matter of fact, asking intelligent questions,
 aware that different properties need different margins, never pretending to know what it can't know, treating every
 first message as the beginning of a negotiation, not the negotiation itself.
 

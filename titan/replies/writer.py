@@ -33,6 +33,9 @@ Rules (Rodrigo's, all hard):
 - Never say we are the buyer or investors ("we buy", "we're investors", "serious buyers", "genuinely interested"). Say "our side",
   "what we look for", "something we'd pursue".
 - "I" only for what {sender} did or will do; "we"/"our side" for criteria. Never powerless ("ask my boss"), never overcommitting.
+- DIRECT AND MATTER OF FACT (Rodrigo, 2026-10-28): serious, plain, never AI-ish. Never tell them what doesn't scare, bother or worry
+  us or what is "fine on our side"; never repeat their own facts back as reassurance ("with the new panel in"); never mention the
+  electrical panel; no "curious", "honestly", "potentially", "the bigger question is".
 - 25 to 90 words before the signature. No dashes of any kind (no em dash, en dash, " - " or "--"). No emojis, no links.
 - PHOTOS (Rodrigo, 2026-10-27): each property carries photos_count. With 4 or more photos the agent knows the condition is visible in the
   listing, so never ask or imply that we need to find out how much work it needs ("how much work does it need", "how deep is the project",
@@ -48,11 +51,12 @@ Return JSON: read (one line: what the agent told us and what we still need to le
 
 
 def validate_reply(body: str, props: list[dict[str, Any]] | None = None) -> list[str]:
-    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE, photo_rule_problems
+    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE, photo_rule_problems, tone_problems
     problems = []
     text = body.split("\n\nBest")[0]
     if props:
         problems += photo_rule_problems(body, props)      # Rodrigo, 2026-10-27: the photos show the work; don't ask about it
+    problems += tone_problems(body)
     words = len(text.split())
     if words < 15 or words > 140:
         problems.append(f"length {words}")

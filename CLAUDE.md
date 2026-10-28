@@ -191,7 +191,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-10-28 ~8am ET, RESUME HERE: **direct tone** (see Decisions). 44 of the first 100 Fresh Leads cards break it ("curious" 11,
   "doesn't scare us" 10, "fine on our side" 6, "the bigger question" 5…): the Mac rewrites them on its own, 15 per 20-min tick
-  (bot comment "Rewritten to be direct"), on the API; cards his comments shaped are left alone. 269 tests.
+  (bot comment "Rewritten to be direct"), on the API; cards his comments shaped are left alone. 268 tests.
 - 2026-10-28 ~7:30am ET, RESUME HERE: **no 7am report today** (none in Rodrigo's inbox by 7:25am; Mac asleep or the run failed:
   `make report` / check `logs/`). The cloud review read yesterday's 2:11pm designed report and found its data block missing: the Gmail
   connector returns the HTML part as text, so `with_data_block()` now also puts TITAN-DATA-B64 in small grey type at the foot of the

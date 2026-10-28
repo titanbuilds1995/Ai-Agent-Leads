@@ -208,7 +208,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   runs inside run-daily (step `comps`, after value, 5:30am on the Mac) → back-test on real sales, tuning, re-value the board, Claude
   review (15/day), "Comps" section in the 7am report. **Nothing to install: the Mac pulls the code on its 10-min self-update; the first
   loop runs tomorrow 5:30am** (`make comps-loop` on the Mac runs one now; `make comps-check` only measures). Grades and "Comp check"
-  appear on cards at their next rewrite / numbers snapshot. 281 tests. Next: read tomorrow's Comps section; if the back-test error is
+  appear on cards at their next rewrite / numbers snapshot. 282 tests. Next: read tomorrow's Comps section; if the back-test error is
   high (>12%) look at the by-product breakdown in `reports/comps/loop_<date>.json`.
 - 2026-10-28 ~8am ET, RESUME HERE: **direct tone** (see Decisions). 44 of the first 100 Fresh Leads cards break it ("curious" 11,
   "doesn't scare us" 10, "fine on our side" 6, "the bigger question" 5…): the Mac rewrites them on its own, 15 per 20-min tick

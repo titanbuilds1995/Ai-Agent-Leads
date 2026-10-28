@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from . import db
 from .asana import BOT, Asana, AsanaError
 from .learning import learned_block
-from .outreach.compose import EMAIL_SCHEMA, compose_email, may_ask_how_much_work, photo_rule_problems, protocol_text, seed_for, signature, validate_email, voice_text
+from .outreach.compose import EMAIL_SCHEMA, compose_email, may_ask_how_much_work, photo_rule_problems, protocol_text, seed_for, signature, tone_problems, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
 START, END = "-----EMAIL-----", "-----END EMAIL-----"
@@ -188,12 +188,15 @@ def _attach_picture(cfg: Any, asana: Asana, task: str, to: str, subject: str, bo
 
 REVISE_SYSTEM = """You revise one email from {sender} ({company}) to a listing agent, following Rodrigo's feedback exactly.
 The outreach protocol below still applies in full (no price/offer/percentage/dollar figure, no listing echo, no manufactured observations,
-one easy question, 60-120 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
+one easy question, 40-90 words, plain text, signature block unchanged, and NO dashes of any kind: no em dash, en dash, ' - ' or '--'; use commas or periods).
 The first paragraph must say who we are in a personable sentence or two ({sender} with {company}, this listing came up or stood out)
 and the company name says it all: never "we're investors", "we buy here regularly" or "genuinely interested". We never state that we
 are the buyer ("we're looking for properties in X", "what we look for", "our side"; never "we buy", "we'd buy", "serious buyers").
 and name every listed street in the body. If the feedback asks for numbers or analysis rather than a change to the email, keep the email a
 conversation (ask the agent for the fact instead of stating a figure).
+DIRECT (Rodrigo, 2026-10-28): matter of fact and serious, never AI-ish. After the intro go straight to the question. Never tell the agent
+what doesn't scare, bother or worry us or what is "fine on our side"; never recite the listing's upgrades back ("with the new electrical
+panel in"); never mention the electrical panel; no "curious", "honestly", "potentially", "the bigger question is".
 PHOTOS (Rodrigo, 2026-10-27): each property carries photos_count. With 4 or more photos the agent knows the condition is visible in the
 listing, so never ask or imply that we need to find out how much work it needs ("how much work would you say it really needs", "how deep
 is the project", "mostly cosmetic or something bigger", "what's your read on the condition"); ask about what photos can't show instead
@@ -213,7 +216,7 @@ Return JSON: subject and body (body includes the unchanged signature block)."""
 
 
 REPLY_CARD_NOTE = """
-THIS CARD IS A REPLY in an existing conversation, not a first email: no intro paragraph, ignore the 60-120 word rule (25-90 words),
+THIS CARD IS A REPLY in an existing conversation, not a first email: no intro paragraph, ignore the 40-90 word rule (25-90 words),
 keep the subject unchanged, never re-ask what the agent already answered, still one question and no number or offer language."""
 
 
@@ -795,7 +798,7 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
     """Regenerate emails still waiting for approval with the current writer and refresh their cards (text, picture, comment).
     By default only cards written before the protocol (no stored analysis); all=True redoes every To Review card.
     violating_only=True (every approvals tick, Rodrigo 2026-10-27): only cards whose text breaks the photo rule (asks how much work
-    a listing with 4+ photos needs), so the board fixes itself without his computer. Approved/sent cards are left alone."""
+    a listing with 4+ photos needs) or the direct-tone rule (2026-10-28), so the board fixes itself without his computer. Approved/sent cards are left alone."""
     a = _cfg(cfg)
     n = {"rewritten": 0, "failed": 0, "skipped_already_protocol": 0, "left_to_feedback": 0, "card_deleted": 0}
     rows = [db.row_to_dict(r) for r in conn.execute(
@@ -804,7 +807,9 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
         if limit is not None and n["rewritten"] + n["failed"] >= limit:
             break
         if violating_only:
-            if not photo_rule_problems(row.get("body") or "", _props_for(conn, row)):
+            body_now = row.get("body") or ""
+            photo_bad = bool(photo_rule_problems(body_now, _props_for(conn, row)))
+            if not photo_bad and not tone_problems(body_now):     # Rodrigo, 2026-10-28: AI-ish wording is rewritten too
                 continue
         elif only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
             n["skipped_already_protocol"] += 1
@@ -838,7 +843,10 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
         asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
                                                              listing_meta(props[0], agent, d.get("analysis"))))
         _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
-        if violating_only:
+        if violating_only and not photo_bad:
+            asana.comment(row["asana_task_id"], "Rewritten to be direct (Rodrigo, 2026-10-28): straight to the question, no \"doesn't scare "
+                                                "us\", no reciting the listing's upgrades back. New picture attached.")
+        elif violating_only:
             photos = ", ".join(str(p.get("photos_count")) if p.get("photos_count") is not None else "an unknown number of" for p in props)
             asana.comment(row["asana_task_id"], f"Rewritten: the listing has {photos} photos, so the email no longer asks how much work "
                                                 "it needs (Rodrigo, 2026-10-27). It asks about what the pictures can't show instead. New picture attached.")

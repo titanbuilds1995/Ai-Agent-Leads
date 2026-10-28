@@ -83,6 +83,34 @@ BUYER_RE = re.compile(
     r"\bwe('re| are) (the |local |serious |cash )?(buyers?|investors)\b|\binvestors? (here|who buy|like us)\b|\bwe buy\b|\bwe'?d buy\b|\bwe would buy\b|"
     r"\bwhat we buy\b|\bwe purchase\b|\bwe (flip|renovate) (houses|homes|properties)\b|\bbuy and (renovate|build|hold)\b|"
     r"\bgenuinely interested\b|\bserious (cash )?buyers?\b|\bas the buyer\b|\bwe are buying\b", re.I)
+# Rodrigo, 2026-10-28: "be more direct ... stop saying the house doesn't scare us, that sounds dumb, go straight into it ... stop
+# communicating with new electrical panel ... more matter of fact, more serious; right now it sounds very AI-ish." No telling the
+# agent what doesn't bother us, no reciting the listing's upgrades back to them, no hedges and filler. Checked on first emails,
+# rewrites and replies; waiting cards that break it are rewritten on the approvals tick.
+DIRECT_RE = re.compile(
+    r"\bdo(es)?(n'?t| not) (necessarily |automatically |really |by itself )?(scare|bother|worry|concern|faze|throw|put off|deter) (us|me)\b|"
+    r"\b(scares?|bothers?|worries) us\b|\bdo(es)?(n'?t| not) (necessarily |automatically )?(knock|rule|take) it out\b|"
+    r"\bdo(es)?(n'?t| not) (necessarily |automatically )?kill (it|the deal)\b|"
+    r"\b(is|are|'s|isn'?t|is not|aren'?t|are not) (really |necessarily |totally |pretty |perfectly |usually )?(fine|ok|okay|workable|"
+    r"an issue|a problem|a concern|a dealbreaker|a deal breaker|a big deal|a good start|a plus|no problem) (on our side|for us|from our side|with us)\b|"
+    r"\bwe('re| are) (pretty |totally |perfectly |usually )?(comfortable|fine|okay|ok) with\b|"
+    r"\bthe (age|year built|year) (itself|by itself|alone)\b|\bby itself (isn'?t|is not|doesn'?t)\b|"
+    r"\bthe (bigger|big|main|real) questions? (is|are|for us|here)\b|"
+    r"\b(just )?curious\b|\bhonestly\b|\bpotentially\b|\bmore interesting for us\b|\b(a )?good start for us\b|"
+    r"\b(pretty |a lot |actually |fairly )?close(r)? to (what|something) (we|that)\b|"
+    r"\belectrical panel\b|\b(new|newer|updated|upgraded|recent|replaced) panel\b|"
+    r"\bwith the (new|newer|updated|upgraded|recent|renovated|replaced) [a-z/ ]{2,30}? (in|done|already|handled|in place|taken care of)\b", re.I)
+
+
+def tone_problems(body: str) -> list[str]:
+    """Rodrigo, 2026-10-28: direct and matter of fact (DIRECT_RE). Checked on first emails, rewrites and replies."""
+    m = DIRECT_RE.search(body.split("\n\nBest")[0])
+    if not m:
+        return []
+    return [f"not direct ('{m.group(0)}'). Rodrigo 2026-10-28: after the intro go straight to the question; never tell the agent "
+            "what doesn't scare or bother us, never recite the listing's upgrades (new panel, new roof) back, no hedging or filler"]
+
+
 # Rodrigo, 2026-10-27: "if the listing has 10 or 15 pictures we get a very clear idea of the work it needs, so saying we need to
 # know how much work it needs sounds dumb." With 4+ photos the email never asks or implies that we need to find out how much work
 # the house needs (ask about what photos can't show instead: roof/AC age, plumbing, electrical, permits, occupancy, flexibility).
@@ -160,11 +188,12 @@ Working rules for this call:
 - Do not quote or paraphrase the listing's own wording back to the agent. Reason one level deeper instead.
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
-- One natural question an agent can answer easily (two at most). 60-120 words before the signature including the intro. Vary the opening naturally.
+- One natural question an agent can answer easily (two at most). 40-90 words before the signature including the intro. Vary the opening naturally.
+- DIRECT AND MATTER OF FACT (Rodrigo, 2026-10-28: "it sounds very AI-ish"): after the intro line go straight into it, at most one short sentence of context that drives the question, then the question. Serious, plain, like a busy professional. NEVER tell the agent what doesn't scare, bother or worry us or what is "fine on our side" ("a 1949 house doesn't scare us", "the age by itself isn't an issue", "adding central AC is fine on our side"). NEVER recite the listing's upgrades or features back ("with the new electrical panel in", "the newer roof helps"); the agent wrote the listing. Don't mention the electrical panel at all. No hedging or filler: no "curious", "honestly", "potentially", "the bigger question is", "this could be close to something we'd pursue", "a good start for us". Good: "Hey Oscar,\n\nCharles with Titan Realty Investments. I saw your listing on NW 1st Ave.\n\nWas the extra bedroom and bath permitted? And how old is the roof?"
 - LAYOUT (Rodrigo, 2026-10-26): greeting alone on the first line ("Hey Eugene,"), then a blank line, then short paragraphs of 1 to 3 sentences separated by blank lines; the question in its own paragraph. Never one block of text.
 - PLAIN INTRO (Rodrigo, 2026-10-26): "Charles with Titan Realty Investments. I saw your listing on <street>." Never "I'll keep this short", "stood out to me", "caught my eye" or "we're looking for properties in X and the surrounding area". Never claim anything about the photos (we have not seen them).
 - Write as {sender} in first person. Address the agent by first name.
-- INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, and that this listing came up / stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name says it all: do NOT say "we're investors", "we buy in this area regularly" or "genuinely interested" (reads as AI and raises red flags). Directed at the agent, plain talk, not a pitch (no "we specialize in", no credentials list). Then the property reasoning and the question.
+- INTRODUCE YOURSELF FIRST (Rodrigo): the agent has no idea who we are. The first paragraph, in one or two personable sentences, says who you are and why you're writing: {sender} with {company}, and that this listing came up / stood out (for a brand-new listing: it just came up and we'd like to get in front of it early). The company name says it all: do NOT say "we're investors", "we buy in this area regularly" or "genuinely interested" (reads as AI and raises red flags). Directed at the agent, plain talk, not a pitch (no "we specialize in", no credentials list). Then straight to the question (one short sentence of context at most).
 - WE NEVER SAY WE ARE THE BUYER (Rodrigo, 2026-10-25). Say "we're looking for properties in X", "what we look for", "our side", "something we'd pursue", "close to what works for us". Never "we buy", "we'd buy", "what we buy", "we're the buyer", "serious buyers", "we're investors". Words that infer buying, never the statement.
 - If two properties are given, lead with the first and name the second by its street in one sentence; both streets must appear.
 - End with the signature block from the input, unchanged. It already begins with "Best regards," so do NOT add another sign-off line ("Thanks," / "Appreciate it,") before it.
@@ -237,91 +266,79 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     # Rodrigo, 2026-10-27: a listing with photos shows the condition, so no angle below asks how much work the house needs or
     # whether it's "cosmetic or something bigger". They ask about what photos can't show (roof/AC age, systems, permits,
     # occupancy, why it's sitting, seller flexibility). Only "few_photos" (fewer than 4 pictures up) may ask about the work.
+    # Rodrigo, 2026-10-28: direct and matter of fact. After the intro go straight to what we need; no "the age doesn't scare
+    # us", no reciting the listing's upgrades back, no hedging (DIRECT_RE).
     "reduced": [   # price moved, sitting a while: pricing issue vs seller issue (§23)
         ("Quick question on {street_name}",
-         "Hey {first}, I've been looking at the property on {street_name}. I saw they've already moved the price since it hit the market, "
-         "so I'm wondering if this is becoming more of a pricing issue than anything about the house.{near_ask} Do you think the "
-         "seller is getting closer to where they'd entertain an investor number?\n\n{sign}"),
+         "Hey {first}, the price has already come down once since it was listed.{near_ask} Where does the seller realistically "
+         "need to be, and how soon do they want to close?\n\n{sign}"),
         ("{street_name}",
-         "{first}, I went through the listing on {street_name}. With the price having come down a bit, I'm curious whether the seller "
-         "is starting to get realistic or whether something else has been holding it back.{near_ask} "
-         "What's your read on where they really need to be?\n\n{sign}"),
+         "{first}, it's had a reduction and it's still on the market.{near_ask} What has held it back, and does the seller "
+         "have more room on price?\n\n{sign}"),
     ],
     "sitting": [   # long DOM, no cuts: why is it sitting? (§6)
         ("The house on {street_name}",
-         "Hey {first}, I've been watching the house on {street_name} because it's been sitting for a while. It could work for us, but "
-         "I'm curious whether that's mostly price or if there's something about the property I'm missing.{near_ask} What's been "
-         "holding this one back?\n\n{sign}"),
+         "Hey {first}, it's been on the market a while.{near_ask} What has held it back, and is the seller flexible on "
+         "price?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on {street_name}. It's been on the market a bit, and before I spend your time on numbers I'd like "
-         "to understand the story. Is it a price thing, a seller thing, or just the market? And has anything fallen through on it "
-         "before?{near_ask}\n\n{sign}"),
+         "Hey {first}, two questions before we run numbers.{near_ask} Why is it still sitting, and has a contract fallen "
+         "through on it before?\n\n{sign}"),
     ],
     "heavy": [     # old house / investor-special signals: the big-ticket items photos can't show (§24)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the property on {street_name}. This one looks like it could work for us. The age itself "
-         "doesn't knock it out; what matters on our side is the stuff a listing doesn't show. Do you know roughly how old "
-         "the roof is, and whether the plumbing and electrical have ever been redone?\n\n{sign}"),
+         "Hey {first}, two questions before we run numbers. How old are the roof and the AC, and has the plumbing ever "
+         "been replaced?\n\n{sign}"),
         ("{street_name}: a couple of questions",
-         "{first}, I went through the listing on {street_name}. A house that age is fine on our side as long as the big-ticket "
-         "items aren't all coming due at once. How old are the roof and the AC? And has the seller had investor offers yet, or is "
-         "this the first one?\n\n{sign}"),
+         "{first}, the roof and the AC decide our number on this one. How old are they? And has the seller had other cash "
+         "offers yet?\n\n{sign}"),
     ],
     "cosmetic": [  # dated-not-distressed hypothesis (§2, §22)
         ("The house on {street_name}",
-         "Hey {first}, I was looking at the house on {street_name}. From the description it sounds more dated than truly distressed. "
-         "If the roof, AC and the major stuff are still in decent shape, this might actually be pretty close to something we'd look "
-         "at.{near_ask} Do you know roughly how old the roof and the AC are?\n\n{sign}"),
+         "Hey {first}, the roof and the AC decide our number on this one.{near_ask} How old are they, and is the seller "
+         "flexible on price?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on your {street_name} listing. It sounds dated more than anything, and the updating itself is "
-         "fine on our side; the roof, AC and plumbing are what would move the number for us.{near_ask} Have any of those been "
-         "replaced, and is the seller open to some room from asking?\n\n{sign}"),
+         "Hey {first}, two questions before we run numbers.{near_ask} Have the roof, AC or plumbing been replaced, and "
+         "when? And does the seller have room from asking?\n\n{sign}"),
     ],
     "newer": [     # newer build: probably not a huge project (§25)
         ("{street_name}",
-         "Hey {first}, the house on {street_name} actually looks pretty close to what we're looking for. With it being a newer build it "
-         "doesn't sound like we'd be taking on a huge project, so the bigger question is the seller.{near_ask} Do you know how much "
-         "room they realistically have from the asking price?\n\n{sign}"),
+         "Hey {first}, on a newer house it comes down to price.{near_ask} How much room does the seller realistically have "
+         "from asking?\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, curious about something on the {street_name} property. Newer house, so from our side it probably isn't a big "
-         "rehab, which makes it more about whether the numbers can line up.{near_ask} Is the seller open to some flexibility, or are "
-         "they set on staying close to asking?\n\n{sign}"),
+         "Hey {first}, newer house, so it comes down to the seller's number.{near_ask} Are they flexible, or set on staying "
+         "close to asking? And is anyone living there now?\n\n{sign}"),
     ],
     "land": [      # vacant land: no renovation talk; the questions are use, utilities and seller flexibility
         ("Quick question on the lot on {street_name}",
-         "Hey {first}, quick question on the lot on {street_name}. This one could work for us depending on what's possible with it. Do you know if the seller has some flexibility on price, and whether there's "
-         "anything with zoning, access or utilities I should know about before I dig into the numbers?\n\n{sign}"),
+         "Hey {first}, two questions on the lot. Is the seller flexible on price, and is there anything on zoning, access "
+         "or utilities we should know before we run numbers?\n\n{sign}"),
         ("The lot on {street_name}",
-         "{first}, I was looking at the lot on {street_name}. Before I spend your time on numbers, is the seller open to some "
-         "flexibility, or are they firm near asking? And is there anything about the parcel that's been holding it back?\n\n{sign}"),
+         "{first}, does the seller have room from asking on the lot? And is there anything about the parcel that has kept "
+         "it from selling?\n\n{sign}"),
     ],
     "few_photos": [  # fewer than 4 pictures up: the one case where we may say we can't see the condition (Rodrigo, 2026-10-27)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the house on {street_name}. There's not much to go on in the listing, so I honestly can't "
-         "tell from here how much work it needs. Is it mostly cosmetic, or is there something bigger going on with the roof or "
-         "the systems?{near_ask} And is the seller open to some flexibility?\n\n{sign}"),
+         "Hey {first}, there isn't much to go on in the listing.{near_ask} How much work does it need, and is the seller "
+         "flexible on price?\n\n{sign}"),
         ("The house on {street_name}",
-         "{first}, I went through your listing on {street_name}. With only a few pictures up it's hard to tell what kind of shape "
-         "it's in, and that's really the piece that decides whether it works for us.{near_ask} How much work would you say it "
-         "really needs?\n\n{sign}"),
+         "{first}, with only a few pictures up we can't see the condition.{near_ask} How much work does it need, and is "
+         "anyone living there?\n\n{sign}"),
     ],
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
-         "Hey {first}, quick question on the house on {street_name}. It could potentially work for us. What I can't get from the "
-         "listing is the age of the roof and the AC, and whether the seller has any room from asking.{near_ask} Do you know where "
-         "they stand on both?\n\n{sign}"),
+         "Hey {first}, two questions before we run numbers.{near_ask} How old are the roof and the AC? And does the seller "
+         "have any room from asking?\n\n{sign}"),
         ("The house on {street_name}",
-         "{first}, I went through the listing on {street_name}. Honestly this one may be closer to what we're looking for than I initially "
-         "thought, as long as we're not dealing with a roof, AC or plumbing project on top of everything else.{near_ask} Do you know "
-         "how old the roof and the AC are?\n\n{sign}"),
+         "{first}, a couple of questions.{near_ask} Is anyone living there right now, and is the seller flexible on "
+         "price?\n\n{sign}"),
     ],
 }
 MULTI_TEMPLATE = ("A few of your listings",
-                  "Hey {first}, I went through a few of your listings and a couple could work for us:\n{lines}\n\n"
-                  "Before I spend your time on numbers: do any of those sellers have some room from asking? And is there anything about "
-                  "them I should know that isn't in the listing, like roof age or a tenant in place?\n\n{sign}")
+                  "Hey {first}, a couple of your listings could work for us:\n{lines}\n\n"
+                  "Do any of those sellers have room from asking? And is there anything we should know that isn't in the listing, "
+                  "like roof age or a tenant in place?\n\n{sign}")
 
-NEAR_ASK_LINE = " I did look at the asking price and it doesn't seem too far from where we'd need to be."
+NEAR_ASK_LINE = " The asking price isn't far from where we'd need to be."
 
 HEAVY_RE = re.compile(r"investor special|handyman|cash only|cash buyers? only|fixer|gut|major repairs|needs (a )?(new )?roof|"
                       r"structural|fire damage|water damage|mold|tear ?down|as[- ]is where[- ]is|sold as is for land", re.I)
@@ -499,7 +516,7 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
     if not any(street_name(p.get("street")) and street_name(p.get("street")) in body for p in props):
         problems.append("no address")
     words = len(body.split("\n\nBest")[0].split()) if "\n\nBest" in body else len(body.split())
-    if words < 30 or words > 150:          # protocol §18: ~50-110 words before the signature
+    if words < 25 or words > 130:          # protocol §18: ~40-90 words before the signature (Rodrigo 2026-10-28: direct)
         problems.append(f"length {words}")
     if BANNED_RE.search(body) or BANNED_RE.search(subject):
         problems.append("protocol language (listing echo / fake observation / corporate phrasing)")
@@ -516,6 +533,7 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
     if PERSONAL_RE.search(body):
         problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
     problems += photo_rule_problems(body, props)
+    problems += tone_problems(body)
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):
         problems.append("double sign-off")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):

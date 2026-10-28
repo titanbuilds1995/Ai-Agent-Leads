@@ -34,9 +34,9 @@ def test_first_touch_is_conversation_first(cfg):
     for seed in range(12):
         d = compose_email(None, cfg, _agent(), [_prop()], seed)
         text = d["body"].split("\n\nBest")[0].lower()
-        assert "?" in text and any(k in text for k in ("flexib", "room", "roof", "entertain", "holding", "offers"))
+        assert "?" in text and any(k in text for k in ("flexib", "room", "roof", "seller", "held", "offers"))
         assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
-        assert "doesn't seem too far" not in text          # no preliminary analysis on this prop → never implied
+        assert "isn't far from where" not in text          # no preliminary analysis on this prop → never implied
         assert not BANNED_RE.search(d["body"])             # no listing echo, no fake observations, no corporate phrasing
         assert "—" not in d["body"] and " - " not in d["body"] and "—" not in d["subject"]   # Rodrigo: no dashes
 
@@ -50,7 +50,7 @@ def test_never_quotes_the_listing_back(cfg):
               price_cuts=0, days_on_market=20)
     body = compose_email(None, cfg, _agent(), [p], 0)["body"]
     assert "needs TLC" not in body and "great bones" not in body
-    assert "dated" in body.lower() or "cosmetic" in body.lower()  # reasons one level deeper instead (§2)
+    assert "roof" in body.lower() or "seller" in body.lower()      # asks what the listing can't show (§0d: no echo, straight to it)
 
 
 def test_angle_follows_the_facts(cfg):
@@ -81,10 +81,10 @@ def test_close_to_asking_line_only_when_analysis_supports_it(cfg):
     base = dict(arv=500_000, repair_cost=20_000, arv_method="comps", comp_count=6, zip="33125", property_type="single_family", mao=310_000)
     near = _prop(list_price=300_000, **base)        # ask at/below our internal target
     far = _prop(list_price=380_000, **base)         # 23% over the target: never implied
-    assert any("doesn't seem too far" in compose_email(None, cfg, _agent(), [near], s)["body"] for s in range(8))
-    assert all("doesn't seem too far" not in compose_email(None, cfg, _agent(), [far], s)["body"] for s in range(8))
+    assert any("isn't far from where" in compose_email(None, cfg, _agent(), [near], s)["body"] for s in range(8))
+    assert all("isn't far from where" not in compose_email(None, cfg, _agent(), [far], s)["body"] for s in range(8))
     guessed = _prop(list_price=300_000, **dict(base, arv_method="estimate"))
-    assert all("doesn't seem too far" not in compose_email(None, cfg, _agent(), [guessed], s)["body"] for s in range(8))
+    assert all("isn't far from where" not in compose_email(None, cfg, _agent(), [guessed], s)["body"] for s in range(8))
 
 
 def test_validator_rejects_price_language(cfg):
@@ -245,7 +245,7 @@ def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
     from titan.outreach.compose import PERSONAL_RE
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. The age itself doesn't knock it out for us; what matters on our side is whether the big systems are coming due. How old are the roof and the AC?"
+    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. What matters on our side is whether the big systems are coming due. How old are the roof and the AC?"
     assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
     for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
                 "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):
@@ -281,7 +281,7 @@ def test_photo_rule_rodrigo_2026_10_27(cfg):
     only with fewer than 4 photos may it (then the template says the listing doesn't give much to go on)."""
     from titan.outreach.compose import angle_for, may_ask_how_much_work
     sig = "\n\nBest regards,\n\nCharles Grant"
-    head = "Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St. The age doesn't knock it out for us, as long as the big items aren't all coming due at once. "
+    head = "Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St. The roof and the AC decide our number on this one, so a couple of questions first. "
     asks = ("How much work would you say it really needs?", "How deep of a project is it?", "Is it mostly cosmetic, or is there something bigger going on?",
             "What's your read on the condition?", "What we'd want to understand is whether it's cosmetic updating or whether the big systems are coming due. Any flexibility?",
             "Does it need much beyond cosmetic work?", "I can't really tell from the listing what it needs. Any flexibility?",
@@ -304,6 +304,36 @@ def test_photo_rule_rodrigo_2026_10_27(cfg):
         assert "work" in thin.lower() and validate_email("s", thin, few) == []
         full = compose_email(None, cfg, _agent(), many, seed)["body"]
         assert validate_email("s", full, many) == []
+
+
+def test_direct_tone_rodrigo_2026_10_28(cfg):
+    """Rodrigo: "stop saying the house doesn't scare us ... stop with 'new electrical panel' ... sounds very AI-ish"."""
+    from titan.outreach.compose import EMAIL_TEMPLATES, MULTI_TEMPLATE, NEAR_ASK_LINE, tone_problems
+    from titan.replies.writer import validate_reply
+    sig = "\n\nBest regards,\n\nCharles Grant"
+    head = "Hey Oscar,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St in Miami.\n\n"
+    bad = ("A 1949 block house doesn't scare us.", "With the new electrical panel in, the roof matters more.",
+           "Adding central AC is fine on our side.", "The age by itself doesn't bother us.", "A 2006 build is a good start for us.",
+           "The bigger questions are the roof and the plumbing.", "I'm curious whether the seller is flexible.",
+           "Honestly this one could work.", "This could be close to something we'd pursue.", "A 1923 house is fine on our side.",
+           "An original roof doesn't automatically kill it for us.", "We're pretty comfortable with cosmetic work.",
+           "The age itself doesn't necessarily knock it out.", "Is the electrical panel original?")
+    q = " Was the extra bedroom and bath permitted? And how old is the roof?"
+    for b in bad:
+        body = head + b + q + sig
+        assert tone_problems(body), b
+        assert any("not direct" in x for x in validate_email("Quick question on NW 11th St", body, [_prop(photos_count=12)])), b
+        assert any("not direct" in x for x in validate_reply("Thanks Oscar, that helps. " + b + q + sig)), b
+    good = head + "Was the extra bedroom and bath permitted? And how old is the roof?" + sig
+    assert tone_problems(good) == [] and validate_email("Quick question on NW 11th St", good, [_prop(photos_count=12)]) == []
+    texts = [b for opts in EMAIL_TEMPLATES.values() for _, b in opts] + [MULTI_TEMPLATE[1], NEAR_ASK_LINE]
+    assert all(tone_problems(t) == [] for t in texts)
+    for angle_prop in (_prop(photos_count=12), _prop(photos_count=2), _prop(remarks="", year_built=2008, price_cuts=0, days_on_market=5),
+                       _prop(remarks="", price_cuts=0, days_on_market=90), _prop(remarks="Dated, original kitchen", price_cuts=0),
+                       _prop(property_type="land", remarks="")):
+        for seed in range(8):
+            d = compose_email(None, cfg, _agent(), [angle_prop], seed)
+            assert validate_email(d["subject"], d["body"], [angle_prop]) == [], d["body"]
 
 
 def test_first_touch_prompt_carries_the_photo_count(cfg):

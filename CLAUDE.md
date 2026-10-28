@@ -176,12 +176,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   after he touched it goes to Needs Me**, never back to Fresh Leads: a rewrite from his comment, a hold or a question answered
   (card moves out of Fresh Leads), numbers, a call card, a dictated answer's reply card, every engine-drafted reply card
   (`post_reply_card` default), the autopilot go-ahead card. Cloud sessions doing card work by hand: same rule.
+- **Direct and matter of fact (Rodrigo, 2026-10-28: "stop saying the house doesn't scare us, that sounds dumb, go straight into
+  it ... stop with 'new electrical panel' ... sound more serious, it sounds very AI-ish"):** after the intro line go straight to
+  the question (one short sentence of context at most). Never tell the agent what doesn't scare / bother / worry us or what is
+  "fine on our side"; never recite the listing's upgrades back; never mention the electrical panel; no "curious", "honestly",
+  "potentially", "the bigger question is". 40–90 words. Code: `DIRECT_RE` / `tone_problems()` in compose.py (first emails,
+  rewrites, replies), protocol §0d, voice protocol examples rewritten, templates rewritten; every approvals tick rewrites up to
+  15 waiting cards that still break it (same path as the photo rule).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-28 ~8am ET, RESUME HERE: **direct tone** (see Decisions). 44 of the first 100 Fresh Leads cards break it ("curious" 11,
+  "doesn't scare us" 10, "fine on our side" 6, "the bigger question" 5…): the Mac rewrites them on its own, 15 per 20-min tick
+  (bot comment "Rewritten to be direct"), on the API; cards his comments shaped are left alone. 269 tests.
 - 2026-10-28 ~7:30am ET, RESUME HERE: **no 7am report today** (none in Rodrigo's inbox by 7:25am; Mac asleep or the run failed:
   `make report` / check `logs/`). The cloud review read yesterday's 2:11pm designed report and found its data block missing: the Gmail
   connector returns the HTML part as text, so `with_data_block()` now also puts TITAN-DATA-B64 in small grey type at the foot of the

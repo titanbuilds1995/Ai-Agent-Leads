@@ -57,7 +57,7 @@ valuation:
   comps_source: "homeharvest"   # sold comps: homeharvest (free) or apify (Zillow sold actor)
   comp_radius_miles: 0.5
   comp_sqft_tolerance_pct: 25
-  comp_months: 6
+  comp_months: 12               # Rodrigo's comps rule: last 12 months (the engine and the numbers snapshot use the same window; newer sales rank higher)
   min_comps: 3
   max_arv_to_list: 1.75          # ARV above 1.75× the ask is flagged *_suspect (bad comps/sqft), never HOT, never "close to asking"
   fallback_radius_miles: 1.0
@@ -67,6 +67,37 @@ valuation:
     heavy: 0
     gut: 0
   land_arv_per_acre_default: 150000
+
+comps:
+  # COMP ENGINE (Rodrigo, 2026-10-28: "the comps are just incorrect"; titan/comps_engine.py). Same product only (a townhouse in
+  # an HOA never comps against detached pool houses), waterfront and new-build sales out unless we are one, $/sf outliers out,
+  # beds / year built / lot matched when known, similarity-ranked; renovated sales set the exit; split layouts and unpermitted
+  # work discount it. Radius / size / year / beds below are STARTING values: data/comps_tuning.json (written by the daily loop)
+  # overrides them when real sales say so.
+  tuning_file: "data/comps_tuning.json"
+  radius_miles: 0.5
+  fallback_radius_miles: 1.0
+  max_radius_miles: 2.0
+  sqft_tol_pct: 25
+  relaxed_sqft_tol_pct: 35
+  beds_tol: 1
+  year_tol: 30
+  lot_ratio: [0.4, 2.5]
+  ppsf_band: [0.5, 1.7]            # keep sales within 0.5x..1.7x the group's median $/sf
+  min_price: 30000                 # below this a "sale" is a deed transfer, not a price
+  want: 10
+  layout_discount_pct: {split: 8, unpermitted: 7, sqft_suspect: 5}
+  loop:                            # the daily loop (titan/comps_loop.py; run-daily step "comps", `make comps-loop`)
+    enabled: true
+    tests_per_zip: 25              # back-test sample: sold homes per ZIP pool valued from the other sales in the pool
+    max_zips: 40
+    tune_seconds: 240
+    min_tests: 150                 # adopt new settings only on at least this many test sales...
+    min_gain_pts: 0.3              # ...and a clear gain in median error (percentage points)
+    change_pct: 10                 # log (and post on the card) an ARV that moved this much
+    claude_reviews_per_day: 15     # paid API, pennies each: the comp sets behind the houses Rodrigo is working, oldest review first
+    review_every_days: 7
+    post_changes: true             # one short comment on the lead card when its ARV moved
 
 targeting:
   # Ideal seller: sitting 60+ days, best with price drops / back on market. Also: fresh listings whose price already works.

@@ -47,9 +47,25 @@ CREATE TABLE IF NOT EXISTS valuations (
   property_id INTEGER PRIMARY KEY REFERENCES properties(id),
   arv INTEGER, arv_method TEXT, comp_count INTEGER, ppsf REAL,
   repair_tier TEXT, repair_cost INTEGER, mao INTEGER, list_price INTEGER, spread_pct REAL,
-  offer_price INTEGER, rating TEXT, comps TEXT, valued_at TEXT NOT NULL, lane TEXT
+  offer_price INTEGER, rating TEXT, comps TEXT, valued_at TEXT NOT NULL, lane TEXT, comp_grade TEXT, comp_notes TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_valuations_rating ON valuations(rating);
+
+-- Comp quality loop (titan/comps_loop.py, 2026-10-28): daily back-test of the comp rules on real sales, what it changed,
+-- and Claude's review of the comp set behind the houses Rodrigo is working.
+CREATE TABLE IF NOT EXISTS comps_calibration (
+  id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, scope TEXT NOT NULL, params TEXT NOT NULL, n_tests INTEGER,
+  mdape REAL, mape REAL, within_10_pct REAL, baseline_mdape REAL, adopted INTEGER DEFAULT 0, note TEXT, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS comps_changes (
+  id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, property_id INTEGER NOT NULL, old_arv INTEGER, new_arv INTEGER,
+  old_grade TEXT, new_grade TEXT, why TEXT, posted INTEGER DEFAULT 0, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS comps_review (
+  id INTEGER PRIMARY KEY, property_id INTEGER NOT NULL, run_date TEXT NOT NULL, exclude_keys TEXT, subject_flags TEXT,
+  arv_low INTEGER, arv_high INTEGER, confidence TEXT, note TEXT, model TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comps_review_pid ON comps_review(property_id, id);
 
 CREATE TABLE IF NOT EXISTS outreach (
   id INTEGER PRIMARY KEY,
@@ -143,7 +159,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outreach ADD COLUMN asana_task_id TEXT", "ALTER TABLE outreach ADD COLUMN analysis TEXT",
               "ALTER TABLE messages ADD COLUMN mirrored_at TEXT", "ALTER TABLE outreach ADD COLUMN draft_body TEXT",
-              "ALTER TABLE messages ADD COLUMN reply_card TEXT", "ALTER TABLE messages ADD COLUMN reply_draft TEXT"]   # databases created before the column existed
+              "ALTER TABLE messages ADD COLUMN reply_card TEXT", "ALTER TABLE messages ADD COLUMN reply_draft TEXT",
+              "ALTER TABLE valuations ADD COLUMN comp_grade TEXT", "ALTER TABLE valuations ADD COLUMN comp_notes TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

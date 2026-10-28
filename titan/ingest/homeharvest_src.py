@@ -157,7 +157,9 @@ def comp_details(it: dict[str, Any], l) -> dict[str, Any]:
     """What a comps snapshot shows besides price and size (Rodrigo's compact comps: pool/water, condition, MLS #)."""
     tags = {str(t).lower() for t in (it.get("tags") or []) if t}
     src = it.get("source") or {}
+    desc = it.get("description") if isinstance(it.get("description"), dict) else {}
     return {"year_built": l.year_built, "beds": l.beds, "baths": l.baths, "remarks": (l.remarks or "")[:400],
+            "hoa": l.hoa, "sub_type": desc.get("sub_type"), "units": l.units, "tags": sorted(tags)[:12],
             "pool": any("pool" in t for t in tags) or None, "water": any(w in t for t in tags for w in ("waterfront", "lake", "canal", "water_view")) or None,
             "mls": (src.get("listing_id") if isinstance(src, dict) else None) or it.get("mls_id") or it.get("listing_id")}
 

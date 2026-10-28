@@ -176,12 +176,33 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   after he touched it goes to Needs Me**, never back to Fresh Leads: a rewrite from his comment, a hold or a question answered
   (card moves out of Fresh Leads), numbers, a call card, a dictated answer's reply card, every engine-drafted reply card
   (`post_reply_card` default), the autopilot go-ahead card. Cloud sessions doing card work by hand: same rule.
+- **Comps (Rodrigo, 2026-10-28: "the comps are just incorrect"; he starts his offers from these numbers):** `titan/comps_engine.py` is the
+  one place comps are picked, for the engine's valuation AND the numbers snapshot. Same PRODUCT only (a townhouse in an HOA never comps
+  against detached pool houses, a duplex is not a house), no waterfront / new-build sales unless we are one, $/sf outliers out, beds /
+  year built / lot matched when known, similarity-ranked, renovated sales set the exit, split layouts / unpermitted work / impossible bed
+  counts discount the ARV with the reason shown. Every valuation has a **comps grade A–D** (`comp_grade`; on the card's listing line and
+  in the snapshot's "Comp check"): A = build on it, D = a guess. **Daily loop** `titan/comps_loop.py` (run-daily step `comps`, by hand
+  `make comps-loop`, measure-only `make comps-check`): back-tests the rules on real sales (every sold home in a ZIP pool valued from the
+  others), tunes radius / size / year / beds and keeps a setting only on 150+ sales with a clear gain (`data/comps_tuning.json`, read by
+  the engine), re-values every house on the board + HOT (an ARV move of 10%+ gets one comment on the lead card), and **Claude reviews
+  the comp sets behind the houses he is working** (`comps.loop.claude_reviews_per_day` 15, paid API like the other card work; its
+  exclusions feed the valuation; his comp comments from the cards are in its prompt). Morning report section "Comps (how good the
+  numbers are)". Comps window = last 12 months (his rule) for both paths.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-28 ~2pm ET, RESUME HERE: **comp engine rebuilt + daily comp loop** (Rodrigo: "the comps are just incorrect … fix the engine …
+  run a loop daily"). Built from the real misses on the cards: townhouse vs pool houses (Castro), split layout + waterfront lot sales
+  (Carlton), $3.1M new build next to a 1942 duplex (Dipietro), unpermitted 4-bed in 1,166 sf (McCarthy). New `titan/comps_engine.py`
+  (product match, exclusions, similarity ranking, layout discounts, grade A–D) used by valuation and the snapshot; `titan/comps_loop.py`
+  runs inside run-daily (step `comps`, after value, 5:30am on the Mac) → back-test on real sales, tuning, re-value the board, Claude
+  review (15/day), "Comps" section in the 7am report. **Nothing to install: the Mac pulls the code on its 10-min self-update; the first
+  loop runs tomorrow 5:30am** (`make comps-loop` on the Mac runs one now; `make comps-check` only measures). Grades and "Comp check"
+  appear on cards at their next rewrite / numbers snapshot. 281 tests. Next: read tomorrow's Comps section; if the back-test error is
+  high (>12%) look at the by-product breakdown in `reports/comps/loop_<date>.json`.
 - 2026-10-28 ~7:30am ET, RESUME HERE: **no 7am report today** (none in Rodrigo's inbox by 7:25am; Mac asleep or the run failed:
   `make report` / check `logs/`). The cloud review read yesterday's 2:11pm designed report and found its data block missing: the Gmail
   connector returns the HTML part as text, so `with_data_block()` now also puts TITAN-DATA-B64 in small grey type at the foot of the

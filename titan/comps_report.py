@@ -13,7 +13,7 @@ import re
 import statistics
 from datetime import datetime, timedelta
 from statistics import mean, median
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from . import db
 from .util import log, today_et
@@ -43,28 +43,22 @@ def _ppsf(c: dict[str, Any]) -> float | None:
     return c["sold_price"] / c["sqft"] if c.get("sold_price") and c.get("sqft") else None
 
 
-def pick_comps(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, want: int = 10) -> tuple[list[dict[str, Any]], str]:
-    """6–10 closest sales of the same product: the normal radius, widened step by step only when too few. When our own
-    size is unknown, the nearest sales of the same type (size can't be matched; said under Still open)."""
-    radius = cfg.get("valuation.comp_radius_miles", 0.5)
-    if not p.get("sqft") and p.get("property_type") != "land":
-        same = [c for c in candidates if c.get("sold_price") and (not c.get("property_type") or c["property_type"] == p.get("property_type"))]
-        for c in same:
-            if p.get("lat") and c.get("lat"):
-                c["distance_mi"] = round(haversine_miles(p["lat"], p["lng"], c["lat"], c["lng"]), 2)
-        comps = [c for c in same if c.get("distance_mi") is None or c["distance_mi"] <= 2.0]
-        radius = 2.0
-    else:
-        for radius in (cfg.get("valuation.comp_radius_miles", 0.5), cfg.get("valuation.fallback_radius_miles", 1.0), 2.0):
-            comps = select_comps(p, candidates, cfg, radius=radius)
-            if len(comps) >= 6:
-                break
-    comps = sorted(comps, key=lambda c: (c.get("distance_mi") if c.get("distance_mi") is not None else 9, -(_date_key(c))))
-    comps = dedupe(comps)
-    if (p.get("units") or 0) > 1:
-        comps = drop_ppsf_outliers(comps)
-    comps = sorted(comps[:want], key=lambda c: -_date_key(c))
-    return comps, f"within {radius:g} mi" if p.get("lat") else f"ZIP {p.get('zip')}"
+def pick_comps(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, want: int = 10,
+               exclude: Iterable[str] = ()) -> tuple[list[dict[str, Any]], str]:
+    """6–10 most similar sales of the same product (titan/comps_engine.py: same product only, no waterfront or new-build
+    pollution, $/sf outliers out, nearest radius that gives enough). Same rules as the engine's own valuation."""
+    sel = select_for(p, candidates, cfg, want=want, exclude=exclude)
+    return sel["comps"], sel["area"]
+
+
+def select_for(p: dict[str, Any], candidates: list[dict[str, Any]], cfg: Any, want: int = 10,
+               exclude: Iterable[str] = ()) -> dict[str, Any]:
+    from . import comps_engine as ce
+    prm = ce.params(cfg, ce.product(p))
+    prm["min_comps"] = max(int(prm.get("min_comps", 3)), 6)      # the snapshot wants a fuller table than the screen
+    sel = ce.select(p, candidates, prm, exclude=exclude, want=want)
+    sel["params"] = prm
+    return sel
 
 
 def drop_ppsf_outliers(comps: list[dict[str, Any]], low: float = 0.5, high: float = 1.6) -> list[dict[str, Any]]:
@@ -158,7 +152,11 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
         source = f"the comps the engine stored on {str(v.get('valued_at') or '')[:10]} (no fresh pull on this machine)"
         period = f"last {cfg.get('valuation.comp_months', 6)} months, stored"
     land = p.get("property_type") == "land"
-    comps, area = pick_comps(p, candidates, cfg)
+    from . import comps_engine as ce
+    from .valuation import review_exclusions
+    review = latest_review(conn, property_id)
+    sel = select_for(p, candidates, cfg, exclude=review_exclusions(conn, property_id))
+    comps, area = sel["comps"], sel["area"]
     for c in comps:
         c["ppsf"] = _ppsf(c)
         c["condition"] = condition_of(c.get("remarks"))
@@ -170,23 +168,18 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     suspect = (v.get("arv_method") or "").endswith("_suspect")
     tier = v.get("repair_tier") or repair_tier(p.get("remarks") or "", cfg["repairs"].get("default_tier", "moderate"))
     repairs = 0 if land else int(v.get("repair_cost") or repair_cost(p, tier, cfg) or 0)
-    arv, arv_basis = None, ""
-    if land:
-        lots = [c for c in comps if c.get("lot_sqft")]
-        if lots and p.get("lot_sqft"):
-            per = median(c["sold_price"] / c["lot_sqft"] for c in lots)
-            arv, arv_basis = int(round(per * p["lot_sqft"], -3)), f"median ${per:,.0f} per lot sf of {len(lots)} lot sales"
-    elif sqft:
-        if len(reno) >= 3:
-            arv_psf, arv_basis = median(c["ppsf"] for c in reno), f"median $/sf of the {len(reno)} renovated sales"
-        elif len(priced) >= 4:
-            top = sorted(c["ppsf"] for c in priced)[len(priced) // 2:]
-            arv_psf, arv_basis = median(top), f"median $/sf of the top half of {len(priced)} sales (few say renovated)"
-        elif priced:
-            arv_psf, arv_basis = median(c["ppsf"] for c in priced), f"median $/sf of only {len(priced)} sales (thin)"
-        else:
-            arv_psf = None
-        arv = int(round(arv_psf * sqft, -3)) if arv_psf else None
+    est = ce.arv(p, comps, sel["params"])
+    arv, arv_basis = est["arv"], est["basis"]
+    g = ce.grade(p, sel)
+    comp_check = [ce.grade_line(g)]
+    if sel["product"]:
+        comp_check.append(f"Product: {sel['product']}; only {sel['product']} sales count.")
+    if sel["dropped"]:
+        comp_check.append("Ruled out: " + "; ".join(ce.drop_summary(sel["dropped"])) + ".")
+    comp_check += [n[0].upper() + n[1:] + "." for n in sel["notes"]]
+    comp_check += [r[0].upper() + r[1:] + "." for r in est["reasons"]]
+    if review:
+        comp_check.append(review_line(review))
     if arv is None and v.get("arv") and not suspect:
         arv, arv_basis = int(v["arv"]), f"engine value ({v.get('arv_method')}); not enough matching sales to recompute"
     fee = int(cfg["formula"]["assignment_fee"])
@@ -241,7 +234,26 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
                           "this leans conservative.")
     return {"p": p, "agent": agent, "asked": asked.strip(), "comps": comps, "area": area, "source": source, "period": period, "numbers": numbers,
             "screen": screen, "extra": extra, "active": active, "still_open": still_open, "messages": msgs,
-            "averages": _averages(priced, reno), "date": today_et(), "outreach_id": outreach_id}
+            "averages": _averages(priced, reno), "date": today_et(), "outreach_id": outreach_id,
+            "comp_check": comp_check, "grade": g["grade"], "dropped": sel["dropped"]}
+
+
+def latest_review(conn, property_id: int) -> dict[str, Any] | None:
+    try:
+        row = conn.execute("SELECT * FROM comps_review WHERE property_id=? ORDER BY id DESC LIMIT 1", (property_id,)).fetchone()
+    except Exception:  # noqa: BLE001
+        return None
+    return db.row_to_dict(row) if row else None
+
+
+def review_line(r: dict[str, Any]) -> str:
+    """Claude's read of the comp set (titan/comps_loop.py), one line."""
+    n = len(json.loads(r.get("exclude_keys") or "[]"))
+    parts = [f"Claude's review ({str(r.get('run_date') or '')[:10]}): " + (f"ruled out {n} sale{'s' if n != 1 else ''}; " if n else "")]
+    if r.get("arv_low") and r.get("arv_high"):
+        parts.append(f"its own resale read {money(r['arv_low'])} to {money(r['arv_high'])} ({r.get('confidence') or '?'} confidence); ")
+    parts.append((r.get("note") or "").strip())
+    return "".join(parts).strip().rstrip(";")
 
 
 def _has_threads(conn) -> bool:
@@ -420,6 +432,8 @@ def to_html(s: dict[str, Any]) -> str:
     if s["screen"]:
         parts.append("<h2>Engine screen (for reference)</h2>" + _table([[k, money(v)] for k, v in s["screen"]], ["Scenario", "Our price"]))
     parts.append(f"<h2>Live competition</h2>{_e(s['active'])}\n<hr/>")
+    if s.get("comp_check"):
+        parts.append("<h2>Comp check</h2><ul>" + "".join(f"<li>{_e(x)}</li>" for x in s["comp_check"]) + "</ul><hr/>")
     parts.append("<h2>Still open</h2><ul>" + "".join(f"<li>{_e(x)}</li>" for x in s["still_open"]) + "</ul><hr/>")
     parts.append("<h2>Conversation so far</h2><ul>" + "".join(f"<li>{_e(x)}</li>" for x in convo(s)) + "</ul></body>")
     return "".join(parts)
@@ -443,6 +457,8 @@ def to_comment(s: dict[str, Any], tail: str | None = None) -> str:
     if s["screen"]:
         lines.append("<strong>Engine screen</strong>\n<ul>" + "".join(f"<li>{_e(k)}: {_e(money(v))}</li>" for k, v in s["screen"]) + "</ul>\n")
     lines.append(f"<strong>Live competition</strong>: {_e(s['active'])}\n")
+    if s.get("comp_check"):
+        lines.append("<strong>Comp check</strong>\n<ul>" + "".join(f"<li>{_e(x)}</li>" for x in s["comp_check"]) + "</ul>\n")
     lines.append("<strong>Still open</strong>\n<ul>" + "".join(f"<li>{_e(x)}</li>" for x in s["still_open"]) + "</ul>\n")
     lines.append(_e(tail or NUMBERS_TAIL) + "</body>")
     return "".join(lines)
@@ -471,5 +487,8 @@ def to_text(s: dict[str, Any]) -> str:
         out += ["", "## Land and new construction"] + [f"- {k}: {v}" for k, v in s["extra"]]
     if s["screen"]:
         out += ["", "## Engine screen"] + [f"- {k}: {money(v)}" for k, v in s["screen"]]
-    out += ["", f"Live competition: {s['active']}", "", "## Still open"] + [f"- {x}" for x in s["still_open"]]
+    out += ["", f"Live competition: {s['active']}"]
+    if s.get("comp_check"):
+        out += ["", "## Comp check"] + [f"- {x}" for x in s["comp_check"]]
+    out += ["", "## Still open"] + [f"- {x}" for x in s["still_open"]]
     return "\n".join(out) + "\n"

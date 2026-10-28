@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -66,6 +66,12 @@ claude-check:     ## is the background jobs' Claude login working? (tests the to
 
 approvals-now:    ## run one approvals round now (rewrites commented cards, sends approved ones in the window)
 	$(PY) -m titan.cli approvals
+
+comps-loop:       ## comp-quality loop now: back-test the comp rules on real sales, tune, re-value the board, Claude review
+	$(PY) -m titan.cli comps-loop
+
+comps-check:      ## measure comp accuracy only (no tuning, no Claude, nothing posted)
+	$(PY) -m titan.cli comps-loop --no-tune --no-claude --no-asana
 
 score-test:       ## score 3 stored listings through Claude Code (your plan, no API spend)
 	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli score-test

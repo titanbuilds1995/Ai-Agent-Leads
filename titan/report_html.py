@@ -280,6 +280,16 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
         ("Answered by us", min(st.get("answered", 0) or 0, st.get("agents_replied", 0) or 0)), ("Offers sent", o.get("offers", 0) or 0)],
         ["", "wrote back", "got an answer from Charles", "got a number"]), "Where they drop off"))
 
+    # comps: how good the numbers are (the daily comp loop)
+    try:
+        from .comps_loop import summary_lines
+        cl = summary_lines(conn, cfg, run_date)
+    except Exception:  # noqa: BLE001
+        cl = []
+    if cl:
+        body = "".join(f'<div style="font-size:13.5px;color:{INK};padding:6px 0;border-bottom:1px solid {LINE}">{e(x)}</div>' for x in cl)
+        rows.append(section("Comps", panel(body), "How good the numbers are"))
+
     # trust ladder
     try:
         stages = ladder(conn, cfg)

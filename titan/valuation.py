@@ -5,7 +5,7 @@ import json
 import math
 import re
 from statistics import median
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from . import db
 from .util import log, today_et
@@ -132,18 +132,22 @@ def compute_mao(arv: int, repairs: int, cfg: Any, ratio: float | None = None) ->
     return int(round(arv * r - repairs - f["assignment_fee"], -2))
 
 
-def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None) -> dict[str, Any]:
+def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None,
+                   exclude: Iterable[str] = ()) -> dict[str, Any]:
+    """ARV from the comp engine (titan/comps_engine.py: same product only, no waterfront / new-build pollution, $/sf
+    outliers out, similarity-ranked, renovated sales set the exit, layout flags discount it), then the market buy ratio,
+    repairs and the fee. `exclude` = comp keys ruled out on review (Claude / Rodrigo)."""
+    from . import comps_engine as ce
     v = cfg["valuation"]
     tier = repair_tier(p.get("remarks") or "", cfg["repairs"].get("default_tier", "moderate"))
     repairs = repair_cost(p, tier, cfg)
     candidates = comps_fn(p) if comps_fn else []
-    comps = select_comps(p, candidates, cfg)
-    method = "comps"
-    if len(comps) < v["min_comps"]:
-        wider = select_comps(p, candidates, cfg, radius=v["fallback_radius_miles"])
-        if len(wider) >= v["min_comps"]:
-            comps, method = wider, "comps_wide"
-    arv, ppsf = arv_from_comps(p, comps, cfg)
+    prm = ce.params(cfg, ce.product(p))
+    sel = ce.select(p, candidates, prm, exclude=exclude, months=v.get("comp_months"))
+    comps = sel["comps"]
+    method = "comps" if sel["tier"] == "strict" and sel["radius"] <= prm["radius_miles"] else "comps_wide"
+    est = ce.arv(p, comps, prm)
+    arv, ppsf = est["arv"], est["ppsf"]
     if arv is None or len(comps) < v["min_comps"]:
         zpsf = None
         if p.get("sqft") and p.get("property_type") != "land":
@@ -170,9 +174,40 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
     lp = int(p.get("list_price") or 0)
     spread = round((lp - mao) / lp * 100, 1) if lp else None
     offer = int(round(mao * (1 - cfg["formula"].get("offer_below_mao_pct", 0) / 100), -2))
+    g = ce.grade(p, sel)
+    if method in ("estimate", "zip_resale_psf", "land_default", "list_price") or method.endswith("_suspect"):
+        g = {"grade": "D", "points": g["points"], "why": [f"no usable comps: value is {method}"] + g["why"]}
+    notes = {"grade": g, "basis": est["basis"], "reasons": est["reasons"], "discount_pct": est["discount_pct"],
+             "dropped": ce.drop_summary(sel["dropped"]), "notes": sel["notes"], "product": sel["product"],
+             "flags": sorted(k for k, on in sel["flags"].items() if on), "tier": sel["tier"], "radius": sel["radius"],
+             "excluded": len(list(exclude))}
     return {"arv": arv, "arv_method": method, "comp_count": len(comps), "ppsf": ppsf, "repair_tier": tier, "repair_cost": repairs,
             "mao": mao, "buy_ratio": br["ratio"], "buy_ratio_source": br["source"], "list_price": lp, "spread_pct": spread, "offer_price": max(offer, 0),
-            "comps": [{k: c.get(k) for k in ("address", "sold_price", "sqft", "sold_date", "distance_mi")} for c in comps[:12]]}
+            "comp_grade": g["grade"], "comp_notes": notes,
+            "comps": [{k: c.get(k) for k in ("address", "sold_price", "sqft", "sold_date", "distance_mi", "beds", "year_built", "mls",
+                                             "condition", "similarity", "lot_sqft", "pool", "water", "zip", "lat", "lng")}
+                      | {"remarks": (c.get("remarks") or "")[:200]} for c in comps[:12]]}
+
+
+def review_exclusions(conn, property_id: int) -> set[str]:
+    """Comp keys the latest Claude review (titan/comps_loop.py) ruled out for this house."""
+    try:
+        row = conn.execute("SELECT exclude_keys FROM comps_review WHERE property_id=? ORDER BY id DESC LIMIT 1", (property_id,)).fetchone()
+    except Exception:  # noqa: BLE001
+        return set()
+    return set(json.loads(row[0] or "[]")) if row else set()
+
+
+def store_valuation(conn, property_id: int, res: dict[str, Any], rating: str) -> None:
+    conn.execute("INSERT INTO valuations(property_id,arv,arv_method,comp_count,ppsf,repair_tier,repair_cost,mao,list_price,spread_pct,"
+                 "offer_price,rating,comps,valued_at,comp_grade,comp_notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET "
+                 "arv=excluded.arv, arv_method=excluded.arv_method, comp_count=excluded.comp_count, ppsf=excluded.ppsf, "
+                 "repair_tier=excluded.repair_tier, repair_cost=excluded.repair_cost, mao=excluded.mao, list_price=excluded.list_price, "
+                 "spread_pct=excluded.spread_pct, offer_price=excluded.offer_price, rating=excluded.rating, comps=excluded.comps, "
+                 "valued_at=excluded.valued_at, comp_grade=excluded.comp_grade, comp_notes=excluded.comp_notes",
+                 (property_id, res["arv"], res["arv_method"], res["comp_count"], res["ppsf"], res["repair_tier"], res["repair_cost"],
+                  res["mao"], res["list_price"], res["spread_pct"], res["offer_price"], rating, json.dumps(res["comps"]), db.iso(),
+                  res.get("comp_grade"), json.dumps(res.get("comp_notes") or {})))
 
 
 def run_valuation(conn, cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None = None,
@@ -188,19 +223,13 @@ def run_valuation(conn, cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict
     for r in rows:
         p = db.row_to_dict(r)
         try:
-            res = value_property(p, cfg, comps_fn)
+            res = value_property(p, cfg, comps_fn, exclude=review_exclusions(conn, p["id"]))
         except Exception as e:  # noqa: BLE001
             errors += 1
             log.exception("valuation failed for %s: %s", p["address_key"], e)
             continue
         rating = rate(p["score"], res["list_price"], res["mao"], cfg, res["arv_method"])
-        conn.execute("INSERT INTO valuations(property_id,arv,arv_method,comp_count,ppsf,repair_tier,repair_cost,mao,list_price,spread_pct,"
-                     "offer_price,rating,comps,valued_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(property_id) DO UPDATE SET "
-                     "arv=excluded.arv, arv_method=excluded.arv_method, comp_count=excluded.comp_count, ppsf=excluded.ppsf, "
-                     "repair_tier=excluded.repair_tier, repair_cost=excluded.repair_cost, mao=excluded.mao, list_price=excluded.list_price, "
-                     "spread_pct=excluded.spread_pct, offer_price=excluded.offer_price, rating=excluded.rating, comps=excluded.comps, valued_at=excluded.valued_at",
-                     (p["id"], res["arv"], res["arv_method"], res["comp_count"], res["ppsf"], res["repair_tier"], res["repair_cost"],
-                      res["mao"], res["list_price"], res["spread_pct"], res["offer_price"], rating, json.dumps(res["comps"]), db.iso()))
+        store_valuation(conn, p["id"], res, rating)
         n += 1
     counts = {"valued": n, "errors": errors}
     db.finish_run(conn, run_id, "ok" if not errors else "partial", counts)

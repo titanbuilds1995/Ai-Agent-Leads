@@ -123,6 +123,13 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
                   *_offer_lines(stats.get("offers") or {}),
                   f"- Today: {st.get('new_today', 0)} new listings · {st.get('sent_today', 0)} sent · {st.get('replies_today', 0)} replies · HOT now {st.get('hot', 0)} · cards waiting {st.get('cards_waiting', 0)}", ""]
     try:
+        from .comps_loop import summary_lines
+        cl = summary_lines(conn, cfg, run_date)
+        if cl:
+            lines += ["## Comps (how good the numbers are)", ""] + [f"- {x}" for x in cl] + [""]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from .learning import ladder_lines
         lines += ["## Trust ladder (how close Charles is to working on his own)", ""] + ladder_lines(conn, cfg) + [""]
     except Exception:  # noqa: BLE001

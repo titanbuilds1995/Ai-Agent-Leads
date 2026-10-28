@@ -85,7 +85,7 @@ def cmd_run_daily(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn)
     summary: dict[str, Any] = {"date": today_et(), "missing": c["missing"]}
-    steps = args.steps.split(",") if args.steps else ["ingest", "score", "value", "enrich", "outreach"]
+    steps = args.steps.split(",") if args.steps else ["ingest", "score", "value", "comps", "enrich", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
         if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
@@ -98,8 +98,8 @@ def cmd_run_daily(cfg, args):
         summary["ingest"] = {"error": str(e)}
     if "score" in steps:
         summary["score"] = run_scoring(conn, cfg, c["llm"], force=args.force)
-    if "value" in steps:
-        comps_fn = None
+    comps_fn = None
+    if "value" in steps or "comps" in steps:
         if args.comps_fixture:
             comps = json.loads(Path(args.comps_fixture).read_text())
             comps_fn = lambda p: comps  # noqa: E731
@@ -108,8 +108,18 @@ def cmd_run_daily(cfg, args):
             comps_fn = hh_comps_fn(cfg, conn)
         elif c["apify"]:
             comps_fn = apify_comps_fn(cfg, c["apify"], conn)
+    if "value" in steps:
         summary["value"] = run_valuation(conn, cfg, comps_fn)
         summary["rank"] = rerank(conn, cfg)
+    if "comps" in steps:
+        # the daily comp-quality loop (Rodrigo, 2026-10-28): back-test on real sales, tune, re-value his houses, Claude review
+        from .comps_loop import run as comps_loop
+        try:
+            summary["comps"] = {k: v for k, v in comps_loop(conn, cfg, comps_fn, c["llm"], asana=_asana(cfg)).items()
+                                if k in ("pools", "baseline", "tuned", "adopted", "working_set", "claude_reviews", "posted", "grades")}
+        except Exception as e:  # noqa: BLE001 — the loop improves numbers; it must never stop the run
+            log.exception("comps loop failed: %s", e)
+            summary["comps"] = {"error": str(e)}
     if "enrich" in steps:
         if args.offline:
             summary["enrich"] = {"skipped": "offline"}
@@ -362,6 +372,36 @@ def _asana(cfg):
         from .asana import Asana
         return Asana(cfg.secret("ASANA_TOKEN"))
     return None
+
+
+def cmd_comps_loop(cfg, args):
+    """The daily comp-quality loop by hand: back-test the comp rules on real sales, tune, re-value the houses on the board,
+    Claude reviews the comp sets (capped), prints what changed."""
+    from .comps_loop import run, summary_lines
+    conn = _open(cfg)
+    c = build_clients(cfg, conn, need=("llm",))
+    comps_fn = None
+    if cfg.get("valuation.comps_source", "homeharvest") == "homeharvest":
+        try:
+            import homeharvest  # noqa: F401
+            from .ingest.homeharvest_src import comps_fn as hh_comps_fn
+            comps_fn = hh_comps_fn(cfg, conn)
+        except ImportError:
+            print("HomeHarvest is not installed here (cloud?): re-valuing from the stored sales only, no fresh pull.")
+    out = run(conn, cfg, comps_fn, c["llm"], asana=_asana(cfg) if not args.no_asana else None,
+              tune_params=not args.no_tune, review=not args.no_claude)
+    conn.commit()
+    b, t = out.get("baseline") or {}, out.get("tuned") or {}
+    print(f"sold pools: {out.get('pools', 0)} ZIPs · test sales: {b.get('n', 0)} · error now {b.get('mdape')}% "
+          f"(within 10%: {b.get('within_10_pct')}%)" + (f" · tuned to {t.get('mdape')}% ({'kept' if out.get('adopted') else 'not kept'})" if t else ""))
+    print(f"houses re-valued: {out.get('working_set', 0)} · ARV changes: {len(out.get('changes') or [])} · Claude reviews: {out.get('claude_reviews', 0)} "
+          f"· card comments: {out.get('posted', 0)} · grades on HOT/WARM: {out.get('grades')}")
+    for ch in (out.get("changes") or [])[:10]:
+        print(f"  {ch['street']}, {ch['city']}: ${ch['old_arv'] or 0:,} -> ${ch['new_arv']:,} ({ch['old_grade']} -> {ch['new_grade']})")
+    for r in (out.get("review_notes") or [])[:10]:
+        print(f"  Claude · {r['street']}: {r['note'][:200]}")
+    print()
+    print("\n".join(summary_lines(conn, cfg)))
 
 
 def cmd_approvals(cfg, args):
@@ -618,6 +658,10 @@ def main(argv: list[str] | None = None) -> int:
     of.add_argument("status", nargs="?", help="SENT, COUNTERED, ACCEPTED, UNDER_CONTRACT, CLOSED, REJECTED, DEAD")
     of.add_argument("--note", default=None)
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
+    cl_ = sub.add_parser("comps-loop", help="daily comp-quality loop by hand: back-test on real sales, tune, re-value the board, Claude review")
+    cl_.add_argument("--no-tune", action="store_true", help="measure only; keep today's settings")
+    cl_.add_argument("--no-claude", action="store_true", help="skip Claude's review of the comp sets (no API spend)")
+    cl_.add_argument("--no-asana", action="store_true", help="post nothing on the cards")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
     te = sub.add_parser("test-email", help="send a [TEST] copy of one card's email to yourself (the agent gets nothing)")
@@ -635,7 +679,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop}[args.cmd](cfg, args)
     return 0
 
 

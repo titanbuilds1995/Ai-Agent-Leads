@@ -155,8 +155,9 @@ def analysis_text(analysis: dict[str, Any] | None) -> str:
 def listing_meta(p: dict[str, Any], agent: dict[str, Any], analysis: dict[str, Any] | None = None) -> str:
     lane = p.get("lane") or ""
     photos = f" · {p.get('photos_count')} photos" if p.get("photos_count") is not None else ""
+    grade = f" · comps {p['comp_grade']}" if p.get("comp_grade") else ""
     meta = (f"Listing: {p.get('street')}, {p.get('city')} · ${int(p.get('list_price') or 0):,} · {p.get('days_on_market')} days on market · "
-            f"{p.get('price_cuts') or 0} price cut(s){photos} · {lane}\n{p.get('listing_url') or ''}\n"
+            f"{p.get('price_cuts') or 0} price cut(s){photos}{grade} · {lane}\n{p.get('listing_url') or ''}\n"
             f"{agent_line(agent)}")
     at = analysis_text(analysis)
     return f"{meta}\n\n{at}" if at else meta
@@ -786,7 +787,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
 def _props_for(conn, row: dict[str, Any]) -> list[dict[str, Any]]:
     pids = json.loads(row.get("property_ids") or "[]")
     return [db.row_to_dict(r) for r in conn.execute(
-        f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier FROM properties p "
+        f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier, v.comp_grade FROM properties p "
         f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
 
 

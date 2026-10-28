@@ -1,6 +1,8 @@
 """MORNING REPORT: top HOT_LEADs, funnel, cost, scrape health, blockers → reports/YYYY-MM-DD.md + email."""
 from __future__ import annotations
 
+import re
+
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -139,6 +141,19 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     return "\n".join(lines)
 
 
+def with_data_block(html: str, text: str) -> str:
+    """Put the TITAN-DATA-B64 block at the foot of the HTML too, in small grey type. The cloud review reads the report
+    through the Gmail connector, which returns the HTML part as text once one exists, so the 2026-10-27 designed report
+    reached it without the data block."""
+    m = re.search(r"-----BEGIN TITAN-DATA-B64-----.*?-----END TITAN-DATA-B64-----", text, re.S)
+    if not m:
+        return html
+    block = ("<tr><td style=\"padding:0 24px 24px;font-family:Menlo,Consolas,monospace;font-size:7px;line-height:1.2;color:#C9C4B8;"
+             "word-break:break-all\">" + "<br>".join(m.group(0).splitlines()) + "</td></tr>")
+    i = html.rfind("</table></td></tr></table></body>")
+    return html[:i] + block + html[i:] if i >= 0 else html.replace("</body>", block + "</body>")
+
+
 def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
     run_date = run_date or today_et()
     text = build_report(conn, cfg, run_date) + "\n\n" + lead_data_section(conn, cfg)
@@ -156,6 +171,8 @@ def run_report(conn, cfg: Any, gmail=None, run_date: str | None = None) -> Path:
             except Exception as e:  # noqa: BLE001 — a design bug must never stop the report: send the text alone
                 log.exception("report html failed: %s", e)
                 html = None
+            if html:
+                html = with_data_block(html, text)
             gmail.send(to, f"Titan morning report {run_date}", text, html=html)
             status = "written+emailed"
         except Exception as e:  # noqa: BLE001

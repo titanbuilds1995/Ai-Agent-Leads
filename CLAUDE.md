@@ -182,6 +182,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-28 ~7:30am ET, RESUME HERE: **no 7am report today** (none in Rodrigo's inbox by 7:25am; Mac asleep or the run failed:
+  `make report` / check `logs/`). The cloud review read yesterday's 2:11pm designed report and found its data block missing: the Gmail
+  connector returns the HTML part as text, so `with_data_block()` now also puts TITAN-DATA-B64 in small grey type at the foot of the
+  HTML. Funnel "Answered by us 4 of 3 · 133%" fixed (capped at agents who replied). Board: 82 Fresh Leads (all with intro, no banned
+  phrases), 0 Approved, 13 Sent, 2 Needs Me (Lise, Richard reply), 3 Needs Revision, 19 Skip; every Rodrigo comment has a bot answer.
+  Lise: offer sent 1:19pm, she has 2 higher offers; Rodrigo asked her the number himself. Richard: wants a range (comps say $400–460k).
 - 2026-10-27 ~3:50pm ET, RESUME HERE: **Fresh Leads / Needs Me rule** (Rodrigo: "we're making this mistake right now, it's not
   good"): I had put Peter Dacko's and Olga Montoya's finished emails back in To Review; both moved to Needs Me. To Review renamed
   Fresh Leads on Asana (board description rewritten); engine changed so every worked-on card lands in Needs Me (see Decisions).

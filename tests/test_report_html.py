@@ -56,3 +56,12 @@ def test_funnel_explains_each_drop_in_words():
     assert "3 of 9 wrote back · 33%" in h and "3 of 3 got an answer from Charles · 100%" in h and "1 of 3 got a number · 33%" in h
     assert 'width="33%"' in h and 'width="11%"' in h                                      # bars share one scale
     assert "No emails sent yet" in funnel([("Emails sent", 0), ("Agents who replied", 0)])
+
+
+def test_html_report_carries_the_data_block_for_the_cloud_review():
+    from titan.report import with_data_block
+    html = '<html><body><table><tr><td><table><tr><td>x</td></tr></table></td></tr></table></body></html>'
+    text = "report\n-----BEGIN TITAN-DATA-B64-----\nQUJD\nREVG\n-----END TITAN-DATA-B64-----\n"
+    out = with_data_block(html, text)
+    assert "-----BEGIN TITAN-DATA-B64-----<br>QUJD<br>REVG<br>-----END TITAN-DATA-B64-----" in out
+    assert out.endswith("</body></html>")

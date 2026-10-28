@@ -276,7 +276,8 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
         rows.append(section("Day by day", day_chart(series), "Last 7 days, emails out and replies in"))
     rows.append(section("From email to offer", funnel([
         ("Emails sent", st.get("emails_sent", 0) or 0), ("Agents who replied", st.get("agents_replied", 0) or 0),
-        ("Answered by us", st.get("answered", 0) or 0), ("Offers sent", o.get("offers", 0) or 0)],
+        # answered counts conversations (one agent can have two houses): never more agents answered than replied (was "4 of 3 · 133%")
+        ("Answered by us", min(st.get("answered", 0) or 0, st.get("agents_replied", 0) or 0)), ("Offers sent", o.get("offers", 0) or 0)],
         ["", "wrote back", "got an answer from Charles", "got a number"]), "Where they drop off"))
 
     # trust ladder

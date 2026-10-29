@@ -214,6 +214,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-29 ~3pm ET, RESUME HERE: Needs Revision worked by hand in the cloud (10 cards): Edward Martinez rewritten from his
+  dictation, **Aya Olmedillo is now a written OFFER ($163k, 15-day inspection, 30-day close after, $2k escrow, we pay closing, Cc
+  Rodrigo; the engine refused it as "dollar figure" — gap: an offer dictated on a first-email card should become the offer, not fail)**,
+  Alan Alcala + Peter Zhuang rewritten to the direct rule (sat since Oct 27 untouched) → all four in Needs Me; Carlos Montoya back
+  to Approved (his comment was just the phone number); Richard's lead card → Sent · no answer yet (answered 9am); Zaira, Javier,
+  John Sacristan have no comment → prompted. Aldo Ramos asked for comps at 2:56pm: the Mac's next round posts the numbers.
 - 2026-10-29 ~3pm ET, RESUME HERE: **approvals rounds were dying partway** (Rodrigo: "it reads some and doesn't read others…
   there's a lot of approved, it's already past the 20 minutes"). Causes: no retry on Asana 429 (a round reads comments on 100+
   cards), no outer try (one error killed the round), sending ran LAST, rounds overlapped (no lock). Now: Asana client retries

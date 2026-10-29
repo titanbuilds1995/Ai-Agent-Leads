@@ -71,6 +71,10 @@ def plain_go_ahead(text: str) -> bool:
 
 CHANGE_RE = re.compile(r"\b(?:change|take out|remove|instead|don'?t say|do not say|reword|replace|add (?:a|that|the)|shorter|"
                        r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention|cc|attach|translate|spanish|offer)\b", re.I)
+# Rodrigo, 2026-10-29 (Juan Huice): "change the email and say something more direct like hey Juan … how are the subfloors" is a
+# numbers trigger (subfloors) AND a dictated rewrite; before, the numbers posted and the email never changed.
+DICTATED_RE = re.compile(r"\b(?:change|rewrite|reword|redo)\b[^.]{0,30}\b(?:email|text|wording|it)\b|\b(?:should|let'?s|let us) say\b|"
+                         r"\bsomething(?: \w+){0,3} like\b|\b(?:ask|tell) (?:him|her|them|the agent)\b|\bsay (?:we|that|hey)\b", re.I)
 CALL_RE = re.compile(r"\b(?:mark (?:him|her|them|it|this)?\s*(?:as )?hot|hot (?:lead|potential)|call (?:him|her|them)?\s*tomorrow|"
                      r"to call tomorrow|call list|follow[- ]?up with (?:him|her|them)|stay on top of)\b", re.I)
 NEG_BEFORE_RE = re.compile(r"\b(?:don'?t|do not|not|never|no need to)\s+(?:\w+\s+){0,2}$", re.I)

@@ -428,3 +428,21 @@ def test_multi_family_comps_drop_the_ppsf_outliers():
     kept = [c["address"] for c in comps_report.drop_ppsf_outliers(rows)]
     assert "1745 Jefferson St" not in kept and "1633 Tyler St" not in kept and len(kept) == 8
     assert comps_report.drop_ppsf_outliers(rows[:3]) == rows[:3]      # too few priced sales to judge: untouched
+
+
+def test_numbers_trigger_inside_a_dictated_change_still_rewrites(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-29 (Juan Huice): 'change the email and say something more direct like hey Juan … how are the subfloors
+    doing' posted the numbers and left the email untouched."""
+    from titan.comment_router import DICTATED_RE
+    assert DICTATED_RE.search("Hey we need to change the email and say something more direct like hey Juan how are the subfloors doing")
+    assert not DICTATED_RE.search(DIPIETRO) and not DICTATED_RE.search(CARLTON) and not DICTATED_RE.search(KARA)
+    juan = "Hey we need to change the email and say something more direct like hey Juan how are the subfloors doing is the seller willing to negotiate at all?"
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, juan)
+    before = asana.tasks[gid]["notes"]
+    class LLM:
+        available = True
+        def structured(self, purpose, system, user, schema, **kw):
+            return {"subject": "Quick question on the house", "body": "Hey Juan,\n\nCharles with Titan Realty Investments. I saw your listing on SW 2nd Pl.\n\nHow are the subfloors holding up, and is the seller willing to negotiate at all?\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"}
+    n = sync_feedback(loaded, cfg, asana, LLM())
+    assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] != before and "subfloors holding up" in asana.tasks[gid]["notes"]
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")

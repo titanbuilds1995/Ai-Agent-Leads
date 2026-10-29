@@ -214,6 +214,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-29 ~3:15pm ET, RESUME HERE: **Approved is not sending because Charles's Gmail is not connected on the Mac** (the new
+  alarm card posted 3:02pm: "10 approved email(s) are waiting"; nothing sent since Richard's reply at 9am). Rodrigo must run
+  `make gmail-test` / re-auth as Charles at the Mac. Rounds themselves run (2:44pm round handled Celia + Juan). Juan Huice: his
+  "change the email … subfloors" hit the numbers path and the text never changed → rewritten by hand (Needs Me) and fixed:
+  `DICTATED_RE` in comment_router; a numbers comment that also dictates a change now falls through to the rewrite. 291 tests.
 - 2026-10-29 ~3pm ET, RESUME HERE: Needs Revision worked by hand in the cloud (10 cards): Edward Martinez rewritten from his
   dictation, **Aya Olmedillo is now a written OFFER ($163k, 15-day inspection, 30-day close after, $2k escrow, we pay closing, Cc
   Rodrigo; the engine refused it as "dollar figure" — gap: an offer dictated on a first-email card should become the offer, not fail)**,

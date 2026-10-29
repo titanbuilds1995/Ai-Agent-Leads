@@ -334,7 +334,10 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         nm = needs_me_section(cfg, asana)
         if where != nm:
             asana.move(t["gid"], nm)
-        return True
+        if not cr.DICTATED_RE.search(" ".join(feedback)):
+            return True
+        # Rodrigo, 2026-10-29 (Juan Huice): "change the email … how are the subfloors doing" posted the numbers and stopped,
+        # the email never changed. A comment that asks for numbers AND dictates a change gets both: fall through to the rewrite.
     if "send" in want and "rewrite" not in want:
         asana.move(t["gid"], a["approved"])
         asana.comment(t["gid"], "Sending it as written (you said send it): moved to Approved, it goes out at the next send round."

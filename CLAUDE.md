@@ -195,12 +195,24 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "potentially", "the bigger question is". 40–90 words. Code: `DIRECT_RE` / `tone_problems()` in compose.py (first emails,
   rewrites, replies), protocol §0d, voice protocol examples rewritten, templates rewritten; every approvals tick rewrites up to
   15 waiting cards that still break it (same path as the photo rule).
+- **End-of-day report (Rodrigo, 2026-10-29)**: every evening an email (house style, `titan/end_of_day.py`) with the day's
+  activity: who he moved off Fresh Leads (from Asana's own move history, so nothing is missed), cards he deleted (`board_cards`
+  snapshot every check-replies / approvals run; a vanished card that answers 404 = deleted), calls (Aircall isn't connected:
+  a card taken off Fresh Leads into a working column with no comment = "probably called"; a comment saying called / spoke /
+  voicemail = "called"), emails out, replies in, numbers posted, offers, his comments, the board per column, and **the goal:
+  25 leads a day emailed or talked to** (distinct agents; eliminated don't count; `report.end_of_day.daily_goal`), with the last
+  7 days. Sent by the first check-replies run after 7pm ET (`report.end_of_day.hour_et`; next morning catches up if the Mac
+  slept); `make eod-report` sends one now (doesn't block the 7pm one).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-29, RESUME HERE: **end-of-day report built** (see Decisions). Nothing to install: the Mac pulls it within 10 min and
+  tonight's arrives after 7pm ET. Deletes are only seen from the Mac's first run on this code (moves and comments come from Asana
+  history, so today's are complete). Calls are a board-based guess; real call counts need the Aircall API (not connected; ask
+  Rodrigo before adding). 289 tests. Next: read tonight's report with him; tune the "probably called" rule if it misreads.
 - 2026-10-28 ~2pm ET, RESUME HERE: **comp engine rebuilt + daily comp loop** (Rodrigo: "the comps are just incorrect … fix the engine …
   run a loop daily"). Built from the real misses on the cards: townhouse vs pool houses (Castro), split layout + waterfront lot sales
   (Carlton), $3.1M new build next to a 1942 duplex (Dipietro), unpermitted 4-bed in 1,166 sf (McCarthy). New `titan/comps_engine.py`

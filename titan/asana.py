@@ -49,6 +49,37 @@ class Asana:
     def section_tasks(self, section: str) -> list[dict[str, Any]]:
         return self._req("GET", f"/sections/{section}/tasks", params={"opt_fields": "name,notes,created_at,modified_at", "limit": 100}) or []
 
+    def project_tasks(self, project: str, completed_since: str = "now") -> list[dict[str, Any]]:
+        """Every card on the board with its column (paged). completed_since "now" = open cards only; an ISO time also
+        returns the cards completed since then."""
+        out: list[dict[str, Any]] = []
+        params: dict[str, Any] = {"opt_fields": "name,completed,completed_at,created_at,modified_at,memberships.section.name,"
+                                                "memberships.project", "limit": 100, "completed_since": completed_since}
+        while True:
+            r = self.s.request("GET", f"{API}/projects/{project}/tasks", params=params, timeout=60)
+            if r.status_code >= 400:
+                raise AsanaError(f"GET /projects/{project}/tasks: HTTP {r.status_code} {r.text[:300]}")
+            body = r.json() or {}
+            out += body.get("data") or []
+            nxt = (body.get("next_page") or {}).get("offset")
+            if not nxt:
+                return out
+            params["offset"] = nxt
+
+    def stories(self, task: str) -> list[dict[str, Any]]:
+        """A card's full history: comments plus Asana's own "moved this task from X to Y" stories (section_changed)."""
+        return self._req("GET", f"/tasks/{task}/stories", params={
+            "opt_fields": "type,resource_subtype,text,created_at,old_section.name,new_section.name"}) or []
+
+    def task_state(self, task: str) -> dict[str, Any] | None:
+        """The card, or None when it was deleted (Asana answers 404)."""
+        try:
+            return self._req("GET", f"/tasks/{task}", params={"opt_fields": "name,completed,completed_at,memberships.project"}) or {}
+        except AsanaError as e:
+            if "HTTP 404" in str(e):
+                return None
+            raise
+
     def comments(self, task: str) -> list[dict[str, Any]]:
         stories = self._req("GET", f"/tasks/{task}/stories", params={"opt_fields": "type,resource_subtype,text,created_at"}) or []
         return [s for s in stories if s.get("type") == "comment" or s.get("resource_subtype") == "comment_added"]

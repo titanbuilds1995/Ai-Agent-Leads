@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -22,6 +22,9 @@ check-replies:    ## every 15 min: read mailbox, act on replies, flush queued te
 
 report:           ## 7:00am: reports/YYYY-MM-DD.md + email
 	$(PY) -m titan.cli report
+
+eod-report:       ## the end-of-day report now (moves off Fresh Leads, deletes, calls, emails, the 25-a-day goal); 7pm ET on its own
+	$(PY) -m titan.cli end-of-day
 
 status:
 	$(PY) -m titan.cli status

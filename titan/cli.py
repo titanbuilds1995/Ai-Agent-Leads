@@ -186,12 +186,16 @@ def cmd_check_replies(cfg, args):
     res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"])
     asana = _asana(cfg)
     if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
+        from .end_of_day import track_board
+        res["board_watch"] = track_board(conn, cfg, asana)      # where every card sits: how the evening report sees deletes
         from .conversations import mirror_replies
         res["asana_mirror"] = mirror_replies(conn, cfg, asana)
         from .replies.writer import draft_reply_cards
         res["reply_cards"] = draft_reply_cards(conn, cfg, asana, c["llm"])     # stage 3: Charles drafts his answer as a card
         from .conversations import lead_board
         res["lead_board"] = lead_board(conn, cfg, asana)
+    from .end_of_day import maybe_send
+    res["end_of_day"] = maybe_send(conn, cfg, c["gmail"], asana)    # once a day, the first run after 7pm ET
     from .dashboard_sync import sync as sync_dashboard
     res["dashboard"] = sync_dashboard(conn, cfg)
     print(json.dumps(res, indent=2))
@@ -207,6 +211,20 @@ def cmd_report(cfg, args):
     print(path)
     if args.print:
         print(build_report(conn, cfg))
+
+
+def cmd_end_of_day(cfg, args):
+    """Tonight's end-of-day report now (Rodrigo, 2026-10-29): moves off Fresh Leads, deletes, calls (best guess), emails,
+    replies, numbers, the 25-a-day goal. The 7pm one still goes out on its own."""
+    from .end_of_day import build_text, collect, run
+    conn = _open(cfg)
+    asana = _asana(cfg)
+    day = args.date or today_et()
+    if args.print:
+        print(build_text(collect(conn, cfg, asana, day)))
+        return
+    gmail = None if args.no_email else build_clients(cfg, conn, need=("gmail",))["gmail"]
+    print(json.dumps(run(conn, cfg, gmail, asana, day, send=not args.no_email, by_hand=True), indent=2))
 
 
 def cmd_status(cfg, args):
@@ -413,6 +431,8 @@ def cmd_approvals(cfg, args):
         print("ASANA_TOKEN missing in .env (Asana → My settings → Apps → Developer apps → Personal access token)")
         sys.exit(1)
     c = build_clients(cfg, conn, need=("llm", "gmail"))
+    from .end_of_day import track_board
+    track_board(conn, cfg, asana)               # before the engine moves anything: a card gone since the last look was deleted by hand
     fb = sync_feedback(conn, cfg, asana, c["llm"], c["gmail"])
     if c["llm"] is not None and getattr(c["llm"], "available", False):   # Rodrigo, 2026-10-27: waiting cards that still ask how much
         from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
@@ -628,6 +648,10 @@ def main(argv: list[str] | None = None) -> int:
     rp = sub.add_parser("report")
     rp.add_argument("--no-email", action="store_true")
     rp.add_argument("--print", action="store_true")
+    eod = sub.add_parser("end-of-day", help="the evening report now: moves, deletes, calls, emails, replies, the daily goal")
+    eod.add_argument("--date", help="YYYY-MM-DD (default today, Eastern time)")
+    eod.add_argument("--no-email", action="store_true")
+    eod.add_argument("--print", action="store_true", help="print the text version only (sends nothing, records nothing)")
     sub.add_parser("status")
     ic = sub.add_parser("install-cron")
     ic.add_argument("--dry-run", action="store_true")
@@ -679,7 +703,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day}[args.cmd](cfg, args)
     return 0
 
 

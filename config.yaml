@@ -284,6 +284,9 @@ ingest:
 report:
   hour_et: 7
   max_hot_leads: 10
+  end_of_day:                      # Rodrigo, 2026-10-29: a report of the day's activity every evening (titan/end_of_day.py)
+    hour_et: 19                    # sent by the first check-replies run after 7pm ET (no cron change needed)
+    daily_goal: 25                 # leads emailed or talked to per day
 
 llm_pricing_per_mtok:              # USD, used for the cost counter
   claude-sonnet-5-5: {input: 2.0, output: 10.0}

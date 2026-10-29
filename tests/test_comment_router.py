@@ -442,7 +442,7 @@ def test_numbers_trigger_inside_a_dictated_change_still_rewrites(loaded, cfg, tm
     class LLM:
         available = True
         def structured(self, purpose, system, user, schema, **kw):
-            return {"subject": "Quick question on the house", "body": "Hey Juan,\n\nCharles with Titan Realty Investments. I saw your listing on SW 2nd Pl.\n\nHow are the subfloors holding up, and is the seller willing to negotiate at all?\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"}
+            return {"subject": "Quick question on SW 38th Ave", "body": "Hey Kevin,\n\nCharles with Titan Realty Investments. I saw your listing on SW 38th Ave.\n\nHow are the subfloors holding up, and is the seller willing to negotiate at all?\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"}
     n = sync_feedback(loaded, cfg, asana, LLM())
     assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] != before and "subfloors holding up" in asana.tasks[gid]["notes"]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")

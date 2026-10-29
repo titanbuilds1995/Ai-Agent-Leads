@@ -219,6 +219,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `make gmail-test` / re-auth as Charles at the Mac. Rounds themselves run (2:44pm round handled Celia + Juan). Juan Huice: his
   "change the email … subfloors" hit the numbers path and the text never changed → rewritten by hand (Needs Me) and fixed:
   `DICTATED_RE` in comment_router; a numbers comment that also dictates a change now falls through to the rewrite. 291 tests.
+- 2026-10-29, (superseded: the Mac was back by 9am Oct 29) **Mac off since ~3:04pm ET Oct 28** (last Asana activity 19:04Z; no 7am report Oct 28 or 29). Same code
+  runs clean here (tests + offline run-daily + report with HTML data block). Richard's dictated answer ("too far, follow up in 30
+  days") sits in Approved, sends once the Mac is on. **David Carlton held**: Rodrigo commented "too fresh, wait ~45 days, make a
+  long-term follow-ups board" but the engine rewrote the email and the card reached Approved; cloud moved it to Needs Me with a
+  comment + Needs Rodrigo card (send now or build the follow-up column). Not built yet: Long-term follow-ups column (wait N days → back
+  to Fresh Leads); comment_router should treat "wait N days / follow up later" as a park, not a rewrite.
 - 2026-10-29 ~3pm ET, RESUME HERE: Needs Revision worked by hand in the cloud (10 cards): Edward Martinez rewritten from his
   dictation, **Aya Olmedillo is now a written OFFER ($163k, 15-day inspection, 30-day close after, $2k escrow, we pay closing, Cc
   Rodrigo; the engine refused it as "dollar figure" — gap: an offer dictated on a first-email card should become the offer, not fail)**,

@@ -203,12 +203,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   25 leads a day emailed or talked to** (distinct agents; eliminated don't count; `report.end_of_day.daily_goal`), with the last
   7 days. Sent by the first check-replies run after 7pm ET (`report.end_of_day.hour_et`; next morning catches up if the Mac
   slept); `make eod-report` sends one now (doesn't block the 7pm one).
+- **Titan Warm Leads board** (Rodrigo, 2026-10-28; project 1219996826543058, columns Needs Me / Needs Revision / Waiting on the
+  agent / Offer out / Closed, gids in `outreach.asana.warm_leads`): answered leads he drags off the approvals board. The engine
+  reads it like the lead columns (`titan/warm_leads.py`): comments handled, WHERE WE STAND kept, moves stay on the warm board
+  (Needs Me ↔ Waiting on the agent; Offer out when an offer is logged and never pulled back out; Closed). Reply cards and
+  sending stay on the approvals board. Moving answered leads onto it automatically is NOT built (he moves them himself).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-10-29 ~2:30pm ET, RESUME HERE: **the engine now reads the Titan Warm Leads board.** Until now it never looked there:
+  Lise's comment of Oct 28 5:01pm (closing costs, $3,000 deposit, screenshot of the email) was never answered and Peter's card
+  got no status. The Mac picks this up within 10 min; Lise's comment is answered at the next approvals tick. Also found: Peter's
+  9am reply is hidden in Charles's Gmail (likely Spam: Rodrigo's search finds the thread but the message doesn't show); the
+  Oct 27 email to Peter never carried the Cc to Rodrigo; Peter's lockbox code was read as a price. Not fixed yet (offered). 290 tests.
 - 2026-10-29, RESUME HERE: **end-of-day report built** (see Decisions). Nothing to install: the Mac pulls it within 10 min and
   tonight's arrives after 7pm ET. Deletes are only seen from the Mac's first run on this code (moves and comments come from Asana
   history, so today's are complete). Calls are a board-based guess; real call counts need the Aircall API (not connected; ask

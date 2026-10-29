@@ -181,6 +181,15 @@ outreach:
     skip: "1219846985445292"
     updates_project: "1219837397052431"   # Titan Lead Engine — Claude Updates (engine alarms go to Needs Rodrigo)
     needs_rodrigo: "1219837590904714"
+    # Titan Warm Leads (Rodrigo, 2026-10-28): answered leads he moved off the approvals board by hand. The engine reads their
+    # comments and keeps them in these columns (titan/warm_leads.py); reply cards and sending stay on the approvals board.
+    warm_leads:
+      project: "1219996826543058"
+      needs_me: "1219997042008635"
+      needs_revision: "1219997049297604"
+      waiting: "1219996909805061"     # Waiting on the agent
+      offer_out: "1219996806307425"
+      closed: "1219997042127935"
     per_tick: 2                     # emails per 20-minute round
     send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email

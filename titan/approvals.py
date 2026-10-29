@@ -533,6 +533,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
     n["chat"] = 0
     from .conversations import board_sections
     sent_sec, answered = board_sections(cfg, asana) if a.get("project") else (None, None)
+    from .warm_leads import wrap
+    asana = wrap(cfg, asana, nm, nr, sent_sec, answered)     # Rodrigo's Titan Warm Leads board is read too (2026-10-29)
     def _board():
         in_approved = [(t, a["approved"]) for t in asana.section_tasks(a["approved"])]
         tasks = ([(t, a["to_review"]) for t in asana.section_tasks(a["to_review"])] + [(t, nr) for t in asana.section_tasks(nr)]
@@ -553,7 +555,8 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
     # Lead cards first (first email already sent; Sent · no answer yet / Answered / Needs Me / Needs Revision / To Review /
     # Approved): his comment is answered on that card, and what changes the drafted answer is passed to the reply card before
     # the loop below rewrites it (Rodrigo, 2026-10-27, Lise and Cheryl: comments on the lead card never reached the answer).
-    for t, where in ([(t, sent_sec) for t in (asana.section_tasks(sent_sec) if sent_sec else [])] + tasks + in_approved):
+    warm = asana.lead_cards() if hasattr(asana, "lead_cards") else []
+    for t, where in ([(t, sent_sec) for t in (asana.section_tasks(sent_sec) if sent_sec else [])] + tasks + in_approved + warm):
         card = parse_card(t.get("notes") or "")
         if not card or not _sent_lead(card):
             continue

@@ -191,6 +191,9 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
         a = cfg.get("outreach.asana", {}) or {}
         sent, answered = board_sections(cfg, asana)
         nm = needs_me_section(cfg, asana)
+        from .approvals import needs_revision_section
+        from .warm_leads import wrap
+        asana = wrap(cfg, asana, nm, needs_revision_section(cfg, asana), sent, answered)   # Titan Warm Leads cards too
         pending = set()
         drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
         names = {a.get("to_review"): "Fresh Leads", a.get("approved"): "Approved (sends next run)", needs_me_section(cfg, asana): "Needs Me"}
@@ -211,7 +214,7 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
 
         pending_agents = {agent_id(o) for o in pending}
         lead_cards = ([(t, sent) for t in asana.section_tasks(sent)] + [(t, answered) for t in asana.section_tasks(answered)]
-                      + [(t, nm) for t in asana.section_tasks(nm)])
+                      + [(t, nm) for t in asana.section_tasks(nm)] + (asana.lead_cards() if hasattr(asana, "lead_cards") else []))
         for t, here in lead_cards:
             pc = parse_card(t.get("notes") or "")
             if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
@@ -249,6 +252,11 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 target = here             # sends on the next run; it then reads WAITING ON THE AGENT and goes to Sent
             else:
                 target = answered
+            if target == sent and hasattr(asana, "is_warm") and asana.is_warm(t["gid"]) and conn.execute(
+                    "SELECT 1 FROM offers WHERE agent_id=? AND status IN ('SENT','COUNTERED')", (aid,)).fetchone():
+                if asana.offer_out(t["gid"]):         # warm board: waiting on the agent with our offer out
+                    n["moved"] += 1
+                continue
             if target != here:
                 asana.move(t["gid"], target)
                 n["moved"] += 1

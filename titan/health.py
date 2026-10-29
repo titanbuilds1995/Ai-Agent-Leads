@@ -87,3 +87,31 @@ def alert_code_behind(cfg: Any, asana: Any, why: str) -> bool:
     except Exception as e:  # noqa: BLE001
         log.warning("could not post the code-behind alert: %s", e)
         return False
+
+
+def alert_gmail_down(cfg: Any, asana: Any, waiting: int) -> bool:
+    """One card per day when approved emails wait and Charles's Gmail is not connected on the Mac (before 2026-10-29 this
+    was only a line in the log: the Approved column filled up and nothing said why)."""
+    a = cfg.get("outreach.asana", {}) or {}
+    project, section = a.get("updates_project"), a.get("needs_rodrigo")
+    if not (asana and project and section):
+        return False
+    mark = cfg.root / "logs" / "gmail_down_alert.txt"
+    day = today_et()
+    try:
+        if mark.read_text().strip() == day:
+            return False
+    except OSError:
+        pass
+    try:
+        asana.create_task(project, section, f"⚠ {waiting} approved email(s) are waiting: Charles's Gmail is not connected on the Mac",
+                          "The approvals round found emails in Approved but could not open Charles's Gmail, so nothing sends.\n\n"
+                          "Fix (at the Mac, in Terminal):\n  cd ~/Ai-Agent-Leads && make gmail-test\n\n"
+                          "If it says the mailbox is not Charles@, run:\n  rm secrets/gmail_token.json && make gmail-auth\n"
+                          "and log in as Charles@titanrealtyinvestments.com. The waiting emails go out on the next round.")
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.write_text(day)
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not post the gmail-down alert: %s", e)
+        return False

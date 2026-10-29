@@ -2,11 +2,15 @@
 Only the calls the approval flow needs."""
 from __future__ import annotations
 
+import logging
+import time
+
 from pathlib import Path
 from typing import Any
 
 import requests
 
+log = logging.getLogger(__name__)
 API = "https://app.asana.com/api/1.0"
 BOT = "🤖"   # prefix on comments the engine writes, so Rodrigo's own comments can be told apart (same Asana user)
 
@@ -21,10 +25,18 @@ class Asana:
         self.s.headers.update({"Authorization": f"Bearer {token}", "Accept": "application/json"})
 
     def _req(self, method: str, path: str, **kw) -> Any:
-        r = self.s.request(method, f"{API}{path}", timeout=60, **kw)
-        if r.status_code >= 400:
-            raise AsanaError(f"{method} {path}: HTTP {r.status_code} {r.text[:300]}")
-        return (r.json() or {}).get("data")
+        # 2026-10-29: a round reads comments on 100+ cards; Asana's 150 requests/min limit answered 429 and the whole
+        # round died before the approved emails were sent ("it reads some and not others"). Wait and retry instead.
+        for attempt in range(5):
+            r = self.s.request(method, f"{API}{path}", timeout=60, **kw)
+            if r.status_code in (429, 500, 502, 503, 504) and attempt < 4:
+                wait = min(90, int((r.headers.get("Retry-After") or "0") or 0) or 5 * (attempt + 1))
+                log.warning("asana %s %s: HTTP %s, retrying in %ss", method, path, r.status_code, wait)
+                time.sleep(wait)
+                continue
+            if r.status_code >= 400:
+                raise AsanaError(f"{method} {path}: HTTP {r.status_code} {r.text[:300]}")
+            return (r.json() or {}).get("data")
 
     def create_task(self, project: str, section: str, name: str, notes: str) -> dict[str, Any]:
         return self._req("POST", "/tasks", json={"data": {"name": name, "notes": notes, "projects": [project],

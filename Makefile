@@ -56,9 +56,14 @@ mls-shortlist:    ## rank an MLS hot sheet: make mls-shortlist CSV=~/Downloads/h
 scrape-test:      ## quick live check of the free scraper: make scrape-test (or LOC="Hollywood, FL")
 	$(PY) -m titan.cli scrape-test "$(or $(LOC),33023)"
 
+wake-evening:     ## wake the Mac at 6:55pm every day so the 7pm end-of-day report goes out (one-time, asks for your Mac password)
+	sudo pmset repeat wakeorpoweron MTWRFSU 05:25:00 wakeorpoweron MTWRFSU 18:55:00
+	@echo "Done. The Mac wakes at 5:25am and 6:55pm. Keep it plugged in; a closed MacBook lid only wakes if an external screen or keyboard is attached."
+
 automate:         ## daily 5:30am run + 7am report email, and wake the Mac at 5:25 (asks for your Mac password once)
 	$(PY) -m titan.cli install-cron
 	sudo pmset repeat wakeorpoweron MTWRFSU 05:25:00
+	@echo "(the Mac must also be awake at 7pm for the end-of-day report: add that wake with 'make wake-evening')"
 	@echo "Done. Keep the Mac plugged in. Check: crontab -l ; pmset -g sched"
 
 claude-login:     ## log the background jobs in to Claude (token saved in .env, tested like cron); fixes "Not logged in" on Asana

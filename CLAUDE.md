@@ -214,6 +214,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-29 ~3pm ET, RESUME HERE: **approvals rounds were dying partway** (Rodrigo: "it reads some and doesn't read others…
+  there's a lot of approved, it's already past the 20 minutes"). Causes: no retry on Asana 429 (a round reads comments on 100+
+  cards), no outer try (one error killed the round), sending ran LAST, rounds overlapped (no lock). Now: Asana client retries
+  429/5xx; `cmd_approvals` sends FIRST, runs every stage on its own (`stage()`), one round at a time (`logs/approvals.lock`),
+  and posts an alarm card when Gmail is down with Approved cards waiting (`alert_gmail_down`). End-of-day report needs the Mac
+  awake at 7pm: `make wake-evening` adds a 6:55pm pmset wake (told Rodrigo). Real fix = run the engine in the cloud (not built;
+  DB lives on the Mac). 290 tests.
 - 2026-10-29 ~2:30pm ET, RESUME HERE: **the engine now reads the Titan Warm Leads board.** Until now it never looked there:
   Lise's comment of Oct 28 5:01pm (closing costs, $3,000 deposit, screenshot of the email) was never answered and Peter's card
   got no status. The Mac picks this up within 10 min; Lise's comment is answered at the next approvals tick. Also found: Peter's

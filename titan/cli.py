@@ -431,23 +431,46 @@ def cmd_approvals(cfg, args):
         print("ASANA_TOKEN missing in .env (Asana → My settings → Apps → Developer apps → Personal access token)")
         sys.exit(1)
     c = build_clients(cfg, conn, need=("llm", "gmail"))
+    # 2026-10-29 (Rodrigo: "there's a lot of approved, it's already past the 20 minutes"): rounds overlapped (a round with many
+    # rewrites runs longer than 20 min), one Asana error killed the whole round, and sending came last. Now: one round at a
+    # time, approved emails go out FIRST, and each stage fails on its own.
+    lock_path = cfg.root / "logs" / "approvals.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    import fcntl
+    lock = open(lock_path, "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print(json.dumps({"skipped": "the previous approvals round is still running"}))
+        return
+    out: dict[str, Any] = {}
+
+    def stage(name, fn):
+        try:
+            out[name] = fn()
+        except Exception as e:  # noqa: BLE001 — the next stage still runs; the next round retries this one
+            log.exception("approvals stage %s failed: %s", name, e)
+            out[name] = {"error": str(e)[:200]}
+
     from .end_of_day import track_board
-    track_board(conn, cfg, asana)               # before the engine moves anything: a card gone since the last look was deleted by hand
-    fb = sync_feedback(conn, cfg, asana, c["llm"], c["gmail"])
+    stage("board", lambda: track_board(conn, cfg, asana))   # before the engine moves anything: a card gone since the last look was deleted by hand
+    stage("send", lambda: send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"]))
+    if c["gmail"] is None and (out.get("send") or {}).get("waiting"):
+        from .health import alert_gmail_down
+        alert_gmail_down(cfg, asana, int(out["send"]["waiting"]))
+    stage("feedback", lambda: sync_feedback(conn, cfg, asana, c["llm"], c["gmail"]))
     if c["llm"] is not None and getattr(c["llm"], "available", False):   # Rodrigo, 2026-10-27: waiting cards that still ask how much
         from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
-        fb["photo_rule_rewrites"] = rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15)
+        stage("photo_rule_rewrites", lambda: rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15))
     from .learning import learn_tick
-    learned = learn_tick(conn, cfg, asana)      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
-    sent = send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"])
-    from .conversations import mirror_replies
-    mirrored = mirror_replies(conn, cfg, asana)
+    stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
+    from .conversations import lead_board, mirror_replies
+    stage("asana_mirror", lambda: mirror_replies(conn, cfg, asana))
     from .replies.writer import draft_reply_cards
-    mirrored["reply_cards"] = draft_reply_cards(conn, cfg, asana, c["llm"])  # stage 3: Charles drafts his answer as a card
-    from .conversations import lead_board
-    mirrored["lead_board"] = lead_board(conn, cfg, asana)    # Answered column + WHERE WE STAND on each answered lead
+    stage("reply_cards", lambda: draft_reply_cards(conn, cfg, asana, c["llm"]))  # stage 3: Charles drafts his answer as a card
+    stage("lead_board", lambda: lead_board(conn, cfg, asana))    # Answered column + WHERE WE STAND on each answered lead
     from .dashboard_sync import sync as sync_dashboard
-    dash = sync_dashboard(conn, cfg)          # the website's Board (card counts, sent, replies) stays current every tick
+    stage("dashboard", lambda: sync_dashboard(conn, cfg))          # the website's Board (card counts, sent, replies) stays current every tick
     from .llm import login_problem
     problem = login_problem(cfg, getattr(c["llm"], "last_error", None))
     if problem:                                # cron is logged out: one card in Needs Rodrigo with the exact fix
@@ -457,8 +480,8 @@ def cmd_approvals(cfg, args):
     behind = code_behind(cfg.root)             # the Mac's self-update failed silently all morning on 2026-10-27
     if behind:
         alert_code_behind(cfg, asana, behind)
-    print(json.dumps({"feedback": fb, "learning": learned, "send": sent, "asana_mirror": mirrored, "dashboard": dash,
-                      "claude_login": problem or "ok", "code": behind or "current"}, indent=2))
+    out.update({"claude_login": problem or "ok", "code": behind or "current"})
+    print(json.dumps(out, indent=2, default=str))
 
 
 def save_env_value(env_file: Path, key: str, value: str) -> None:

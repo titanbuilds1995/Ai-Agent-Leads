@@ -16,7 +16,7 @@ Goal = distinct agents emailed or talked to today (an agent emailed and called c
 but don't count: nobody was contacted.
 
 Sent by the first check-replies run after `report.end_of_day.hour_et` (7pm ET), so the Mac needs no new cron line; the
-next morning catches up if the Mac slept through the evening. `make eod-report` sends one now."""
+the first run after the Mac wakes catches up if it slept through the evening. `make eod-report` sends one now."""
 from __future__ import annotations
 
 import json
@@ -459,17 +459,16 @@ def already_sent(conn, run_date: str) -> bool:
 
 
 def due(conn, cfg: Any, now: datetime | None = None) -> str | None:
-    """The day whose report should go out now: today after the evening hour, or yesterday's in the morning when the Mac
-    slept through the evening (only if the board was already being watched yesterday)."""
+    """The day whose report should go out now: yesterday's whenever the Mac slept through last evening (first run after it
+    wakes, any hour; only if the board was already being watched yesterday), else today's after the evening hour."""
     t = (now or now_utc()).astimezone(ET)
     today = t.strftime("%Y-%m-%d")
+    y = (t - timedelta(days=1)).strftime("%Y-%m-%d")
+    first = conn.execute("SELECT MIN(first_seen) FROM board_cards").fetchone()[0]
+    if first and first < et_day_bounds(y)[1] and not already_sent(conn, y):
+        return y
     if t.hour >= int(_cfg(cfg).get("hour_et", 19)):
         return None if already_sent(conn, today) else today
-    if t.hour < 12:
-        y = (t - timedelta(days=1)).strftime("%Y-%m-%d")
-        first = conn.execute("SELECT MIN(first_seen) FROM board_cards").fetchone()[0]
-        if first and first < et_day_bounds(y)[1] and not already_sent(conn, y):
-            return y
     return None
 
 

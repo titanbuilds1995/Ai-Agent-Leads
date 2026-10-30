@@ -214,6 +214,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-10-30 ~9am ET, RESUME HERE: **catch-up on wake** (Rodrigo: "make sure it happens when I turn the computer on"). Mac
+  asleep since 3:45pm Oct 29: no EOD Oct 29, no 7am report since Oct 27. Now every check-replies run (every 15 min while the Mac
+  is on) checks `titan/catch_up.py` `due()` and starts `titan.cli catch-up` in the background: today's missed full run-daily, then
+  the morning report (a failed report email retries hourly; nothing after 9pm ET). Full run-daily now writes a `run_daily` row and
+  runs one at a time (`logs/run_daily.lock`). The evening report catches up on yesterday at any hour, not only before noon. No
+  crontab change needed (rides on check-replies). Still needed: Charles's Gmail on the Mac (`make gmail-test`), or nothing sends. 297 tests.
 - 2026-10-29 ~3:15pm ET, RESUME HERE: **Approved is not sending because Charles's Gmail is not connected on the Mac** (the new
   alarm card posted 3:02pm: "10 approved email(s) are waiting"; nothing sent since Richard's reply at 9am). Rodrigo must run
   `make gmail-test` / re-auth as Charles at the Mac. Rounds themselves run (2:44pm round handled Celia + Juan). Juan Huice: his

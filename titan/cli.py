@@ -76,6 +76,42 @@ def cmd_init_db(cfg, args):
 
 
 def cmd_run_daily(cfg, args):
+    """A full run (no --steps, no fixture) runs one at a time and leaves a run_daily row: how catch-up knows today ran."""
+    if args.steps or args.fixture:
+        return _run_daily(cfg, args)
+    import fcntl
+    from .catch_up import RUN_STEP
+    lock_path = cfg.root / "logs" / "run_daily.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock = open(lock_path, "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print(json.dumps({"skipped": "a daily run is already going"}))
+        return
+    conn = _open(cfg)
+    rid = db.start_run(conn, RUN_STEP, today_et())
+    status = "error"
+    try:
+        _run_daily(cfg, args)
+        status = "ok"
+    finally:
+        db.finish_run(conn, rid, status)
+
+
+def cmd_catch_up(cfg, args):
+    """What the schedule missed while the Mac slept, in order: the daily run, then the morning report."""
+    from .catch_up import due
+    todo = due(_open(cfg), cfg)
+    print(json.dumps({"catch_up": todo}))
+    if "run_daily" in todo:
+        cmd_run_daily(cfg, argparse.Namespace(steps=None, fixture=None, comps_fixture=None, offline=False, force=False))
+        todo = due(_open(cfg), cfg)
+    if "report" in todo:
+        cmd_report(cfg, argparse.Namespace(no_email=False, print=False))
+
+
+def _run_daily(cfg, args):
     from .enrich import Enricher
     from .ingest.pipeline import ingest
     from .outreach.send import run_outreach
@@ -196,6 +232,13 @@ def cmd_check_replies(cfg, args):
         res["lead_board"] = lead_board(conn, cfg, asana)
     from .end_of_day import maybe_send
     res["end_of_day"] = maybe_send(conn, cfg, c["gmail"], asana)    # once a day, the first run after 7pm ET
+    from .catch_up import due as missed, start_background
+    try:     # the Mac slept through 5:30am / 7am: run what was missed, in the background (Rodrigo, 2026-10-30)
+        todo = missed(conn, cfg)
+        res["catch_up"] = todo if start_background(cfg, todo) else None
+    except Exception as e:  # noqa: BLE001
+        log.exception("catch-up: %s", e)
+        res["catch_up"] = {"error": str(e)[:200]}
     from .dashboard_sync import sync as sync_dashboard
     res["dashboard"] = sync_dashboard(conn, cfg)
     print(json.dumps(res, indent=2))
@@ -668,6 +711,7 @@ def main(argv: list[str] | None = None) -> int:
     rd.add_argument("--offline", action="store_true", help="skip network enrichment")
     rd.add_argument("--force", action="store_true", help="re-score everything")
     sub.add_parser("check-replies")
+    sub.add_parser("catch-up", help="run what the Mac slept through today: the daily run, then the morning report")
     rp = sub.add_parser("report")
     rp.add_argument("--no-email", action="store_true")
     rp.add_argument("--print", action="store_true")
@@ -726,7 +770,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up}[args.cmd](cfg, args)
     return 0
 
 

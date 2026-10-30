@@ -120,11 +120,12 @@ def test_the_email_goes_once_after_7pm_and_shows_the_goal(conn, cfg, monkeypatch
         assert part in html, part
 
 
-def test_the_morning_catches_up_when_the_mac_slept(conn, cfg):
+def test_the_next_day_catches_up_when_the_mac_slept(conn, cfg):
     a = board()
     track_board(conn, cfg, a, now=datetime(2026, 10, 29, 13, tzinfo=timezone.utc))
     assert due(conn, cfg, now=datetime(2026, 10, 30, 10, tzinfo=timezone.utc)) == DAY     # 6am ET the next day
-    assert due(conn, cfg, now=datetime(2026, 10, 30, 18, tzinfo=timezone.utc)) is None    # 2pm ET: too late to catch up
+    assert due(conn, cfg, now=datetime(2026, 10, 30, 18, tzinfo=timezone.utc)) == DAY     # 2pm ET: Mac turned on late, still sent
+    assert due(conn, cfg, now=datetime(2026, 10, 31, 18, tzinfo=timezone.utc)) == "2026-10-30"    # two days on: the last day only
 
 
 def test_a_report_sent_by_hand_does_not_stop_the_evening_one(conn, cfg, monkeypatch, tmp_path):

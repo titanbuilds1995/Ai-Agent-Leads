@@ -228,8 +228,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Richard Dewitt, Liselotte Seer, Robert Tammaro, Laura Sanders (first email Oct 30), Carlos Montoya, Yerislenia Dominguez (Oct 29),
   Olga Montoya (Oct 27), Michael Balthazar, Damon Penn, Michael McGee (Oct 26), Abraham Elbaz, Thais Guevara (Oct 24). Left out on
   purpose: Douglas Montas + Dror Gerges (bounced; call them), David Carlton (Rodrigo: too fresh, wait 45 days), Richard Dipietro +
-  Cheryl Medeiros (they answered; ball with them). **Nothing sends until he drags them to Approved** (or tells us "send them all" →
-  move the 14 to Approved; 2 per 20-min tick from Charles@ in the window). Engine feature built for next time (`make follow-ups`,
+  Cheryl Medeiros (they answered; ball with them). **Rodrigo approved all 14 in chat ("just do it"): moved to Approved ~6:30am ET**; they go out 2 per 20-min tick from Charles@
+  starting 8:30am ET (about 2.5 hours for all 14), each card moves to Sent with the time. Engine feature built for next time (`make follow-ups`,
   see Decisions); it does not run on its own. Gmail on the Mac is working again (sends landed Oct 30). 301 tests.
 - 2026-10-30 ~9am ET, RESUME HERE: **catch-up on wake** (Rodrigo: "make sure it happens when I turn the computer on"). Mac
   asleep since 3:45pm Oct 29: no EOD Oct 29, no 7am report since Oct 27. Now every check-replies run (every 15 min while the Mac

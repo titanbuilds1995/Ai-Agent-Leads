@@ -192,10 +192,6 @@ outreach:
       closed: "1219997042127935"
     per_tick: 5                     # emails per 20-minute round (Rodrigo, 2026-11-02: approved cards sat too long at 2)
     send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
-  # Needs Revision with no comment (Rodrigo, 2026-11-02): after the engine's prompt sits this long unanswered, Charles writes
-  # the email again from scratch and the card moves to Needs Me.
-  needs_revision:
-    auto_rewrite_hours: 3
   # Second touch (Rodrigo, 2026-11-02): a "Good morning" follow-up in the same thread to every agent who never answered the
   # first email. `titan.cli follow-ups` posts them as reply cards in Needs Me (--approve: straight to Approved when he said send).
   follow_up:

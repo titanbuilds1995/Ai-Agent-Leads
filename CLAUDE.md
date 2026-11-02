@@ -217,21 +217,21 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (paid API like other card work), template fallback. One follow-up per first email (`follow_ups` table). `--approve` puts them
   straight into Approved, only when Rodrigo said in words to send them; `--list` prints who would get one. Not run on its own yet
   (no cron / tick); Rodrigo asks for it, or say when he wants it automatic.
-- **Silent Needs Revision cards fix themselves (Rodrigo, 2026-11-02: "should those not be revised already somehow and then moved
-  to their rightful place?")**: a card he drags to Needs Revision without a comment gets the one prompt as before; when that prompt
-  has sat unanswered for `outreach.needs_revision.auto_rewrite_hours` (3), Charles writes the email again from scratch
-  (`approvals.fresh_rewrite`), the card moves to Needs Me with a comment. **Send pace: `per_tick` 5** (was 2; "why are those
-  people still on my approved board"), still inside the window and the daily cap.
+- **Needs Revision holds only commented cards (Rodrigo, 2026-11-02: "if it doesn't have a comment, it needs to get out of Needs
+  Revision … clean Needs Revision into only things that I sent out fresh")**: a card dragged there with no comment goes straight
+  back to Needs Me at the next round, text untouched, with a one-line comment (`back_to_needs_me` in `sync_feedback`); no prompt,
+  no wait. Commented cards still park there until the rewrite lands (or "couldn't rewrite" / "Held"). **Send pace: `per_tick` 5**
+  (was 2; "why are those people still on my approved board"), still inside the window and the daily cap.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
-- 2026-11-02 ~1pm ET, RESUME HERE: Rodrigo asked why 10 follow-ups still sat in Approved (sent 2 per round: Arcides, Abraham,
-  McGee, Thais went 12:21/12:40pm) and why Zaira Zavala, Javier Rodriguez, John Sacristan sat in Needs Revision (he dragged them
-  there Oct 28/29 with no comment). Fixes merged: per_tick 5; silent Needs Revision cards get a fresh rewrite + Needs Me after 3 h
-  (see Decisions). The Mac pulls within 10 min: the next round sends 5, and rewrites the three (prompt is days old). 302 tests.
+- 2026-11-02 ~1:30pm ET, RESUME HERE: Rodrigo asked why 10 follow-ups still sat in Approved (2 per round; Arcides, Abraham,
+  McGee, Thais went 12:21/12:40pm) and why Zaira Zavala, Javier Rodriguez, John Sacristan sat in Needs Revision (dragged there
+  Oct 28/29, no comment). Merged: per_tick 5; a no-comment Needs Revision card returns to Needs Me at the next round (his rule, see
+  Decisions; replaces the first attempt of a 3 h fresh rewrite). The Mac pulls within 10 min: next round sends 5 and moves the three. 302 tests.
 - 2026-11-02 ~6am ET, RESUME HERE: **Good morning follow-ups.** Rodrigo asked for a second email to every agent who never answered.
   14 follow-up cards written in the cloud and posted in **Needs Me** (same-thread reply cards): Veronica Zavaleta, Arcides Otero,
   Richard Dewitt, Liselotte Seer, Robert Tammaro, Laura Sanders (first email Oct 30), Carlos Montoya, Yerislenia Dominguez (Oct 29),

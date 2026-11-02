@@ -9,7 +9,7 @@ import json
 import random
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -592,6 +592,14 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                 if not last.startswith(BOT):      # Rodrigo dragged it here without saying what to change
                     asana.comment(t["gid"], f"{PROMPT_PREFIX} in a comment (or edit the text between the EMAIL lines) and I'll rewrite it "
                                             f"and move it to Needs Me.")
+                elif last.startswith(f"{BOT} {PROMPT_PREFIX}") and _prompt_expired(comments[-1], cfg):
+                    # Rodrigo, 2026-11-02 ("should those not be revised already somehow and moved to their rightful place?"):
+                    # no comment came, so Charles writes a fresh version on his own and the card goes to Needs Me.
+                    if fresh_rewrite(conn, cfg, asana, llm, card["outreach_id"]):
+                        asana.move(t["gid"], nm)
+                        asana.comment(t["gid"], "You put this in Needs Revision without a comment, so here is a fresh version written from "
+                                                "scratch. Moved to Needs Me: drag to Approved to send, or comment what to change.")
+                        n["fresh_rewrites"] = n.get("fresh_rewrites", 0) + 1
             continue
         test_to = test_request(feedback, cfg)
         if test_to and not [f for f in feedback if not TEST_RE.search(f)]:
@@ -798,6 +806,41 @@ def _props_for(conn, row: dict[str, Any]) -> list[dict[str, Any]]:
     return [db.row_to_dict(r) for r in conn.execute(
         f"SELECT p.*, v.lane, v.mao, v.arv, v.arv_method, v.comp_count, v.repair_cost, v.repair_tier, v.comp_grade FROM properties p "
         f"LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
+
+
+def _prompt_expired(comment: dict[str, Any], cfg: Any) -> bool:
+    """The engine's "tell me what to change" prompt has sat unanswered longer than outreach.needs_revision.auto_rewrite_hours."""
+    hours = float(cfg.get("outreach.needs_revision.auto_rewrite_hours", 3))
+    ts = comment.get("created_at")
+    if not ts:
+        return True
+    try:
+        return now_utc() - datetime.fromisoformat(str(ts).replace("Z", "+00:00")) >= timedelta(hours=hours)
+    except ValueError:
+        return True
+
+
+def fresh_rewrite(conn, cfg: Any, asana: Asana, llm, outreach_id: int) -> bool:
+    """Write the first email again from scratch with the current writer and refresh the card (text + picture). False on failure."""
+    row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=? AND status='pending_approval'", (outreach_id,)).fetchone())
+    if not row or not row.get("asana_task_id"):
+        return False
+    agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
+    pids = json.loads(row["property_ids"] or "[]")
+    props = _props_for(conn, row)[: int(cfg.get("outreach.max_properties_per_email", 2))]
+    if not props:
+        return False
+    try:
+        d = compose_email(llm, cfg, agent, props, seed_for(agent["id"], pids, today_et()) + int(row.get("variant") is not None))
+    except Exception as e:  # noqa: BLE001
+        log.error("fresh rewrite of outreach %s failed: %s", outreach_id, e)
+        return False
+    conn.execute("UPDATE outreach SET subject=?, body=?, draft_body=?, variant=?, analysis=? WHERE id=?",
+                 (d["subject"], d["body"], d["body"], d["variant"], json.dumps(d.get("analysis") or {}), row["id"]))
+    asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
+                                                         listing_meta(props[0], agent, d.get("analysis"))))
+    _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
+    return True
 
 
 def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = True, violating_only: bool = False,

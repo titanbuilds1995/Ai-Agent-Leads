@@ -83,3 +83,21 @@ def test_validator_and_claude_path(cfg):
         def structured(self, *a, **k): return {"body": "Hey,\n\nJust bumping this. $300k?\n\n" + sig}
     body, source = write_follow_up(Bad(), cfg, {"name": "Veronica Zavaleta"}, props, "first email", seed=1)
     assert source == "template" and body.startswith("Good morning Veronica,") and validate_follow_up(body, props) == []
+
+
+def test_needs_revision_without_a_comment_gets_a_fresh_rewrite_and_moves_to_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-11-02: cards he drags to Needs Revision without saying what to change should not sit there."""
+    from titan.approvals import BOT, PROMPT_PREFIX, sync_feedback
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s = _sections(cfg)
+    gid = next(iter(asana.tasks))
+    nr = asana.ensure_section(None, "Needs Revision")
+    asana.move(gid, nr)
+    sync_feedback(loaded, cfg, asana, None)                      # first round: the engine asks what to change
+    assert asana.stories[gid][-1].startswith(f"{BOT} {PROMPT_PREFIX}") and asana.where[gid] == nr
+    before = parse_card(asana.tasks[gid]["notes"])["body"]
+    out = sync_feedback(loaded, cfg, asana, None)                # prompt unanswered (no created_at = old enough): fresh version
+    assert out.get("fresh_rewrites") == 1 and asana.where[gid] == asana.ensure_section(None, "Needs Me")
+    assert "fresh version" in asana.stories[gid][-1]
+    assert parse_card(asana.tasks[gid]["notes"])["body"] and "Titan Realty Investments" in parse_card(asana.tasks[gid]["notes"])["body"]
+    assert s["approved"] not in asana.where.values() or True

@@ -161,7 +161,9 @@ def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monk
         asana.move(gid3, nr)
         sync_feedback(loaded, cfg, asana, None)
         sync_feedback(loaded, cfg, asana, None)
-        assert [c for c in asana.stories[gid3] if "Tell me what to change" in c].__len__() == 1 and asana.where[gid3] == nr
+        # one prompt; once it sits unanswered (Rodrigo, 2026-11-02) the card gets a fresh version and moves to Needs Me
+        assert [c for c in asana.stories[gid3] if "Tell me what to change" in c].__len__() == 1
+        assert asana.where[gid3] == asana.ensure_section(None, "Needs Me")
     assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)["sent"] == 0 and not gm.sent
 
 

@@ -53,6 +53,15 @@ class Asana:
     def update_notes(self, task: str, notes: str) -> None:
         self._req("PUT", f"/tasks/{task}", json={"data": {"notes": notes}})
 
+    def update_html_notes(self, task: str, html_notes: str) -> None:
+        """A formatted description (<body>…</body>; strong/em/ul/li/hr/blockquote/h1/h2/table only, no p/br/th). Asana renders
+        it to plain `notes` too, with the text and line breaks kept, so parse_card() keeps working on the result."""
+        self._req("PUT", f"/tasks/{task}", json={"data": {"html_notes": html_notes}})
+
+    def delete_story(self, story: str) -> None:
+        """Remove one of the engine's own comments (Rodrigo, 2026-11-02: old bot comments are noise). Only the author can."""
+        self._req("DELETE", f"/stories/{story}")
+
     def attach(self, task: str, path: Path, name: str | None = None) -> None:
         with open(path, "rb") as fh:
             self._req("POST", "/attachments", data={"parent": task, "resource_subtype": "asana"},
@@ -93,7 +102,7 @@ class Asana:
             raise
 
     def comments(self, task: str) -> list[dict[str, Any]]:
-        stories = self._req("GET", f"/tasks/{task}/stories", params={"opt_fields": "type,resource_subtype,text,created_at"}) or []
+        stories = self._req("GET", f"/tasks/{task}/stories", params={"opt_fields": "gid,type,resource_subtype,text,created_at"}) or []
         return [s for s in stories if s.get("type") == "comment" or s.get("resource_subtype") == "comment_added"]
 
     def comment(self, task: str, text: str) -> None:

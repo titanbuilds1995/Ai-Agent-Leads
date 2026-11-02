@@ -179,8 +179,9 @@ def heal_bounces(conn) -> int:
 
 def heal_misreads(conn) -> int:
     """Re-read stored replies an older build got wrong: a 'counter' whose only number was rent or a license number in the
-    signature (Richard DiPietro, 2026-10-26), or an offer request filed as a question (Lise: "bring your best offer").
-    Only these two corrections; idempotent; runs before every check."""
+    signature (Richard DiPietro, 2026-10-26), an offer request filed as a question (Lise: "bring your best offer"), or a flat
+    "no" read as interest (Edward Martinez, 2026-11-02: "No they are not. Thank you."). Only these corrections; idempotent;
+    runs before every check."""
     from .classifier import classify_rules
     n = 0
     rows = conn.execute("SELECT m.id, m.body, m.classification, m.thread_id, t.property_ids FROM messages m JOIN threads t ON t.id=m.thread_id "
@@ -190,7 +191,8 @@ def heal_misreads(conn) -> int:
         lp = conn.execute("SELECT list_price FROM properties WHERE id=?", (pids[0],)).fetchone() if pids else None
         c = classify_rules(r["body"] or "", lp[0] if lp else None)
         if (r["classification"] == "COUNTER_WITH_NUMBER" and c.number is None) or \
-           (r["classification"] in ("QUESTION", "INTERESTED") and c.label == "ASK_FOR_OFFER"):
+           (r["classification"] in ("QUESTION", "INTERESTED") and c.label == "ASK_FOR_OFFER") or \
+           (r["classification"] in ("QUESTION", "INTERESTED") and c.label == "NOT_INTERESTED" and c.confidence >= 0.85):   # Edward: "No they are not"
             conn.execute("UPDATE messages SET classification=?, confidence=? WHERE id=?", (c.label, c.confidence, r["id"]))
             n += 1
     return n

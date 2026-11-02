@@ -22,6 +22,11 @@ class FakeAsana:
         return {"gid": gid}
 
     def update_notes(self, task, notes): self.tasks[task]["notes"] = notes
+    def update_html_notes(self, task, html):            # Asana renders html_notes to plain notes: tags off, text and lines kept
+        import html as h, re
+        self.tasks[task]["html_notes"] = html
+        self.tasks[task]["notes"] = h.unescape(re.sub(r"<hr/>", "-" * 40, re.sub(r"</?(?!hr)[a-z]+/?>", "", html))).strip()
+    def delete_story(self, gid): self.deleted = getattr(self, "deleted", []) + [gid]
     def attach(self, task, path, name=None): self.attachments.append((task, name, path.exists()))
     def section_tasks(self, section): return [dict(t) for g, t in self.tasks.items() if self.where[g] == section]
     def comments(self, task): return [{"text": t} for t in self.stories[task]]

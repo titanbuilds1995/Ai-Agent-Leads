@@ -14,7 +14,7 @@ from typing import Any
 from . import db
 from .util import iso, log, money, parse_iso, pretty_phone
 
-PREFIX = "📩 Reply from"
+PREFIX = "📩"
 NO_CARD = "no_card"
 
 
@@ -51,36 +51,36 @@ def _when(s: str | None) -> str:
     if not dt:
         return ""
     from zoneinfo import ZoneInfo
-    return dt.astimezone(ZoneInfo("America/New_York")).strftime("%a %b %d, %I:%M %p ET")
+    d = dt.astimezone(ZoneInfo("America/New_York"))
+    return f"{d.strftime('%a %b')} {d.day}, {d.strftime('%I:%M').lstrip('0')}{d.strftime('%p').lower()}"
+
+
+# What the engine does with each kind of reply, in Rodrigo's words (Rodrigo, 2026-11-02: a flat "no" goes to Skip and he
+# never needs to see it; the rest of the card already says which house, so no listing / MAO / draft lines here)
+NEXT = {"NOT_INTERESTED": "Read as: not interested, seller firm. This lead goes to Skip; nothing to do.",
+        "SOLD_OR_PENDING": "Read as: already under contract or sold. This lead goes to Skip; nothing to do.",
+        "STOP": "Read as: asked us to stop. Do-not-contact; this lead goes to Skip.",
+        "ASK_FOR_OFFER": "Read as: asked for our offer. Your call: comment \"offer N\" here, or what Charles should ask.",
+        "COUNTER_WITH_NUMBER": "Read as: gave a number. Your call: comment \"offer N\" here, or what Charles should ask.",
+        "BOUNCE": "Bounced: the email never arrived. Call the agent.",
+        "OUT_OF_OFFICE": "Auto-reply; waiting for the real answer."}
 
 
 def mirror_text(conn, thread: dict[str, Any], msg: dict[str, Any], agent: dict[str, Any]) -> str:
-    pids = json.loads(thread["property_ids"] or "[]")
-    props = [db.row_to_dict(r) for r in conn.execute(
-        f"SELECT p.street, p.city, p.list_price, p.lead_status, v.mao FROM properties p LEFT JOIN valuations v ON v.property_id=p.id "
-        f"WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+    from .replies.clean import clean_reply
     who = agent.get("name") or agent.get("email") or pretty_phone(agent.get("phone")) or "the agent"
-    via = "text" if thread.get("channel") == "sms" else "email"
-    body = (msg.get("body") or "").strip()
-    if len(body) > 1500:
-        body = body[:1500].rstrip() + " […]"
-    conf = msg.get("confidence")
-    read = f"{msg.get('classification') or 'unclassified'}" + (f" ({conf:.0%} sure)" if isinstance(conf, (int, float)) else "")
+    via = " (text)" if thread.get("channel") == "sms" else ""
+    body = clean_reply(msg.get("body") or "")
+    if len(body) > 1200:
+        body = body[:1200].rstrip() + " […]"
     phone = pretty_phone(agent.get("phone")) if agent.get("phone") else ""
-    lines = [f"{PREFIX} {who} ({via}, {_when(msg.get('created_at'))}):" + (f"  ·  call {phone}" if phone else ""), "", body or "(empty message)", "",
-             f"Engine read: {read}. Conversation state: {thread.get('state') or 'OPEN'}."]
-    for p in props:
-        lines.append(f"House: {p['street']}, {p['city']} · list {money(p['list_price'])} · lead {p.get('lead_status') or 'NONE'}"
-                     + (f" · internal screening MAO {money(p['mao'])} (never quoted to the agent)" if p.get("mao") else ""))
+    cls = msg.get("classification") or ""
+    head = f"{PREFIX} {who} replied{via} · {_when(msg.get('created_at'))}" + (f" · call {phone}" if phone else "")
+    nxt = NEXT.get(cls) or f"Read as: {PLAIN.get(cls, 'replied')}. Charles drafts his answer as a reply card in Needs Me."
     ans = engine_answer(conn, thread, msg)
-    if ans and ans.get("status") == "sent":
-        lines += ["", "Charles answered (sent):", ans["body"] or ""]
-    elif ans and ans.get("body"):
-        lines += ["", "Engine's draft answer (NOT sent; it sits in Charles's Gmail drafts under Titan/Review):", ans["body"]]
-    else:
-        lines += ["", "Nothing has been sent back yet."]
-    lines += ["", "Comment here what Charles should answer, or tell Claude."]
-    return "\n".join(lines)
+    if ans and ans.get("status") == "sent" and ans.get("body"):
+        nxt = "Charles answered:\n" + clean_reply(ans["body"])
+    return "\n".join([head, "", body or "(empty message)", "", nxt])
 
 
 def mirror_replies(conn, cfg: Any, asana, limit: int = 50) -> dict[str, int]:
@@ -118,7 +118,7 @@ NO_ANSWER = "Sent · no answer yet"
 STAND_START, STAND_END = "-----WHERE WE STAND-----", "-----END WHERE WE STAND-----"
 NOT_AN_ANSWER = ("BOUNCE", "OUT_OF_OFFICE")
 # Rodrigo, 2026-10-27: a lead whose next move is his goes to "Needs Me"; "Answered" = we replied, the ball is with the agent
-NEEDS_ME_STATUS = ("NEEDS YOU", "OUR TURN", "ANSWER DRAFTED", "OFFER DRAFTED")
+NEEDS_ME_STATUS = ("NEEDS YOU", "OUR TURN", "ANSWER DRAFTED", "OFFER DRAFTED")   # stand["kind"] values
 PLAIN = {"INTERESTED": "talked about the house", "ASK_FOR_OFFER": "asked for our offer", "COUNTER_WITH_NUMBER": "gave a number",
          "QUESTION": "asked a question", "NOT_INTERESTED": "not interested", "SOLD_OR_PENDING": "already under contract or sold",
          "STOP": "asked us to stop"}
@@ -143,8 +143,10 @@ def board_sections(cfg: Any, asana) -> tuple[str, str]:
     return sent, answered
 
 
-def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> list[str] | None:
-    """Plain lines for the top of a card, or None when the agent has not really answered (bounces and auto-replies don't count)."""
+def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> dict[str, Any] | None:
+    """What Rodrigo needs to know about a lead, in a few fields (rendered by stand_lines / stand_html), or None when the
+    agent has not really answered (bounces and auto-replies don't count)."""
+    from .replies.clean import one_line
     msgs = [db.row_to_dict(r) for r in conn.execute(
         "SELECT m.direction, m.classification, m.created_at, m.body, t.state FROM messages m JOIN threads t ON t.id=m.thread_id "
         "WHERE t.agent_id=? ORDER BY m.created_at, m.id", (agent_id,)).fetchall()]
@@ -155,38 +157,111 @@ def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> list[str
     last = [m for m in msgs if not (m["direction"] == "in" and (m.get("classification") or "") in NOT_AN_ANSWER)][-1]
     cls = last_in.get("classification") or ""
     outs = [m for m in msgs if m["direction"] == "out"]
+    first = (conn.execute("SELECT name FROM agents WHERE id=?", (agent_id,)).fetchone() or ["The agent"])[0] or "The agent"
+    first = first.split()[0].title() if first.split() else "The agent"
     if cls in ("NOT_INTERESTED", "SOLD_OR_PENDING", "STOP") or (last.get("state") or "") in ("CLOSED", "STOPPED"):
-        turn = f"CLOSED: {PLAIN.get(cls, 'conversation ended')}."
+        kind, status = "CLOSED", f"Closed · {first} said {PLAIN.get(cls, 'the conversation is over')}. Nothing to do."
     elif last["direction"] == "out":
-        turn = f"WAITING ON THE AGENT since {_when(last['created_at'])}."
+        kind, status = "WAITING", f"Waiting on {first} since {_when(last['created_at'])}."
     elif cls in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER"):
-        turn = ("NEEDS YOU: decide a number (comment \"offer N\" on this card) or tell Charles what to ask."
-                + (" A holding reply card is drafted." if pending_reply else ""))
+        kind = "NEEDS YOU"
+        status = (f"Needs you · {first} {PLAIN.get(cls)}. Comment \"offer N\" here, or tell Charles what to ask."
+                  + (" A holding answer is drafted." if pending_reply else ""))
     elif pending_reply:
-        turn = "ANSWER DRAFTED: Charles's reply card is on the board waiting for you."
+        kind, status = "ANSWER DRAFTED", "Answer drafted · Charles's reply card is in Needs Me. Drag it to Approved to send."
     else:
-        turn = "OUR TURN: Charles owes an answer."
-    snippet = " ".join((last_in.get("body") or "").split())[:180]
-    return [f"Status: {turn}",
-            f"Agent answered {len(real_in)} time(s); last {_when(last_in['created_at'])}: {PLAIN.get(cls, cls.lower() or 'replied')}.",
-            f"Their last words: \"{snippet}{'…' if len(last_in.get('body') or '') > 180 else ''}\"",
-            f"We wrote {len(outs)} time(s)" + (f"; last {_when(outs[-1]['created_at'])}." if outs else ".")]
+        kind, status = "OUR TURN", f"Our turn · Charles owes {first} an answer (a reply card comes next round)."
+    return {"kind": kind, "status": status, "first": first, "cls": cls,
+            "last_in": f"{first} ({_when(last_in['created_at'])}): \"{one_line(last_in.get('body') or '', 220)}\"",
+            "count": f"{first} wrote {len(real_in)}, we wrote {len(outs)}" + (f", last {_when(outs[-1]['created_at'])}." if outs else "."),
+            "drafts": []}
+
+
+def stand_lines(st: dict[str, Any]) -> list[str]:
+    """Plain-text form of the block (what a client without html_notes gets, and the start of the html form)."""
+    lines = [f"Status: {st['status']}", f"Last from {st['last_in']}", st["count"]]
+    for d in st.get("drafts") or []:
+        lines += ["", f"Drafted answer (not sent) · card \"{d['name']}\" in {d['where']}. Drag it to Approved to send.", d["body"]]
+    return lines
 
 
 def _with_stand(notes: str, lines: list[str]) -> str:
-    import re
     block = f"{STAND_START}\n" + "\n".join(lines) + f"\n{STAND_END}\n\n"
     rest = re.sub(re.escape(STAND_START) + r".*?" + re.escape(STAND_END) + r"\n*", "", notes or "", count=1, flags=re.S)
     return block + rest
 
 
+# ---------- the formatted card (Rodrigo, 2026-11-02: "where we stand … looks very convoluted … make it more visually appealing,
+# organized and structured"). Asana renders html_notes to plain `notes` with every line kept, so the To:/Subject:/EMAIL markers the
+# engine parses survive; the "Why this house" analysis and the how-to footer are dropped once the lead is in conversation.
+BOILERPLATE_RE = re.compile(r"^(Comment feedback to get a rewrite\..*|This is Charles's ANSWER in an existing conversation\..*|"
+                            r"Comment to change it · .*|Charles's answer, sent in the same email thread\..*|"
+                            r"You can also edit the text between the EMAIL lines yourself\.?)$", re.M)
+ANALYSIS_RE = re.compile(r"^Why this house \(engine's read, not sent\):\n(?:•[^\n]*\n?)*", re.M)
+STAND_RE = re.compile(re.escape(STAND_START) + r".*?" + re.escape(STAND_END) + r"\n*", re.S)
+
+
+def _e(x: Any) -> str:
+    import html
+    return html.escape(str(x if x is not None else ""), quote=False)
+
+
+RENDERED_STAND_RE = re.compile(r"^WHERE WE STAND\n.*?\n-{10,}\n", re.S)       # our own html block as Asana renders it back
+HEADING_RE = re.compile(r"^(Listing|First email( \(sent [^\n]*\))?|-{10,})\s*$", re.M)
+OUTREACH_RE = re.compile(r"^\((reply to )?outreach #\d+\)\s*$", re.M)
+
+
+def card_parts(notes: str) -> dict[str, str]:
+    """The pieces of a lead card's description, whatever form it is in now (plain card, marker block or rendered html):
+    `email` = the To:/Subject:/EMAIL block plus the "(outreach #N)" line, `meta` = listing, agent and Rodrigo's notes."""
+    rest = STAND_RE.sub("", notes or "", count=1)
+    rest = RENDERED_STAND_RE.sub("", rest, count=1)
+    rest = ANALYSIS_RE.sub("", rest)
+    rest = BOILERPLATE_RE.sub("", rest)
+    rest = HEADING_RE.sub("", rest)
+    m = re.search(r"^To:.*?" + re.escape("-----END EMAIL-----"), rest, re.S | re.M)
+    email = m.group(0).strip() if m else ""
+    rest = rest[: m.start()] + rest[m.end():] if m else rest
+    o = OUTREACH_RE.search(rest)
+    if o:
+        email = (email + "\n" + o.group(0).strip()).strip()
+        rest = rest[: o.start()] + rest[o.end():]
+    meta = re.sub(r"\n{3,}", "\n\n", rest).strip()
+    return {"email": email, "meta": meta}
+
+
+def stand_html(st: dict[str, Any], notes: str, sent_when: str = "") -> str:
+    parts = card_parts(notes)
+    out = ["<body>", "<strong>WHERE WE STAND</strong>", "<ul>", f"<li><strong>Status:</strong> {_e(st['status'])}</li>",
+           f"<li><strong>Last from</strong> {_e(st['last_in'])}</li>", f"<li><strong>Thread:</strong> {_e(st['count'])}</li>", "</ul>"]
+    for d in st.get("drafts") or []:
+        out += [f"<strong>Drafted answer</strong> (not sent) · card \"{_e(d['name'])}\" in {_e(d['where'])}. Drag it to Approved to send.",
+                f"<blockquote>{_e(d['body'])}</blockquote>"]
+    if parts["meta"]:
+        out += ["<hr/>", "<strong>Listing</strong>", _e(re.sub(r"^Listing: ", "", parts["meta"]))]
+    if parts["email"]:
+        out += ["<hr/>", "<strong>First email</strong>" + (f" (sent {_e(sent_when)})" if sent_when else ""), _e(parts["email"])]
+    out.append("</body>")
+    return "\n".join(out)
+
+
+def _squash(text: str) -> str:
+    """Compare a description with Asana's plain rendering of our html: tags, entities, whitespace and rule lines ignored."""
+    import html
+    t = re.sub(r"<[^>]+>", "", text or "")
+    t = html.unescape(t)
+    t = re.sub(r"-{5,}", "", t)
+    return re.sub(r"\s+", "", t)
+
+
 def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
     """Lead cards whose agent really answered: "Needs Me" when the next move is Rodrigo's (NEEDS YOU / OUR TURN / ANSWER
     DRAFTED / OFFER DRAFTED), "Answered" when the agent wrote last or the conversation closed, back to "Sent · no answer
-    yet" once we replied and wait on them (Rodrigo, 2026-10-27: we answering is not them answering). Keeps a WHERE WE
-    STAND block at the top of every such first-email card. Never raises into the caller."""
+    yet" once we replied and wait on them (Rodrigo, 2026-10-27: we answering is not them answering). A lead the agent closed
+    ("no, the seller is firm", sold, stop) goes to Skip with its reply cards (Rodrigo, 2026-11-02: "I don't even need to see
+    the lead"). Keeps a formatted WHERE WE STAND description on every such first-email card. Never raises into the caller."""
     from .approvals import needs_me_section, parse_card
-    n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}
+    n = {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0, "to_skip": 0}
     try:
         a = cfg.get("outreach.asana", {}) or {}
         sent, answered = board_sections(cfg, asana)
@@ -194,8 +269,10 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
         from .approvals import needs_revision_section
         from .warm_leads import wrap
         asana = wrap(cfg, asana, nm, needs_revision_section(cfg, asana), sent, answered)   # Titan Warm Leads cards too
+        skip = a.get("skip")
         pending = set()
         drafts: dict[int, list[tuple[str, str, dict]]] = {}     # outreach id -> [(where, card name, parsed card)]
+        draft_gids: dict[int, list[str]] = {}
         names = {a.get("to_review"): "Fresh Leads", a.get("approved"): "Approved (sends next run)", needs_me_section(cfg, asana): "Needs Me"}
         for sec in (a.get("to_review"), a.get("approved"), getattr(asana, "_needs_revision_gid", None) or a.get("needs_revision"),
                     needs_me_section(cfg, asana)):
@@ -204,6 +281,7 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 if pc and pc.get("reply_to"):
                     pending.add(pc["outreach_id"])
                     drafts.setdefault(pc["outreach_id"], []).append((names.get(sec, "Needs Revision"), t.get("name") or "", pc))
+                    draft_gids.setdefault(pc["outreach_id"], []).append(t["gid"])
         agent_of: dict[int, int | None] = {}
 
         def agent_id(oid: int) -> int | None:
@@ -219,37 +297,50 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             pc = parse_card(t.get("notes") or "")
             if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
                 continue
-            if here == nm and (conn.execute("SELECT status FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone() or [""])[0] != "sent":
+            row = conn.execute("SELECT status, sent_at FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone()
+            if here == nm and (row or [""])[0] != "sent":
                 continue          # an unsent first email parked with its numbers: not a lead card
             aid = agent_id(pc["outreach_id"])
-            lines = where_we_stand(conn, aid, aid in pending_agents)
-            if not lines:
+            st = where_we_stand(conn, aid, aid in pending_agents)
+            if not st:
                 continue
             # Rodrigo, 2026-10-26: the status must move as soon as an offer is drafted, not stay at "decide a number"
-            agent_drafts = [d for o in pending if agent_id(o) == aid for d in drafts.get(o, [])]
+            agent_oids = [o for o in pending if agent_id(o) == aid]
+            agent_drafts = [d for o in agent_oids for d in drafts.get(o, [])]
             offer = next((d for d in agent_drafts if re.search(r"\$\s?\d{2,3},\d{3}", d[2]["body"])), None)
-            if offer:
+            if offer and st["kind"] != "CLOSED":
                 price = re.search(r"\$\s?(\d{2,3},\d{3})", offer[2]["body"]).group(1)
-                lines[0] = (f"Status: OFFER DRAFTED (${price}): waiting for your approval in {offer[0]}. Drag the card "
-                            f"\"{offer[1]}\" to Approved to send it." if "Approved" not in offer[0] else
-                            f"Status: OFFER APPROVED (${price}): goes out from Charles on the next run.")
-            # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — show the drafted reply right here
-            for oid in [o for o in pending if agent_id(o) == aid]:
-                for where, cname, pc2 in drafts.get(oid, []):
-                    lines += ["", f"DRAFTED ANSWER (not sent yet) · card \"{cname}\" in {where}. Drag that card to Approved to send it.",
-                              f"Draft subject: {pc2['subject']}", "", pc2["body"]]
-            new = _with_stand(t.get("notes") or "", lines)
-            if new != (t.get("notes") or ""):
-                asana.update_notes(t["gid"], new)
-                n["updated"] += 1
+                if "Approved" in offer[0]:
+                    st["kind"], st["status"] = "OFFER APPROVED", f"Offer approved (${price}) · goes out from Charles on the next run."
+                else:
+                    st["kind"], st["status"] = "OFFER DRAFTED", (f"Offer drafted (${price}) · waiting for your approval in {offer[0]}. "
+                                                                 f"Drag \"{offer[1]}\" to Approved to send it.")
+            # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — the drafted reply is shown on the lead card too
+            if st["kind"] != "CLOSED":
+                st["drafts"] = [{"where": where, "name": cname, "body": pc2["body"]} for where, cname, pc2 in agent_drafts]
+            lines = stand_lines(st)
+            notes = t.get("notes") or ""
+            html_fn = getattr(asana, "update_html_notes", None)
+            if html_fn is not None:
+                html = stand_html(st, notes, _when(row["sent_at"]) if row and row["sent_at"] else "")
+                if _squash(html) != _squash(notes):
+                    html_fn(t["gid"], html)
+                    n["updated"] += 1
+            else:
+                new = _with_stand(notes, lines)
+                if new != notes:
+                    asana.update_notes(t["gid"], new)
+                    n["updated"] += 1
             # Rodrigo, 2026-10-27: "Answered" means the AGENT answered and it is on us; once we reply, the lead goes back to
             # "Sent · no answer yet" until the agent writes again. Needs Me = the next move is his.
-            if any(lines[0].startswith(f"Status: {k}") for k in NEEDS_ME_STATUS):
+            if st["kind"] in NEEDS_ME_STATUS:
                 target = nm
-            elif lines[0].startswith("Status: WAITING ON THE AGENT"):
+            elif st["kind"] == "WAITING":
                 target = sent
-            elif lines[0].startswith("Status: OFFER APPROVED"):
-                target = here             # sends on the next run; it then reads WAITING ON THE AGENT and goes to Sent
+            elif st["kind"] == "OFFER APPROVED":
+                target = here             # sends on the next run; it then reads WAITING and goes to Sent
+            elif st["kind"] == "CLOSED" and skip and not (hasattr(asana, "is_warm") and asana.is_warm(t["gid"])):
+                target = skip             # Rodrigo, 2026-11-02: a "no" never needs him; warm-board cards go to its Closed column
             else:
                 target = answered
             if target == sent and hasattr(asana, "is_warm") and asana.is_warm(t["gid"]) and conn.execute(
@@ -260,8 +351,15 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
             if target != here:
                 asana.move(t["gid"], target)
                 n["moved"] += 1
-                n["to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered"] = \
-                    n.get("to_needs_me" if target == nm else "to_sent" if target == sent else "to_answered", 0) + 1
+                key = "to_needs_me" if target == nm else "to_sent" if target == sent else "to_skip" if target == skip else "to_answered"
+                n[key] = n.get(key, 0) + 1
+                if target == skip:
+                    asana.comment(t["gid"], f"{st['first']} said no ({PLAIN.get((st.get('cls') or ''), 'conversation over')}): "
+                                            "moved to Skip, nothing more to do here.")
+            if st["kind"] == "CLOSED" and skip:       # whatever answer was waiting for this agent is moot
+                for gid in [g for o in agent_oids for g in draft_gids.get(o, [])]:
+                    asana.move(gid, skip)
+                    n["to_skip"] = n.get("to_skip", 0) + 1
     except Exception as e:  # noqa: BLE001
         log.warning("lead board: %s", e)
         n["error"] = str(e)[:200]

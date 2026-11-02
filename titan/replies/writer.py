@@ -79,7 +79,9 @@ def _thread_text(conn, agent_id: int) -> list[dict[str, str]]:
     rows = conn.execute("SELECT m.direction, m.body, m.created_at, m.classification FROM messages m JOIN threads t ON t.id=m.thread_id "
                         "WHERE t.agent_id=? AND COALESCE(m.classification,'') NOT IN ('BOUNCE','OUT_OF_OFFICE') ORDER BY m.created_at, m.id",
                         (agent_id,)).fetchall()
-    return [{"from": "agent" if r["direction"] == "in" else "Charles", "when": r["created_at"], "text": (r["body"] or "")[:2500]} for r in rows]
+    from .clean import clean_reply
+    return [{"from": "agent" if r["direction"] == "in" else "Charles", "when": r["created_at"],
+             "text": (clean_reply(r["body"] or "") if r["direction"] == "in" else (r["body"] or ""))[:2500]} for r in rows]
 
 
 def waiting_threads(conn) -> list[dict[str, Any]]:
@@ -151,9 +153,8 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
                 n["failed"] += 1
                 continue
             needs_number = msg.get("classification") in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER")
-            note = (f"Engine's read: {out.get('read', '')}\n" +
-                    ("They asked for a number: this is a holding answer only. Comment \"offer N\" on the agent's card when you decide.\n" if needs_number else "") +
-                    "Charles wrote this himself (trust ladder stage 3). Comment to change it, edit it, or drag to Approved to send.")
+            note = (f"Read: {out.get('read', '')}" +
+                    ("\nThey asked for a number: this is a holding answer only. Comment \"offer N\" on the agent's card when you decide." if needs_number else ""))
             gid = post_reply_card(conn, cfg, asana, row["id"], body, note=note)
             if gid:
                 conn.execute("UPDATE messages SET reply_card=?, reply_draft=? WHERE id=?", (gid, body, msg["id"]))

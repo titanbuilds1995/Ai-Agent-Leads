@@ -31,9 +31,7 @@ def test_reply_is_posted_once_with_read_and_draft(loaded, cfg, tmp_path, monkeyp
     assert n == {"posted": 1, "no_card": 0, "failed": 0}
     new = asana.stories[gid][before:]
     assert len(new) == 1 and PREFIX in new[0] and "Roof is from 2015" in new[0]
-    assert "Engine read: " in new[0] and "Conversation state:" in new[0] and "House: " in new[0]
-    if res.get("reply"):
-        assert "NOT sent" in new[0] and res["reply"][:40] in new[0]
+    assert "Read as:" in new[0] and "House: " not in new[0] and "Engine read" not in new[0]     # the agent's words + one line on what's next
     # idempotent: the second tick posts nothing new
     assert mirror_replies(loaded, cfg, asana) == {"posted": 0, "no_card": 0, "failed": 0}
     assert len(asana.stories[gid]) == before + 1

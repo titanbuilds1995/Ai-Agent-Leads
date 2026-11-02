@@ -222,12 +222,32 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   back to Needs Me at the next round, text untouched, with a one-line comment (`back_to_needs_me` in `sync_feedback`); no prompt,
   no wait. Commented cards still park there until the rewrite lands (or "couldn't rewrite" / "Held"). **Send pace: `per_tick` 5**
   (was 2; "why are those people still on my approved board"), still inside the window and the daily cap.
+- **Clean cards (Rodrigo, 2026-11-02: "very unorganized … where we stand looks very convoluted … delete things that are old … no need
+  to paste all of their footer")**: (1) answered lead cards get a FORMATTED description (`conversations.stand_html`, `update_html_notes`):
+  WHERE WE STAND as a short list (Status / Last from the agent / Thread), the drafted answer in a quote, then Listing, then the first
+  email; the pre-send "Why this house" analysis and the how-to footer are dropped once the lead is in conversation (Asana renders
+  html_notes to plain notes with the lines kept, so `parse_card` still works; `card_parts` reads any form back). (2) Mirrored replies
+  show the agent's words only (`titan/replies/clean.py`: quoted history, greeting, closing, name/phone/license/link signature
+  stripped; also in "Last from" and in Claude's reply prompts) plus one "Read as: … what happens next" line; no listing / MAO /
+  Gmail-draft lines. (3) Comment tidy (`titan/tidy.py`, runs inside `pending_feedback` on every card whose comments are read): older
+  "Rewritten …", "Comps re-checked", "Revised" copies and transient "Holding it / Held / Moved to Needs Me / couldn't rewrite" notes
+  are deleted (never Rodrigo's comments, never 📩/📤/NUMBERS/💬, never the engine's last comment; 4 per card per round). (4) The
+  comps loop comments only on houses with an engaged lead status and replaces its previous comment. (5) **A flat "no" needs no one
+  (Rodrigo, 2026-11-02, Edward Martinez: "I don't even need to see the lead")**: NOT_INTERESTED / SOLD_OR_PENDING / STOP → the lead
+  card and any reply card waiting for that agent go to Skip (warm-board cards to its Closed column) with one comment; `NOT_RE` learned
+  "No they are not", "firm", "not at this time", "won't come down"; `heal_misreads` re-files such replies stored as INTERESTED.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-02 ~4:10pm ET, RESUME HERE: **clean cards** (see Decisions → Clean cards): formatted WHERE WE STAND description on answered
+  leads, agent footers stripped from mirrored replies, superseded bot comments deleted as rounds pass, comps comments deduped, and a
+  "no" from the agent sends the lead + its reply card to Skip on its own. Edward Martinez (said no) moved to Skip by hand with his reply
+  card. The Mac pulls within 10 min; existing cards get the new description and lose old comments over the next few rounds (4 deletes
+  per card per round). Watch: the first live html description (Lise / Richard) and that `parse_card` still reads it (the fake in
+  tests mimics Asana's rendering; verified once on a throwaway card). 306 tests.
 - 2026-11-02 ~1:30pm ET, RESUME HERE: Rodrigo asked why 10 follow-ups still sat in Approved (2 per round; Arcides, Abraham,
   McGee, Thais went 12:21/12:40pm) and why Zaira Zavala, Javier Rodriguez, John Sacristan sat in Needs Revision (dragged there
   Oct 28/29, no comment). Merged: per_tick 5; a no-comment Needs Revision card returns to Needs Me at the next round (his rule, see

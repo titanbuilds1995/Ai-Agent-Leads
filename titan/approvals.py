@@ -92,8 +92,7 @@ def agent_line(agent: dict[str, Any]) -> str:
 
 def card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) -> str:
     return (f"To: {to}\nSubject: {subject}\n{START}\n{body}\n{END}\n\n{meta}\n\n"
-            f"Comment feedback to get a rewrite. Drag to Approved to send (it goes out during business hours). "
-            f"You can also edit the text between the EMAIL lines yourself.\n(outreach #{outreach_id})")
+            f"Comment to change it · drag to Approved to send (business hours) · or edit the text between the EMAIL lines yourself.\n(outreach #{outreach_id})")
 
 
 def parse_card(notes: str) -> dict[str, Any] | None:
@@ -112,8 +111,8 @@ def parse_card(notes: str) -> dict[str, Any] | None:
 
 def reply_card_notes(to: str, subject: str, body: str, outreach_id: int, meta: str) -> str:
     return (f"To: {to}\nSubject: {subject}\n{START}\n{body}\n{END}\n\n{meta}\n\n"
-            f"This is Charles's ANSWER in an existing conversation. Drag to Approved to send it as a reply in the same email thread "
-            f"(during business hours). Comment to change it, or edit the text between the EMAIL lines yourself.\n(reply to outreach #{outreach_id})")
+            f"Charles's answer, sent in the same email thread. Comment to change it · drag to Approved to send (business hours) · or edit the text "
+            f"between the EMAIL lines yourself.\n(reply to outreach #{outreach_id})")
 
 
 def post_reply_card(conn, cfg: Any, asana: Asana, outreach_id: int, body: str, section: str | None = None, note: str = "") -> str | None:
@@ -237,6 +236,8 @@ def pending_feedback(asana: Asana, task_gid: str) -> tuple[list[str], list[dict[
     """Rodrigo's comments since the engine's last comment on the card (the engine's own comments start with BOT).
     "Couldn't rewrite" and "Held" comments do not count: the feedback stays pending until a rewrite actually lands."""
     comments = asana.comments(task_gid)
+    from .tidy import tidy_comments
+    tidy_comments(asana, task_gid, comments)        # Rodrigo, 2026-11-02: superseded engine comments are removed as we pass
     last_bot = max((i for i, c in enumerate(comments) if (c.get("text") or "").startswith(BOT)
                     and not (c.get("text") or "").startswith((f"{BOT} {FAILED_PREFIX}", f"{BOT} Held:", f"{BOT} {PROMPT_PREFIX}"))), default=-1)
     return [c["text"] for c in comments[last_bot + 1:] if (c.get("text") or "").strip() and not c["text"].startswith(BOT)], comments

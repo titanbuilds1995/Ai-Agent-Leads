@@ -272,7 +272,8 @@ def revalue(conn, cfg: Any, comps_fn: Callable | None, props: list[dict[str, Any
             conn.execute("INSERT INTO comps_changes(run_date,property_id,old_arv,new_arv,old_grade,new_grade,why,created_at) VALUES(?,?,?,?,?,?,?,?)",
                          (run_date, p["id"], old.get("arv"), res["arv"], g_old, g_new, reason[:600], iso()))
             changes.append({"property_id": p["id"], "street": full.get("street"), "city": full.get("city"), "old_arv": old.get("arv"),
-                            "new_arv": res["arv"], "old_grade": g_old, "new_grade": g_new, "why": reason, "asana_task_id": p.get("asana_task_id")})
+                            "new_arv": res["arv"], "old_grade": g_old, "new_grade": g_new, "why": reason, "asana_task_id": p.get("asana_task_id"),
+                            "lead_status": full.get("lead_status")})
     return changes
 
 
@@ -436,7 +437,13 @@ def run(conn, cfg: Any, comps_fn: Callable | None = None, llm=None, asana=None, 
         for ch in changes:
             if not ch.get("asana_task_id") or not ch.get("old_arv"):
                 continue
+            # Rodrigo, 2026-11-02: "a lot of comp recheck … repetitive, a lot of noise". Only houses he is actually working
+            # (an agent in conversation or a lead he flagged) get the comment, and the previous one is removed first.
+            if (ch.get("lead_status") or "") not in ENGAGED_STATUSES:
+                continue
             try:
+                from .tidy import remove_family
+                remove_family(asana, ch["asana_task_id"], "Comps re-checked")
                 asana.comment(ch["asana_task_id"], change_comment(ch))
                 conn.execute("UPDATE comps_changes SET posted=1 WHERE property_id=? AND run_date=? AND new_arv=?", (ch["property_id"], run_date, ch["new_arv"]))
                 posted += 1
@@ -455,10 +462,13 @@ def run(conn, cfg: Any, comps_fn: Callable | None = None, llm=None, asana=None, 
     return out
 
 
+ENGAGED_STATUSES = ("NEEDS_REVIEW", "OFFER_DRAFTED", "NEEDS_CALL", "FLEXIBLE", "DISCUSSING", "HOT_LEAD", "RESPONDED")
+
+
 def change_comment(ch: dict[str, Any]) -> str:
     arrow = "up" if ch["new_arv"] > ch["old_arv"] else "down"
-    return (f"🤖 Comps re-checked ({today_et()}): resale value (ARV) {arrow} from ${ch['old_arv']:,} to ${ch['new_arv']:,}, "
-            f"comps grade {ch['old_grade']} → {ch['new_grade']}. {ch['why'][:300]}. Comment 'numbers' for the full snapshot.")
+    return (f"Comps re-checked ({today_et()}): ARV {arrow} from ${ch['old_arv']:,} to ${ch['new_arv']:,}, grade {ch['old_grade']} → {ch['new_grade']}. "
+            f"Comment 'numbers' for the full snapshot.")
 
 
 def grade_counts(conn) -> dict[str, int]:

@@ -140,16 +140,23 @@ def test_lead_board_moves_answered_cards_and_says_where_we_stand(loaded, cfg, tm
     # she asked for an offer: the next move is Rodrigo's, so Needs Me (2026-10-27); a bounce is not an answer
     assert res["moved"] == 1 and asana.where[g1] == needs_me and asana.where[g2] == s["sent"]
     notes = asana.tasks[g1]["notes"]
-    assert notes.startswith(STAND_START) and "NEEDS YOU: decide a number" in notes and "best offer" in notes
+    assert notes.startswith("WHERE WE STAND") and "Status: Needs you" in notes and "offer N" in notes and "best offer" in notes
+    assert "Comment to change it" not in notes and "Why this house" not in notes      # how-to and pre-send analysis are gone
     assert parse_card(notes)["outreach_id"] == o1                       # the card still reads as an email card
-    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0}  # idempotent
+    assert lead_board(loaded, cfg, asana) == {"moved": 0, "updated": 0, "to_needs_me": 0, "to_answered": 0, "to_skip": 0}  # idempotent
     log_message(loaded, t1, "out", "Thanks Lise, I'll get back to you today.", external_id="x3", action="reply:manual")
     lead_board(loaded, cfg, asana)
-    assert "WAITING ON THE AGENT" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count(STAND_START) == 1
+    assert "Status: Waiting on" in asana.tasks[g1]["notes"] and asana.tasks[g1]["notes"].count("WHERE WE STAND") == 1
     assert asana.where[g1] == s["sent"]                                 # we answered, not the agent: back to "Sent · no answer yet" (Rodrigo, 2026-10-27)
+    # Rodrigo, 2026-11-02: a "no" goes to Skip on its own, with any answer card waiting for that agent; he never needs to see it
+    from titan.approvals import post_reply_card
+    rc = post_reply_card(loaded, cfg, asana, o1, "Hi Lise,\n\nUnderstood.\n\nBest regards,\n\nCharles Grant")
     log_message(loaded, t1, "in", "Seller says no, he is going with another buyer.", external_id="x4", classification="NOT_INTERESTED", confidence=0.9)
-    lead_board(loaded, cfg, asana)
-    assert asana.where[g1] == answered and "CLOSED" in asana.tasks[g1]["notes"]
+    res = lead_board(loaded, cfg, asana)
+    assert asana.where[g1] == s["skip"] and asana.where[rc] == s["skip"] and res["to_skip"] == 2
+    assert "Status: Closed" in asana.tasks[g1]["notes"] and "Drafted answer" not in asana.tasks[g1]["notes"]
+    assert any("moved to Skip" in c for c in asana.stories[g1])
+    assert answered
 
 
 def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):
@@ -168,7 +175,7 @@ def test_lead_card_shows_the_drafted_answer(loaded, cfg, tmp_path, monkeypatch):
     asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
     lead_board(loaded, cfg, asana)
     notes = asana.tasks[g1]["notes"]
-    assert "DRAFTED ANSWER (not sent yet)" in notes and "$209,000" in notes
+    assert "Drafted answer" in notes and "$209,000" in notes and notes.index("Drafted answer") < notes.index("To: ")
     pc = parse_card(notes)
     assert pc["outreach_id"] == o1 and not pc["subject"].startswith("Re:") and "209,000" not in pc["body"]   # still the original card
 
@@ -189,7 +196,7 @@ def test_offer_card_changes_the_lead_status_and_cc_is_sent(loaded, cfg, tmp_path
     asana.tasks[gid]["notes"] = "Cc: rodrigo@example.com\n" + asana.tasks[gid]["notes"]
     asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
     lead_board(loaded, cfg, asana)
-    assert "OFFER DRAFTED ($209,000)" in asana.tasks[g1]["notes"]
+    assert "Offer drafted ($209,000)" in asana.tasks[g1]["notes"]
     assert parse_card(asana.tasks[gid]["notes"])["cc"] == ["rodrigo@example.com"]
     sent = []
     class G(FakeGmail):
@@ -216,7 +223,7 @@ def test_warm_leads_board_is_read_and_cards_stay_on_it(loaded, cfg, tmp_path, mo
     asana._sections = {s["sent"]: "Sent", **getattr(asana, "_sections", {})}
     asana.move(g1, w["waiting"])                          # he dragged it onto the warm board himself
     lead_board(loaded, cfg, asana)
-    assert asana.where[g1] == w["needs_me"] and "OUR TURN" in asana.tasks[g1]["notes"]
+    assert asana.where[g1] == w["needs_me"] and "Status: Our turn" in asana.tasks[g1]["notes"]
     # a plain "send it" on the warm card sends the drafted answer; the lead card stays on the warm board
     reply = post_reply_card(loaded, cfg, asana, o1, "Hey Peter,\n\nThanks for the lockbox.\n\nBest regards,\n\nCharles Grant")
     asana.stories[g1].append("send it")

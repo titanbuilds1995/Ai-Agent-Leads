@@ -31,7 +31,12 @@ SOLD_RE = re.compile(r"\b(under contract|pending|sold|accepted (an )?offer|went 
 NOT_RE = re.compile(r"\b(not interested|no interest|no thanks|no thank you|pass|not (looking|going) to (entertain|consider|accept)|won'?t (go|take|accept|consider|entertain)|"
                     r"will not (go|take|accept|consider|entertain)|firm (on|at) (the )?(price|list)|(seller|owner|they|we) (is|are|'s)? ?(not|n't) (interested|motivated|open|willing|looking)|"
                     r"full (list )?price only|no lowball|not (selling|entertaining) (below|under)|(don'?t|do not) (waste|bother)|only (considering|accepting) (full|list|retail)|"
-                    r"wants? (full|list) price|(isn'?t|is not|won'?t be) (going|willing) (below|under)|(seller|they) (said|says) no\b|no (room|flexibility)|not open to)\b", re.I)
+                    r"wants? (full|list) price|(isn'?t|is not|won'?t be) (going|willing) (below|under)|(seller|they) (said|says) no\b|no (room|flexibility)|not open to|"
+                    # Rodrigo, 2026-11-02 (Edward Martinez: "No they are not. Thank you."): a flat no to "is the seller open / flexible" is a decline
+                    r"(no|nope|unfortunately)[,.!]?\s+(they|he|she|we|the seller|seller|owner|the owner)\s*('?s|'re|is|are)?\s*(not|isn'?t|aren'?t)\b|"
+                    r"(seller|owner|they|he|she|client)('?s| is| are|'re) (very |pretty |quite )?firm\b|not (flexible|negotiable|budging|willing to (negotiate|come down|move))|"
+                    r"not (going|willing to go|coming|going to come) (any )?(lower|down)|(won'?t|will not|not going to) (come down|go lower|budge|negotiate|take less)|"
+                    r"not at this time|(seller|owner|they) (want|wants|need|needs) (full |list |asking |the )?(price|ask|asking)|no[,.]? (thank you|thanks)[,.!]?\s*$)\b", re.I)
 ASK_RE = re.compile(r"\b(send (me |us |over |it )?(your |the |an? |a written )?(best |highest |cash |written |formal )?(offer|number|price|bid|proposal|contract|pof|proof of funds)|"
                     r"bring (me |us )?(your |an |a |the )?(best |highest |strongest |cash |written )?(offer|number|price|bid)|(best|highest) and final|"
                     r"what('?s| is| would be| are) (your|the) (offer|number|price|bid|best|range|budget)|where are you (at|thinking)|what (are you|were you|would you) (thinking|offering|paying|pay|offer)|"

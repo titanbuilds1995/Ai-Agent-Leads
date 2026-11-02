@@ -208,12 +208,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   reads it like the lead columns (`titan/warm_leads.py`): comments handled, WHERE WE STAND kept, moves stay on the warm board
   (Needs Me ↔ Waiting on the agent; Offer out when an offer is logged and never pulled back out; Closed). Reply cards and
   sending stay on the approvals board. Moving answered leads onto it automatically is NOT built (he moves them himself).
+- **Second touch = "Good morning" follow-up (Rodrigo, 2026-11-02: "send a good morning email to all of the agents that never
+  responded back to us")**: `titan/follow_up.py`, `titan.cli follow-ups` / `make follow-ups`. For every first email sent 3+ days ago
+  (`outreach.follow_up.after_days`) whose agent never really answered (bounces / auto-replies don't count), nothing sent since, not
+  bounced, not do-not-contact, no answer card already waiting, not parked by Rodrigo ("too fresh, wait 45 days" in lead_notes): one
+  reply card "Follow-up · Agent · street" in Needs Me, same Gmail thread (`(reply to outreach #N)`), opens "Good morning <name>," then
+  one line that we emailed about the house and one easy question; 25–60 words, no price, `validate_follow_up`. Claude writes it
+  (paid API like other card work), template fallback. One follow-up per first email (`follow_ups` table). `--approve` puts them
+  straight into Approved, only when Rodrigo said in words to send them; `--list` prints who would get one. Not run on its own yet
+  (no cron / tick); Rodrigo asks for it, or say when he wants it automatic.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-02 ~6am ET, RESUME HERE: **Good morning follow-ups.** Rodrigo asked for a second email to every agent who never answered.
+  14 follow-up cards written in the cloud and posted in **Needs Me** (same-thread reply cards): Veronica Zavaleta, Arcides Otero,
+  Richard Dewitt, Liselotte Seer, Robert Tammaro, Laura Sanders (first email Oct 30), Carlos Montoya, Yerislenia Dominguez (Oct 29),
+  Olga Montoya (Oct 27), Michael Balthazar, Damon Penn, Michael McGee (Oct 26), Abraham Elbaz, Thais Guevara (Oct 24). Left out on
+  purpose: Douglas Montas + Dror Gerges (bounced; call them), David Carlton (Rodrigo: too fresh, wait 45 days), Richard Dipietro +
+  Cheryl Medeiros (they answered; ball with them). **Nothing sends until he drags them to Approved** (or tells us "send them all" →
+  move the 14 to Approved; 2 per 20-min tick from Charles@ in the window). Engine feature built for next time (`make follow-ups`,
+  see Decisions); it does not run on its own. Gmail on the Mac is working again (sends landed Oct 30). 301 tests.
 - 2026-10-30 ~9am ET, RESUME HERE: **catch-up on wake** (Rodrigo: "make sure it happens when I turn the computer on"). Mac
   asleep since 3:45pm Oct 29: no EOD Oct 29, no 7am report since Oct 27. Now every check-replies run (every 15 min while the Mac
   is on) checks `titan/catch_up.py` `due()` and starts `titan.cli catch-up` in the background: today's missed full run-daily, then

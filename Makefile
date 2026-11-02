@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -74,6 +74,9 @@ claude-check:     ## is the background jobs' Claude login working? (tests the to
 
 approvals-now:    ## run one approvals round now (rewrites commented cards, sends approved ones in the window)
 	$(PY) -m titan.cli approvals
+
+follow-ups:       ## Good morning follow-up (same thread) to every agent who never answered: cards in Needs Me
+	$(PY) -m titan.cli follow-ups
 
 comps-loop:       ## comp-quality loop now: back-test the comp rules on real sales, tune, re-value the board, Claude review
 	$(PY) -m titan.cli comps-loop

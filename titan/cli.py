@@ -588,6 +588,25 @@ def read_token(typed: str) -> str | None:
     return clean_token(clip)
 
 
+def cmd_follow_ups(cfg, args):
+    """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
+    (or Approved with --approve: only when he said to send them)."""
+    from .follow_up import candidates, post_follow_ups
+    conn = _open(cfg)
+    asana = _asana(cfg)
+    if asana is None:
+        print("ASANA_TOKEN missing in .env")
+        sys.exit(1)
+    if args.list:
+        for c in candidates(conn, cfg, asana, args.days):
+            print(f"#{c['outreach']['id']:<4} {c['agent'].get('name'):<32} {c['agent'].get('email'):<40} sent {(c['outreach'].get('sent_at') or '')[:10]}")
+        return
+    c = build_clients(cfg, conn, need=("llm",))
+    out = post_follow_ups(conn, cfg, asana, c["llm"], after_days=args.days, limit=args.limit or int(cfg.get("outreach.follow_up.max_per_run", 25)),
+                          approve=args.approve)
+    print(json.dumps(out, indent=2, default=str))
+
+
 def cmd_claude_login(cfg, args):
     """One command for the cron login: runs `claude setup-token`, saves the token in .env, tests it like cron does."""
     import subprocess
@@ -760,6 +779,11 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--to", default=None, help="defaults to REPORT_TO")
     rp = sub.add_parser("rewrite-pending", help="regenerate To Review emails written before the protocol and update their cards")
     rp.add_argument("--all", action="store_true", help="redo every To Review card, not only the old-style ones")
+    fu = sub.add_parser("follow-ups", help="Good morning follow-up (same thread) to every agent who never answered; cards in Needs Me")
+    fu.add_argument("--days", type=int, default=None, help="first email at least this many days old (config outreach.follow_up.after_days)")
+    fu.add_argument("--limit", type=int, default=None)
+    fu.add_argument("--list", action="store_true", help="only print who would get one")
+    fu.add_argument("--approve", action="store_true", help="put the cards straight into Approved (only when Rodrigo said to send them)")
     cl = sub.add_parser("claude-login", help="log the background jobs (cron) in to Claude: setup-token -> .env -> test")
     cl.add_argument("--test-only", action="store_true", help="only test the token already in .env")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")
@@ -770,7 +794,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups}[args.cmd](cfg, args)
     return 0
 
 

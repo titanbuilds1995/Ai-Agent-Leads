@@ -147,6 +147,9 @@ CREATE TABLE IF NOT EXISTS board_cards (
   gid TEXT PRIMARY KEY, name TEXT, section_gid TEXT, section_name TEXT, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
   gone_at TEXT, gone_how TEXT
 );
+CREATE TABLE IF NOT EXISTS follow_ups (
+  outreach_id INTEGER PRIMARY KEY, card_gid TEXT, body TEXT, created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS price_decisions (
   id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
 );

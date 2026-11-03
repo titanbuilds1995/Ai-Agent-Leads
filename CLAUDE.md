@@ -242,6 +242,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-03 ~7:30am ET, RESUME HERE: **no 7am report and no Nov 2 end-of-day** (Mac asleep after ~6:45pm Mon). Fixed: lead cards
+  grew a new WHERE WE STAND copy every round (Thais had 12, Seneve the old draft stacked so Rodrigo saw "the old email"):
+  `card_parts` now keeps only the listing / URL / Agent lines as meta. Applied by hand: Aldo (his "send it + we tried calling twice"),
+  Javier (his dictated email, first property only), Thais (reply card with his code / liens / photos questions); Seneve reply was
+  already right. 1 new test.
 - 2026-11-02 ~4:10pm ET, RESUME HERE: **clean cards** (see Decisions → Clean cards): formatted WHERE WE STAND description on answered
   leads, agent footers stripped from mirrored replies, superseded bot comments deleted as rounds pass, comps comments deduped, and a
   "no" from the agent sends the lead + its reply card to Skip on its own. Edward Martinez (said no) moved to Skip by hand with his reply

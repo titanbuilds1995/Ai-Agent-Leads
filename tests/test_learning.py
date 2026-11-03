@@ -240,3 +240,21 @@ def test_warm_leads_board_is_read_and_cards_stay_on_it(loaded, cfg, tmp_path, mo
     assert asana.where[g1] == w["offer_out"]
     lead_board(loaded, cfg, asana)
     assert asana.where[g1] == w["offer_out"]              # stays put
+
+
+def test_card_parts_drops_old_rendered_stand_blocks():
+    """Thais's lead card had 12 stacked WHERE WE STAND blocks (Nov 2): each round folded the last one back in."""
+    from titan.conversations import card_parts, stand_html
+    old = ("\nWHERE WE STAND\n\n        Status: Needs you\n\n        Last from Thais: \"hi\"\n\n        Thread: Thais wrote 1\n\n    \n"
+           "Drafted answer (not sent) · card \"Reply · Thais\" in Needs Me. Drag it to Approved to send.\n\n> Hey Thais,\n\nThanks.\n\n"
+           "Best regards,\n\nCharles Grant\nOffice Line: +1 (561) 405 7379\n\n")
+    notes = (old * 3 + "10341 NW 6th Ave, Miami · $430,000 · 4 days on market · 0 price cut(s) · FRESH_DEAL\n"
+             "https://www.realtor.com/x\nAgent: Thais Guevara · t@x.com · Floridian First Realty\n\n" + "-" * 40 + "\n\n\n"
+             "First email (sent Sat Oct 24, 12:44pm)\nTo: t@x.com\nSubject: Q\n-----EMAIL-----\nHey Thais\n-----END EMAIL-----\n(outreach #1)\n")
+    p = card_parts(notes)
+    assert "WHERE WE STAND" not in p["meta"] and "Drafted answer" not in p["meta"]
+    assert p["meta"].splitlines() == ["10341 NW 6th Ave, Miami · $430,000 · 4 days on market · 0 price cut(s) · FRESH_DEAL",
+                                     "https://www.realtor.com/x", "Agent: Thais Guevara · t@x.com · Floridian First Realty"]
+    assert p["email"].endswith("(outreach #1)")
+    st = {"status": "Needs you", "last_in": "Thais", "count": "1", "drafts": []}
+    assert stand_html(st, notes).count("WHERE WE STAND") == 1

@@ -208,6 +208,7 @@ def _e(x: Any) -> str:
 
 RENDERED_STAND_RE = re.compile(r"^WHERE WE STAND\n.*?\n-{10,}\n", re.S)       # our own html block as Asana renders it back
 HEADING_RE = re.compile(r"^(Listing|First email( \(sent [^\n]*\))?|-{10,})\s*$", re.M)
+LISTING_LINE_RE = re.compile(r"(·\s*\$[\d,]+\s*·\s*\d+ days on market|^\s*https?://\S+\s*$|^\s*Agent: )")
 OUTREACH_RE = re.compile(r"^\((reply to )?outreach #\d+\)\s*$", re.M)
 
 
@@ -226,7 +227,10 @@ def card_parts(notes: str) -> dict[str, str]:
     if o:
         email = (email + "\n" + o.group(0).strip()).strip()
         rest = rest[: o.start()] + rest[o.end():]
-    meta = re.sub(r"\n{3,}", "\n\n", rest).strip()
+    # Keep only the listing facts. Anything else left here is an older WHERE WE STAND / drafted answer that Asana rendered
+    # back as plain text; folding it into the new block made the card grow every round (Thais: 12 copies, Nov 2).
+    keep = [ln.strip() for ln in rest.splitlines() if LISTING_LINE_RE.search(ln)]
+    meta = "\n".join(dict.fromkeys(keep))
     return {"email": email, "meta": meta}
 
 

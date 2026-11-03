@@ -71,8 +71,9 @@ def test_input_on_a_lead_card_is_answered_kept_and_passed_to_the_drafted_answer(
     assert n["chat"] == 1 and any(c.startswith(f"{BOT} 💬 Got it") for c in asana.stories[g1])   # answered on the card he wrote on
     assert lead_notes(loaded, a1) == ["Seller inherited it and wants out fast."]
     rgid = reply["gid"] if isinstance(reply, dict) else reply
-    assert any(x.startswith(FORWARD_PREFIX) for x in asana.stories[rgid])        # read as his feedback on the reply card
-    assert any(p == "revise_email" for p, _ in llm.calls)                        # and the reply card was rewritten from it
+    assert asana.tasks[rgid].get("completed")                                     # one card per lead: the reply card was folded in
+    revise = [u for p, u in llm.calls if p == "revise_email"]
+    assert revise and "Working on it" in revise[0]["body"] and revise[0]["feedback"] == ["mention a 30 day close"]   # the answer on the lead card is rewritten
 
 
 def test_claude_unreachable_holds_once_and_keeps_the_comment(loaded, cfg, tmp_path, monkeypatch):

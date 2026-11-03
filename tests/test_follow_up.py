@@ -35,11 +35,13 @@ def test_only_unanswered_first_emails_get_a_follow_up_and_only_once(loaded, cfg,
     assert answered["id"] not in ids and bounced["id"] not in ids and len(ids) == len(rows) - 2
     out = post_follow_ups(loaded, cfg, asana, None)
     assert out["posted"] == len(ids)
-    cards = [t for t in asana.tasks.values() if parse_card(t["notes"]) and parse_card(t["notes"])["reply_to"]]
+    from titan.answers import pending
+    cards = [t for t in asana.tasks.values() if parse_card(t["notes"]) and pending(loaded, parse_card(t["notes"])["outreach_id"])]
     assert len(cards) == len(ids) and all(asana.where[t["gid"]] == asana.ensure_section(None, "Needs Me") for t in cards)
+    assert not any(parse_card(t["notes"])["reply_to"] for t in asana.tasks.values() if parse_card(t["notes"]))   # on the lead card, no second card
     body = parse_card(cards[0]["notes"])["body"]
     assert body.startswith("Good morning ") and "\n\n" in body and "Titan Realty Investments" in body
-    assert "FOLLOW-UP" in cards[0]["notes"] and "Drag to Approved" in cards[0]["notes"]
+    assert "FOLLOW-UP" in cards[0]["notes"] and "NEXT EMAIL" in cards[0]["notes"] and "Drag this card to Approved" in cards[0]["notes"]
     assert post_follow_ups(loaded, cfg, asana, None)["posted"] == 0          # never twice
     # approved → sent in the same thread, and the follow-up counts as an outbound so a third email isn't drafted
     asana.move(cards[0]["gid"], s["approved"])

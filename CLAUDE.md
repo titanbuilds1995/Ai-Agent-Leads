@@ -236,12 +236,34 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (Rodrigo, 2026-11-02, Edward Martinez: "I don't even need to see the lead")**: NOT_INTERESTED / SOLD_OR_PENDING / STOP → the lead
   card and any reply card waiting for that agent go to Skip (warm-board cards to its Closed column) with one comment; `NOT_RE` learned
   "No they are not", "firm", "not at this time", "won't come down"; `heal_misreads` re-files such replies stored as INTERESTED.
+- **ONE CARD PER LEAD, the answer lives on the lead card (Rodrigo, 2026-11-03, Thais Guevara: "I don't want other cards … I said
+  the email that I wanted and then I approved it … it's giving it back to me and saying that it needs me instead of drafting the email
+  and sending it")**: no more "Reply ·" / "Follow-up ·" cards. Charles's next email to an agent (engine draft, follow-up, offer, or
+  Rodrigo's dictation) is a **NEXT EMAIL block on the lead card itself** (To / Subject: Re: … / EMAIL markers, under WHERE WE STAND;
+  the first email stays below as history), kept in `outreach.answer_draft` (`titan/answers.py`: `set_answer`, `pending`, `clear`).
+  **Dragging the lead card to Approved sends it** in the agent's Gmail thread; the card gets a 📤 Sent comment, the block clears and
+  the card goes back to Sent · no answer yet. On a lead card his comment does: the email in his words ("Answer with: Hey …", or the
+  text as one comment + "put that into an email and send it" as the next) → Claude tidies the dictation (punctuation only, his
+  words kept) → NEXT EMAIL → straight to Approved when he said send (or the card already sat in Approved); "send it" → Approved;
+  "hold"/"wait" → Needs Me; a change ("ask her about the roof") → the NEXT EMAIL is rewritten, or written from the conversation
+  when none is drafted yet (`replies.writer.write_answer`, `rodrigo_instruction`); numbers / questions as before, on that card.
+  A lead card in Approved with no answer on it is sent to Needs Me with a comment (never silently). Text he types into the EMAIL
+  lines himself counts as the answer (`hand_written`). Old reply cards still on the board are folded into their lead card and
+  completed (`fold_reply_cards`, every approvals round); one already in Approved sends as it is. Warm-board cards: "send it" sends
+  from there (`answer_state: approved`), the card stays on the warm board.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-03 ~3pm ET, RESUME HERE: **one card per lead** (see Decisions): the answer to an agent is the NEXT EMAIL block on the lead
+  card; dragging the lead card to Approved sends it; dictations on the card become that email; reply cards are folded in. Cause of
+  Thais's loop: his dictated email went to the "Reply ·" card, the lead card he dragged to Approved had nothing to send and bounced
+  to Needs Me, and "SEND HER THE EMAIL" was read as a question. Thais's card: her email (his words, code flags / rear structure /
+  liens / free and clear / updated photos) written by hand as NEXT EMAIL on the lead card, left in Approved → the Mac sends it at its
+  next round once it has pulled; the "Reply · Thais" card completed. Watch the first live round: the fold of any remaining reply
+  cards and the first lead-card send (comment "📤 Sent to …" on the lead card). 308 tests.
 - 2026-11-03 ~7:30am ET, RESUME HERE: **no 7am report and no Nov 2 end-of-day** (Mac asleep after ~6:45pm Mon). Fixed: lead cards
   grew a new WHERE WE STAND copy every round (Thais had 12, Seneve the old draft stacked so Rodrigo saw "the old email"):
   `card_parts` now keeps only the listing / URL / Agent lines as meta. Applied by hand: Aldo (his "send it + we tried calling twice"),

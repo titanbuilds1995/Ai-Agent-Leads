@@ -38,43 +38,50 @@ def _setup(loaded, cfg, tmp_path, monkeypatch, cls="INTERESTED", text="Roof is f
     return asana, s, oid
 
 
-def test_reply_card_is_drafted_once_and_waits_in_needs_me(loaded, cfg, tmp_path, monkeypatch):
-    """Rodrigo, 2026-10-27: Fresh Leads (the old To Review) holds only first emails he has not touched; a drafted answer is his."""
+def test_answer_is_drafted_once_on_the_lead_card_and_waits_in_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27: Fresh Leads holds only first emails he has not touched; a drafted answer is his. 2026-11-03: it sits
+    ON the lead card (NEXT EMAIL), never on a second card."""
+    from titan.answers import pending
     asana, s, oid = _setup(loaded, cfg, tmp_path, monkeypatch)
     llm = _LLM()
+    before = len(asana.tasks)
     assert draft_reply_cards(loaded, cfg, asana, llm)["drafted"] == 1
-    replies = [g for g, t in asana.tasks.items() if t["name"].startswith("Reply ·")]
-    assert len(replies) == 1 and asana.where[replies[0]] == asana.ensure_section(None, "Needs Me")
-    card = parse_card(asana.tasks[replies[0]]["notes"])
-    assert card["reply_to"] and card["outreach_id"] == oid and "roof is from 2015" in card["body"].lower()
-    assert draft_reply_cards(loaded, cfg, asana, llm)["drafted"] == 0            # one card per message, no duplicates
-    # approved as written → stage 3 counts it
-    asana.move(replies[0], s["approved"])
+    assert len(asana.tasks) == before and not any(t["name"].startswith("Reply ·") for t in asana.tasks.values())
+    gid = loaded.execute("SELECT asana_task_id FROM outreach WHERE id=?", (oid,)).fetchone()[0]
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
+    card = parse_card(asana.tasks[gid]["notes"])
+    assert card["outreach_id"] == oid and card["subject"].startswith("Re: ") and "roof is from 2015" in card["body"].lower()
+    assert pending(loaded, oid)["body"] == card["body"] and "NEXT EMAIL" in asana.tasks[gid]["notes"]
+    assert draft_reply_cards(loaded, cfg, asana, llm)["drafted"] == 0            # one answer per message, no duplicates
+    # approved as written → sent in the thread, stage 3 counts it
+    asana.move(gid, s["approved"])
     assert send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)["sent"] == 1
-    assert rate(loaded, "reply", 20)["as_is"] == 1
+    assert rate(loaded, "reply", 20)["as_is"] == 1 and pending(loaded, oid) is None
 
 
-def test_comment_on_a_reply_card_rewrites_the_reply_not_the_first_email(loaded, cfg, tmp_path, monkeypatch):
+def test_comment_on_the_lead_card_rewrites_the_answer_not_the_first_email(loaded, cfg, tmp_path, monkeypatch):
+    from titan.answers import pending
     asana, s, oid = _setup(loaded, cfg, tmp_path, monkeypatch)
     first = loaded.execute("SELECT body FROM outreach WHERE id=?", (oid,)).fetchone()[0]
     draft_reply_cards(loaded, cfg, asana, _LLM())
-    rid = next(g for g, t in asana.tasks.items() if t["name"].startswith("Reply ·"))
-    asana.stories[rid].append("say thank you instead")
+    gid = loaded.execute("SELECT asana_task_id FROM outreach WHERE id=?", (oid,)).fetchone()[0]
+    asana.stories[gid].append("say thank you instead")
     assert sync_feedback(loaded, cfg, asana, _LLM())["revised"] == 1
     assert loaded.execute("SELECT body FROM outreach WHERE id=?", (oid,)).fetchone()[0] == first
-    assert "that's useful" in loaded.execute("SELECT reply_draft FROM messages WHERE reply_card=?", (rid,)).fetchone()[0]
-    asana.move(rid, s["approved"])
+    assert "that's useful" in pending(loaded, oid)["body"] and "that's useful" in parse_card(asana.tasks[gid]["notes"])["body"]
+    asana.move(gid, s["approved"])
     send_approved(loaded, cfg, asana, FakeGmail(), now=SAT_10AM_ET)
-    assert loaded.execute("SELECT decision FROM card_decisions WHERE card_gid=?", (rid,)).fetchone()[0] == APPROVED_EDITED
+    assert rate(loaded, "reply", 20)["edited"] == 1 and rate(loaded, "reply", 20)["as_is"] == 0
 
 
 def test_offer_requests_get_a_holding_answer_and_numbers_are_refused(loaded, cfg, tmp_path, monkeypatch):
     asana, s, _ = _setup(loaded, cfg, tmp_path, monkeypatch, "ASK_FOR_OFFER", "Just bring your best offer.")
     bad = _LLM("Hi Maria,\n\nThanks. We could do $250,000 cash, our offer would close in 14 days. Does that work for the seller?")
-    assert draft_reply_cards(loaded, cfg, asana, bad)["failed"] == 1 and not any(t["name"].startswith("Reply ·") for t in asana.tasks.values())
+    from titan.answers import pending
+    assert draft_reply_cards(loaded, cfg, asana, bad)["failed"] == 1 and pending(loaded, _) is None
     assert draft_reply_cards(loaded, cfg, asana, _LLM())["drafted"] == 1
-    rid = next(g for g, t in asana.tasks.items() if t["name"].startswith("Reply ·"))
-    assert "holding answer only" in asana.tasks[rid]["notes"]
+    gid = loaded.execute("SELECT asana_task_id FROM outreach WHERE id=?", (_,)).fetchone()[0]
+    assert "holding answer only" in asana.tasks[gid]["notes"] and "NEXT EMAIL" in asana.tasks[gid]["notes"]
 
 
 def test_no_claude_no_cards_and_closed_threads_are_left_alone(loaded, cfg, tmp_path, monkeypatch):

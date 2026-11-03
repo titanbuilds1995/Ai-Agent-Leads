@@ -71,7 +71,8 @@ def _parked(conn, agent_id: int) -> bool:
 
 
 def _pending_agents(conn, cfg: Any, asana) -> set[int]:
-    """Agents with an answer or follow-up card already waiting on the board (any column that can hold one)."""
+    """Agents with an answer or follow-up already waiting (on their lead card, or a legacy reply card still on the board)."""
+    from .answers import pending_agents
     from .approvals import _cfg, needs_me_section, needs_revision_section, parse_card
     a = _cfg(cfg)
     oids = set()
@@ -80,7 +81,7 @@ def _pending_agents(conn, cfg: Any, asana) -> set[int]:
             pc = parse_card(t.get("notes") or "")
             if pc and pc.get("reply_to"):
                 oids.add(pc["outreach_id"])
-    return {r[0] for o in oids for r in conn.execute("SELECT agent_id FROM outreach WHERE id=?", (o,)).fetchall()}
+    return pending_agents(conn) | {r[0] for o in oids for r in conn.execute("SELECT agent_id FROM outreach WHERE id=?", (o,)).fetchall()}
 
 
 def candidates(conn, cfg: Any, asana, after_days: int | None = None) -> list[dict[str, Any]]:
@@ -150,10 +151,10 @@ def write_follow_up(llm, cfg: Any, agent: dict[str, Any], props: list[dict[str, 
 
 
 def post_follow_ups(conn, cfg: Any, asana, llm, after_days: int | None = None, limit: int = 25, approve: bool = False) -> dict[str, Any]:
-    """One follow-up card per unanswered first email, in Needs Me (or Approved with approve=True: Rodrigo's go-ahead in words)."""
-    from .approvals import _cfg, post_reply_card
+    """One follow-up per unanswered first email, as the NEXT EMAIL on the lead's own card (one card per lead, Rodrigo 2026-11-03),
+    in Needs Me (or Approved with approve=True: Rodrigo's go-ahead in words)."""
+    from .answers import set_answer
     n: dict[str, Any] = {"posted": 0, "skipped": 0, "cards": []}
-    section = _cfg(cfg)["approved"] if approve else None
     for i, c in enumerate(candidates(conn, cfg, asana, after_days)[:limit]):
         row, agent = c["outreach"], c["agent"]
         props = _props(conn, row)
@@ -165,7 +166,7 @@ def post_follow_ups(conn, cfg: Any, asana, llm, after_days: int | None = None, l
         note = (f"FOLLOW-UP · the first email went out {sent} and {first_name(agent.get('name'))} never answered. This goes in the same "
                 f"thread. Written by {'Charles (Claude)' if source == 'claude' else 'template'}."
                 + ("" if approve else " Drag to Approved to send it."))
-        gid = post_reply_card(conn, cfg, asana, row["id"], body, section=section, note=note)
+        gid = set_answer(conn, cfg, asana, row["id"], body, note=note, approved=approve)
         if gid:
             conn.execute("INSERT OR REPLACE INTO follow_ups(outreach_id, card_gid, body, created_at) VALUES(?,?,?,?)", (row["id"], gid, body, iso()))
             conn.commit()

@@ -224,14 +224,17 @@ def test_warm_leads_board_is_read_and_cards_stay_on_it(loaded, cfg, tmp_path, mo
     asana.move(g1, w["waiting"])                          # he dragged it onto the warm board himself
     lead_board(loaded, cfg, asana)
     assert asana.where[g1] == w["needs_me"] and "Status: Our turn" in asana.tasks[g1]["notes"]
-    # a plain "send it" on the warm card sends the drafted answer; the lead card stays on the warm board
+    # a plain "send it" on the warm card sends the answer on it; the lead card stays on the warm board (no Approved column there)
+    from titan.answers import pending
     reply = post_reply_card(loaded, cfg, asana, o1, "Hey Peter,\n\nThanks for the lockbox.\n\nBest regards,\n\nCharles Grant")
     asana.stories[g1].append("send it")
     sync_feedback(loaded, cfg, asana, None)
-    assert asana.where[reply] == s["approved"] and asana.where[g1] == w["needs_me"]
-    assert any("Sending the drafted answer" in x for x in asana.stories[g1])
-    log_message(loaded, t1, "out", "Thanks Peter.", external_id="w2", action="reply:manual")
-    asana.complete(reply); asana.move(reply, s["sent"])
+    assert asana.tasks[reply].get("completed") and asana.where[g1] == w["needs_me"]     # folded into the lead card, which stays warm
+    assert pending(loaded, o1)["state"] == "approved" and "lockbox" in parse_card(asana.tasks[g1]["notes"])["body"]
+    assert any("Sending the NEXT EMAIL" in x for x in asana.stories[g1])
+    gm = FakeGmail()
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and "lockbox" in gm.sent[-1][2]
+    assert pending(loaded, o1) is None and asana.where[g1] == w["waiting"]     # sent from the warm board; waiting on the agent there
     lead_board(loaded, cfg, asana)
     assert asana.where[g1] == w["waiting"]                # we answered: waiting on the agent, still on the warm board
     loaded.execute("INSERT INTO offers (agent_id, outreach_id, price, status, sent_at, updated_at) VALUES (?,?,?,?,?,?)",

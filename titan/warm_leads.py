@@ -23,6 +23,7 @@ class WarmBoard:
         self.from_warm = {k: v for k, v in {w.get("needs_me"): nm, w.get("needs_revision"): nr, w.get("waiting"): sent,
                                             w.get("offer_out"): sent, w.get("closed"): answered}.items() if k and v}
         self.here: dict[str, str] = {}      # warm card gid -> the warm column it sits in
+        self.loaded = False                 # lead_cards() read at least once this round (so is_warm / move know the warm cards)
 
     def __getattr__(self, name):
         return getattr(self._a, name)
@@ -30,6 +31,7 @@ class WarmBoard:
     def lead_cards(self) -> list[tuple[dict[str, Any], str]]:
         """Every card on the warm board, paired with the approvals column it stands in for."""
         out = []
+        self.loaded = True
         for sec, twin in self.from_warm.items():
             for t in self._a.section_tasks(sec):
                 self.here[t["gid"]] = sec

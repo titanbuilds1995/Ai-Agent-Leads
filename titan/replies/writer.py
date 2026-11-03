@@ -42,6 +42,8 @@ Rules (Rodrigo's, all hard):
   "mostly cosmetic or something bigger"). Ask about what photos can't show: roof and AC age, plumbing, electrical, permits, occupancy,
   timeline. Only when may_ask_how_much_work is true (fewer than 4 photos) may you ask about the work.
 - End with the signature block from the input, unchanged.
+- If rodrigo_instruction is present, it is Rodrigo's instruction for THIS reply (what to ask or say, what to change): follow it
+  exactly; it may ask several things and overrides the one-question rule. Never add a price or number he did not state.
 
 === VOICE PROTOCOL ===
 {voice}
@@ -96,69 +98,74 @@ def waiting_threads(conn) -> list[dict[str, Any]]:
     return out
 
 
-def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, Any]:
-    """Write Charles's answer for each agent waiting on us and put it on the board as a reply card (To Review). Never raises."""
-    from ..approvals import _cfg, needs_me_section, needs_revision_section, parse_card, post_reply_card
+def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any], props: list[dict[str, Any]],
+                 cls: str | None = None, instruction: str | None = None) -> tuple[str | None, list[str]]:
+    """Charles's next email to this agent from the whole thread (and Rodrigo's instruction when he gave one).
+    (body, problems): body is None when Claude is unreachable or the text failed the checks twice."""
     from ..learning import learned_block
-    from ..outreach.compose import signature, voice_text
+    from ..outreach.compose import format_paragraphs, may_ask_how_much_work, signature, voice_text
+    from ..card_chat import lead_notes
     from ..util import inspection_phrase
+    if llm is None or not getattr(llm, "available", False):
+        return None, ["Claude not available"]
+    op, f, terms = cfg["operator"], cfg["formula"], cfg["outreach"]["terms"]
+    system = REPLY_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], voice=voice_text(cfg), learned=learned_block(cfg),
+                                 terms=f"{f['close_days']}-day close, {inspection_phrase(terms)}, ${f['emd']:,.0f} EMD")
+    user = json.dumps({"agent_first_name": first_name(agent.get("name")), "their_last_message_class": cls,
+                       "thread": _thread_text(conn, row["agent_id"]),
+                       "properties": [{k: p.get(k) for k in ("street", "city", "list_price", "days_on_market", "price_cuts", "beds", "baths", "sqft",
+                                                             "year_built", "property_type", "remarks", "photos_count")} for p in props],
+                       "signature_block": signature(cfg), "may_ask_how_much_work": may_ask_how_much_work(props),
+                       "rodrigo_notes_on_this_lead": lead_notes(conn, row["agent_id"]),
+                       **({"rodrigo_instruction": instruction} if instruction else {})}, ensure_ascii=False, default=str)
+    body, problems = None, ["no answer from Claude"]
+    for _ in range(2):
+        out = llm.structured("draft_reply", system, user, REPLY_SCHEMA, max_tokens=900)
+        if not out:
+            break
+        body = format_paragraphs(str(out.get("body", "")).strip())
+        problems = validate_reply(body, props)
+        if instruction:          # his instruction may ask several questions: that rule is his to break
+            problems = [p for p in problems if p != "more than one question"]
+        if not problems:
+            return body, []
+    return None, problems
+
+
+def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, Any]:
+    """Write Charles's answer for each agent waiting on us and put it ON THE LEAD CARD as its NEXT EMAIL (Needs Me; one card
+    per lead, Rodrigo 2026-11-03). Never raises."""
+    from ..answers import pending_agents, set_answer
     n = {"drafted": 0, "skipped_pending_card": 0, "failed": 0}
     if llm is None or not getattr(llm, "available", False):
-        return {**n, "note": "Claude not available; no reply cards written this tick"}
+        return {**n, "note": "Claude not available; no answers written this tick"}
     try:
-        a = _cfg(cfg)
-        pending_oids = set()
-        for sec in (a.get("to_review"), a.get("approved"), needs_revision_section(cfg, asana), needs_me_section(cfg, asana)):
-            for t in asana.section_tasks(sec):
-                pc = parse_card(t.get("notes") or "")
-                if pc and pc.get("reply_to"):
-                    pending_oids.add(pc["outreach_id"])
-        pending_agents = {r[0] for o in pending_oids for r in conn.execute("SELECT agent_id FROM outreach WHERE id=?", (o,)).fetchall()}
-        op, f, terms = cfg["operator"], cfg["formula"], cfg["outreach"]["terms"]
-        system = REPLY_SYSTEM.format(sender=op["sender_name"].split()[0], company=op["company"], voice=voice_text(cfg), learned=learned_block(cfg),
-                                     terms=f"{f['close_days']}-day close, {inspection_phrase(terms)}, ${f['emd']:,.0f} EMD")
+        pending = pending_agents(conn)
         for w in waiting_threads(conn)[:limit]:
             msg = w["message"]
-            if w["agent_id"] in pending_agents:          # an answer is already on the board for this agent
+            if w["agent_id"] in pending:          # an answer is already waiting on the lead card
                 n["skipped_pending_card"] += 1
                 continue
-            row = conn.execute("SELECT id, property_ids FROM outreach WHERE agent_id=? AND kind='first_touch' AND status='sent' "
-                               "ORDER BY sent_at DESC, id DESC LIMIT 1", (w["agent_id"],)).fetchone()
+            row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE agent_id=? AND kind='first_touch' AND status='sent' "
+                                              "ORDER BY sent_at DESC, id DESC LIMIT 1", (w["agent_id"],)).fetchone())
             if not row:
                 continue
             agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (w["agent_id"],)).fetchone()) or {}
             pids = json.loads(row["property_ids"] or "[]")
             props = [db.row_to_dict(r) for r in conn.execute(
-                f"SELECT street, city, list_price, days_on_market, price_cuts, beds, baths, sqft, year_built, property_type, remarks, photos_count "
-                f"FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
-            from ..outreach.compose import may_ask_how_much_work
-            from ..card_chat import lead_notes
-            user = json.dumps({"agent_first_name": first_name(agent.get("name")), "their_last_message_class": msg.get("classification"),
-                               "thread": _thread_text(conn, w["agent_id"]), "properties": props, "signature_block": signature(cfg),
-                               "may_ask_how_much_work": may_ask_how_much_work(props),
-                               "rodrigo_notes_on_this_lead": lead_notes(conn, w["agent_id"])},
-                              ensure_ascii=False, default=str)
-            body, problems = None, ["no answer from Claude"]
-            for _ in range(2):
-                out = llm.structured("draft_reply", system, user, REPLY_SCHEMA, max_tokens=900)
-                if not out:
-                    break
-                from ..outreach.compose import format_paragraphs
-                body = format_paragraphs(str(out.get("body", "")).strip())
-                problems = validate_reply(body, props)
-                if not problems:
-                    break
-            if problems:
-                log.warning("reply card for agent %s not written: %s", w["agent_id"], problems)
+                f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+            body, problems = write_answer(conn, cfg, llm, row, agent, props, cls=msg.get("classification"))
+            if not body:
+                log.warning("answer for agent %s not written: %s", w["agent_id"], problems)
                 n["failed"] += 1
                 continue
             needs_number = msg.get("classification") in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER")
-            note = (f"Read: {out.get('read', '')}" +
-                    ("\nThey asked for a number: this is a holding answer only. Comment \"offer N\" on the agent's card when you decide." if needs_number else ""))
-            gid = post_reply_card(conn, cfg, asana, row["id"], body, note=note)
+            note = ("They asked for a number: this is a holding answer only. Comment \"offer N\" here when you decide." if needs_number
+                    else "Charles's draft from the conversation so far.")
+            gid = set_answer(conn, cfg, asana, row["id"], body, note=note)
             if gid:
                 conn.execute("UPDATE messages SET reply_card=?, reply_draft=? WHERE id=?", (gid, body, msg["id"]))
-                pending_agents.add(w["agent_id"])
+                pending.add(w["agent_id"])
                 n["drafted"] += 1
     except Exception as e:  # noqa: BLE001 — never break the tick
         log.warning("reply writer: %s", e)

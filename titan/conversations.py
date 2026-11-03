@@ -76,7 +76,7 @@ def mirror_text(conn, thread: dict[str, Any], msg: dict[str, Any], agent: dict[s
     phone = pretty_phone(agent.get("phone")) if agent.get("phone") else ""
     cls = msg.get("classification") or ""
     head = f"{PREFIX} {who} replied{via} · {_when(msg.get('created_at'))}" + (f" · call {phone}" if phone else "")
-    nxt = NEXT.get(cls) or f"Read as: {PLAIN.get(cls, 'replied')}. Charles drafts his answer as a reply card in Needs Me."
+    nxt = NEXT.get(cls) or f"Read as: {PLAIN.get(cls, 'replied')}. Charles drafts his answer on this card (NEXT EMAIL) and it waits in Needs Me."
     ans = engine_answer(conn, thread, msg)
     if ans and ans.get("status") == "sent" and ans.get("body"):
         nxt = "Charles answered:\n" + clean_reply(ans["body"])
@@ -168,9 +168,9 @@ def where_we_stand(conn, agent_id: int, pending_reply: bool = False) -> dict[str
         status = (f"Needs you · {first} {PLAIN.get(cls)}. Comment \"offer N\" here, or tell Charles what to ask."
                   + (" A holding answer is drafted." if pending_reply else ""))
     elif pending_reply:
-        kind, status = "ANSWER DRAFTED", "Answer drafted · Charles's reply card is in Needs Me. Drag it to Approved to send."
+        kind, status = "ANSWER DRAFTED", "Answer drafted · Charles's answer is on this card (NEXT EMAIL, below). Drag this card to Approved to send it."
     else:
-        kind, status = "OUR TURN", f"Our turn · Charles owes {first} an answer (a reply card comes next round)."
+        kind, status = "OUR TURN", f"Our turn · Charles owes {first} an answer (it lands on this card next round)."
     return {"kind": kind, "status": status, "first": first, "cls": cls,
             "last_in": f"{first} ({_when(last_in['created_at'])}): \"{one_line(last_in.get('body') or '', 220)}\"",
             "count": f"{first} wrote {len(real_in)}, we wrote {len(outs)}" + (f", last {_when(outs[-1]['created_at'])}." if outs else "."),
@@ -234,19 +234,68 @@ def card_parts(notes: str) -> dict[str, str]:
     return {"email": email, "meta": meta}
 
 
-def stand_html(st: dict[str, Any], notes: str, sent_when: str = "") -> str:
+def plain_from_html(html: str) -> str:
+    """The plain-notes form of the card (clients without html_notes): tags off, text and lines kept, rules as dashes."""
+    import html as h
+    return h.unescape(re.sub(r"<hr/>", "-" * 40, re.sub(r"</?(?!hr)[a-z]+/?>", "", html or ""))).strip()
+
+
+def _first_email_text(row: dict[str, Any] | None, parts: dict[str, str]) -> str:
+    """The first email as history, without To:/Subject:/EMAIL markers so the sender never mistakes it for the next email."""
+    body = (row or {}).get("body") or ""
+    if not body:
+        m = re.search(re.escape("-----EMAIL-----") + r"\n(.*?)\n" + re.escape("-----END EMAIL-----"), parts.get("email") or "", re.S)
+        body = m.group(1) if m else ""
+    return body.strip()
+
+
+def lead_card_html(st: dict[str, Any] | None, notes: str, sent_when: str = "", answer: dict[str, Any] | None = None,
+                   row: dict[str, Any] | None = None, agent: dict[str, Any] | None = None, props: list[dict[str, Any]] | None = None) -> str:
+    """The lead card, one place for everything (Rodrigo, 2026-11-03): WHERE WE STAND (once the agent answered), NEXT EMAIL
+    (Charles's answer waiting to go out: the To/Subject/EMAIL block the sender reads), the listing, the first email as history.
+    Without an answer waiting, the first email stays the EMAIL block (the card as it was)."""
     parts = card_parts(notes)
-    out = ["<body>", "<strong>WHERE WE STAND</strong>", "<ul>", f"<li><strong>Status:</strong> {_e(st['status'])}</li>",
-           f"<li><strong>Last from</strong> {_e(st['last_in'])}</li>", f"<li><strong>Thread:</strong> {_e(st['count'])}</li>", "</ul>"]
-    for d in st.get("drafts") or []:
-        out += [f"<strong>Drafted answer</strong> (not sent) · card \"{_e(d['name'])}\" in {_e(d['where'])}. Drag it to Approved to send.",
-                f"<blockquote>{_e(d['body'])}</blockquote>"]
-    if parts["meta"]:
-        out += ["<hr/>", "<strong>Listing</strong>", _e(re.sub(r"^Listing: ", "", parts["meta"]))]
-    if parts["email"]:
+    oid = re.search(r"\((?:reply to )?outreach #(\d+)\)", parts.get("email") or "")
+    oid_line = f"(outreach #{oid.group(1)})" if oid else (f"(outreach #{row['id']})" if row and row.get("id") else "")
+    out = ["<body>"]
+    if st:
+        out += ["<strong>WHERE WE STAND</strong>", "<ul>", f"<li><strong>Status:</strong> {_e(st['status'])}</li>",
+                f"<li><strong>Last from</strong> {_e(st['last_in'])}</li>", f"<li><strong>Thread:</strong> {_e(st['count'])}</li>", "</ul>"]
+        for d in st.get("drafts") or []:
+            out += [f"<strong>Drafted answer</strong> (not sent) · card \"{_e(d['name'])}\" in {_e(d['where'])}. Drag it to Approved to send.",
+                    f"<blockquote>{_e(d['body'])}</blockquote>"]
+    if answer:
+        if st:
+            out.append("<hr/>")
+        out += [f"<strong>NEXT EMAIL</strong> · Charles's answer, not sent yet. Drag this card to Approved to send it · comment to change it · "
+                "or edit the text between the EMAIL lines yourself."]
+        if answer.get("note"):
+            out.append(_e(answer["note"]))
+        out += [f"To: {_e(answer['to'])}", f"Subject: {_e(answer['subject'])}", "-----EMAIL-----", _e(answer["body"]), "-----END EMAIL-----"]
+    meta = parts["meta"]
+    if not meta and props and agent is not None:
+        from .approvals import listing_meta
+        meta = listing_meta(props[0], agent)
+    if meta:
+        out += ["<hr/>", "<strong>Listing</strong>", _e(re.sub(r"^Listing: ", "", meta))]
+    if answer:
+        first = _first_email_text(row, parts)
+        if first:
+            out += ["<hr/>", "<strong>First email</strong>" + (f" (sent {_e(sent_when)})" if sent_when else ""), _e(first)]
+        if oid_line:
+            out.append(oid_line)
+    elif row and row.get("status") == "sent" and (row.get("body") or "").strip():
+        # the email that went out is the truth (the card's block may still show an answer that has just been sent)
+        block = f"To: {row.get('to_address') or ''}\nSubject: {row.get('subject') or ''}\n-----EMAIL-----\n{row['body'].strip()}\n-----END EMAIL-----\n{oid_line}".strip()
+        out += ["<hr/>", "<strong>First email</strong>" + (f" (sent {_e(sent_when)})" if sent_when else ""), _e(block)]
+    elif parts["email"]:
         out += ["<hr/>", "<strong>First email</strong>" + (f" (sent {_e(sent_when)})" if sent_when else ""), _e(parts["email"])]
     out.append("</body>")
     return "\n".join(out)
+
+
+def stand_html(st: dict[str, Any], notes: str, sent_when: str = "") -> str:
+    return lead_card_html(st, notes, sent_when)
 
 
 def _squash(text: str) -> str:
@@ -294,17 +343,25 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 agent_of[oid] = r["agent_id"] if r else None
             return agent_of[oid]
 
-        pending_agents = {agent_id(o) for o in pending}
+        from .answers import pending as answer_pending, pending_agents as db_pending_agents
+        pending_agents = {agent_id(o) for o in pending} | db_pending_agents(conn)   # answers live on the lead card now (2026-11-03)
         lead_cards = ([(t, sent) for t in asana.section_tasks(sent)] + [(t, answered) for t in asana.section_tasks(answered)]
                       + [(t, nm) for t in asana.section_tasks(nm)] + (asana.lead_cards() if hasattr(asana, "lead_cards") else []))
         for t, here in lead_cards:
             pc = parse_card(t.get("notes") or "")
             if not pc or pc.get("reply_to") or not agent_id(pc["outreach_id"]):
                 continue
-            row = conn.execute("SELECT status, sent_at FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone()
-            if here == nm and (row or [""])[0] != "sent":
+            row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (pc["outreach_id"],)).fetchone())
+            if here == nm and (row or {}).get("status") != "sent":
                 continue          # an unsent first email parked with its numbers: not a lead card
             aid = agent_id(pc["outreach_id"])
+            ans = answer_pending(conn, pc["outreach_id"])
+            if not ans:
+                from .answers import hand_written
+                if hand_written(conn, row, pc):       # he wrote the answer into the EMAIL lines himself: keep it, never overwrite it
+                    ans = {"body": pc["body"], "note": "", "state": "pending"}
+                    conn.execute("UPDATE outreach SET answer_draft=?, answer_state='pending' WHERE id=?", (pc["body"], pc["outreach_id"]))
+                    pending_agents.add(aid)
             st = where_we_stand(conn, aid, aid in pending_agents)
             if not st:
                 continue
@@ -319,14 +376,27 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                 else:
                     st["kind"], st["status"] = "OFFER DRAFTED", (f"Offer drafted (${price}) · waiting for your approval in {offer[0]}. "
                                                                  f"Drag \"{offer[1]}\" to Approved to send it.")
-            # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — the drafted reply is shown on the lead card too
+            elif ans and st["kind"] != "CLOSED" and re.search(r"\$\s?\d{2,3},\d{3}", ans["body"]):
+                price = re.search(r"\$\s?(\d{2,3},\d{3})", ans["body"]).group(1)
+                st["kind"], st["status"] = "OFFER DRAFTED", f"Offer drafted (${price}) · it is the NEXT EMAIL on this card. Drag this card to Approved to send it."
+            # Rodrigo, 2026-10-26: "in the card I do not see the answer you drafted" — a legacy reply card's text is shown here too
             if st["kind"] != "CLOSED":
                 st["drafts"] = [{"where": where, "name": cname, "body": pc2["body"]} for where, cname, pc2 in agent_drafts]
             lines = stand_lines(st)
             notes = t.get("notes") or ""
             html_fn = getattr(asana, "update_html_notes", None)
             if html_fn is not None:
-                html = stand_html(st, notes, _when(row["sent_at"]) if row and row["sent_at"] else "")
+                answer = None
+                if ans:
+                    from .answers import answer_subject
+                    agent_row = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (aid,)).fetchone()) or {}
+                    pids = json.loads(row.get("property_ids") or "[]")
+                    props = [db.row_to_dict(r) for r in conn.execute(
+                        f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
+                    # the card's own text wins (he may have edited the EMAIL lines); the database copy is the fallback
+                    answer = {"to": pc["to"] or row.get("to_address") or agent_row.get("email"), "subject": pc["subject"] if pc["subject"].lower().startswith("re:") else answer_subject(row, props),
+                              "body": pc["body"] if _squash(pc["body"]) != _squash(row.get("body") or "") else ans["body"], "note": ans.get("note") or ""}
+                html = lead_card_html(st, notes, _when(row["sent_at"]) if row and row["sent_at"] else "", answer, row)
                 if _squash(html) != _squash(notes):
                     html_fn(t["gid"], html)
                     n["updated"] += 1

@@ -52,7 +52,9 @@ known, say so and say how we'd find out (ask the agent, pull comps, call). Never
 House rules you must respect in what you suggest: the first message to an agent never has a price; a number reaches an agent
 only when Rodrigo decides it; the ARV / MAO / ranges here are internal screening numbers; terms are as-is cash, $5k deposit,
 inspection period always kept. You can't send, approve or move anything: if he wants an email changed he comments the change,
-to send he drags the card to Approved, a written offer comes from `titan.cli approve-offer <property_id> <price>`.
+to send he drags the card to Approved, a written offer comes from `titan.cli approve-offer <property_id> <price>`. There is
+ONE card per lead: the answer to the agent is the NEXT EMAIL block on the lead card itself, never a separate card; to send it he
+drags that same card to Approved (or comments "send it"); to change it he comments on that card.
 
 If his comment gives us information about the lead (what the agent or seller said, condition, motivation, timing, his own read),
 put it in lead_note as one plain sentence; otherwise lead_note is "". If his comment asks to change the drafted answer to the
@@ -94,10 +96,15 @@ def context(conn, card: dict[str, Any], notes: str, comments: list[dict[str, Any
 
 
 def pending_reply_card(asana, cfg: Any, conn, agent_id: int | None) -> str | None:
-    """The gid of a drafted answer to this agent still waiting on the board (To Review / Needs Revision / Needs Me)."""
+    """The gid of the card carrying a drafted answer to this agent: the lead card itself (one card per lead, 2026-11-03), or a
+    legacy reply card still waiting on the board (To Review / Needs Revision / Needs Me)."""
     from .approvals import _cfg, needs_me_section, needs_revision_section, parse_card
     if not agent_id:
         return None
+    r = conn.execute("SELECT asana_task_id FROM outreach WHERE agent_id=? AND answer_draft IS NOT NULL AND asana_task_id IS NOT NULL "
+                     "ORDER BY id DESC LIMIT 1", (agent_id,)).fetchone()
+    if r:
+        return r[0]
     a = _cfg(cfg)
     for sec in (a["to_review"], needs_revision_section(cfg, asana), needs_me_section(cfg, asana)):
         for t in asana.section_tasks(sec):

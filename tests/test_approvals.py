@@ -47,9 +47,10 @@ class FakeAsana:
 
 
 class FakeGmail:
+    _ids = itertools.count(1)                    # unique ids across instances, like the real Gmail
     def __init__(self): self.sent = []
     def send(self, to, subject, body, **kw):
-        self.sent.append((to, subject, body)); return {"message_id": f"m{len(self.sent)}", "thread_id": f"t{len(self.sent)}"}
+        self.sent.append((to, subject, body)); n = next(self._ids); return {"message_id": f"m{n}", "thread_id": f"t{n}"}
     def create_draft(self, *a, **k): raise AssertionError("approval mode must not make Gmail drafts")
 
 
@@ -330,9 +331,11 @@ def test_gmail_client_refuses_the_wrong_mailbox(tmp_path, monkeypatch):
 
 
 def test_comment_on_a_lead_card_rewrites_the_waiting_answer(loaded, cfg, tmp_path, monkeypatch):
-    """Rodrigo, 2026-10-27 (Lise, Cheryl): he comments on the lead's own card; the answer waiting in To Review must change,
-    not the first email that already went out."""
+    """Rodrigo, 2026-10-27 (Lise, Cheryl) and 2026-11-03 (Thais, one card per lead): he comments on the lead's own card; the
+    answer waiting (now the NEXT EMAIL on that same card) must change, not the first email that already went out. A separate
+    reply card still on the board is folded into the lead card first."""
     from titan.approvals import post_reply_card
+    from titan.answers import pending
     asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
     s, gm = _sections(cfg), FakeGmail()
     gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
@@ -349,39 +352,62 @@ def test_comment_on_a_lead_card_rewrites_the_waiting_answer(loaded, cfg, tmp_pat
         def structured(self, purpose, system, user, schema, max_tokens=1024):
             import json
             u = json.loads(user)
-            assert u["feedback"] == ["From your comment on the lead card: ask her if it's under contract first, we discuss viewing after"]
+            if purpose == "card_chat":
+                return {"answer": "Will do.", "lead_note": "", "reply_change": ""}
+            assert purpose == "revise_email"
+            assert u["feedback"] == ["ask her if it's under contract first, we discuss viewing after"]
             assert "showing" in u["body"]                           # it is the answer being rewritten, not the first email
             return {"subject": u["subject"], "body": "Hi Maria,\n\nThanks for letting me know.\n\nIs it already under contract, or are you still working through that offer?\n\nOnce we know where it stands, we can set up a time to see it.\n\nBest regards,\n\nCharles Grant"}
     res = sync_feedback(loaded, cfg, asana, L())
-    assert res["revised"] == 1, (res, asana.stories[gid], asana.stories[rgid])
-    assert "under contract" in parse_card(asana.tasks[rgid]["notes"])["body"]
-    assert parse_card(asana.tasks[gid]["notes"])["body"] == first_body
-    assert any("went to the drafted answer" in c for c in asana.stories[gid])
-    assert asana.where[rgid] == asana.ensure_section(None, "Needs Me")     # rewritten for him → Needs Me (Rodrigo, 2026-10-27)
+    assert res["folded"] == 1 and asana.tasks[rgid].get("completed")      # the second card is gone
+    assert res["revised"] == 1, (res, asana.stories[gid])
+    notes = asana.tasks[gid]["notes"]
+    card = parse_card(notes)
+    assert "under contract" in card["body"] and card["subject"].startswith("Re: ") and card["outreach_id"] == oid
+    assert "NEXT EMAIL" in notes and "First email" in notes and first_body.split("\n")[0] in notes   # history stays on the card
+    assert pending(loaded, oid)["body"] == card["body"]
+    assert loaded.execute("SELECT body FROM outreach WHERE id=?", (oid,)).fetchone()[0] == first_body   # the sent email is untouched
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")     # rewritten for him → Needs Me (Rodrigo, 2026-10-27)
     assert sync_feedback(loaded, cfg, asana, L())["revised"] == 0          # not processed twice
+    # dragging the LEAD card to Approved sends the answer in the agent's thread; the card keeps the history
+    asana.move(gid, s["approved"])
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
+    assert gm.sent[-1][1].startswith("Re: ") and "under contract" in gm.sent[-1][2]
+    assert pending(loaded, oid) is None and any("📤 Sent to" in c for c in asana.stories[gid])
+    assert parse_card(asana.tasks[gid]["notes"])["body"] == first_body and asana.where[gid] == s["sent"]
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0
 
 
-def test_comment_on_a_lead_card_with_no_answer_waiting_is_answered_on_that_card(loaded, cfg, tmp_path, monkeypatch):
-    """No draft to change: Claude answers on the lead card itself; with Claude down the comment is held and retried, never lost."""
+def test_comment_on_a_lead_card_with_no_answer_waiting_writes_the_answer_on_that_card(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-11-03: "I ask it to rewrite an email and it just doesn't do it and sends it back to Needs Me". A change
+    asked on a lead card with nothing drafted yet gets Charles's answer written on that card; with Claude down the comment is
+    held once and retried, never lost."""
     asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
     s, gm = _sections(cfg), FakeGmail()
     gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
     send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
     from titan.approvals import needs_revision_section
     asana.move(gid, needs_revision_section(cfg, asana))
-    asana.stories[gid].append("make it shorter")
+    asana.stories[gid].append("ask her if the seller would hear a cash proposal this week")
     before = len(asana.tasks)
     res = sync_feedback(loaded, cfg, asana, None)
-    assert res["revised"] == 0 and res["revise_failed"] == 0 and res["chat"] == 0
-    assert asana.stories[gid][-1].startswith(f"{BOT} Held: couldn't answer yet") and len(asana.tasks) == before
+    assert res["revised"] == 0 and res["revise_failed"] == 1 and len(asana.tasks) == before
+    assert asana.stories[gid][-1].startswith(f"{BOT} I couldn't rewrite") and asana.where[gid] == asana.ensure_section(None, "Needs Me")
+    assert sync_feedback(loaded, cfg, asana, None)["revise_failed"] == 1 and sum("couldn't rewrite" in c for c in asana.stories[gid]) == 1
 
     class L:
         available = True
         def structured(self, purpose, system, user, schema, max_tokens=1024):
-            assert purpose == "card_chat"
-            return {"answer": "There's no draft to shorten: the first email went out Saturday and the agent hasn't answered.", "lead_note": "", "reply_change": ""}
+            import json
+            if purpose == "card_chat":
+                return {"answer": "On it.", "lead_note": "", "reply_change": ""}
+            assert purpose == "draft_reply" and "cash proposal" in json.loads(user)["rodrigo_instruction"]
+            return {"read": "x", "body": "Hi Maria,\n\nQuick one on the house.\n\nWould the seller hear a cash proposal this week?\n\n" + json.loads(user)["signature_block"]}
     res = sync_feedback(loaded, cfg, asana, L())
-    assert res["chat"] == 1 and "no draft to shorten" in asana.stories[gid][-1] and len(asana.tasks) == before
+    assert res["revised"] == 1 and len(asana.tasks) == before                 # no second card
+    assert "cash proposal" in parse_card(asana.tasks[gid]["notes"])["body"] and "NEXT EMAIL" in asana.tasks[gid]["notes"]
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
 
 
 def test_approvals_tick_rewrites_cards_that_ask_how_much_work_a_photographed_listing_needs(loaded, cfg, tmp_path, monkeypatch):
@@ -403,9 +429,9 @@ def test_approvals_tick_rewrites_cards_that_ask_how_much_work_a_photographed_lis
     assert "How much work would you say" not in new_body and "18 photos" in asana.stories[gids[0]][-1]
     assert rewrite_pending(loaded, cfg, asana, None, violating_only=True)["rewritten"] == 0   # done once, not every tick
 
-def test_dictated_answer_on_a_lead_card_becomes_the_reply_card_and_sends_from_approved(loaded, cfg, tmp_path, monkeypatch):
-    """Rodrigo, 2026-10-27 (Richard): 'Answer the email with the following: Hey Richard, ...' on the lead card, then dragged to
-    Approved, must send that answer, not bounce the card back with 'Holding it'."""
+def test_dictated_answer_on_a_lead_card_becomes_its_next_email_and_sends_from_approved(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-10-27 (Richard) and 2026-11-03 (Thais): 'Answer the email with the following: Hey Richard, ...' on the lead
+    card, then dragged to Approved, must send that answer from that same card, not bounce it back with 'needs me'."""
     from titan.approvals import dictated_answer
     assert dictated_answer(["make it shorter"], cfg) is None
     asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
@@ -417,15 +443,80 @@ def test_dictated_answer_on_a_lead_card_becomes_the_reply_card_and_sends_from_ap
     asana.move(gid, s["approved"])
     asana.stories[gid].append("Answer the email with the following: Hey Maria, thanks for getting back to us, we're mostly interested in "
                               "the Hollywood property but it seems we're quite a bit away from the asking price. Is the seller willing to take a substantial discount on it?")
+    before = len(asana.tasks)
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)
-    assert res["sent"] == 1 and len(gm.sent) == 2
+    assert res["sent"] == 1 and len(gm.sent) == 2 and len(asana.tasks) == before          # no second card, ever
     body = gm.sent[-1][2]
     assert body.startswith("Hey Maria,\n\n") and "substantial discount" in body and "Charles Grant" in body
-    rgid = next(g for g, t in asana.tasks.items() if t["name"].startswith("Reply · "))
-    assert asana.tasks[rgid].get("completed") and asana.where[rgid] == s["sent"]           # answer card closed after the send
     assert any("📤 Sent to" in c and "substantial discount" in c for c in asana.stories[gid])  # the lead card carries it
-    assert asana.where[gid] != s["approved"]
+    assert asana.where[gid] == s["sent"]
     assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == 2
+
+
+def test_the_email_as_one_comment_and_send_it_as_the_next_is_sent_from_the_lead_card(loaded, cfg, tmp_path, monkeypatch):
+    """Thais Guevara, 2026-11-02: Rodrigo wrote the email in one comment and "I wrote a message up top … put that into an email
+    and send it to her" in the next, then dragged the card to Approved. The engine forwarded it to a reply card and bounced the
+    lead card to Needs Me. Now: his words (cleaned up by Claude) become the NEXT EMAIL on the lead card, in Approved, and send."""
+    from titan.answers import dictation, pending, wants_send
+    email = ("Hey no problem if we can chat tomorrow that's fine too for now let me ask you in terms of the Code Compliance is that the "
+             "property has what are they exactly does the city know about the the structure that he has in the back is there a violation "
+             "and will the property be sold free and clear of any liens and violations? We like the area and we'd be willing to move fast on "
+             "something. Also do you have any more updated pictures of the structures")
+    ask = ("I wrote a message up top what I want us to do is I want us to put that into an email and send it to her what I what I wrote "
+           "there because that's the main concerns about the property and she emailed us back so this is a hot lead")
+    d = dictation([email, ask])
+    assert d and d[0] == email and wants_send(d[1])
+    assert dictation([ask]) is None and dictation(["ask her about the roof"]) is None
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    asana.move(gid, s["approved"])
+    asana.stories[gid] += [email, ask]
+    tidy = ("Hey Maria,\n\nNo problem, if we can chat tomorrow that is fine too.\n\nOn the code compliance, what exactly has the city flagged? "
+            "Does the city know about the structure in the back, is there a violation, and will the property be sold free and clear of any liens "
+            "and violations?\n\nWe like the area and would move fast on something. Do you have any updated pictures of the structures?")
+
+    class L:
+        available = True
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            import json
+            if purpose == "tidy_dictation":
+                return {"body": tidy + "\n\n" + json.loads(user)["signature_block"]}
+            return {"answer": "ok", "lead_note": "", "reply_change": ""}
+    before = len(asana.tasks)
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
+    assert res["sent"] == 1 and gm.sent[-1][2].startswith(tidy)
+    assert not any(t["name"].startswith("Reply ·") for t in asana.tasks.values())      # no second card on the approvals board
+    assert [t["name"] for t in asana.tasks.values() if t["name"].startswith("📞")]      # "this is a hot lead": the call card he asked for
+    assert pending(loaded, oid) is None and asana.where[gid] == s["sent"]
+    assert any("📤 Sent to" in c and "free and clear" in c for c in asana.stories[gid])
+    assert any("NEXT EMAIL" in c and "goes out at the next send round" in c for c in asana.stories[gid])
+
+
+def test_send_her_the_email_on_a_lead_card_in_approved_keeps_it_there(loaded, cfg, tmp_path, monkeypatch):
+    """Thais, 2026-11-02: "i ALREADY SENT THIS TO APPROVED MULTIPLE TIMES WHY IS IT COMING BACK TO NEEDS ME. sEND HER THE EMAIL."
+    was read as a question, answered in chat, and the card went back to Needs Me. A lead card with an answer on it, in Approved,
+    stays there unless he changes the text or says hold."""
+    from titan.answers import set_answer
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    s, gm = _sections(cfg), FakeGmail()
+    gid = next(iter(asana.tasks)); asana.move(gid, s["approved"])
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+    oid = parse_card(asana.tasks[gid]["notes"])["outreach_id"]
+    set_answer(loaded, cfg, asana, oid, "Hey Maria,\n\nIs the seller open to a conversation?\n\nBest regards,\n\nCharles Grant")
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me") and "NEXT EMAIL" in asana.tasks[gid]["notes"]
+    asana.move(gid, s["approved"])
+    asana.stories[gid].append("Hey i ALREADY SENT THIS TO APPROVED MULTIPLE TIMES WHY IS IT COMING BACK TO NEEDS ME. sEND HER THE EMAIL.")
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)
+    assert res["sent"] == 1 and "open to a conversation" in gm.sent[-1][2] and asana.where[gid] == s["sent"]
+    # and a bare "hold" on an approved answer does take it out
+    set_answer(loaded, cfg, asana, oid, "Hey Maria,\n\nOne more question on the roof.\n\nBest regards,\n\nCharles Grant", approved=True)
+    assert asana.where[gid] == s["approved"]
+    asana.stories[gid].append("hold, wait on this one")
+    assert send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=None)["sent"] == 0
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
 
 
 def test_to_review_is_renamed_fresh_leads_once(loaded, cfg, tmp_path, monkeypatch):

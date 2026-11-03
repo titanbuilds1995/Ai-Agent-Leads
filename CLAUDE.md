@@ -260,9 +260,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - 2026-11-03 ~3pm ET, RESUME HERE: **one card per lead** (see Decisions): the answer to an agent is the NEXT EMAIL block on the lead
   card; dragging the lead card to Approved sends it; dictations on the card become that email; reply cards are folded in. Cause of
   Thais's loop: his dictated email went to the "Reply ·" card, the lead card he dragged to Approved had nothing to send and bounced
-  to Needs Me, and "SEND HER THE EMAIL" was read as a question. Thais's card: her email (his words, code flags / rear structure /
-  liens / free and clear / updated photos) written by hand as NEXT EMAIL on the lead card, left in Approved → the Mac sends it at its
-  next round once it has pulled; the "Reply · Thais" card completed. Watch the first live round: the fold of any remaining reply
+  to Needs Me, and "SEND HER THE EMAIL" was read as a question. Thais: at 2:13pm ET her email (his words: code flags / rear structure /
+  liens / free and clear / updated photos) was put on a "Reply · Thais Guevara" card in Approved (gid 1220184869462027); it sends at
+  the Mac's next round as it is, then the new code posts 📤 on her lead card and completes that reply card. Watch the first live round: the fold of any remaining reply
   cards and the first lead-card send (comment "📤 Sent to …" on the lead card). 308 tests.
 - 2026-11-03 ~7:30am ET, RESUME HERE: **no 7am report and no Nov 2 end-of-day** (Mac asleep after ~6:45pm Mon). Fixed: lead cards
   grew a new WHERE WE STAND copy every round (Thais had 12, Seneve the old draft stacked so Rodrigo saw "the old email"):

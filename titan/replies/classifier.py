@@ -27,7 +27,7 @@ OOO_RE = re.compile(r"\b(out of (the )?office|ooo|on vacation|away from (my )?(e
                     r"limited access to email|will (be )?(return|be back|respond) (on|after|when)|currently (away|unavailable|traveling))\b", re.I)
 SOLD_RE = re.compile(r"\b(under contract|pending|sold|accepted (an )?offer|went (to )?contract|in escrow|closed|contingent|"
                      r"(no longer|not) (available|on the market|for sale)|off (the )?market|withdrawn|already (sold|under contract|has a contract)|"
-                     r"executed contract|we have a contract|signed contract|cancelled|canceled)\b", re.I)
+                     r"(have|has|got|received|accepted|took) (a |an )?(fully )?(signed|executed) contract|we have a contract|cancelled|canceled)\b", re.I)
 NOT_RE = re.compile(r"\b(not interested|no interest|no thanks|no thank you|pass|not (looking|going) to (entertain|consider|accept)|won'?t (go|take|accept|consider|entertain)|"
                     r"will not (go|take|accept|consider|entertain)|firm (on|at) (the )?(price|list)|(seller|owner|they|we) (is|are|'s)? ?(not|n't) (interested|motivated|open|willing|looking)|"
                     r"full (list )?price only|no lowball|not (selling|entertaining) (below|under)|(don'?t|do not) (waste|bother)|only (considering|accepting) (full|list|retail)|"

@@ -257,6 +257,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-05 ~7:30am ET, RESUME HERE: **Milton Ramirez (359 E 12th St, Hialeah) is a live deal the engine skipped**: he countered $440k /
+  $10k EMD / 10-day inspection / close by Nov 30 and asks for a complete, fully signed contract; "fully signed contract" matched
+  SOLD_RE ("signed contract") → read as sold → Skip. Fixed (SOLD_RE needs "have/got/accepted a signed contract"; test added); card
+  moved back to Needs Me + Needs Rodrigo card. Peter Dacko (82 Tortuga): "other offer is $20k better … at $260K", Rodrigo is
+  negotiating himself. No 7am report yet today (Mac asleep); Nov 4 end-of-day said 0 of 25 although Rodrigo sent 3 offers by hand.
 - 2026-11-03 ~3pm ET, RESUME HERE: **one card per lead** (see Decisions): the answer to an agent is the NEXT EMAIL block on the lead
   card; dragging the lead card to Approved sends it; dictations on the card become that email; reply cards are folded in. Cause of
   Thais's loop: his dictated email went to the "Reply ·" card, the lead card he dragged to Approved had nothing to send and bounced

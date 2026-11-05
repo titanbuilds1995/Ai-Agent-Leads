@@ -285,3 +285,13 @@ def test_our_own_emails_are_never_the_agents_reply():
     assert is_ours("Someone Else <ops@titanrealtyinvestments.com>", cfg)
     assert not is_ours("Lise Freeman <lisefreeman@gmail.com>", cfg)
     assert not is_ours(None, cfg)
+
+
+def test_asking_for_a_signed_contract_is_not_sold():
+    """Milton (Nov 4) asked us for "the complete, fully signed contract"; the engine read it as sold and skipped a live deal."""
+    from titan.replies.classifier import classify
+    milton = ("Hi Charles and Rodrigo, That is fine, as title line choice in Miami-Dade County is customary for the buyer. "
+              "Please send over the complete, fully signed contract so I can present it to the sellers to get it signed today.")
+    assert classify(milton).label != "SOLD_OR_PENDING"
+    assert classify("Sorry, we already have a signed contract on it.").label == "SOLD_OR_PENDING"
+    assert classify("The seller accepted an executed contract yesterday.").label == "SOLD_OR_PENDING"

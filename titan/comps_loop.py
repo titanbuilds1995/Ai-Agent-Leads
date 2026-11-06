@@ -355,14 +355,14 @@ def claude_review(conn, cfg: Any, llm, p: dict[str, Any], sel: dict[str, Any], r
     return row
 
 
-def review_due(conn, props: list[dict[str, Any]], cfg: Any) -> list[dict[str, Any]]:
+def review_due(conn, props: list[dict[str, Any]], cfg: Any, run_date: str | None = None) -> list[dict[str, Any]]:
     lp = cfg.get("comps.loop", {}) or {}
     every = int(lp.get("review_every_days", 7))
     cap = int(lp.get("claude_reviews_per_day", 15))
     out = []
     for p in props:
         last = conn.execute("SELECT run_date FROM comps_review WHERE property_id=? ORDER BY id DESC LIMIT 1", (p["id"],)).fetchone()
-        if last and (datetime.strptime(today_et(), "%Y-%m-%d") - datetime.strptime(last[0][:10], "%Y-%m-%d")).days < every:
+        if last and (datetime.strptime(run_date or today_et(), "%Y-%m-%d") - datetime.strptime(last[0][:10], "%Y-%m-%d")).days < every:
             continue
         out.append(p)
         if len(out) >= cap:
@@ -408,7 +408,7 @@ def run(conn, cfg: Any, comps_fn: Callable | None = None, llm=None, asana=None, 
     reviewed, review_notes = 0, []
     if review and llm is not None and getattr(llm, "available", False) and props:
         lessons = comp_lessons(conn)
-        for p in review_due(conn, props, cfg):
+        for p in review_due(conn, props, cfg, run_date):
             full = db.row_to_dict(conn.execute("SELECT * FROM properties WHERE id=?", (p["id"],)).fetchone())
             cands = []
             if comps_fn:

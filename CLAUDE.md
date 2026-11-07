@@ -257,6 +257,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-07 ~7:30am ET, RESUME HERE: **Peter Dacko accepted 82 Tortuga Rd at $245,000** (Fri 2:30pm; wants proof of funds;
+  our Nov 4 AS IS contract, back-up terms in Paragraph 20). Milton (359 E 12th St, $440k) escrow due ~Mon Nov 9. Juan Huice $285k
+  offer out, no answer. Mac woke Fri ~11am (catch-up ran), quiet after ~2:30pm; no 7am report Sat. Needs Rodrigo cards posted.
 - 2026-11-06 ~7:30am ET, RESUME HERE: **Mac off since Wed Nov 4 ~8pm ET** (no reports Thu/Fri, nothing on Asana). **Milton
   Ramirez (359 E 12th St) is UNDER CONTRACT**: Rodrigo sent the signed contract Nov 4; Milton asked for the $10k escrow (3 business
   days) then the 10-day inspection; close by Nov 30. Card stays on Warm Leads "Hot Offer Sent OUT" (approvals-board Skip is the old

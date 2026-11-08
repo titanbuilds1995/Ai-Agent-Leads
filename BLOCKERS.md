@@ -17,3 +17,12 @@ The build environment had **no credentials** (no `APIFY_TOKEN`, `ANTHROPIC_API_K
    Rodrigo's ssh key, a DNS name for the webhook host, and the Twilio console login. The cloud sessions had none of these.
 8. **MLS (Matrix) CSV export** — optional, high value: remarks + agent emails in one file. Needs one real export from Rodrigo to write
    the column mapper against (see STATUS.md → Observations).
+9. **Apify budget for the 1031 commercial screen (2026-11-08).** The account is on Apify's FREE plan ($5 of usage a month, hard cap).
+   The LoopNet actor bills $1.50 per 1,000 search rows and about a cent per full property sheet, so the sample pull is pennies but
+   the full statewide pull (roughly 1,500–3,000 rows plus a few hundred sheets) is about $4–8 and a daily re-run is the same again
+   each morning. Decide: upgrade Apify (Starter, $39/month, or pay-as-you-go) or run the full pull weekly inside the free credit
+   with `commercial.loopnet.detail_budget_usd` low. The engine never switches this on by itself (`commercial.schedule: manual`).
+10. **LoopNet property sheets.** LoopNet blocks the actor's full property-sheet fetch most of the time today (0–1 of 3 come back);
+   search rows (price, cap when shown, broker name/email/phone, type, size) always come back. Without sheets, NOI / occupancy /
+   lease type stay unknown and most listings are NEEDS-OM, which is the Monday book-request list anyway. The engine retries the
+   missing sheets every run and keeps any sheet it ever got. If this does not improve, the OM PDFs brokers send back are the data.

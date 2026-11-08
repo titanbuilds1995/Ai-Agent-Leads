@@ -389,7 +389,7 @@ commercial:
     dir: "reports/commercial"
     top_n: 25
   asana:
-    project: null                    # "Titan 1031 · Commercial (LoopNet)" board gid once created (the engine creates it when null and ASANA_TOKEN is set)
+    project: "1220324280677489"      # "Titan 1031 · Commercial (LoopNet)" board (created 2026-11-08; sections Top tier / Needs OM / Suspect / Contacted / Skip are found by name)
     push_top_n: 25                   # CLEAN top-tier cards
     needs_om_n: 40                   # OM-request task list
   schedule: "manual"                 # manual | daily. daily = run-daily step "commercial" (costs Apify credit every morning)

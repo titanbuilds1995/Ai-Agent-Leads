@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Titan · 1031 Deals</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/1031.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">T</span><div><h1>Titan <b>1031 Deals</b></h1><div class="sub" id="sub">loading…</div></div></div>
+  <nav class="tabs" id="cols"></nav>
+  <div class="right"><span class="pill" id="viewpill">—</span><a class="ghost" href="/" id="backlink" hidden>Lead engine</a><button id="logout" class="ghost" hidden>Sign out</button></div>
+</header>
+<main id="main">
+  <section id="gate" class="gate" hidden>
+    <form id="loginform" class="card">
+      <h2>Sign in</h2>
+      <p class="muted">The dashboard password, or open the investor link you were sent.</p>
+      <input id="pw" type="password" placeholder="password" autocomplete="current-password">
+      <button type="submit">Open</button>
+      <p id="loginerr" class="err" hidden></p>
+    </form>
+  </section>
+  <section id="gallery" hidden></section>
+  <section id="detail" hidden></section>
+</main>
+<script src="/1031.js"></script>
+</body>
+</html>

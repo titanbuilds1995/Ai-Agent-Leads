@@ -264,12 +264,35 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `make commercial-sample` (pennies), `make commercial` (full pull, costs Apify credit), `commercial.schedule: daily` for the morning
   re-run + diff. Known gap: LoopNet blocks the actor's full property sheets most of the time (0–1 of 3 come through); the engine
   retries them every run and keeps any sheet it ever got. Do not try proxies / crawlers around LoopNet's block from a cloud session.
+- **1031 deals are VISUAL (Rodrigo, 2026-11-08: "I'm a visual guy … I want to send them the properties in an email with everything
+  laid out … Asana is the CRM, the dashboard is where the investor looks"):** (1) after every pull a Titan-style HTML email
+  (`titan/commercial/email_html.py`, one LoopNet photo card per in-box listing: facts, "why this fits" line from `why.py`, link to the
+  property page) goes to REPORT_TO; it is the email he forwards to the investor, so no internal numbers in it. (2) The site: a "1031
+  Deals" page on the Vercel dashboard (`dashboard/public/1031.html`, data `titan/deals.json` in the Blob store from
+  `titan/commercial/site.py`, served by `dashboard/api/deals.js`); private view = dashboard password (everything, broker contact,
+  internal block), investor view = `?k=DEALS_SHARE_KEY` showing only the investor columns and no internal numbers; gallery per column,
+  a page per property (`#<listing_id>`). (3) The Asana 1031 board columns ARE the categories (`titan/commercial/board.py`): New ·
+  Good fit · Not a fit · In touch with the agent · Books received · Offer out · Closed; every new card lands in New, Rodrigo drags, the
+  engine reads the column onto the listing (`board_column`) and the site/email follow it. (4) LoopNet sheets: never route around the
+  block from the cloud; `make commercial-sheets` lists the top listings still missing a sheet + the prompt for a Claude Code session on
+  the Mac with Claude in Chrome to read them in HIS browser into `data/listings/<id>/sheet.txt` (read on the next run like OM PDFs).
+  Needs on Vercel + .env: `DEALS_SHARE_KEY`; config `commercial.site.url` = the dashboard URL (blank → email links go to LoopNet).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-08 ~11pm ET, RESUME HERE: **the visual layer for the 1031 deals** (see Decisions → 1031 deals are VISUAL): deals email with
+  photo cards (sent to Rodrigo from the cloud for the sample; `reports/commercial/<date>/deals_email.html`), the "1031 Deals" page on the
+  dashboard (private + investor views; `deals.json` goes to the Blob store on every pull once BLOB_READ_WRITE_TOKEN is on the Mac), the
+  board columns as his categories (renamed by the engine on the Mac's first `make commercial`; the 10 sample cards sit in what becomes
+  New), `make commercial-sheets` for the Chrome-on-the-Mac sheet reading. 21 commercial tests, 330 total. **Rodrigo must:** add
+  `DEALS_SHARE_KEY` (any long random string) to the Mac's .env AND to the Vercel project's environment variables (then redeploy), put
+  the dashboard URL in `config.yaml → commercial.site.url`, run `make commercial` (or `make commercial-offline RAW="raw/*loopnet_*.json"`
+  to publish what the cloud already pulled, no Apify spend); the investor link is `<site>/1031.html?k=<DEALS_SHARE_KEY>`. Vercel deploys
+  the dashboard from the repo's default branch, so this branch must be merged for the page to exist. Photos could not be checked from
+  the cloud (the image CDN is blocked here); size token 116 is what LoopNet's own pages use.
 - 2026-11-08 ~8pm ET, RESUME HERE: **Commercial screen for the 1031 buyer built** (`titan/commercial/`, see Decisions; `make commercial-sample`,
   `make commercial`, `make commercial-offline`; 18 new tests, 327 total pass). **Sample pull done in the cloud** (15 LoopNet rows per
   asset family, $0.21 of Apify credit): 109 listings, 66 in the box across 14 counties, **all 66 NEEDS-OM** (0 CLEAN) because LoopNet

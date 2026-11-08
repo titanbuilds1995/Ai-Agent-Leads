@@ -80,6 +80,13 @@ card tagged `1031-buyer` with the offer anchor and the broker's phone + email; t
 Charles's voice. Nothing on that board sends. Daily re-run: `commercial.schedule: daily` adds it to run-daily (it spends Apify
 credit every morning; `manual` = only when you run `make commercial`).
 
+**Visual layer (2026-11-08):** every pull also sends a Titan-style HTML email with a photo card per listing and a "why this fits" line
+(the one Rodrigo forwards to the investor), and publishes `titan/deals.json` to the dashboard's Blob store for the **1031 Deals** page
+(`dashboard/public/1031.html`): gallery per board column, a page per property; private view with the dashboard password, investor
+view with `?k=DEALS_SHARE_KEY` (investor columns only, no internal numbers). The Asana board columns (New / Good fit / Not a fit / In
+touch with the agent / Books received / Offer out / Closed) are the categories the site follows. `make commercial-sheets` lists the top
+listings still missing their LoopNet sheet for a Claude in Chrome session on the Mac to read into `data/listings/<id>/sheet.txt`.
+
 ## Modes and channels
 
 | mode | first touch (email / sms) | 7a written offer after a positive text | reply to an agent |

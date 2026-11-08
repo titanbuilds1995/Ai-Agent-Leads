@@ -220,8 +220,10 @@ def test_asana_cards_top_tier_and_needs_om_once(conn, cfg, tmp_path):
     res = push(conn, cfg, asana, ranked)
     specs = card_specs(cfg, ranked)
     assert res["cards"] == len(specs) >= 2 and len(asana.tagged) == res["cards"]
-    top = [t for g, t in asana.tasks.items() if asana.where[g] == asana.ensure_section("proj-1031", "Top tier")]
-    om = [t for g, t in asana.tasks.items() if asana.where[g] == asana.ensure_section("proj-1031", "Needs OM")]
+    new = [t for g, t in asana.tasks.items() if asana.where[g] == asana.ensure_section("proj-1031", "New")]
+    assert len(new) == len(specs)                                   # every card lands in New; Rodrigo sorts them by dragging
+    top = [t for t in new if not t["name"].startswith("OM request")]
+    om = [t for t in new if t["name"].startswith("OM request")]
     assert len(top) == 1 and "OFFER ANCHOR: $4,500,000" in top[0]["notes"] and "Broker: Jane Roe" in top[0]["notes"]
     assert om and "=== EMAIL (what will be sent) ===" in om[0]["notes"] and "Titan Realty Investments" in om[0]["notes"]
     assert push(conn, cfg, asana, ranked)["cards"] == 0            # idempotent
@@ -239,3 +241,55 @@ def test_documents_gated_and_grades_from_pdfs(tmp_path):
     assert out["docs_missing"] == ["T-12", "rent roll", "OM", "lease abstract"] and "T-12" in " ".join(out["docs_gated"])
     facts = d.facts_from_text("Net Operating Income $425,000\nGross Income $650,000\nOperating Expenses $225,000\n95% occupied\nDollar General     $120,000\nLease expiration 12/31/2032")
     assert facts["noi"] == 425_000 and facts["gross"] == 650_000 and facts["occupancy"] == 95.0 and facts["tenants"] == ["Dollar General"] and facts["expirations"] == ["12/31/2032"]
+
+
+# --- the visual layer (Rodrigo, 2026-11-08): board columns, the deals email, the site feed ------------------------------------------
+
+def test_board_columns_rename_and_read(conn, cfg, tmp_path):
+    from titan.commercial.board import COLUMNS, apply_board, column_key, ensure_board, read_board
+    asana = Fake1031Asana()
+    asana._sections = {"s1": "Top tier", "s2": "Needs OM", "s3": "Suspect", "s4": "Contacted", "s5": "Skip"}
+    secs = ensure_board(asana, "proj-1031")
+    assert set(secs) == set(COLUMNS) and asana._sections["s1"] == "Good fit" and asana._sections["s2"] == "New"
+    assert column_key("Needs OM") == "New" and column_key("good fit") == "Good fit" and column_key("Whatever") is None
+    cfg.root = tmp_path
+    run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    gid = asana.create_task("proj-1031", secs["Good fit"], "card", "facts\nhttps://www.loopnet.com/Listing/28440860/\n")["gid"]
+    asana.tasks[gid]["memberships"] = [{"project": {"gid": "proj-1031"}, "section": {"name": "Good fit"}}]
+    board = read_board(asana, "proj-1031")
+    assert board["28440860"]["column"] == "Good fit"
+    assert apply_board(conn, board) == 1
+    assert conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0] == "Good fit"
+
+
+def test_deals_email_has_a_card_per_in_box_listing_with_photo_and_why(conn, cfg, tmp_path):
+    from titan.commercial.email_html import build_email
+    cfg.root = tmp_path
+    out = run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    ranked = out["ranked"]
+    html, text = build_email(ranked, cfg, "2026-11-07", out["counts"])
+    n_box = sum(1 for L in ranked if L.get("in_box"))
+    assert html.count("See the property") == n_box and "Why this fits" in html and "images1.loopnet.com" in html
+    assert "OFFER ANCHOR" not in html and "Score parts" not in html          # the investor gets this email: internal numbers stay out
+    assert "840 SW 81st Ave" in text and Path(out["files"]["deals_email"]).exists()
+    cfg.raw["commercial"]["site"]["url"] = "https://example.vercel.app"
+    html2, _ = build_email(ranked, cfg, "2026-11-07", out["counts"])
+    assert "https://example.vercel.app/1031.html#28440860" in html2
+
+
+def test_site_feed_splits_public_and_private(conn, cfg, tmp_path):
+    from titan.commercial.board import COLUMNS
+    from titan.commercial.site import build_deals, publish
+    cfg.root = tmp_path
+    out = run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    conn.execute("UPDATE commercial_listings SET board_column='Good fit' WHERE listing_id='28440860'")
+    snap = build_deals(conn, cfg, "2026-11-07")
+    assert snap["columns"] == COLUMNS and len(snap["deals"]) == out["counts"]["in_box"]
+    d = next(x for x in snap["deals"] if x["listing_id"] == "28440860")
+    assert d["board_column"] == "Good fit" and d["investor"] is True and d["why"] and d["photo"].endswith("/116/image.jpg")
+    assert "broker_email" not in d and "offer_anchor" not in d
+    assert snap["private"]["28440860"]["broker_email"] == "adam@trustrealtyusa.com" and snap["private"]["28440860"]["score"] == d.get("score", snap["private"]["28440860"]["score"])
+    assert all(x["investor"] is False for x in snap["deals"] if x["board_column"] == "New")
+    res = publish(conn, cfg, "2026-11-07")
+    assert Path(res["local"]).exists() and res["uploaded"] is False and "BLOB" in res["skipped"]
+    assert out["site"]["deals"] == out["counts"]["in_box"]

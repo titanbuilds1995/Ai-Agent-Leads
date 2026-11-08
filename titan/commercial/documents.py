@@ -144,20 +144,40 @@ def facts_from_text(text: str) -> dict[str, Any]:
     }
 
 
+def local_files(folder: Path) -> list[dict[str, Any]]:
+    """Documents someone dropped into data/listings/<id>/ by hand: OM PDFs the broker sent, or the LoopNet property sheet
+    saved as text from Rodrigo's own browser (Claude in Chrome on the Mac). Read like downloaded ones."""
+    if not folder.exists():
+        return []
+    out = []
+    for f in sorted(folder.iterdir()):
+        if f.suffix.lower() in (".pdf", ".txt", ".md") and f.is_file():
+            kind = classify(f.name)
+            if kind == "other" and f.suffix.lower() in (".txt", ".md"):
+                kind = "sheet"
+            out.append({"name": f.name, "url": None, "kind": kind, "downloaded": True, "path": str(f), "local": True})
+    return out
+
+
 def doc_facts(L: dict[str, Any], base_dir: Path, enabled: bool = True, max_mb: float = 25, session=None) -> dict[str, Any]:
     """Find, download and read every document behind one listing. Returns the fields scoring.evidence_grade reads."""
-    docs = find_links(L) + gated_mentions(L)
     folder = base_dir / str(L.get("listing_id") or "unknown")
+    local = local_files(folder)
+    docs = local + [d for d in find_links(L) + gated_mentions(L) if not any(x["name"] == d.get("name") for x in local)]
     merged: dict[str, Any] = {}
     for d in docs:
-        if d.get("gated") or not enabled or not d.get("url"):
-            d.setdefault("downloaded", False)
-            d.setdefault("gated", not d.get("url"))
-            continue
-        d.update(download(d, folder, max_mb=max_mb, session=session))
+        if not d.get("local"):
+            if d.get("gated") or not enabled or not d.get("url"):
+                d.setdefault("downloaded", False)
+                d.setdefault("gated", not d.get("url"))
+                continue
+            d.update(download(d, folder, max_mb=max_mb, session=session))
         if d.get("downloaded"):
-            facts = facts_from_text(pdf_text(Path(d["path"])))
+            path = Path(d["path"])
+            facts = facts_from_text(path.read_text(errors="ignore") if path.suffix.lower() in (".txt", ".md") else pdf_text(path))
             d["facts"] = {k: v for k, v in facts.items() if v not in (None, [], False)}
+            if d.get("kind") == "sheet":
+                d["facts"]["_text"] = (path.read_text(errors="ignore") if path.suffix.lower() in (".txt", ".md") else "")[:20000]
             for k, v in facts.items():
                 if v not in (None, [], False) and merged.get(k) in (None, [], False):
                     merged[k] = v

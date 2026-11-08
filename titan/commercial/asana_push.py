@@ -12,8 +12,9 @@ from typing import Any
 from ..util import log, money, pretty_phone
 from .om_request import om_request
 
+from .board import COLUMNS as SECTIONS, ensure_board
+
 BOARD_NAME = "Titan 1031 · Commercial (LoopNet)"
-SECTIONS = ["Top tier", "Needs OM", "Suspect", "Contacted", "Skip"]
 START, END = "=== EMAIL (what will be sent) ===", "=== END EMAIL ==="
 
 
@@ -68,7 +69,8 @@ def card_notes(cfg: Any, L: dict[str, Any], with_email: bool) -> str:
 
 
 def section_for(L: dict[str, Any]) -> str:
-    return {"CLEAN": "Top tier", "NEEDS-OM": "Needs OM", "SUSPECT": "Suspect"}.get(L.get("tag") or "", "Suspect")
+    """Every new card lands in New (Rodrigo sorts them into his categories by dragging); the card text says CLEAN / NEEDS-OM."""
+    return "New"
 
 
 def card_specs(cfg: Any, ranked: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -77,8 +79,8 @@ def card_specs(cfg: Any, ranked: list[dict[str, Any]]) -> list[dict[str, Any]]:
     om_n = int(cfg.get("commercial.asana.needs_om_n", 40))
     top = [L for L in ranked if L.get("in_box") and L.get("tag") == "CLEAN"][:top_n]
     om = [L for L in ranked if L.get("in_box") and L.get("tag") == "NEEDS-OM"][:om_n]
-    specs = [{"section": "Top tier", "name": card_name(L), "notes": card_notes(cfg, L, with_email=False), "listing_id": L["listing_id"]} for L in top]
-    specs += [{"section": "Needs OM", "name": "OM request · " + card_name(L), "notes": card_notes(cfg, L, with_email=True), "listing_id": L["listing_id"]} for L in om]
+    specs = [{"section": "New", "name": card_name(L), "notes": card_notes(cfg, L, with_email=False), "listing_id": L["listing_id"]} for L in top]
+    specs += [{"section": "New", "name": "OM request · " + card_name(L), "notes": card_notes(cfg, L, with_email=True), "listing_id": L["listing_id"]} for L in om]
     return specs
 
 
@@ -113,14 +115,14 @@ def push(conn, cfg: Any, asana, ranked: list[dict[str, Any]]) -> dict[str, Any]:
     if not project:
         project = asana.ensure_project(BOARD_NAME, "Commercial listings for the 1031 buyer (LoopNet). Cards are a worklist; nothing sends from here.")
         log.info("commercial: created board %s (%s); put it in config.yaml commercial.asana.project", BOARD_NAME, project)
-    secs = {name: asana.ensure_section(project, name) for name in SECTIONS}
+    secs = ensure_board(asana, project)
     tag = asana.ensure_tag(cfg.get("commercial.tag", "1031-buyer"))
     made, skipped = 0, 0
     on_board = already_on_board(asana, project)       # cards posted by hand or by another machine's DB count too
     for spec in card_specs(cfg, ranked):
-        col = "asana_om_task_id" if spec["section"] == "Needs OM" else "asana_task_id"
+        kind = "om" if spec["name"].startswith("OM request") else "top"
+        col = "asana_om_task_id" if kind == "om" else "asana_task_id"
         row = conn.execute(f"SELECT {col} FROM commercial_listings WHERE listing_id=?", (spec["listing_id"],)).fetchone()
-        kind = "om" if spec["section"] == "Needs OM" else "top"
         if (row and row[0]) or (kind, spec["listing_id"]) in on_board:
             if not (row and row[0]) and (kind, spec["listing_id"]) in on_board:
                 conn.execute(f"UPDATE commercial_listings SET {col}=? WHERE listing_id=?", (on_board[(kind, spec["listing_id"])], spec["listing_id"]))

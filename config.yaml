@@ -394,3 +394,15 @@ commercial:
     needs_om_n: 40                   # OM-request task list
   schedule: "manual"                 # manual | daily. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
+  # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a
+  # "why this fits" line goes to REPORT_TO (the same layout he forwards to the investor), each card linking to the site.
+  email:
+    enabled: true
+    max_cards: 40                    # cards in the email (in-box listings, hot to cold; the rest are on the site)
+    photo_size: "116"                # LoopNet image size token in the photo URL ({s}); 112 is the smaller one
+  # The investor dashboard: a "1031" page on the Vercel site (dashboard/public/1031.html) fed by titan/deals.json in the same
+  # Blob store as the snapshot (titan/commercial/site.py). Private view = dashboard password (everything); investor view = the
+  # share key (DEALS_SHARE_KEY in .env and on Vercel) and only the investor columns, no internal numbers.
+  site:
+    url: ""                          # e.g. https://titan-dashboard.vercel.app (the email links point here; blank = LoopNet links)
+    investor_columns: ["Good fit", "In touch with the agent", "Books received", "Offer out"]

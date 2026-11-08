@@ -10,7 +10,10 @@ from typing import Any
 from .. import db
 from ..util import iso, log, now_utc, today_et
 from . import asana_push, documents, loopnet, outputs, scoring
+from .board import apply_board, read_board
+from .email_html import build_email
 from .fl_geo import region_for
+from .site import publish as publish_site
 
 SNAPSHOT_COLS = ("price", "days_on_market", "stated_cap", "score", "tag", "status")
 STORE_COLS = [
@@ -139,7 +142,7 @@ def counts_of(listings: list[dict[str, Any]]) -> dict[str, int]:
 
 def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | None = None, families: list[str] | None = None,
         max_items: int | None = None, details: bool | None = None, raw_rows: list[dict[str, Any]] | None = None, push_asana: bool = True,
-        email: bool = True, full_pull: bool | None = None, today: date | None = None) -> dict[str, Any]:
+        email: bool = True, full_pull: bool | None = None, today: date | None = None, site: bool = True) -> dict[str, Any]:
     run_date = run_date or today_et()
     rid = db.start_run(conn, "commercial", run_date)
     started = now_utc()
@@ -200,6 +203,12 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
                 L["lease_type"] = L["doc_lease_type"]
             if L.get("doc_tenants"):
                 L["tenant_names"] = L["doc_tenants"]
+            if any(d.get("kind") == "sheet" and d.get("downloaded") for d in L.get("documents") or []):
+                L["detail_level"] = "full"           # the property sheet was read from Rodrigo's browser / a saved copy
+                if L.get("stated_cap") is None:
+                    from . import extract as _x
+                    txt = " ".join((d.get("facts") or {}).get("_text", "") for d in L["documents"])
+                    L["stated_cap"] = _x.cap_from_text(txt) if txt else None
         cuts, prev = price_cuts_from_snapshots(conn, L["listing_id"], L.get("price"))
         L["price_cuts"] = max(cuts, L.get("price_cuts") or 0)
         L["previous_price"] = L.get("previous_price") or prev
@@ -217,6 +226,17 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
             store(conn, L, run_date)
         gone = mark_gone(conn, {L["listing_id"] for L in listings}, run_date) if full_pull else []
     changes = diff(conn, run_date, listings, gone)
+    board_cols: dict[str, str] = {}
+    if asana is not None and cfg.get("commercial.asana.project"):
+        try:
+            board = read_board(asana, cfg.get("commercial.asana.project"))
+            apply_board(conn, board)
+            board_cols = {lid: info["column"] for lid, info in board.items()}
+        except Exception as e:  # noqa: BLE001
+            log.warning("1031 board read failed: %s", e)
+    for L in listings:
+        st = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (L["listing_id"],)).fetchone()
+        L["board_column"] = board_cols.get(L["listing_id"]) or (st[0] if st and st[0] else None) or "New"
     ranked = outputs.rank(listings)
     counts = counts_of(listings)
     # 6. files
@@ -248,10 +268,19 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
         except Exception as e:  # noqa: BLE001 — the files are the deliverable; a board hiccup must not lose them
             log.exception("commercial asana push failed: %s", e)
             summary["asana"] = {"error": str(e)}
+    if site:
+        summary["site"] = publish_site(conn, cfg, run_date)
+    html, text = build_email(ranked, cfg, run_date, counts, intro=f"{len(changes['new'])} new since last time, {len(changes['price_drops'])} price drops. ")
+    (out_dir / "deals_email.html").write_text(html)
+    files["deals_email"] = str(out_dir / "deals_email.html")
     to = cfg.secret("REPORT_TO")
     if gmail is not None and email and to and cfg.get("commercial.report_to_email", True):
         try:
-            gmail.send(to, f"Titan 1031 screen {run_date}: {counts['in_box']} in the box, {len(changes['new'])} new, {len(changes['price_drops'])} price drops", md)
+            if cfg.get("commercial.email.enabled", True):
+                gmail.send(to, f"Titan 1031 deals {run_date}: {counts['in_box']} in the box, {len(changes['new'])} new, {len(changes['price_drops'])} price drops",
+                           text + "\n\n" + md, html=html)
+            else:
+                gmail.send(to, f"Titan 1031 screen {run_date}: {counts['in_box']} in the box, {len(changes['new'])} new, {len(changes['price_drops'])} price drops", md)
             summary["emailed"] = to
         except Exception as e:  # noqa: BLE001
             summary["email_error"] = str(e)

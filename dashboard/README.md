@@ -46,3 +46,11 @@ the blob URL itself. Secrets never enter the snapshot (tested).
 ## Local preview
 
 `npx vercel dev` inside `dashboard/` with `DASHBOARD_PASSWORD` and `BLOB_READ_WRITE_TOKEN` in `dashboard/.env.local`.
+
+## 1031 Deals page (`/1031.html`)
+
+Fed by `titan/deals.json` in the same Blob store (the engine uploads it on every `make commercial`). Two doors: the dashboard
+password (everything: score, offer anchor, cooked-books reasons, broker phone and email, Asana link) or the investor link
+`/1031.html?k=<DEALS_SHARE_KEY>` (only the investor columns, no internal numbers). Add `DEALS_SHARE_KEY` to the Vercel project's
+environment variables (any long random string, the same value as in the engine's `.env`) and redeploy.
+

@@ -621,12 +621,35 @@ def cmd_commercial(cfg, args):
     out = commercial_run(conn, cfg, c["apify"], asana=_asana(cfg) if not args.no_asana else None, gmail=gmail, families=families,
                          max_items=args.sample or args.max_items, details=(not args.no_details) and (raw_rows is None or args.retry_details),
                          raw_rows=raw_rows, push_asana=not args.no_asana,
-                         email=args.email, full_pull=args.full)
+                         email=args.email, full_pull=args.full, site=not args.no_site)
     ranked = out.pop("ranked", [])
     print(json.dumps(out, indent=2, default=str))
     if args.sample or args.print_sample:
         print("\nSAMPLE (score | tag | grade | asset | address | ask | cap | NOI | offer anchor | broker | flags):")
         print(sample_text(sample_table(ranked, 10)))
+
+
+def cmd_commercial_sheets(cfg, args):
+    """The highest-scored in-box listings still missing their LoopNet property sheet, with the folder each sheet goes in.
+    Rodrigo, 2026-11-08: a Claude Code session on the Mac with Claude in Chrome opens each one in HIS browser and saves the
+    sheet text as data/listings/<id>/sheet.txt; `make commercial-offline` (or the next pull) reads them and regrades."""
+    from .commercial.site import load_listings
+    conn = _open(cfg)
+    rows = [L for L in load_listings(conn) if L.get("detail_level") != "full" and L.get("status") != "gone"
+            and (not args.column or (L.get("board_column") or "New") == args.column)]
+    rows.sort(key=lambda L: -(L.get("score") or 0))
+    rows = rows[:args.top]
+    base = cfg.root / cfg.get("commercial.documents.dir", "data/listings")
+    print(f"{len(rows)} listings need their property sheet (highest score first):\n")
+    for L in rows:
+        print(f"- {L.get('street')}, {L.get('city')} · score {L.get('score')} · {L.get('listing_url')}\n    save as: {base / L['listing_id'] / 'sheet.txt'}")
+    print("\nPaste this into Claude Code on the Mac (with Claude in Chrome connected):\n")
+    print("Open each LoopNet link below in my Chrome, read the whole listing page (price, cap rate, NOI, occupancy, tenancy, lease type and "
+          "term, year built, building size, days on market / listed date, broker name, phone and email, the full description and "
+          "highlights, and any brochure or document links), and save that text to the file path next to it. Do not fill any form. "
+          "Then run: make commercial-offline RAW=\"raw/*loopnet_*.json\"\n")
+    for L in rows:
+        print(f"{L.get('listing_url')} -> {base / L['listing_id'] / 'sheet.txt'}")
 
 def cmd_follow_ups(cfg, args):
     """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
@@ -825,11 +848,15 @@ def main(argv: list[str] | None = None) -> int:
     cm.add_argument("--families", default=None, help="comma list of asset families to pull (keys of commercial.loopnet.search_urls)")
     cm.add_argument("--no-details", action="store_true", help="skip the detail-sheet pass (cheaper, NOI/occupancy stay unknown)")
     cm.add_argument("--no-asana", action="store_true", help="files only, no cards")
+    cm.add_argument("--no-site", action="store_true", help="do not publish deals.json to the Vercel site")
     cm.add_argument("--email", action="store_true", help="email the diff to REPORT_TO when Gmail is connected")
     cm.add_argument("--full", action="store_true", help="treat this as the full statewide pull (listings missing from it are marked gone)")
     cm.add_argument("--print-sample", action="store_true")
     cm.add_argument("--from-raw", nargs="*", default=None, help="score saved actor JSON files instead of pulling (raw/*.json)")
     cm.add_argument("--retry-details", action="store_true", help="with --from-raw: still try the detail sheets still missing (spends Apify credit)")
+    cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
+    cs.add_argument("--top", type=int, default=15)
+    cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
     fu = sub.add_parser("follow-ups", help="Good morning follow-up (same thread) to every agent who never answered; cards in Needs Me")
     fu.add_argument("--days", type=int, default=None, help="first email at least this many days old (config outreach.follow_up.after_days)")
     fu.add_argument("--limit", type=int, default=None)
@@ -845,7 +872,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets}[args.cmd](cfg, args)
     return 0
 
 

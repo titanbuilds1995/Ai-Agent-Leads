@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS commercial_listings (
   score INTEGER, score_parts TEXT, tag TEXT, tag_reasons TEXT, evidence_grade TEXT, evidence_note TEXT, in_box INTEGER, box_note TEXT,
   tier TEXT, motivation TEXT, credit_tenants TEXT, documents TEXT, docs_missing TEXT, detail_level TEXT, status TEXT,
   description TEXT, highlights TEXT, data TEXT, raw TEXT, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, gone_at TEXT,
-  asana_task_id TEXT, asana_om_task_id TEXT
+  asana_task_id TEXT, asana_om_task_id TEXT, board_column TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_commercial_score ON commercial_listings(in_box, score);
 CREATE TABLE IF NOT EXISTS commercial_snapshots (
@@ -194,7 +194,9 @@ MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outrea
               "ALTER TABLE valuations ADD COLUMN comp_grade TEXT", "ALTER TABLE valuations ADD COLUMN comp_notes TEXT",
               # Rodrigo, 2026-11-03: the answer to an agent lives ON the lead card (no second card); these hold it until it sends
               "ALTER TABLE outreach ADD COLUMN answer_draft TEXT", "ALTER TABLE outreach ADD COLUMN answer_note TEXT",
-              "ALTER TABLE outreach ADD COLUMN answer_state TEXT"]   # databases created before the column existed
+              "ALTER TABLE outreach ADD COLUMN answer_state TEXT",
+              # 2026-11-08: the 1031 board's column (Rodrigo's category) on each commercial listing
+              "ALTER TABLE commercial_listings ADD COLUMN board_column TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

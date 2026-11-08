@@ -270,6 +270,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-08 ~8pm ET, RESUME HERE: **Commercial screen for the 1031 buyer built** (`titan/commercial/`, see Decisions; `make commercial-sample`,
+  `make commercial`, `make commercial-offline`; 18 new tests, 327 total pass). **Sample pull done in the cloud** (15 LoopNet rows per
+  asset family, $0.21 of Apify credit): 109 listings, 66 in the box across 14 counties, **all 66 NEEDS-OM** (0 CLEAN) because LoopNet
+  blocked every full property sheet (NOI / occupancy / lease live there; search rows only show the cap when the broker put it on the
+  placard, 15 of 66). Files: `reports/commercial/2026-11-07/` (master.xlsx with Master / Top 25 / Broker Contacts / Needs OM / Diff,
+  broker_contacts.csv = 63 brokers for Monday, top25_1031.pdf is empty until something is CLEAN). Asana board **"Titan 1031 ·
+  Commercial (LoopNet)"** (project 1220324280677489) created with the 10-listing sanity sample as "OM request" cards in Needs OM
+  (posted by hand from the cloud, so they carry no Asana tag; the engine tags its own cards `1031-buyer` on the Mac and never doubles a
+  card already on the board). **Waiting on Rodrigo:** (1) sanity-check the 10 sample cards / scoring; (2) Apify budget for the full
+  statewide pull (~$4–8 once, same again per daily re-run; free plan caps at $5/month, BLOCKERS #9); (3) then `make commercial` on
+  the Mac (ASANA_TOKEN there posts the cards). Not done: LoopNet property sheets (BLOCKERS #10), so evidence grades are C/D until OMs
+  come back; the OM PDFs brokers send can be dropped in `data/listings/<listing_id>/` and are read on the next run.
 - 2026-11-07 ~7:30am ET, RESUME HERE: **Peter Dacko accepted 82 Tortuga Rd at $245,000** (Fri 2:30pm; wants proof of funds;
   our Nov 4 AS IS contract, back-up terms in Paragraph 20). Milton (359 E 12th St, $440k) escrow due ~Mon Nov 9. Juan Huice $285k
   offer out, no answer. Mac woke Fri ~11am (catch-up ran), quiet after ~2:30pm; no 7am report Sat. Needs Rodrigo cards posted.

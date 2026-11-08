@@ -6,6 +6,7 @@ the approvals engine only reads the Email Approvals board, so these cards are a 
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from ..util import log, money, pretty_phone
@@ -39,10 +40,12 @@ def facts_block(L: dict[str, Any]) -> str:
         f"Tag: {L.get('tag')} · evidence grade {L.get('evidence_grade')} ({L.get('evidence_note')})",
         "Why: " + "; ".join(L.get("tag_reasons") or []) if L.get("tag_reasons") else "",
         f"{L.get('property_type') or ''}{' / ' + L['property_subtype'] if L.get('property_subtype') else ''} · {L.get('building_sf') or '?'} SF"
-        f"{' · ' + str(L['units']) + ' units' if L.get('units') else ''} · built {L.get('year_built') or '?'} · {L.get('county') or '?'} County ({L.get('region') or '?'})",
-        f"Occupancy {L.get('occupancy') or '?'}% · {L.get('tenancy') or '?'} tenant · lease {L.get('lease_type') or '?'}"
-        f"{' · ' + str(L['remaining_term_years']) + ' yrs left' if L.get('remaining_term_years') else ''}",
-        f"On market {L.get('days_on_market') if L.get('days_on_market') is not None else '?'} days · {L.get('price_cuts') or 0} price cut(s)"
+        f"{' · ' + str(L['units']) + ' units' if (L.get('units') or 0) > 1 else ''} · built {L.get('year_built') or '?'} · {L.get('county') or '?'} County ({L.get('region') or '?'})",
+        (f"Occupancy {L.get('occupancy') or '?'}%" + (f" · RevPAR/ADR {'stated' if L.get('hotel_metrics') else 'not stated'}" if L.get("asset_class") == "hotel"
+         else f" · {L.get('tenancy') or '?'} tenant · lease {L.get('lease_type') or '?'}"
+              + (f" · {L['remaining_term_years']} yrs left" if L.get("remaining_term_years") else ""))),
+        (f"Seen by us for {L.get('days_on_market')} days (LoopNet listing date comes with the property sheet)" if L.get("dom_basis")
+         else f"On market {L.get('days_on_market') if L.get('days_on_market') is not None else '?'} days") + f" · {L.get('price_cuts') or 0} price cut(s)"
         + (f" · signals: {', '.join(L['motivation'])}" if L.get("motivation") else ""),
         f"Docs missing: {', '.join(L.get('docs_missing') or [])}" if L.get("docs_missing") else "",
         f"Gated: {', '.join(L['docs_gated'])}" if L.get("docs_gated") else "",
@@ -79,6 +82,31 @@ def card_specs(cfg: Any, ranked: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return specs
 
 
+LISTING_URL_RE = re.compile(r"loopnet\.com/Listing/(?:[^/\s]+/)?(\d+)/?", re.I)
+
+
+def already_on_board(asana, project: str) -> dict[tuple[str, str], str]:
+    """{(kind, listing_id): task gid} for every open card on the board, read from the LoopNet link in its notes, so a card posted
+    by hand (a cloud session) or from another machine's database is never doubled."""
+    out: dict[tuple[str, str], str] = {}
+    try:
+        tasks = asana.project_tasks(project)
+    except Exception as e:  # noqa: BLE001
+        log.warning("commercial: could not read the board: %s", e)
+        return out
+    for t in tasks:
+        notes = t.get("notes") or ""
+        if not notes:
+            try:
+                notes = (asana.task(t["gid"]) or {}).get("notes") or ""
+            except Exception:  # noqa: BLE001
+                continue
+        m = LISTING_URL_RE.search(notes)
+        if m:
+            out[("om" if (t.get("name") or "").startswith("OM request") else "top", m.group(1))] = t["gid"]
+    return out
+
+
 def push(conn, cfg: Any, asana, ranked: list[dict[str, Any]]) -> dict[str, Any]:
     """Create the board (once), the sections, the tag, then one card per listing not yet carded. Idempotent by listing_id."""
     project = cfg.get("commercial.asana.project")
@@ -88,10 +116,14 @@ def push(conn, cfg: Any, asana, ranked: list[dict[str, Any]]) -> dict[str, Any]:
     secs = {name: asana.ensure_section(project, name) for name in SECTIONS}
     tag = asana.ensure_tag(cfg.get("commercial.tag", "1031-buyer"))
     made, skipped = 0, 0
+    on_board = already_on_board(asana, project)       # cards posted by hand or by another machine's DB count too
     for spec in card_specs(cfg, ranked):
         col = "asana_om_task_id" if spec["section"] == "Needs OM" else "asana_task_id"
         row = conn.execute(f"SELECT {col} FROM commercial_listings WHERE listing_id=?", (spec["listing_id"],)).fetchone()
-        if row and row[0]:
+        kind = "om" if spec["section"] == "Needs OM" else "top"
+        if (row and row[0]) or (kind, spec["listing_id"]) in on_board:
+            if not (row and row[0]) and (kind, spec["listing_id"]) in on_board:
+                conn.execute(f"UPDATE commercial_listings SET {col}=? WHERE listing_id=?", (on_board[(kind, spec["listing_id"])], spec["listing_id"]))
             skipped += 1
             continue
         task = asana.create_task(project, secs[spec["section"]], spec["name"], spec["notes"])

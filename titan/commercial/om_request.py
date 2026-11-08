@@ -37,6 +37,10 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
     else:
         asks = DOC_WORDS[missing[0]]
     kind = ASSET_WORDS.get(L.get("asset_class") or "", "commercial")
+    if L.get("asset_class") == "hotel":           # a hotel has no rent roll: the STR report is the equivalent
+        asks = asks.replace("the rent roll", "the STR report")
+    elif L.get("asset_class") == "multifamily":
+        asks = asks.replace("the lease abstract", "the unit mix")
     body = (
         f"Hey {first_name(L.get('broker_name'))},\n\n"
         f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"

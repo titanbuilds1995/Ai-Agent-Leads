@@ -145,6 +145,7 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
     started = now_utc()
     cost: dict[str, float] = {"search_usd": 0.0, "details_usd": 0.0}
     # 1. search pass (or rows handed in: fixture / raw file)
+    rows_handed_in = raw_rows is not None
     if raw_rows is None:
         if apify is None:
             db.finish_run(conn, rid, "skipped", {"reason": "no Apify client"})
@@ -156,7 +157,8 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
     if today:
         for L in listings:
             L["days_on_market"] = loopnet._days_since(L.get("listed_at"), today)
-    full_pull = (families is None and max_items is None and raw_rows is not None) if full_pull is None else full_pull
+    # a FULL pull (every family, no row cap, live) is the only run that may mark missing listings gone; saved rows and samples never do
+    full_pull = (apify is not None and families is None and max_items is None and not rows_handed_in) if full_pull is None else full_pull
     # 2. merge with what earlier runs already fetched, then a first scoring pass to know who is in the box
     for i, L in enumerate(listings):
         listings[i] = L = merge_with_stored(L, _stored(conn, L["listing_id"]))

@@ -1,20 +1,67 @@
 score,asset_class,street,city,county,price,stated_cap,broker_name,broker_phone,broker_email,listing_url
-35,office,840 SW 81st Ave,North Lauderdale,Broward,7895000,9.35,Adam Goldstein,+13054336143,adam@trustrealtyusa.com,https://www.loopnet.com/Listing/28440860/
+48,hotel,1732 Ocean Shore Blvd,Ormond Beach,Volusia,4500000,9.26,Dino Dodani,+13866790888,dinod78@gmail.com,https://www.loopnet.com/Listing/42487937/
+47,nnn,6308 W Colonial Dr,Orlando,Orange,5000000,9.53,Dylan Morse,+19548207455,dylan.morse@franklinst.com,https://www.loopnet.com/Listing/42626067/
+40,hotel,905 N Federal Hwy,Lake Worth Beach,Palm Beach,6160000,9.72,Alexis Shapiro,+19545734449,ashapiro@kislakrealty.com,https://www.loopnet.com/Listing/42378081/
+40,nnn,5907 Merrill Rd,Jacksonville,Duval,3900000,,Raj Mody,+19047211212,raj@mody.com,https://www.loopnet.com/Listing/41260814/
+38,hotel,5940 Biscayne Blvd,Miami,Miami-Dade,7900000,10.0,Ed Roberts,+13055287984,guille.beachfront@gmail.com,https://www.loopnet.com/Listing/42751979/
+37,nnn,4425 20th St,Vero Beach,Indian River,5500000,,Bill Mills,+17725620018,bmills@millscommercial.net,https://www.loopnet.com/Listing/40147879/
+36,hotel,320 N Federal Hwy,Lake Worth,Palm Beach,3990000,8.11,Alexis Shapiro,+19545734449,ashapiro@kislakrealty.com,https://www.loopnet.com/Listing/41948831/
+36,nnn,2566 US Highway 1,Vero Beach,Indian River,3500000,,Troy Westover,+17724531206,twestover@sorensenrealestate.com,https://www.loopnet.com/Listing/42869730/
+35,hotel,2648 NE 32nd St,Fort Lauderdale,Broward,4550000,9.34,Julio Leyva,+17542881327,julio.leyva@matthews.com,https://www.loopnet.com/Listing/41176345/
+33,hotel,1400 34th St N,Saint Petersburg,Pinellas,7300000,8.27,Dennis Hopper CCIM,+18136051756,dennishopper@dshhoteladvisors.com,https://www.loopnet.com/Listing/41479691/
 33,medical,2100 N Orange Ave,Orlando,Orange,5000000,,Michael Curtis,+16892545716,mcurtis@millenia-partners.com,https://www.loopnet.com/Listing/39214740/
+32,nnn,21280 Hwy 27,Lake Wales,Polk,4900000,,Rebecca Jonas,+17278083563,rebeccajonas78@hotmail.com,https://www.loopnet.com/Listing/42957535/
+32,nnn,9282 Atlantic Blvd,Jacksonville,Duval,3600000,,Rochelle Piersall,+19048013885,rochelle@kinkadecommercial.com,https://www.loopnet.com/Listing/42641218/
+32,nnn,1585 Pine Ridge Rd,Naples,Collier,3590000,,"Christine McManus, CCIM, SIOR",+12392613400,christine@ipcnaples.com,https://www.loopnet.com/Listing/42104933/
 32,retail,10 W Dodecanese Blvd,Tarpon Springs,Pinellas,3950000,,Wyatt Wikle,+17273669391,wyatt@wiklerealestate.com,https://www.loopnet.com/Listing/43027840/
 32,retail,98150 Overseas Hwy,Key Largo,Monroe,4389000,,David Deith,+15613121392,david@deithrealty.com,https://www.loopnet.com/Listing/42975207/
+31,medical,1401 N University Dr,Coral Springs,Broward,7350000,8.34,Jordan Beck,+19546522033,jbeck@bergercommercial.com,https://www.loopnet.com/Listing/39546439/
+31,nnn,801 Brickell Bay Dr,Miami,Miami-Dade,4950000,,Fabio F. Faerman,+17869053140,info@facommercial.com,https://www.loopnet.com/Listing/42860928/
+31,multifamily,7609 Arble Dr,Jacksonville,Duval,5400000,,Adam Podbelski,+18136971475,apodbelski@htapartments.com,https://www.loopnet.com/Listing/42477560/
 31,nnn,101500 Overseas Hwy,Key Largo,Monroe,6500000,,Daniel Hampson,+13055879348,dannyhampsonrealtor@gmail.com,https://www.loopnet.com/Listing/41622937/
+30,hotel,1485 Lakeview Dr,Deland,Volusia,4595000,,Lori Hackbarth,+17723599849,lorildillon@aol.com,https://www.loopnet.com/Listing/41266013/
 29,industrial,4408 Corporate Sq,Naples,Collier,3950000,,David Wallace,+12395717575,david@crecommercialgroup.com,https://www.loopnet.com/Listing/41476634/
+29,industrial,5680 Halifax Ave,Fort Myers,Lee,4700000,,Brandon Reitz,+12396863033,brandon@reitz.com,https://www.loopnet.com/Listing/43071967/
 29,medical,1110 Pine Ridge Rd,Naples,Collier,3950000,,Jonathan Kepple,+12393987791,jonathankepple@msn.com,https://www.loopnet.com/Listing/37248529/
 28,medical,5975 Sunset Dr,Miami,Miami-Dade,4200000,,Humberto Jaramillo,+13054192803,humberto.jaramillo@outlook.com,https://www.loopnet.com/Listing/36289606/
-28,nnn,921 Truman Ave,Key West,Monroe,4499000,,Will Langley,+13053949020,commercial@keysrealestate.com,https://www.loopnet.com/Listing/43070450/
 28,medical,400 E Hallandale Beach Blvd,Hallandale Beach,Broward,4395000,,Julie Abolafia,+19549184902,julieabolafia@gmail.com,https://www.loopnet.com/Listing/43086080/
-27,office,2701 W Busch Blvd,Tampa,Hillsborough,5750000,,Adam Crane,+18135013827,adam@demisar.com,https://www.loopnet.com/Listing/42609801/
+28,nnn,921 Truman Ave,Key West,Monroe,4499000,,Will Langley,+13053949020,commercial@keysrealestate.com,https://www.loopnet.com/Listing/43070450/
+28,retail,2286-2308 SE Hawthorne Rd,Gainesville,Alachua,5500000,,Kim Donato,+19546054176,knrealty954@gmail.com,https://www.loopnet.com/Listing/39587019/
+28,retail,11832 Front Beach Rd,Panama City Beach,Bay,4900000,,Ric Holt,+18506304306,rholt@rcrealestategroup.com,https://www.loopnet.com/Listing/36300252/
+28,nnn,13070 City Station Dr,Jacksonville,Duval,3700000,,Gary Montour,+19043581206,gary.montour@colliers.com,https://www.loopnet.com/Listing/38579161/
+27,retail,141-169 SW 7th St,Miami,Miami-Dade,3500000,,Francisco Capella,+19548889322,francisco@capellaestates.net,https://www.loopnet.com/Listing/43104862/
+27,multifamily,8640 Jernigan Rd,Pensacola,Escambia,5990000,,Grant Rowars,+14078481663,grant@v3capital.com,https://www.loopnet.com/Listing/42562376/
 27,retail,1919 Ponce De Leon Blvd,Coral Gables,Miami-Dade,3950000,,Antonio Cristobal,+17864573211,tony@resf.com,https://www.loopnet.com/Listing/43079760/
-27,retail,141-169 SW 7th St,Miami,Miami-Dade,3500000,,Francisco Capella,,,https://www.loopnet.com/Listing/43104862/
-26,office,4401 N Federal Hwy,Boca Raton,Palm Beach,6000000,,Louis Giorgi,+15617894777,louisgiorgi@gmail.com,https://www.loopnet.com/Listing/41959395/
+27,retail,6731-6765 Sunset Strip,Sunrise,Broward,3500000,,Joseph Torregrossa,+13054917575,jttorregrossa@gmail.com,https://www.loopnet.com/Listing/41704154/
+27,nnn,1620-1648 NE 148th St,Miami,Miami-Dade,3600000,,Lyle Chariff,+13055767474,lyle@chariff.com,https://www.loopnet.com/Listing/36535427/
+26,hotel,415 Hamden Dr,Clearwater Beach,,3800000,,Georgette Gillis,+17275847355,viewpointrealtyinternational@gmail.com,https://www.loopnet.com/Listing/42134276/
+26,nnn,4423 Cherry Rd,West Palm Beach,Palm Beach,6500000,,Tom Prakas,+15613680003,tom@prakascompany.com,https://www.loopnet.com/Listing/42842576/
+26,multifamily,1700 S Surf Rd,Hollywood,Broward,4950000,,Nicole Hanna,+19547015246,nikki@nikkihannarealtygroup.com,https://www.loopnet.com/Listing/43068582/
+26,nnn,3325 W Hillsboro Blvd,Deerfield Beach,Broward,6999000,,William Prevatel,+13058918888,prevatel@aol.com,https://www.loopnet.com/Listing/39508058/
+26,nnn,1409 10th St,Lake Park,Palm Beach,6500000,,Tom Prakas,+15613680003,tom@prakascompany.com,https://www.loopnet.com/Listing/39098747/
+25,hotel,223 Eanes Ln,Key West,Monroe,6999000,,Raymond Vazquez,+13053951777,raymond@raymondjvazquez.com,https://www.loopnet.com/Listing/43069520/
 24,multifamily,5450-5460 5th Ave,Fort Myers,Lee,7200000,,Meidan Mike Magen,+14085957836,mike@magensgroup.com,https://www.loopnet.com/Listing/5450-5460-5th-Ave-Fort-Myers-FL/40757439/
-23,nnn,327 N Dixie Hwy,Lake Worth,Palm Beach,3500000,,C. Todd Everett,+15614148567,cteverett@lee-associates.com,https://www.loopnet.com/Listing/43133466/
+24,industrial,3519 Plover Ave,Naples,Collier,4800000,,Brock Rasmussen,+12392090458,brasmussen@lee-associates.com,https://www.loopnet.com/Listing/42990034/
+24,industrial,2681 SW 15th St,Pompano Beach,Broward,3500000,,Richie Speno,+19549716775,speno.tom@prd-realty.com,https://www.loopnet.com/Listing/42995030/
+24,industrial,251 Fortune Blvd,Havana,Gadsden,4200000,,John McNeill,+18502515504,jmcneill@talcor.com,https://www.loopnet.com/Listing/42989938/
+24,retail,24420 Sandhill Blvd,Punta Gorda,Charlotte,5550000,,Danny Nix,+19416612709,danny.nixjr@gmail.com,https://www.loopnet.com/Listing/41315282/
 23,retail,1048 Castello Dr,Naples,Collier,6100000,,"Matthew W. Stepan, CCIM",+12399921200,matt@pc-cre.com,https://www.loopnet.com/Listing/43087661/
-23,nnn,3300 S Dixie Hwy,West Palm Beach,Palm Beach,3800000,,Paul Bergman,+13104984883,paul.bergman@elliman.com,https://www.loopnet.com/Listing/43044077/
 23,retail,102 NW Spanish River Blvd,Boca Raton,Palm Beach,5000000,,Chad Gottsegen,+15614007750,chad@lrmcrea.com,https://www.loopnet.com/Listing/43043836/
+23,nnn,327 N Dixie Hwy,Lake Worth,Palm Beach,3500000,,C. Todd Everett,+15614148567,cteverett@lee-associates.com,https://www.loopnet.com/Listing/43133466/
+23,retail,Portfolio of 2 Properties For Sale in,Miami,Miami-Dade,5000000,,Louis McMillian,+13054968400,louis@glirealty.com,https://www.loopnet.com/Listing/41094001/
+23,nnn,3300 S Dixie Hwy,West Palm Beach,Palm Beach,3800000,,Paul Bergman,+13104984883,paul.bergman@elliman.com,https://www.loopnet.com/Listing/43044077/
+22,hotel,8744 Gall Blvd,Zephyrhills,Pasco,3750000,,Michael Murphy,+16318582460,michael.murphy@elliman.com,https://www.loopnet.com/Listing/41380285/
+22,multifamily,24945 SW 134th Ave,Princeton,,6500000,,Carolina Del Pilar Gil,+17862637374,carolina.gil@caralexrealty.com,https://www.loopnet.com/Listing/42843053/
+22,multifamily,5001 Beechcraft Way,Seffner,Hillsborough,7925000,,Simon Garwood,+19046738622,sgarwood@hq1.com,https://www.loopnet.com/Listing/42599657/
+22,multifamily,2425 SW 6th St,Miami,Miami-Dade,4400000,,Deme Mekras,+17866710149,deme@mspgroup.com,https://www.loopnet.com/Listing/42317024/
+22,multifamily,1620 NW 18th St,Miami,Miami-Dade,5750000,,Deme Mekras,+17866710149,deme@mspgroup.com,https://www.loopnet.com/Listing/42298194/
+22,office,555 NE 15th St,Miami,Miami-Dade,6000000,,George Smith,+13053596119,info@smith-cre.com,https://www.loopnet.com/Listing/42434792/
+21,hotel,12830 Front Beach Rd,Panama City Beach,Bay,6700000,,Cory Herrman,+18503812923,coryherrman@gmail.com,https://www.loopnet.com/Listing/43085162/
+21,hotel,3301 W Flagler St,Miami,Miami-Dade,4950000,,Fernando Arencibia,+17865123745,jessgiufre@avantiway.com,https://www.loopnet.com/Listing/42416007/
+21,hotel,1150 S Federal Hwy,Dania Beach,Broward,3600000,,Elior Levi,+19547437594,elevi@faustocommercial.com,https://www.loopnet.com/Listing/41635384/
+21,hotel,709 S Dixie Hwy,Lake Worth,Palm Beach,3980000,,Shawn Hansen,+13056154800,shansen@onecommercialre.com,https://www.loopnet.com/Listing/41493669/
+21,hotel,327 Harding St,Hollywood,Broward,3650000,,Avigail Gayer,+13473590371,aig@faustocommercial.com,https://www.loopnet.com/Listing/41893771/
+21,multifamily,1020 SW 2nd St,Miami,Miami-Dade,6500000,,Ambarina Pernia,+17865212750,amber@resf.com,https://www.loopnet.com/Listing/42747219/
+20,medical,4937 Clark Rd,Sarasota,Sarasota,6300000,,"Tony Veldkamp, CCIM",+19414876990,tony.veldkamp@svn.com,https://www.loopnet.com/Listing/43068749/
+19,industrial,3990-4000 E 10th Ct,Hialeah,Miami-Dade,4500000,,"Joel Kattan, SIOR",+19544488531,joel@svncr.com,https://www.loopnet.com/Listing/43067997/
+19,retail,14301-14307 S Dixie Hwy,Miami,Miami-Dade,3900000,,Tricia Lim,+17865227086,tricia.lim@marcusmillichap.com,https://www.loopnet.com/Listing/41203501/

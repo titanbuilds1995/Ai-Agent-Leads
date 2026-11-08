@@ -22,6 +22,7 @@ class Fake1031Asana(FakeAsana):
     def ensure_project(self, name, notes=""): return "proj-1031"
     def ensure_tag(self, name): return "tag-1031"
     def tag_task(self, task, tag): self.tagged = getattr(self, "tagged", []) + [(task, tag)]
+    def project_tasks(self, project, completed_since="now"): return [dict(t) for t in self.tasks.values()]
 
 
 def clean_listing(**over):
@@ -212,7 +213,7 @@ def test_asana_cards_top_tier_and_needs_om_once(conn, cfg, tmp_path):
     cfg.root = tmp_path
     out = run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
     ranked = out["ranked"]
-    ranked.append({**clean_listing(listing_id="clean1"), **scoring.score(clean_listing(listing_id="clean1"), cfg), "region": "Central"})
+    ranked.append({**clean_listing(listing_id="900001", listing_url="https://www.loopnet.com/Listing/900001/"), **scoring.score(clean_listing(listing_id="900001"), cfg), "region": "Central"})
     from titan.commercial.run import store
     store(conn, ranked[-1], "2026-11-07")
     asana = Fake1031Asana()
@@ -224,6 +225,8 @@ def test_asana_cards_top_tier_and_needs_om_once(conn, cfg, tmp_path):
     assert len(top) == 1 and "OFFER ANCHOR: $4,500,000" in top[0]["notes"] and "Broker: Jane Roe" in top[0]["notes"]
     assert om and "=== EMAIL (what will be sent) ===" in om[0]["notes"] and "Titan Realty Investments" in om[0]["notes"]
     assert push(conn, cfg, asana, ranked)["cards"] == 0            # idempotent
+    conn.execute("UPDATE commercial_listings SET asana_task_id=NULL, asana_om_task_id=NULL")   # another machine's DB: the board itself says no
+    assert push(conn, cfg, asana, ranked)["cards"] == 0
 
 
 def test_documents_gated_and_grades_from_pdfs(tmp_path):

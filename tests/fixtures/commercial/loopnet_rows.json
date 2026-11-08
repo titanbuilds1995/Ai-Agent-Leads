@@ -1,0 +1,646 @@
+[
+ {
+  "propertyId": "40044930",
+  "listingUrl": "https://www.loopnet.com/Listing/40044930/",
+  "listingName": "Corner Development Site | 100'+ of Frontage",
+  "latitude": 25.787442,
+  "longitude": -80.130193,
+  "listingType": "For Sale",
+  "priceText": "Price Not Disclosed",
+  "price": "Price Not Disclosed",
+  "formattedPrice": "",
+  "stateCode": "FL",
+  "address": "1475 Collins Ave",
+  "city": "Miami Beach",
+  "state": "FL",
+  "zip": "33139",
+  "photo": "https://images1.loopnet.com/i2/a9AtLUM-VxoMShjFUpJDXAIEfltgFrCyWLzzweYfgus/{s}/image.jpg",
+  "brokerName": "Antonio Puente",
+  "brokerKey": "3001904",
+  "brokerCompany": "Fairchild Partners, Inc.",
+  "brokerTitle": "Broker Associate / Senior Advisor",
+  "brokerEmail": "tpuente@fairchildpartners.com",
+  "brokerPhone": "305-668-0620 x3",
+  "brokerImage": "https://images1.loopnet.com/i2/oLsFQAAWsN17QD9YJlG-Neao-Akz8bRn7jqONeaZV8Y/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "28440860",
+  "listingUrl": "https://www.loopnet.com/Listing/28440860/",
+  "listingName": "The 840 Building",
+  "description": "840 SW 81st Avenue in North Lauderdale, also known as The 840 Building, presents an exceptional investment or owner/user opportunity\u2026",
+  "latitude": 26.218624,
+  "longitude": -80.235947,
+  "totalSize": 55000,
+  "sizeFormatted": "55,000 SF",
+  "listingType": "For Sale",
+  "priceText": "$7.895M",
+  "currency": "USD",
+  "price": "$7.9M",
+  "formattedPrice": "$7.895M",
+  "yearBuilt": "1985",
+  "capRatePercent": 9.35,
+  "stateCode": "FL",
+  "propertyType": "Office",
+  "sizeSf": "55K",
+  "capRate": "9.35%",
+  "buildingClass": "B",
+  "stats": [
+   [
+    "Office"
+   ],
+   [
+    "55K",
+    "SF Bldg"
+   ],
+   [
+    "B",
+    "Bldg Class"
+   ],
+   [
+    "9.35%",
+    "Cap Rate"
+   ]
+  ],
+  "address": "840 SW 81st Ave",
+  "city": "North Lauderdale",
+  "state": "FL",
+  "zip": "33068",
+  "photo": "https://images1.loopnet.com/i2/Ri9Gdqbs7Fhi6XAlJiHo8wuu8dwR07BSuv_UAyveCas/{s}/image.jpg",
+  "brokerName": "Adam Goldstein",
+  "brokerKey": "59121751",
+  "brokerCompany": "Trust Realty USA LLC",
+  "brokerTitle": "Director of Acquisitions",
+  "brokerEmail": "adam@trustrealtyusa.com",
+  "brokerPhone": "305-433-6143 x107",
+  "_dataSource": "summary-card"
+ },
+ {
+  "propertyId": "41622937",
+  "listingUrl": "https://www.loopnet.com/Listing/41622937/",
+  "description": "On the only highway connecting Key Largo to mainland South Florida and the Florida Keys, 101500 Overseas Highway offers buyers a\u2026",
+  "latitude": 25.114797,
+  "longitude": -80.422319,
+  "totalSize": 3950,
+  "sizeFormatted": "3,950 SF",
+  "listingType": "For Sale",
+  "priceText": "$6.5M",
+  "currency": "USD",
+  "price": "$6.5M",
+  "formattedPrice": "$6.5M",
+  "yearBuilt": "1953",
+  "stateCode": "FL",
+  "propertyType": "Auto Repair",
+  "sizeSf": "3,950",
+  "capRate": "On Request",
+  "stats": [
+   [
+    "Auto Repair"
+   ],
+   [
+    "3,950",
+    "SF Bldg"
+   ],
+   [
+    "1.81",
+    "AC Lot"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "101500 Overseas Hwy",
+  "city": "Key Largo",
+  "state": "FL",
+  "zip": "33037",
+  "photo": "https://images1.loopnet.com/i2/hT_BliluS37iGrcpnhOxMejbHKXC58wW-60jHIm-8wY/{s}/image.png",
+  "brokerName": "Daniel Hampson",
+  "brokerKey": "45735361",
+  "brokerCompany": "Daniel Hampson",
+  "brokerTitle": "Real Estate Agent",
+  "brokerEmail": "dannyhampsonrealtor@gmail.com",
+  "brokerPhone": "305-587-9348",
+  "brokerImage": "https://images1.loopnet.com/i2/FtRBDYt3XJl1yhgVgtg6cWhSECV2SrK9k5gEHF8s4W4/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "42237709",
+  "listingUrl": "https://www.loopnet.com/Listing/42237709/",
+  "listingName": "Beth Stacey Commercial Development Site",
+  "description": "Owner-direct offering of an approximately 8.4-acre C-2 commercial development site in Lehigh Acres, Florida. Approximately 1,800\u2026",
+  "latitude": 26.603894,
+  "longitude": -81.654497,
+  "listingType": "For Sale",
+  "priceText": "$4.299M",
+  "currency": "USD",
+  "price": "$4.3M",
+  "formattedPrice": "$4.299M",
+  "stateCode": "FL",
+  "propertyType": "Commercial",
+  "stats": [
+   [
+    "Commercial"
+   ],
+   [
+    "8.4",
+    "AC Lot"
+   ],
+   [
+    "1",
+    "Lot"
+   ]
+  ],
+  "address": "128 Beth Stacey Blvd",
+  "city": "Lehigh Acres",
+  "state": "FL",
+  "zip": "33936",
+  "photo": "https://images1.loopnet.com/i2/__L5G3NjAVQ2uzgOqZEFMeWJZ75C-l68TLOyv7gZjwA/{s}/image.jpg",
+  "brokerName": "Guadalupe Delacruz",
+  "brokerKey": "5189993",
+  "brokerCompany": "Holding Assets LLC",
+  "brokerEmail": "Lupe@delacruzenterprises.com",
+  "brokerPhone": "239-633-0207",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "39214740",
+  "listingUrl": "https://www.loopnet.com/Listing/39214740/",
+  "listingName": "Ivanhoe Medical Plaza",
+  "description": "Millenia Partners is exclusively offering Ivanhoe Medical Plaza a \u00b111,419-square-foot, two-building medical-grade office campus directly\u2026",
+  "latitude": 28.570602,
+  "longitude": -81.373017,
+  "totalSize": 6308,
+  "sizeFormatted": "6,308 SF",
+  "listingType": "For Sale",
+  "priceText": "$5M",
+  "currency": "USD",
+  "price": "$5M",
+  "formattedPrice": "$5M",
+  "yearBuilt": "1965",
+  "stateCode": "FL",
+  "propertyType": "Medical",
+  "sizeSf": "6,308",
+  "capRate": "On Request",
+  "buildingClass": "C",
+  "stats": [
+   [
+    "Medical"
+   ],
+   [
+    "6,308",
+    "SF Bldg"
+   ],
+   [
+    "C",
+    "Bldg Class"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "2100 N Orange Ave",
+  "city": "Orlando",
+  "state": "FL",
+  "zip": "32804",
+  "photo": "https://images1.loopnet.com/i2/lFESSv3I-zz1_bcjMGOJBUnNaaWQI6xGxDVIPV6AESY/{s}/image.jpg",
+  "brokerName": "Michael Curtis",
+  "brokerKey": "130990031",
+  "brokerCompany": "Millenia Partners",
+  "brokerTitle": "Senior Associate",
+  "brokerEmail": "mcurtis@millenia-partners.com",
+  "brokerPhone": "689-254-5716",
+  "brokerImage": "https://images1.loopnet.com/i2/xU2r_lz4VNWtGIaJk5_lf4b3WRV4AE1ZGlQzjzRdh3g/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "41959395",
+  "listingUrl": "https://www.loopnet.com/Listing/41959395/",
+  "description": "4401 N Federal Highway offers the opportunity to acquire a 12,222-square-foot professional office building in Boca Raton with a mix\u2026",
+  "latitude": 26.389611,
+  "longitude": -80.076911,
+  "totalSize": 12200,
+  "sizeFormatted": "12,200 SF",
+  "listingType": "For Sale",
+  "priceText": "$6M",
+  "currency": "USD",
+  "price": "$6M",
+  "formattedPrice": "$6M",
+  "yearBuilt": "1987",
+  "stateCode": "FL",
+  "propertyType": "Office",
+  "sizeSf": "12.2K",
+  "capRate": "On Request",
+  "buildingClass": "C",
+  "stats": [
+   [
+    "Office"
+   ],
+   [
+    "12.2K",
+    "SF Bldg"
+   ],
+   [
+    "C",
+    "Bldg Class"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "4401 N Federal Hwy",
+  "city": "Boca Raton",
+  "state": "FL",
+  "zip": "33431",
+  "photo": "https://images1.loopnet.com/i2/YBsZpNzpnmOgwtGobUoWt6XwTA7g3Qo6XnD5YWTDlqM/{s}/image.jpg",
+  "brokerName": "Louis Giorgi",
+  "brokerKey": "42114041",
+  "brokerCompany": "Bark Management",
+  "brokerTitle": "President",
+  "brokerEmail": "louisgiorgi@gmail.com",
+  "brokerPhone": "561-789-4777",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "42609801",
+  "listingUrl": "https://www.loopnet.com/Listing/42609801/",
+  "listingName": "The Financial Center",
+  "description": "The Financial Center is a 29,214-square-foot, two-story office building constructed in 1989 at the corner of W Busch Boulevard and\u2026",
+  "latitude": 28.035286,
+  "longitude": -82.487564,
+  "totalSize": 29200,
+  "sizeFormatted": "29,200 SF",
+  "listingType": "For Sale",
+  "priceText": "$5.75M",
+  "currency": "USD",
+  "price": "$5.8M",
+  "formattedPrice": "$5.75M",
+  "yearBuilt": "1989",
+  "stateCode": "FL",
+  "propertyType": "Office",
+  "sizeSf": "29.2K",
+  "capRate": "On Request",
+  "buildingClass": "C",
+  "stats": [
+   [
+    "Office"
+   ],
+   [
+    "29.2K",
+    "SF Bldg"
+   ],
+   [
+    "C",
+    "Bldg Class"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "2701 W Busch Blvd",
+  "city": "Tampa",
+  "state": "FL",
+  "zip": "33618",
+  "photo": "https://images1.loopnet.com/i2/NquCzUDkAOM9zQwTNDgJmC8zekLd9Av76QW0_WQ91YQ/{s}/image.jpg",
+  "brokerName": "Adam Crane",
+  "brokerKey": "89024481",
+  "brokerCompany": "DemiSar Properties, LLC",
+  "brokerTitle": "Managing Director",
+  "brokerEmail": "adam@demisar.com",
+  "brokerPhone": "813-501-3827 x403",
+  "brokerImage": "https://images1.loopnet.com/i2/dLtybXPLhXwjng_-GgFEjjFpA-jzCXI0zI2awuZXKgA/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "propertyId": "31866396",
+  "listingUrl": "https://www.loopnet.com/Listing/31866396/",
+  "listingName": "13 Commercial Assets",
+  "description": "This multi-state property portfolio offers investors the opportunity to expand their holdings by purchasing individual locations,\u2026",
+  "latitude": 30.623173,
+  "longitude": -96.29502,
+  "totalSize": 187900,
+  "sizeFormatted": "187,900 SF",
+  "listingType": "For Sale",
+  "priceText": "Price Not Disclosed",
+  "price": "Price Not Disclosed",
+  "formattedPrice": "",
+  "sizeSf": "187.9K",
+  "acres": "30.17",
+  "capRate": "On Request",
+  "stats": [
+   [
+    "Mixed",
+    "Types"
+   ],
+   [
+    "187.9K",
+    "SF Total"
+   ],
+   [
+    "30.17",
+    "AC Total"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "Portfolio of 10 Properties For Sale in",
+  "city": "Multiple Locations",
+  "photo": "https://images1.loopnet.com/i2/jkj7egefKuPCAmrrH7hJeYwp2bEUEhbhzlEJ3arXr_g/{s}/image.jpg",
+  "brokerName": "Randall Perry",
+  "brokerKey": "51236801",
+  "brokerCompany": "NEWAMCO",
+  "brokerTitle": "Private Family Office Administrator",
+  "brokerEmail": "randall@newamco.org",
+  "brokerPhone": "321-999-9225",
+  "brokerImage": "https://images1.loopnet.com/i2/6mzenfIdlHH1Z6XE6lfMvPeVBYe1rEbzfndcCf7Olww/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ]
+ },
+ {
+  "listingType": "For Sale",
+  "inferUrl": "https://www.loopnet.com/Listing/43070450/",
+  "listingUrl": "https://www.loopnet.com/Listing/43070450/",
+  "propertyId": "43070450",
+  "listingName": "Seven Fish Restaurant & Real Estate",
+  "description": "Opportunity to acquire the Seven Fish restaurant business together with its real estate in Key West. Located at 921 Truman Avenue,\u2026",
+  "latitude": 24.554565,
+  "longitude": -81.794073,
+  "totalSize": 4796,
+  "sizeFormatted": "4,796 SF",
+  "priceText": "$4.499M",
+  "currency": "USD",
+  "price": "$4.5M",
+  "formattedPrice": "$4.499M",
+  "yearBuilt": "2016",
+  "stateCode": "FL",
+  "propertyType": "Freestanding",
+  "sizeSf": "4,796",
+  "capRate": "On Request",
+  "stats": [
+   [
+    "Freestanding"
+   ],
+   [
+    "4,796",
+    "SF Bldg"
+   ],
+   [
+    ".19",
+    "AC Lot"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "921 Truman Ave",
+  "city": "Key West",
+  "state": "FL",
+  "zip": "33040",
+  "photo": "https://images1.loopnet.com/i2/IIVUYZx52bXOwPcKIIF9_wgrb31BviTKrkFBYybNzhY/{s}/image.jpg",
+  "brokerName": "Will Langley",
+  "brokerKey": "5655508",
+  "brokerCompany": "Berkshire Hathaway Knight & Gardner Realty",
+  "brokerTitle": "Managing Partner / Owner",
+  "brokerEmail": "commercial@keysrealestate.com",
+  "brokerPhone": "305-394-9020",
+  "brokerImage": "https://images1.loopnet.com/i2/wfE8C3Z26B-9fv6wGziu5X_vlxzHbvm6Y4g_jwFNVgk/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ],
+  "_detailLevel": "summary",
+  "_detailFetchFailed": true,
+  "_detailUnavailableReason": "includeListingDetails was requested, but the full property sheet could not be loaded for this listing on this run; this row is its summary card, not a full property sheet, and property-detail was not charged. Re-running usually gets the full sheet."
+ },
+ {
+  "listingType": "For Sale",
+  "inferUrl": "https://www.loopnet.com/Listing/43044077/",
+  "listingUrl": "https://www.loopnet.com/Listing/43044077/",
+  "propertyId": "43044077",
+  "description": "Premier trophy retail strip center with commanding frontage on South Dixie Highway, between Belvedere Road and Southern Boulevard.\u2026",
+  "latitude": 26.68205,
+  "longitude": -80.054342,
+  "totalSize": 5200,
+  "sizeFormatted": "5,200 SF",
+  "priceText": "$3.8M",
+  "currency": "USD",
+  "price": "$3.8M",
+  "formattedPrice": "$3.8M",
+  "yearBuilt": "1957",
+  "stateCode": "FL",
+  "propertyType": "Freestanding",
+  "sizeSf": "5,200",
+  "capRate": "On Request",
+  "stats": [
+   [
+    "Freestanding"
+   ],
+   [
+    "5,200",
+    "SF Bldg"
+   ],
+   [
+    ".23",
+    "AC Lot"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "3300 S Dixie Hwy",
+  "city": "West Palm Beach",
+  "state": "FL",
+  "zip": "33405",
+  "photo": "https://images1.loopnet.com/i2/srDA97nbxPyJstq_Ar15DNVVVXbNkMpx8etPHmuq0CI/{s}/image.jpg",
+  "brokerName": "Paul Bergman",
+  "brokerKey": "6211066",
+  "brokerCompany": "Douglas Elliman",
+  "brokerTitle": "Realtor Associate",
+  "brokerEmail": "paul.bergman@elliman.com",
+  "brokerPhone": "310-498-4883",
+  "brokerImage": "https://images1.loopnet.com/i2/hm8S42GBc3Hk1gPNjCCiw8kOBpXQ0-yZAmvSPcnqTJY/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ],
+  "_detailLevel": "summary",
+  "_detailFetchFailed": true,
+  "_detailUnavailableReason": "includeListingDetails was requested, but the full property sheet could not be loaded for this listing on this run; this row is its summary card, not a full property sheet, and property-detail was not charged. Re-running usually gets the full sheet."
+ },
+ {
+  "listingType": "For Sale",
+  "inferUrl": "https://www.loopnet.com/Listing/43027840/",
+  "listingUrl": "https://www.loopnet.com/Listing/43027840/",
+  "propertyId": "43027840",
+  "description": "Docks on the Anclote River with deep water all the way out to the Gulf. \nOpen uses: Lodging, office, retail and civic uses are open\u2026",
+  "latitude": 28.155953,
+  "longitude": -82.757118,
+  "totalSize": 31800,
+  "sizeFormatted": "31,800 SF",
+  "priceText": "$3.95M",
+  "currency": "USD",
+  "price": "$4M",
+  "formattedPrice": "$3.95M",
+  "yearBuilt": "1975",
+  "stateCode": "FL",
+  "propertyType": "Retail",
+  "sizeSf": "31.8K",
+  "capRate": "On Request",
+  "stats": [
+   [
+    "Retail"
+   ],
+   [
+    "31.8K",
+    "SF Bldg"
+   ],
+   [
+    "1.45",
+    "AC Lot"
+   ],
+   [
+    "On Request",
+    "Cap Rate"
+   ]
+  ],
+  "address": "10 W Dodecanese Blvd",
+  "city": "Tarpon Springs",
+  "state": "FL",
+  "zip": "34689",
+  "photo": "https://images1.loopnet.com/i2/aM5HpQgPTd0DvIOWPIaiMXOVKNwQYBVvRZDr8OkOaq8/{s}/image.jpg",
+  "brokerName": "Wyatt Wikle",
+  "brokerKey": "12569511",
+  "brokerCompany": "Wikle, Inc.",
+  "brokerTitle": "Broker",
+  "brokerEmail": "wyatt@wiklerealestate.com",
+  "brokerPhone": "727-366-9391",
+  "brokerImage": "https://images1.loopnet.com/i2/Dxi4sD5LTvv9oeHMUeIqP_9FmIessU-xrrq7TO2I6io/{s}/image.jpg",
+  "_dataSource": "summary-card",
+  "_unverifiedFilters": [
+   "capRate"
+  ],
+  "_detailLevel": "summary",
+  "_detailFetchFailed": true,
+  "_detailUnavailableReason": "includeListingDetails was requested, but the full property sheet could not be loaded for this listing on this run; this row is its summary card, not a full property sheet, and property-detail was not charged. Re-running usually gets the full sheet."
+ },
+ {
+  "inferUrl": "https://www.loopnet.com/Listing/40757439/",
+  "listingUrl": "https://www.loopnet.com/Listing/5450-5460-5th-Ave-Fort-Myers-FL/40757439/",
+  "propertyId": "40757439",
+  "sourceType": "listingWeb",
+  "inputUrl": "https://www.loopnet.com/Listing/40757439/",
+  "name": "46-Unit SFR/MFR Portfolio - 5450-5460 5th Ave, Fort Myers, FL 33907 - Multifamily for Sale - 46 Units",
+  "description": "Nowhere else are there opportunities to acquire 46 residential units in a single transaction in one of Southwest Florida's most active rental markets. The portfolio includes a mix of apartment buildings, duplexes, single-family homes, and a condominium, providing buyers with both income diversification and operational flexibility. With an established net operating income of approximately $512,244, the offering delivers immediate cash flow while creating multiple avenues for future value creation.\nSignificant upside potential exists through strategic property upgrades, lease optimization, and full occupancy initiatives. Investors have the opportunity to enhance returns by modernizing units, aligning rents with prevailing market rates, and capturing additional income through improved management and leasing strategies. The varied asset mix allows buyers to implement value-add plans across multiple property types, creating a scalable investment platform within a single acquisition.\nFort Myers continues to experience exceptional growth, with the population increasing by approximately 16% since 2020. Serving as a major hub for Southwest Florida's five-county region of more than 790,000 residents, the city benefits from a diverse economic base supported by tourism, healthcare, advanced manufacturing, and technology industries. Lee County's median household income exceeds $76,000, while ongoing development and placemaking initiatives continue to drive economic expansion and long-term housing demand.\nResidential demand remains supported by favorable demographic trends. Renters account for approximately 50.9% of occupied housing units, slightly exceeding the homeowner population and creating a deep, stable tenant base. With a median resident age of roughly 40.8 years, the market benefits from a balanced mix of working professionals, families, and retirees seeking housing throughout the region. Fort Myers' appeal is further enhanced by its waterfront setting along the Caloosahatchee River, vibrant Downtown River District, and proximity to renowned destinations such as Sanibel and Captiva Islands.\nSupported by in-place income, identifiable value-add opportunities, and favorable market fundamentals, the portfolio offers investors a compelling path to both immediate cash flow and long-term appreciation.\nReach out to Compass Realty today to obtain specific financial information and learn more about this compelling Fort Myers investment opportunity.\n1. 3213\u20133219 Broadway, Fort Myers, FL 33901 / 4-Unit\n2. 3022 Guava St, Fort Myers, FL 33916 /Single Family\n3.1402 Veronica S Shoemaker Blvd, Fort Myers, FL 33916 / Single Family\n4. 3652 Clermont St, Fort Myers, FL 33916 /Single Family\n5. 1702\u20131708 Cypress Dr, Fort Myers, FL 33907 / 4-Unit\n6. 5450\u20135460 5th Ave, Fort Myers, FL 33907 / 6-Unit\n7. 1769 Elan Ct, Fort Myers, FL 33916 / Single Family\n8. 278 Poe Ave, North Fort Myers, FL 33917 /Single Family\n9. 241 Byron Ave, North Fort Myers, FL 33917 / Single Family\n10. 1785 N. Meador Ct, Fort Myers, FL 33916 / Single Family\n11. 3656\u20133660 Seminole Ave, Fort Myers, FL 33916 /3-Unit\n12. 710\u2013714 Karlov St, Fort Myers, FL 33916 /3-Unit\n13. 1900 Clifford St Apt 603, Fort Myers, FL 33901 /Condo\n14. 4749\u20134757 Glenwood Ave, Fort Myers, FL 33905 /4-Unit\n15. 5551\u20135553 5th Ave, Fort Myers, FL 33916 /2-Unit\n16. 462\u2013464 Carolina Ave, Fort Myers, FL 33905 /4-Unit\n17. 75\u201377 Cypress St, North Fort Myers, FL 33907 /2-Unit\n18. 1604\u20131608 Oak Drive, Fort Myers, FL 33907 /2-Unit\n19. 5537\u20135539 10th Ave, Fort Myers, FL 33907 /2-Unit\n20. 5447\u20135449 10th Ave, Fort Myers, FL 33907 / 2-Unit",
+  "priceNumeric": 7200000,
+  "price": 7200000,
+  "priceCurrency": "USD",
+  "address": "5450-5460 5th Ave",
+  "city": "Fort Myers",
+  "state": "FL",
+  "zip": "33907",
+  "country": "US",
+  "images": [
+   "https://images.loopnet.co.uk/i2/U5eEoxfMoEp2TedlATYYUYGTV0bEMuhK3IQ8tW_9mfg/112/image.jpg"
+  ],
+  "dateUpdated": "2026-09-08",
+  "propertyFacts": {
+   "Price": "$7,200,000",
+   "PricePerUnit": "$156,522",
+   "SaleType": "Investment",
+   "SaleConditions": "Bulk/Portfolio Sale",
+   "PropertySubtype": "Apartment",
+   "ApartmentStyle": "Low-Rise",
+   "BuildingClass": "C",
+   "LotSize": "18,318 SF",
+   "BuildingSize": "3,512 SF",
+   "NoStories": "1",
+   "YearBuilt": "1970",
+   "ParcelNumber": "11-45-24-03-00014.0100, 11-45-24-03-00014.0110, 11-45-24-03-00014.0120",
+   "NoUnits": "46",
+   "PropertyType": "Multifamily",
+   "WalkScore": "60"
+  },
+  "unitTypes": [
+   {
+    "description": "--",
+    "unitsTotal": 46
+   }
+  ],
+  "pricePerUnit": "$156,522",
+  "saleType": "Investment",
+  "saleConditions": "Bulk/Portfolio Sale",
+  "numberOfUnits": "46",
+  "buildingSize": "3,512 SF",
+  "buildingClass": "C",
+  "numberOfStories": "1",
+  "yearBuilt": "1970",
+  "lotSize": "18,318 SF",
+  "apartmentStyle": "Low-Rise",
+  "propertyType": "Multifamily",
+  "propertySubtype": "Apartment",
+  "parcelNumber": "11-45-24-03-00014.0100, 11-45-24-03-00014.0110, 11-45-24-03-00014.0120",
+  "brokers": [
+   {
+    "name": "Meidan Mike Magen",
+    "phone": "408-595-7836",
+    "title": "Realtor",
+    "email": "mike@magensgroup.com"
+   },
+   {
+    "name": "Astar Sakuri"
+   }
+  ],
+  "brokerName": "Meidan Mike Magen",
+  "brokerPhone": "408-595-7836",
+  "brokerPhones": [
+   "408-595-7836"
+  ],
+  "brokerCompany": "Compass",
+  "Broker": "Compass",
+  "highlights": [
+   "Acquire 46 residential units in a single transaction, offering efficiencies that are difficult to replicate through individual acquisitions.",
+   "Portfolio spanning apartment buildings, duplexes, single-family homes, and a condominium helps distribute risk across multiple residential types.",
+   "Established net operating income of ~$512,244 provides immediate cash flow while preserving multiple opportunities for future value creation.",
+   "Value-add potential through strategic renovations, rent growth initiatives, occupancy improvements, and operational enhancements.",
+   "50.9% of Fort Myers residents occupy leased housing units rather than owner-occupied units, providing access to a deep and stable tenant base.",
+   "Fort Myers' population growth of approximately 16% since 2020 supports increasing housing demand in a fast-growing Southwest Florida market."
+  ],
+  "descriptionHtml": "<p class=\"pre-wrap\">Nowhere else are there opportunities to acquire 46 residential units in a single transaction in one of Southwest Florida's most active rental markets. The portfolio includes a mix of apartment buildings, duplexes, single-family homes, and a condominium, providing buyers with both income diversification and operational flexibility. With an established net operating income of approximately $512,244, the offering delivers immediate cash flow while creating multiple avenues for future value creation.\n   \nSignificant upside potential exists through strategic property upgrades, lease optimization, and full occupancy initiatives. Investors have the opportunity to enhance returns by modernizing units, aligning rents with prevailing market rates, and capturing additional income through improved management and leasing strategies. The varied asset mix allows buyers to implement value-add plans across multiple property types, creating a scalable investment platform within a single acquisition.\n   \nFort Myers continues to experience exceptional growth, with the population increasing by approximately 16% since 2020. Serving as a major hub for Southwest Florida's five-county region of more than 790,000 residents, the city benefits from a diverse economic base supported by tourism, healthcare, advanced manufacturing, and technology industries. Lee County's median household income exceeds $76,000, while ongoing development and placemaking initiatives continue to drive economic expansion and long-term housing demand.\n   \nResidential demand remains supported by favorable demographic trends. Renters account for approximately 50.9% of occupied housing units, slightly exceeding the homeowner population and creating a deep, stable tenant base. With a median resident age of roughly 40.8 years, the market benefits from a balanced mix of working professionals, families, and retirees seeking housing throughout the region. Fort Myers' appeal is further enhanced by its waterfront setting along the Caloosahatchee River, vibrant Downtown River District, and proximity to renowned destinations such as Sanibel and Captiva Islands.\n   \nSupported by in-place income, identifiable value-add opportunities, and favorable market fundamentals, the portfolio offers investors a compelling path to both immediate cash flow and long-term appreciation.\n   \nReach out to Compass Realty today to obtain specific financial information and learn more about this compelling Fort Myers investment opportunity.\n  \n1. 3213\u20133219 Broadway, Fort Myers, FL 33901 / 4-Unit \n2. 3022 Guava St, Fort Myers, FL 33916   /Single Family\n3.1402 Veronica S Shoemaker Blvd, Fort Myers, FL 33916 / Single Family \n4. 3652 Clermont St, Fort Myers, FL 33916 /Single Family\n5. 1702\u20131708 Cypress Dr, Fort Myers, FL 33907 / 4-Unit  \n6. 5450\u20135460 5th Ave, Fort Myers, FL 33907 /  6-Unit \n7. 1769 Elan Ct, Fort Myers, FL 33916  / Single Family \n8. 278 Poe Ave, North Fort Myers, FL 33917 /Single Family  \n9. 241 Byron Ave, North Fort Myers, FL 33917 / Single Family  \n10. 1785 N. Meador Ct, Fort Myers, FL 33916 / Single Family \n11. 3656\u20133660 Seminole Ave, Fort Myers, FL 33916 /3-Unit \n12. 710\u2013714 Karlov St, Fort Myers, FL 33916  /3-Unit \n13. 1900 Clifford St Apt 603, Fort Myers, FL 33901 /Condo \n14. 4749\u20134757 Glenwood Ave, Fort Myers, FL 33905 /4-Unit \n15. 5551\u20135553 5th Ave, Fort Myers, FL 33916 /2-Unit \n16. 462\u2013464 Carolina Ave, Fort Myers, FL 33905 /4-Unit \n17. 75\u201377 Cypress St, North Fort Myers, FL 33907 /2-Unit \n18. 1604\u20131608 Oak Drive, Fort Myers, FL 33907 /2-Unit \n19. 5537\u20135539 10th Ave, Fort Myers, FL 33907 /2-Unit \n20. 5447\u20135449 10th Ave, Fort Myers, FL 33907 / 2-Unit</p>",
+  "dateOnMarket": "2026-06-02",
+  "portfolioProperties": [],
+  "isPortfolio": false,
+  "email": "mike@magensgroup.com",
+  "agent_email": "mike@magensgroup.com",
+  "brokerEmail": "mike@magensgroup.com",
+  "brokerEmails": [
+   "mike@magensgroup.com"
+  ]
+ }
+]

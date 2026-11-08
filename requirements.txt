@@ -14,3 +14,6 @@ tzdata
 pytest>=8.0
 httpx>=0.27   # fastapi TestClient
 pillow>=10            # picture of each email on the Asana approval cards
+openpyxl>=3.1         # commercial screen: master workbook (Top 25 / broker contacts / needs-OM sheets)
+reportlab>=4.0        # commercial screen: Titan-branded Top-25 PDF
+pdfplumber>=0.11      # commercial screen: read NOI / rent roll out of OM PDFs

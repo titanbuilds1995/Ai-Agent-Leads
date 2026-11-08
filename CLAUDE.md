@@ -251,6 +251,19 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   lines himself counts as the answer (`hand_written`). Old reply cards still on the board are folded into their lead card and
   completed (`fold_reply_cards`, every approvals round); one already in Approved sends as it is. Warm-board cards: "send it" sends
   from there (`answer_state: approved`), the card stays on the warm board.
+- **Commercial screen for the 1031 buyer (Rodrigo, 2026-11-08; `titan/commercial/`, config `commercial:`):** LoopNet only, through
+  Apify (`memo23/loopnet-scraper-ppe`). Box $3.5M–$8M, cap floor 8% (a stated cap under 8 is never in the box; a missing cap is
+  NEEDS-OM), sweet spot to $6M (above = "reach"), all of Florida with non-South-Florida scored a little higher, asset types in:
+  NNN / retail / hotel / industrial / office / multifamily 5+ / medical; land, development and business-only out. Every listing: score
+  0–100, back-solved cap (NOI ÷ price, 50 bps off = flag), OFFER ANCHOR (stated NOI ÷ 8%, never above the ask), cooked-books tag
+  CLEAN / SUSPECT / NEEDS-OM, EVIDENCE GRADE A–D as its own column (Top 25 sorts grade first, then score). Outputs in
+  `reports/commercial/<date>/` (master.csv/.xlsx, top25_1031.pdf Titan-branded CLEAN only by region, broker_contacts.csv = Monday's
+  book-request list deduped by email with the documents missing per listing, needs_om.csv, diff.md). Public OM/brochure PDFs go to
+  `data/listings/<id>/` and are read; gated docs are recorded, never requested. Asana board "Titan 1031 · Commercial (LoopNet)",
+  cards tagged `1031-buyer`, Needs OM cards carry the OM-request email in Charles's voice; **nothing on that board sends**.
+  `make commercial-sample` (pennies), `make commercial` (full pull, costs Apify credit), `commercial.schedule: daily` for the morning
+  re-run + diff. Known gap: LoopNet blocks the actor's full property sheets most of the time (0–1 of 3 come through); the engine
+  retries them every run and keeps any sheet it ever got. Do not try proxies / crawlers around LoopNet's block from a cloud session.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)

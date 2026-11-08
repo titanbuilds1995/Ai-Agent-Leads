@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -97,3 +97,13 @@ demo:             ## full pipeline on fixture data, no credentials needed, into 
 
 clean-demo:
 	rm -f demo_titan_leads.db demo_titan_leads.db-*
+
+commercial-sample: ## 1031 buyer screen, cheap sanity check: ~15 LoopNet rows per asset family, 10 scored listings over 3+ counties printed (pennies on Apify)
+	$(PY) -m titan.cli commercial --sample 15 --no-asana
+
+commercial:       ## 1031 buyer screen, FULL statewide LoopNet pull → reports/commercial/<date>/ (master.xlsx, top25_1031.pdf, broker_contacts.csv) + Asana cards. Costs Apify credit.
+	$(PY) -m titan.cli commercial --full --email
+
+commercial-offline: ## re-score the last saved LoopNet rows without pulling: make commercial-offline RAW="raw/2026-11-08_*loopnet*.json"
+	$(PY) -m titan.cli commercial --no-asana --from-raw $(RAW)
+

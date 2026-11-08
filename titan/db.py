@@ -137,6 +137,29 @@ CREATE TABLE IF NOT EXISTS offers (
   list_price INTEGER, street TEXT, city TEXT, zip TEXT, county TEXT, internal_low INTEGER, internal_high INTEGER,
   status TEXT NOT NULL DEFAULT 'SENT', note TEXT, sent_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+
+-- Commercial screen for the 1031 buyer (titan/commercial/, 2026-11-08): every LoopNet listing in the box, its score, tag and grade,
+-- one snapshot per run for the morning diff, and the runs themselves (what they cost on Apify).
+CREATE TABLE IF NOT EXISTS commercial_listings (
+  listing_id TEXT PRIMARY KEY, listing_url TEXT, name TEXT, street TEXT, city TEXT, state TEXT, zip TEXT, county TEXT, region TEXT,
+  asset_class TEXT, property_type TEXT, property_subtype TEXT, price INTEGER, price_text TEXT, building_sf INTEGER, lot_sf INTEGER,
+  year_built INTEGER, units INTEGER, stated_noi INTEGER, stated_cap REAL, back_solved_cap REAL, offer_anchor INTEGER, occupancy REAL,
+  tenants INTEGER, tenancy TEXT, lease_type TEXT, remaining_term_years REAL, days_on_market INTEGER, listed_at TEXT, price_cuts INTEGER,
+  previous_price INTEGER, broker_name TEXT, brokerage TEXT, broker_phone TEXT, broker_email TEXT, brokerage_size TEXT,
+  score INTEGER, score_parts TEXT, tag TEXT, tag_reasons TEXT, evidence_grade TEXT, evidence_note TEXT, in_box INTEGER, box_note TEXT,
+  tier TEXT, motivation TEXT, credit_tenants TEXT, documents TEXT, docs_missing TEXT, detail_level TEXT, status TEXT,
+  description TEXT, highlights TEXT, data TEXT, raw TEXT, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, gone_at TEXT,
+  asana_task_id TEXT, asana_om_task_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_commercial_score ON commercial_listings(in_box, score);
+CREATE TABLE IF NOT EXISTS commercial_snapshots (
+  id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, listing_id TEXT NOT NULL, price INTEGER, days_on_market INTEGER, stated_cap REAL,
+  score INTEGER, tag TEXT, status TEXT, created_at TEXT NOT NULL, UNIQUE(run_date, listing_id)
+);
+CREATE TABLE IF NOT EXISTS commercial_runs (
+  id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, counts TEXT,
+  cost_usd REAL, notes TEXT
+);
 -- What Rodrigo told us about a lead in a card comment (titan/card_chat.py); goes into every later prompt for that agent.
 CREATE TABLE IF NOT EXISTS lead_notes (
   id INTEGER PRIMARY KEY, agent_id INTEGER, outreach_id INTEGER, text TEXT NOT NULL, created_at TEXT NOT NULL,

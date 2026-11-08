@@ -52,8 +52,33 @@ tests/                 91 tests; fixtures/listings_sample.json (24 listings, bot
 | `doctor` | check every credential, setting and network path the live run needs; prints ok / warn / fail and the fix for each |
 | `demo` / `clean-demo` | full pipeline on fixtures into `demo_titan_leads.db` |
 | `test` | pytest |
+| `commercial-sample` / `commercial` / `commercial-offline` | the 1031 buyer's commercial screen (LoopNet via Apify): cheap sanity sample · full statewide pull · re-score saved rows. See below. |
 
 `python -m titan.cli run-daily --steps score,value,outreach --force` re-runs a subset. `--fixture` / `--comps-fixture` use local JSON instead of Apify.
+
+## Commercial screen for the 1031 buyer (`titan/commercial/`, 2026-11-08)
+
+LoopNet is the only source (Apify actor `memo23/loopnet-scraper-ppe`, about $1.50 per 1,000 search rows and a cent per full property
+sheet; the Apify account is the one the probate scraper uses). The buyer box lives in `config.yaml → commercial.buyer_box`
+(price $3.5M–$8M, cap floor 8%, sweet spot to $6M, Florida statewide with the rest of the state scored a little above South
+Florida, asset types in/out). Every listing gets:
+
+- a **score 0–100** (cap vs target, days on market and cuts, motivation language, lease quality, brokerage size, asset fit,
+  price band, region; weights in `commercial.scoring`),
+- the **back-solved cap** (NOI ÷ price; off the stated cap by 50+ bps = `cap_mismatch`),
+- the **offer anchor** (price at which the stated NOI yields the target cap; never above the ask),
+- a **cooked-books tag** CLEAN / SUSPECT / NEEDS-OM (NEEDS-OM = NOI or cap missing → broker queued for the books),
+- an **evidence grade A–D** (A = T-12/P&L + rent roll on file and matching; B = OM with NOI + expenses; C = figures in the
+  listing text only; D = nothing or pro forma), a separate column from the score.
+
+Outputs under `reports/commercial/<date>/`: `master.csv` + `master.xlsx` (Master / Top 25 / Broker Contacts / Needs OM / Diff),
+`top25_1031.pdf` (Titan-branded, CLEAN only, by region), `broker_contacts.csv` (one row per broker, listing count, addresses,
+documents missing per listing: the Monday book-request list), `needs_om.csv`, `diff.md` (new, price drops, DOM jumps, gone).
+Public OM/brochure PDFs are saved to `data/listings/<listing_id>/` and read for NOI / rent roll; gated ones are recorded, never
+requested by the engine. Asana: board "Titan 1031 · Commercial (LoopNet)" (Top tier / Needs OM / Suspect / Contacted / Skip), every
+card tagged `1031-buyer` with the offer anchor and the broker's phone + email; the Needs OM cards carry the OM-request email in
+Charles's voice. Nothing on that board sends. Daily re-run: `commercial.schedule: daily` adds it to run-daily (it spends Apify
+credit every morning; `manual` = only when you run `make commercial`).
 
 ## Modes and channels
 

@@ -163,6 +163,16 @@ def _run_daily(cfg, args):
             summary["enrich"] = Enricher(cfg, conn).run()
     if "outreach" in steps:
         summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"], asana=_asana(cfg))
+    if "commercial" in steps or (not args.steps and cfg.get("commercial.schedule") == "daily" and cfg.get("commercial.enabled")):
+        # the 1031 buyer screen (2026-11-08): only every morning when Rodrigo set commercial.schedule: daily (it spends Apify credit)
+        from .commercial.run import run as commercial_run
+        try:
+            out = commercial_run(conn, cfg, c["apify"], asana=_asana(cfg), gmail=c["gmail"], full_pull=True)
+            out.pop("ranked", None)
+            summary["commercial"] = out
+        except Exception as e:  # noqa: BLE001
+            log.exception("commercial screen failed: %s", e)
+            summary["commercial"] = {"error": str(e)}
     from .dashboard_sync import sync as sync_dashboard
     summary["dashboard"] = sync_dashboard(conn, cfg, include_connections=True)
     print(json.dumps(summary, indent=2, default=str))
@@ -588,6 +598,36 @@ def read_token(typed: str) -> str | None:
     return clean_token(clip)
 
 
+
+def cmd_commercial(cfg, args):
+    """Commercial screen for the 1031 buyer (LoopNet via Apify). --sample N pulls N rows per asset family and prints 10 scored
+    listings across 3+ counties; no flag = the full statewide pull (costs Apify credit: see the estimate it prints first)."""
+    from .commercial.run import run as commercial_run, sample_table, sample_text
+    conn = _open(cfg)
+    if not cfg.get("commercial.enabled", True):
+        print("commercial.enabled is false in config.yaml")
+        return
+    raw_rows = None
+    if args.from_raw:
+        raw_rows = []
+        for f in args.from_raw:
+            raw_rows += json.loads(Path(f).read_text())
+    c = build_clients(cfg, conn, need=("apify",) + (("gmail",) if args.email else ()))
+    if raw_rows is None and c["apify"] is None:
+        print("APIFY_TOKEN is missing (Mac: .env; cloud: the environment's settings). Nothing pulled.")
+        return
+    gmail = c.get("gmail") if args.email else None
+    families = args.families.split(",") if args.families else None
+    out = commercial_run(conn, cfg, c["apify"], asana=_asana(cfg) if not args.no_asana else None, gmail=gmail, families=families,
+                         max_items=args.sample or args.max_items, details=(not args.no_details) and (raw_rows is None or args.retry_details),
+                         raw_rows=raw_rows, push_asana=not args.no_asana,
+                         email=args.email, full_pull=args.full)
+    ranked = out.pop("ranked", [])
+    print(json.dumps(out, indent=2, default=str))
+    if args.sample or args.print_sample:
+        print("\nSAMPLE (score | tag | grade | asset | address | ask | cap | NOI | offer anchor | broker | flags):")
+        print(sample_text(sample_table(ranked, 10)))
+
 def cmd_follow_ups(cfg, args):
     """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
     (or Approved with --approve: only when he said to send them)."""
@@ -779,6 +819,17 @@ def main(argv: list[str] | None = None) -> int:
     te.add_argument("--to", default=None, help="defaults to REPORT_TO")
     rp = sub.add_parser("rewrite-pending", help="regenerate To Review emails written before the protocol and update their cards")
     rp.add_argument("--all", action="store_true", help="redo every To Review card, not only the old-style ones")
+    cm = sub.add_parser("commercial", help="1031 buyer commercial screen: LoopNet (Apify) → scored master sheet, Top-25 PDF, broker list, Asana cards, daily diff")
+    cm.add_argument("--sample", type=int, default=None, help="rows per asset family for a cheap sanity-check pull (e.g. 15); prints 10 scored listings over 3+ counties")
+    cm.add_argument("--max-items", type=int, default=None, help="rows per asset family (default: config commercial.loopnet.max_items_per_search)")
+    cm.add_argument("--families", default=None, help="comma list of asset families to pull (keys of commercial.loopnet.search_urls)")
+    cm.add_argument("--no-details", action="store_true", help="skip the detail-sheet pass (cheaper, NOI/occupancy stay unknown)")
+    cm.add_argument("--no-asana", action="store_true", help="files only, no cards")
+    cm.add_argument("--email", action="store_true", help="email the diff to REPORT_TO when Gmail is connected")
+    cm.add_argument("--full", action="store_true", help="treat this as the full statewide pull (listings missing from it are marked gone)")
+    cm.add_argument("--print-sample", action="store_true")
+    cm.add_argument("--from-raw", nargs="*", default=None, help="score saved actor JSON files instead of pulling (raw/*.json)")
+    cm.add_argument("--retry-details", action="store_true", help="with --from-raw: still try the detail sheets still missing (spends Apify credit)")
     fu = sub.add_parser("follow-ups", help="Good morning follow-up (same thread) to every agent who never answered; cards in Needs Me")
     fu.add_argument("--days", type=int, default=None, help="first email at least this many days old (config outreach.follow_up.after_days)")
     fu.add_argument("--limit", type=int, default=None)
@@ -794,7 +845,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial}[args.cmd](cfg, args)
     return 0
 
 

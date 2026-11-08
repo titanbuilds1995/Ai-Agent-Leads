@@ -136,3 +136,29 @@ class Asana:
 
     def rename_section(self, section: str, name: str) -> None:
         self._req("PUT", f"/sections/{section}", json={"data": {"name": name}})
+
+    # --- commercial screen (2026-11-08): its own board + the "1031-buyer" tag ------------------------------------------
+    def workspace(self) -> str:
+        ws = self._req("GET", "/workspaces", params={"limit": 1}) or []
+        if not ws:
+            raise AsanaError("no workspace visible to this token")
+        return ws[0]["gid"]
+
+    def ensure_project(self, name: str, notes: str = "") -> str:
+        """The gid of the board called `name` in the workspace, created (board view) when it does not exist yet."""
+        ws = self.workspace()
+        for p in self._req("GET", "/projects", params={"workspace": ws, "archived": "false", "opt_fields": "name", "limit": 100}) or []:
+            if (p.get("name") or "").strip().lower() == name.strip().lower():
+                return p["gid"]
+        return self._req("POST", "/projects", json={"data": {"name": name, "notes": notes, "workspace": ws, "default_view": "board"}})["gid"]
+
+    def ensure_tag(self, name: str) -> str | None:
+        ws = self.workspace()
+        for t in self._req("GET", "/tags", params={"workspace": ws, "opt_fields": "name", "limit": 100}) or []:
+            if (t.get("name") or "").strip().lower() == name.strip().lower():
+                return t["gid"]
+        return (self._req("POST", "/tags", json={"data": {"name": name, "workspace": ws}}) or {}).get("gid")
+
+    def tag_task(self, task: str, tag: str) -> None:
+        self._req("POST", f"/tasks/{task}/addTag", json={"data": {"tag": tag}})
+

@@ -314,12 +314,37 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "send it" comment under the review sends Charles's drafted reply** in the same Gmail thread (kind `om_reply`, not counted against the OM
   pace; 📤 comment). Documents behind a link (Dropbox/Drive) are listed, never fetched (NEEDS YOU). One review per inbound message
   (`commercial_reviews`); `commercial.review.per_round` 20. Nothing else sends.
+- **Simple replies go on their own; what needs him lands in his inbox; what does not fit is archived (Rodrigo, 2026-11-09 evening:
+  "has Charles actually answered any of the agents that were simple answers? … forward me the emails that need me … the ones that do
+  not fit, archive them … agents sent us deals on pocket listings")**: `commercial.review.auto_reply: true` → Charles's drafted reply
+  under a 🧠 READ FOR YOU that is NOT marked NEEDS YOU goes out at the next approvals / check-replies round on its own (the review says
+  so; a "hold" / "wait" / "don't send" comment under it stops it; NEEDS YOU reviews still wait for "send it"). `triage_inbox`
+  (`books_review.py`, runs after the sends): a review that needs him, a FITS / LEANS FIT, or a broker who pitched other / pocket /
+  off-market deals (new review field `other_deals`, shown on the card as "Other deals they pitched") is FORWARDED from Charles@ to
+  REPORT_TO ("FW [NEEDS YOU] <address> · <broker>", the read + the broker's words + their files attached, 📬 comment); NOT A FIT /
+  DOES NOT FIT threads are ARCHIVED in Charles's inbox once Charles's pass note has gone (🗂 comment; the thread is still read by id,
+  so a later answer is not lost). Once per review (`commercial_reviews.forwarded_at / archived_at`), retroactive on existing reviews.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-09 ~6:30pm ET, RESUME HERE: **Rodrigo's evening asks built** (see Decisions → Simple replies go on their own). Answer to his
+  question: **no, Charles had answered nobody**: all 21 drafted replies sat on the cards waiting for "send it". From the Mac's next
+  round (after the 10-min self-update): the drafted replies that do not need him go out (about 19; Kate Clifford's and Michael/Dreamify's
+  NDA replies wait for him), Kate's, Michael's, both LEANS FIT (Armond, Luca) and Albert Hernandez's pocket pitch are forwarded to
+  rodrigo@ with the files, and the 29 not-fit threads are archived in Charles's inbox once Charles's pass note has gone. **Watch the
+  first round**: 📤 / 📬 / 🗂 comments on the 1031 cards, the FW emails in his inbox (attachments), and that the office line complaint
+  (Dreamify: dead air, no voicemail) gets checked. Sends outside the 8:30–5:30 window wait for morning. 354 tests.
+- 2026-11-09 ~5:40pm ET, RESUME HERE: **Day-one status of the 1031 conversations, charted for Rodrigo** (artifact
+  https://claude.ai/artifact/DCUPvzF3VjFztcR2j4ubWm; read-only, nothing changed on the board). From the 65 cards: 26 OM requests sent
+  11:41am–12:40pm, 11 answered (42%); 29 blast brokers answered (cards created on answer); 40 answers read: 19 NOT A FIT, 11 DOES NOT
+  FIT, 8 CAN'T TELL YET, 2 LEANS FIT (Armond / Clearwater Trulieve 8.25%; Luca Migliore / 7320 Byron Ave Miami Beach, OM says 8.50%,
+  **rules-only read: the Mac could not reach Claude at 5:32pm ET, retries next round**); 30 of 40 answered within an hour. NEEDS YOU:
+  Kate Clifford (CA/NDA, Jax Beach) and Michael/Dreamify (NDA + call 941-800-8585, Siesta Key; says our office line drops to dead air).
+  Engine gaps seen: Justin Thibaut (Cape Coral) read NOT A FIT but stayed in "In touch with the agent" (the move did not fire);
+  blast send counts are only on the Mac. Board: New 10 (sample), In touch 31, Books received 6, Not a fit 18, rest 0.
 - 2026-11-09 ~2:15pm ET, RESUME HERE: **"Read everything for me" built** (see Decisions → Every broker answer is READ): the Mac's next round
   (10-min self-update, then check-replies / approvals) reads today's 6 answers retroactively and posts a 🧠 READ FOR YOU comment on each card:
   Cameron Cauley (OM + lease + income statement, $3.45M / 9.88% claimed), Armond Aivazyan (OM), Curt Ware (xlsx now actually read), Kate Clifford

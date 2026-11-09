@@ -410,6 +410,15 @@ commercial:
   # verdict against the 8 cap, numbers, red flags, next step, Charles's reply when one is due ("send it" under it sends).
   review:
     per_round: 20                    # reads per round (paid API, pennies each)
+    # Rodrigo, 2026-11-09 evening: the simple answers go out on their own (a thanks + what we still need, a polite pass); only a
+    # review marked NEEDS YOU waits for his "send it". A "hold" / "wait" / "don't send" comment under the review stops one.
+    auto_reply: true
+    # The emails that need him are FORWARDED to REPORT_TO (the broker's message, the read, the files) so he gets them in his
+    # own inbox; brokers that pitched other / off-market (pocket) deals are forwarded too; NOT A FIT / DOES NOT FIT threads are
+    # ARCHIVED in Charles's inbox (still read by id, so a later answer is not lost).
+    forward_to_rodrigo: true
+    archive_not_fit: true
+    forward_max_mb: 20
   # The Mac's database never saw the cloud's statewide pull. These are that pull's Apify datasets (free to re-read, already paid for):
   # the first approvals round on a Mac that has fewer listings than min_listings loads them, scores offline, builds the blast queue. Once.
   bootstrap:

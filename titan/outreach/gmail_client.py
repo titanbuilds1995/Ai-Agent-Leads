@@ -82,7 +82,7 @@ class GmailClient:
 
     # --- compose ----------------------------------------------------------------------------
     def _mime(self, to: str, subject: str, body: str, in_reply_to: str | None = None, references: str | None = None,
-              cc: list[str] | None = None, html: str | None = None) -> dict[str, Any]:
+              cc: list[str] | None = None, html: str | None = None, attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         msg = EmailMessage()
         msg["To"] = to
         if cc:
@@ -95,6 +95,11 @@ class GmailClient:
         msg.set_content(body)   # text/plain (what agents get, and what the cloud session reads)
         if html:                # internal mail only (the morning report): a designed HTML version next to the text
             msg.add_alternative(html, subtype="html")
+        for a in attachments or []:   # forwarded broker files (the books, an NDA) go along as real attachments
+            mime = (a.get("mime") or "application/octet-stream").split(";")[0].strip() or "application/octet-stream"
+            main, _, sub = mime.partition("/")
+            msg.add_attachment(a.get("bytes") or b"", maintype=main or "application", subtype=sub or "octet-stream",
+                               filename=a.get("filename") or "attachment")
         return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
     def create_draft(self, to: str, subject: str, body: str, label: str | None = None, thread_id: str | None = None,
@@ -109,8 +114,8 @@ class GmailClient:
         return {"draft_id": draft["id"], "message_id": draft["message"]["id"], "thread_id": draft["message"].get("threadId")}
 
     def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None,
-             cc: list[str] | None = None, html: str | None = None) -> dict[str, Any]:
-        message = self._mime(to, subject, body, in_reply_to, cc=cc, html=html)
+             cc: list[str] | None = None, html: str | None = None, attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        message = self._mime(to, subject, body, in_reply_to, cc=cc, html=html, attachments=attachments)
         if thread_id:
             message["threadId"] = thread_id
         try:
@@ -128,6 +133,12 @@ class GmailClient:
             else:
                 raise
         return {"message_id": sent["id"], "thread_id": sent.get("threadId")}
+
+    def archive_thread(self, thread_id: str) -> None:
+        """Take a whole thread out of the inbox (Rodrigo, 2026-11-09: brokers that do not fit are archived so nobody has to look
+        at them). The thread is still read by id, so a later answer from that broker is not lost."""
+        retry(lambda: self.svc.users().threads().modify(userId="me", id=thread_id, body={"removeLabelIds": ["INBOX", "UNREAD"]}).execute(),
+              what="gmail archive")
 
     # --- read ----------------------------------------------------------------------------------
     def thread_messages(self, thread_id: str) -> list[dict[str, Any]]:

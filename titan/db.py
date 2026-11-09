@@ -218,7 +218,9 @@ MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outrea
               "ALTER TABLE commercial_listings ADD COLUMN airport_code TEXT", "ALTER TABLE commercial_listings ADD COLUMN airport_minutes INTEGER",
               "ALTER TABLE commercial_listings ADD COLUMN quality TEXT",
               # 2026-11-09: one blast email can cover several of a broker's listings
-              "ALTER TABLE commercial_threads ADD COLUMN listing_ids TEXT"]   # databases created before the column existed
+              "ALTER TABLE commercial_threads ADD COLUMN listing_ids TEXT",
+              "ALTER TABLE commercial_reviews ADD COLUMN other_deals TEXT", "ALTER TABLE commercial_reviews ADD COLUMN forwarded_at TEXT",
+              "ALTER TABLE commercial_reviews ADD COLUMN archived_at TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

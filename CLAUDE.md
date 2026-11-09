@@ -287,12 +287,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (evidence grade, CLEAN/SUSPECT, offer anchor off the real NOI; comment "Regraded with the books") and the card moves to **Books
   received**. Bounces are marked, never counted as answers; out-of-office is ignored. The residential reply engine never touches
   these threads (`commercial_threads` / `commercial_messages`, not `threads`). `make commercial-round` runs one round by hand.
+  **Charles speaks as the principal (Rodrigo, 2026-11-09: "we have to make sure that we do not say that we have a buyer … a partner of ours …
+  sound like we are the principal")**: every OM request says "We are placing a 1031 exchange with a partner of ours and the clock is running",
+  never "a buyer we work with" / client / investor (`validate_om_request` rejects those words). Cap-stated listings get "we need the numbers
+  behind the cap rate to verify it holds up as a real eight plus cap"; no-cap listings get "where is the cap rate?"; both offer proof of funds.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-09 ~11am ET, RESUME HERE: **the 23 OM-request emails to every in-box broker with a stated cap are written and waiting on Rodrigo's
+  go-ahead** (he paused them to fix the voice: no "buyer", "a partner of ours", Titan as the principal; done, templates + validator + test).
+  Payloads for the "Approved · send OM request" column (section 1220334263742624) are rebuilt in the cloud scratchpad; once he says go they are
+  posted there and the Mac's approvals rounds send them from Charles@ (5 per 20 min, daily cap). 5 cap-stated brokers have no email (call list:
+  Mohammad Hasan 386-405-1382 ×2, Michael Grant 941-800-8585, Adriana Montes 321-689-6258, Daniel Fischer 615-804-3579). Rodrigo: no more Asana
+  cards for the rest of the 542; the no-cap "where is the cap rate" email to those brokers is the next build (queue without cards). The Mac's
+  DB still lacks this pull. 347 tests.
 - 2026-11-09 ~9:45am ET, RESUME HERE: **FULL STATEWIDE PULL DONE in the cloud** on the new Apify Starter plan ($6.88: 7 searches ≈1,830
   rows + 347 property sheets, 280 of which came through this time): **1,307 listings, 542 in the box across 41 counties, 435 brokers**,
   629 "price not disclosed" (kept, flagged, out of the lists), 136 out (51 on the new quality screen, 4 on the 45-min airport screen),

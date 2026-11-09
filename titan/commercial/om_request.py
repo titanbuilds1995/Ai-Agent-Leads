@@ -41,14 +41,26 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
         asks = asks.replace("the rent roll", "the STR report")
     elif L.get("asset_class") == "multifamily":
         asks = asks.replace("the lease abstract", "the unit mix")
-    body = (
-        f"Hey {first_name(L.get('broker_name'))},\n\n"
-        f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
-        f"We are working with a 1031 exchange buyer looking at {kind} properties in Florida, and this one fits what they are looking for. "
-        f"Could you send over {asks}? Happy to sign a confidentiality agreement first if you need one.\n\n"
-        f"Is the seller open to a conversation at this point?\n\n"
-        + signature(cfg)
-    )
+    if L.get("stated_cap"):
+        # Rodrigo, 2026-11-09: we speak as the principal (a 1031 exchange with a partner of ours, never "a buyer we work with"); the listing shows a cap; we need the numbers to verify it is a real 8+ cap, and we give them whatever they need
+        body = (
+            f"Hey {first_name(L.get('broker_name'))},\n\n"
+            f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
+            f"We are placing a 1031 exchange with a partner of ours and the clock is running. This one is in our box. We need the numbers "
+            f"behind the cap rate to verify it holds up as a real eight plus cap. Could you send over {asks}?\n\n"
+            f"If you need anything from our side to release them, proof of funds or otherwise, say the word and it is yours.\n\n"
+            + signature(cfg)
+        )
+    else:
+        # the listing shows no cap: one question, whoever answers first moves up the list
+        body = (
+            f"Hey {first_name(L.get('broker_name'))},\n\n"
+            f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
+            f"We are placing a 1031 exchange with a partner of ours and the clock is running. This property is in our box as long as it is "
+            f"a real eight plus cap. The listing does not show a cap rate, so I have to ask straight out: where is it?\n\n"
+            f"If it clears that bar, could you send over {asks}? If you need anything from our side to release them, say the word.\n\n"
+            + signature(cfg)
+        )
     body = format_paragraphs(body)
     subject = f"{street}" + (f", {city}" if city else "") + " on LoopNet"
     return {"subject": subject[:90], "body": body}
@@ -65,6 +77,8 @@ def validate_om_request(subject: str, body: str) -> list[str]:
         problems.append("no intro")
     if BANNED_RE.search(body) or BUYER_RE.search(body) or PERSONAL_RE.search(body) or DIRECT_RE.search(body):
         problems.append("house-rule phrase")
+    if re.search(r"\b(buyer|client|investor)\b", body, re.I):
+        problems.append("names a buyer (we speak as the principal)")
     if URL_RE.search(body):
         problems.append("link")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):

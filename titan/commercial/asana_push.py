@@ -66,7 +66,7 @@ def card_notes(cfg: Any, L: dict[str, Any], with_email: bool) -> str:
         parts.append(f"To: {L['broker_email']}\nSubject: {om['subject']}\n{START}\n{om['body']}\n{END}")
     elif with_email:
         parts.append("No broker email on LoopNet: call, or find it on the brokerage site. OM request text:\n" + om_request(cfg, L)["body"])
-    parts.append("Tagged 1031-buyer · this board never sends anything on its own.")
+    parts.append("Tagged 1031-buyer · drag this card to \"Approved · send OM request\" and Charles emails the broker at the next round.")
     return "\n\n".join(parts)
 
 

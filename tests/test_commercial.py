@@ -165,6 +165,8 @@ def test_om_request_in_house_style(cfg):
     om = om_request(cfg, L)
     assert om["body"].startswith("Hey Alex,\n\n") and "Titan Realty Investments" in om["body"] and "Charles Grant" in om["body"]
     assert "trailing twelve" in om["body"] and "rent roll" in om["body"] and validate_om_request(om["subject"], om["body"]) == []
+    om2 = om_request(cfg, {**L, "stated_cap": 8.5})
+    assert "verify" in om2["body"] and "eight plus cap" in om2["body"] and validate_om_request(om2["subject"], om2["body"]) == []
 
 
 # --- the run: idempotent store, diff, files, cards ---------------------------------------------------------------------------------
@@ -431,3 +433,20 @@ def test_quality_screen_building_class_and_language(cfg):
     assert w["quality"] == "watch" and "condition language" in w["quality_reasons"][0]
     assert scoring.score(clean_listing(quality="out", quality_reasons=["building class D (minimum C)"]), cfg)["in_box"] is False
     assert scoring.score(clean_listing(quality="watch"), cfg)["in_box"] is True
+
+
+def test_om_request_speaks_as_the_principal(cfg):
+    """Rodrigo, 2026-11-09: never 'we have a buyer'; a 1031 exchange with a partner of ours, Titan as the principal."""
+    from titan.commercial.om_request import om_request, validate_om_request
+
+    for L in (
+        {"broker_name": "Armond Aivazyan", "street": "24639 US Hwy 19 N", "address": "24639 US Hwy 19 N", "city": "Clearwater",
+         "asset_class": "nnn", "stated_cap": 8.25, "docs_missing": ["T-12", "rent roll", "OM"]},
+        {"broker_name": "Jane Doe", "street": "1 Main St", "address": "1 Main St", "city": "Tampa", "asset_class": "retail",
+         "docs_missing": ["OM"]},
+    ):
+        r = om_request(cfg, L)
+        assert "partner of ours" in r["body"]
+        assert "buyer" not in r["body"].lower()
+        assert validate_om_request(r["subject"], r["body"]) == []
+    assert "names a buyer" in " ".join(validate_om_request("x", "Hey Jo,\n\nCharles with Titan Realty Investments. I saw it.\n\nOur buyer wants it.\n\nCharles"))

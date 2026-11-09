@@ -45,8 +45,8 @@ def merge_with_stored(L: dict[str, Any], stored: dict[str, Any] | None) -> dict[
     base = dict(stored.get("data") or {})
     if not base:
         return L
-    for k in ("price", "price_text", "status", "listing_url", "broker_phone", "broker_email", "broker_name", "brokerage"):
-        if L.get(k) not in (None, ""):
+    for k in ("price", "price_text", "status", "listing_url", "broker_phone", "broker_email", "broker_name", "brokerage", "lat", "lng", "county", "zip"):
+        if L.get(k) not in (None, "") and (k not in ("lat", "lng", "county", "zip") or base.get(k) in (None, "")):
             base[k] = L[k]
     if L.get("stated_cap") is not None:
         base["stated_cap"] = L["stated_cap"]
@@ -186,7 +186,7 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
         for i, L in enumerate(listings):
             if L["listing_id"] in by_id:
                 full = by_id[L["listing_id"]]
-                for k in ("broker_email", "broker_phone", "broker_phone_raw", "brokerage", "broker_name", "brokerage_size", "stated_cap"):
+                for k in ("broker_email", "broker_phone", "broker_phone_raw", "brokerage", "broker_name", "brokerage_size", "stated_cap", "lat", "lng", "county", "zip"):
                     if full.get(k) in (None, "") and L.get(k) not in (None, ""):
                         full[k] = L[k]
                 if full.get("price") is None and L.get("price"):

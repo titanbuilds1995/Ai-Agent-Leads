@@ -87,6 +87,10 @@ view with `?k=DEALS_SHARE_KEY` (investor columns only, no internal numbers). The
 touch with the agent / Books received / Offer out / Closed) are the categories the site follows. `make commercial-sheets` lists the top
 listings still missing their LoopNet sheet for a Claude in Chrome session on the Mac to read into `data/listings/<id>/sheet.txt`.
 
+**OM requests (2026-11-09):** drag a card on the 1031 board to "Approved · send OM request" and Charles@ emails the broker for the books
+at the next round; replies, the hours-to-reply clock and attachments land on the card and in `data/listings/<id>/`, and the deal is
+regraded as soon as the T-12 / rent roll / OM arrive (card → Books received). `make commercial-round` runs one round by hand.
+
 ## Modes and channels
 
 | mode | first touch (email / sms) | 7a written offer after a positive text | reply to an agent |

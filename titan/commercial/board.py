@@ -8,8 +8,10 @@ from typing import Any
 
 from ..util import log
 
-COLUMNS = ["New", "Good fit", "Not a fit", "In touch with the agent", "Books received", "Offer out", "Closed"]
-RENAMES = {"top tier": "Good fit", "needs om": "New", "suspect": "Not a fit", "contacted": "In touch with the agent", "skip": "Closed"}
+SEND = "Approved · send OM request"      # drag a card here = Charles emails the broker for the books (2026-11-09)
+COLUMNS = ["New", SEND, "Good fit", "Not a fit", "In touch with the agent", "Books received", "Offer out", "Closed"]
+RENAMES = {"top tier": "Good fit", "needs om": "New", "suspect": "Not a fit", "contacted": "In touch with the agent", "skip": "Closed",
+           "approved": SEND, "send om request": SEND, "send": SEND}
 INVESTOR_COLUMNS = ["Good fit", "In touch with the agent", "Books received", "Offer out"]     # what the shareable view shows
 LISTING_URL_RE = re.compile(r"loopnet\.com/Listing/(?:[^/\s]+/)?(\d+)/?", re.I)
 

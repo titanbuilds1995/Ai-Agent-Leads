@@ -13,12 +13,12 @@ from ..util import log
 from . import extract as x
 
 DOC_KINDS = [   # (kind, pattern on the link text / file name)
-    ("t12", r"t-?12|trailing[- ]?(?:12|twelve)|ttm|operating statement|income statement"),
-    ("pnl", r"p\s*&\s*l|profit (?:and|&) loss|financial(?:s| summary| statement)|actuals"),
-    ("rent_roll", r"rent[- ]?roll"),
-    ("lease_abstract", r"lease (?:abstract|summary)|abstract of lease"),
-    ("om", r"\bom\b|offering memorandum|offering memo|investment (?:memorandum|package|summary)|\bcim\b"),
-    ("brochure", r"brochure|flyer|marketing (?:package|flyer)|sale flyer|\bpackage\b|property (?:summary|overview)"),
+    ("t12", r"t[-_ ]?12|trailing[-_ ]?(?:12|twelve)|ttm|operating[_ ]statement|income[_ ]statement"),
+    ("pnl", r"p\s*&\s*l|profit[_ ](?:and|&)[_ ]loss|financial(?:s|[_ ]summary|[_ ]statement)|actuals"),
+    ("rent_roll", r"rent[-_ ]?roll"),
+    ("lease_abstract", r"lease[_ ](?:abstract|summary)|abstract[_ ]of[_ ]lease"),
+    ("om", r"(?<![a-z])om(?![a-z])|offering[_ ]memorandum|offering[_ ]memo|investment[_ ](?:memorandum|package|summary)|(?<![a-z])cim(?![a-z])"),
+    ("brochure", r"brochure|flyer|marketing[_ ](?:package|flyer)|sale[_ ]flyer|(?<![a-z])package(?![a-z])|property[_ ](?:summary|overview)"),
 ]
 _KIND_RE = [(k, re.compile(p, re.I)) for k, p in DOC_KINDS]
 PDF_URL_RE = re.compile(r"https?://[^\s\"'<>)]+?\.pdf(?:\?[^\s\"'<>)]*)?", re.I)

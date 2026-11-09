@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -109,4 +109,7 @@ commercial-offline: ## re-score the last saved LoopNet rows without pulling: mak
 
 commercial-sheets: ## the top listings still missing their LoopNet sheet + the prompt for a Claude in Chrome session on this Mac (make commercial-sheets TOP=15)
 	$(PY) -m titan.cli commercial-sheets --top $(or $(TOP),15)
+
+commercial-round: ## one round of the 1031 board now: send the OM requests in "Approved · send OM request", read the brokers' answers, file the books
+	$(PY) -m titan.cli approvals
 

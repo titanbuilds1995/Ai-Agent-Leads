@@ -156,6 +156,18 @@ CREATE TABLE IF NOT EXISTS commercial_snapshots (
   id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, listing_id TEXT NOT NULL, price INTEGER, days_on_market INTEGER, stated_cap REAL,
   score INTEGER, tag TEXT, status TEXT, created_at TEXT NOT NULL, UNIQUE(run_date, listing_id)
 );
+-- OM requests to brokers (2026-11-09): one Gmail thread per listing, who answered and how fast, which books came back.
+CREATE TABLE IF NOT EXISTS commercial_threads (
+  id INTEGER PRIMARY KEY, listing_id TEXT NOT NULL, broker_email TEXT, broker_name TEXT, gmail_thread_id TEXT UNIQUE, gmail_message_id TEXT,
+  outreach_id INTEGER, subject TEXT, sent_at TEXT NOT NULL, first_reply_at TEXT, last_reply_at TEXT, hours_to_reply REAL,
+  reply_count INTEGER DEFAULT 0, attachments TEXT, last_reply_text TEXT, bounced INTEGER DEFAULT 0, state TEXT DEFAULT 'SENT',
+  card_gid TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_commercial_threads_listing ON commercial_threads(listing_id);
+CREATE TABLE IF NOT EXISTS commercial_messages (
+  id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES commercial_threads(id), gmail_message_id TEXT UNIQUE, from_addr TEXT,
+  body TEXT, created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS commercial_runs (
   id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, counts TEXT,
   cost_usd REAL, notes TEXT

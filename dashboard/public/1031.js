@@ -103,6 +103,7 @@ function renderDetail(id) {
           ${p.docs_missing && p.docs_missing.length ? `<p>Docs missing: ${esc(p.docs_missing.join(", "))}</p>` : ""}</div>
         <div class="block internal"><h3>Broker</h3><p><b>${esc(p.broker_name || "?")}</b> · ${esc(p.brokerage || "")} (${esc(p.brokerage_size || "")})</p>
           <p>${p.broker_phone ? `<a href="tel:${esc(p.broker_phone)}">${esc(p.broker_phone_pretty || p.broker_phone)}</a>` : "no phone"} · ${p.broker_email ? `<a href="mailto:${esc(p.broker_email)}">${esc(p.broker_email)}</a>` : "no email"}</p>
+          ${p.om_request ? `<p><b>Books requested</b> ${esc((p.om_request.sent_at || "").slice(0, 10))}${p.om_request.bounced ? " · bounced" : p.om_request.hours_to_reply != null ? ` · answered in ${esc(p.om_request.hours_to_reply)} h` : " · no answer yet"}${p.om_request.state === "BOOKS" ? " · books received" : ""}</p>` : ""}
           ${p.asana_task_id || p.asana_om_task_id ? `<p><a href="https://app.asana.com/0/0/${esc(p.asana_task_id || p.asana_om_task_id)}/f" target="_blank" rel="noopener">Asana card ↗</a></p>` : ""}</div>` : ""}
     </div>`;
   $("#back").onclick = () => { location.hash = ""; };

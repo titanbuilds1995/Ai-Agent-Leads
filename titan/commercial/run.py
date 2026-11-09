@@ -270,6 +270,10 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
             summary["asana"] = {"error": str(e)}
     if site:
         summary["site"] = publish_site(conn, cfg, run_date)
+    from .outreach import response_clock
+    clock = response_clock(conn)
+    for L in ranked:
+        L["om_request"] = clock.get(L["listing_id"])
     html, text = build_email(ranked, cfg, run_date, counts, intro=f"{len(changes['new'])} new since last time, {len(changes['price_drops'])} price drops. ")
     (out_dir / "deals_email.html").write_text(html)
     files["deals_email"] = str(out_dir / "deals_email.html")

@@ -277,12 +277,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   block from the cloud; `make commercial-sheets` lists the top listings still missing a sheet + the prompt for a Claude Code session on
   the Mac with Claude in Chrome to read them in HIS browser into `data/listings/<id>/sheet.txt` (read on the next run like OM PDFs).
   Needs on Vercel + .env: `DEALS_SHARE_KEY`; config `commercial.site.url` = the dashboard URL (blank → email links go to LoopNet).
+- **OM requests out, books back (Rodrigo, 2026-11-09: "the most important thing is seeing who communicates the fastest and can send us
+  the documents ASAP … cut the fat out"; `titan/commercial/outreach.py`):** the 1031 board has a column **"Approved · send OM request"**;
+  a card dragged there is emailed by Charles@ at the next approvals round (window, daily cap, `per_tick`; never twice for one listing;
+  logged in `outreach` as kind `om_request` and in `commercial_threads`), then the card moves to In touch with the agent with a 📤
+  comment. Every check-replies and approvals round opens those Gmail threads: a real answer is mirrored on the card (📩 who, when,
+  **hours to reply** = the response clock, also on the site's private block and the deals email), every attachment is filed in
+  `data/listings/<id>/`, and when books arrive (OM / T-12 / rent roll / P&L / a spreadsheet) the listing is regraded on the spot
+  (evidence grade, CLEAN/SUSPECT, offer anchor off the real NOI; comment "Regraded with the books") and the card moves to **Books
+  received**. Bounces are marked, never counted as answers; out-of-office is ignored. The residential reply engine never touches
+  these threads (`commercial_threads` / `commercial_messages`, not `threads`). `make commercial-round` runs one round by hand.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-09 ~1am ET, RESUME HERE: **the loop is closed** (see Decisions → OM requests out, books back): drag a 1031 card to "Approved ·
+  send OM request" → Charles@ sends the book request → answers, response clock and attachments land on the card → books regrade the
+  deal and move it to Books received. Default branch `claude/funny-bohr-d0mkrt` fast-forwarded to this work (Vercel deploys from it);
+  everything also pushed to the new public repo `titanbuilds1995/Commercial-Tracing-Software` (main). Rodrigo set DEALS_SHARE_KEY.
+  **Still on Rodrigo:** the dashboard URL for `commercial.site.url`; the Apify plan (Starter $39/mo recommended, pull twice a week);
+  run `make commercial` on the Mac (full pull, cards, email, site). Then drag the best cards to the send column; the first live round
+  is the thing to watch (📤 comment, card in In touch with the agent, `commercial_threads` row). 24 commercial tests.
 - 2026-11-08 ~11pm ET, RESUME HERE: **the visual layer for the 1031 deals** (see Decisions → 1031 deals are VISUAL): deals email with
   photo cards (sent to Rodrigo from the cloud for the sample; `reports/commercial/<date>/deals_email.html`), the "1031 Deals" page on the
   dashboard (private + investor views; `deals.json` goes to the Blob store on every pull once BLOB_READ_WRITE_TOKEN is on the Mac), the

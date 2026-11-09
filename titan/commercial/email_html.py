@@ -15,6 +15,17 @@ COL_COLORS = {"Good fit": ("#16834A", "#E7F1EA"), "In touch with the agent": (GO
               "Offer out": ("#16834A", "#E7F1EA"), "New": (MUTED, SUNK)}
 
 
+def clock_text(L: dict[str, Any]) -> str:
+    c = L.get("om_request") or {}
+    if not c:
+        return ""
+    if c.get("bounced"):
+        return " · email bounced"
+    if c.get("hours_to_reply") is not None:
+        return f" · answered in {c['hours_to_reply']:g} h" + (" · books in" if c.get("state") == "BOOKS" else "")
+    return " · books requested, no answer yet"
+
+
 def deal_link(L: dict[str, Any], cfg: Any) -> str:
     base = (cfg.get("commercial.site.url") or "").rstrip("/")
     key = cfg.secret("DEALS_SHARE_KEY") or ""
@@ -45,7 +56,7 @@ def card(L: dict[str, Any], cfg: Any, size: str) -> str:
             f'<div style="margin-top:12px">{label("Why this fits", GOLD)}</div>'
             f'<div style="font-family:{SANS};font-size:13.5px;line-height:1.5;color:{INK}">{e(why_fits(L, cfg))}</div>'
             f'<div style="font-family:{SANS};font-size:12px;color:{MUTED};margin-top:10px">{e(L.get("broker_name") or "")}'
-            f'{" · " + e(L["brokerage"]) if L.get("brokerage") else ""}</div>'
+            f'{" · " + e(L["brokerage"]) if L.get("brokerage") else ""}{clock_text(L)}</div>'
             f'<div style="margin-top:12px"><a href="{e(link)}" style="font-family:{MONO};font-size:11px;letter-spacing:.12em;text-transform:uppercase;'
             f'color:{GOLD_INK};text-decoration:none">See the property →</a></div>'
             f'</td></tr></table>')

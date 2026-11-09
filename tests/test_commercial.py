@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from titan.util import iso
 
 from titan.commercial import extract as x
 from titan.commercial import loopnet, outputs, scoring
@@ -293,3 +294,115 @@ def test_site_feed_splits_public_and_private(conn, cfg, tmp_path):
     res = publish(conn, cfg, "2026-11-07")
     assert Path(res["local"]).exists() and res["uploaded"] is False and "BLOB" in res["skipped"]
     assert out["site"]["deals"] == out["counts"]["in_box"]
+
+
+# --- OM requests out, books back (Rodrigo, 2026-11-09: "who communicates the fastest and can send us the documents ASAP") ---------
+
+class FakeOMGmail:
+    def __init__(self):
+        self.sent, self.threads, self.files = [], {}, {}
+        self._n = 0
+
+    def send(self, to, subject, body, **kw):
+        self._n += 1
+        self.sent.append((to, subject, body))
+        self.threads[f"t{self._n}"] = [{"id": f"m{self._n}", "from": "Charles@titanrealtyinvestments.com", "body": body, "internal_ts": 1_700_000_000, "label_ids": [], "attachments": []}]
+        return {"message_id": f"m{self._n}", "thread_id": f"t{self._n}"}
+
+    def thread_messages(self, tid): return list(self.threads.get(tid, []))
+    def attachments(self, mid): return self.files.get(mid, [])
+
+
+def _om_board(conn, cfg, tmp_path):
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["asana"]["project"] = "proj-1031"
+    cfg.raw["outreach"]["asana"]["per_tick"] = 5
+    run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    asana = Fake1031Asana()
+    from titan.commercial.board import SEND, ensure_board
+    secs = ensure_board(asana, "proj-1031")
+    from titan.commercial.asana_push import card_notes
+    L = json.loads(conn.execute("SELECT data FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0])
+    L["in_box"] = True
+    gid = asana.create_task("proj-1031", secs[SEND], "OM request · 840 SW 81st Ave", card_notes(cfg, L, with_email=True))["gid"]
+    return asana, secs, gid
+
+
+def test_om_requests_send_from_the_send_column_once_and_move_the_card(conn, cfg, tmp_path):
+    from titan.commercial.board import SEND
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    out = send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert out["sent"] == 1 and gm.sent[0][0] == "adam@trustrealtyusa.com" and "Titan Realty Investments" in gm.sent[0][2]
+    assert asana.where[gid] == secs["In touch with the agent"] and any("📤 Sent" in c for c in asana.stories[gid])
+    th = conn.execute("SELECT * FROM commercial_threads").fetchone()
+    assert th["listing_id"] == "28440860" and th["gmail_thread_id"] == "t1" and th["state"] == "SENT"
+    assert conn.execute("SELECT kind, status FROM outreach").fetchone()[0] == "om_request"
+    assert conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0] == "In touch with the agent"
+    # dragged back into the send column by mistake: not sent twice
+    asana.move(gid, secs[SEND])
+    out2 = send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert out2["sent"] == 0 and out2["skipped"] == 1 and len(gm.sent) == 1
+    # outside the window: waits
+    from datetime import datetime, timezone
+    asana.move(gid, secs[SEND])
+    conn.execute("DELETE FROM commercial_threads")
+    assert send_om_requests(conn, cfg, asana, gm, now=datetime(2026, 11, 9, 3, 0, tzinfo=timezone.utc))["sent"] == 0
+
+
+def test_reply_clock_books_filed_and_regraded(conn, cfg, tmp_path):
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    sent_ts = int(SAT_10AM_ET.timestamp())
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    # 1) a plain answer three hours later, no files
+    gm.threads["t1"].append({"id": "r1", "from": "Adam Goldstein <adam@trustrealtyusa.com>", "body": "Happy to send the package, give me a day.",
+                             "internal_ts": sent_ts + 3 * 3600, "label_ids": [], "attachments": []})
+    out = poll_om_replies(conn, cfg, gm, asana)
+    th = conn.execute("SELECT * FROM commercial_threads").fetchone()
+    assert out["replies"] == 1 and th["hours_to_reply"] == 3.0 and th["state"] == "REPLIED" and th["reply_count"] == 1
+    assert any("answered in 3 h" in c for c in asana.stories[gid]) and asana.where[gid] == secs["In touch with the agent"]
+    # 2) the books arrive: a T-12 with a real NOI and a rent roll with the tenant
+    t12 = ("Trailing 12 months actuals\nGross Income $980,000\nOperating Expenses $350,000\nNet Operating Income $630,000\n92% occupied\n").encode()
+    rr = ("Rent Roll\nSuite 100  Dollar General     $120,000\nLease expiration 12/31/2032\nTenants: 1 tenant\nNNN lease\n").encode()
+    gm.files["r2"] = [{"filename": "840 Building T-12.pdf", "mime": "application/pdf", "bytes": t12}, {"filename": "Rent Roll.pdf", "mime": "application/pdf", "bytes": rr}]
+    gm.threads["t1"].append({"id": "r2", "from": "adam@trustrealtyusa.com", "body": "Attached.", "internal_ts": sent_ts + 26 * 3600, "label_ids": [],
+                             "attachments": [{"filename": "840 Building T-12.pdf"}, {"filename": "Rent Roll.pdf"}]})
+    import titan.commercial.documents as d
+    monkey = d.pdf_text
+    d.pdf_text = lambda path, max_pages=60: Path(path).read_bytes().decode()      # the fake "PDFs" are plain text
+    try:
+        out = poll_om_replies(conn, cfg, gm, asana)
+    finally:
+        d.pdf_text = monkey
+    th = conn.execute("SELECT * FROM commercial_threads").fetchone()
+    assert out["books"] == 1 and th["state"] == "BOOKS" and th["hours_to_reply"] == 3.0 and th["reply_count"] == 2
+    folder = tmp_path / "data" / "listings" / "28440860"
+    assert (folder / "840_Building_T-12.pdf").exists() and (folder / "Rent_Roll.pdf").exists()
+    row = conn.execute("SELECT board_column, stated_noi, back_solved_cap, offer_anchor, tag, evidence_grade FROM commercial_listings WHERE listing_id='28440860'").fetchone()
+    assert row["board_column"] == "Books received" and row["stated_noi"] == 630_000 and asana.where[gid] == secs["Books received"]
+    assert row["back_solved_cap"] == 7.98 and row["offer_anchor"] == 7_875_000          # 630k at 8% is just under the $7.895M ask
+    assert row["tag"] == "SUSPECT" and "vs NOI/price" in " ".join(json.loads(conn.execute("SELECT tag_reasons FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0]))
+    assert row["evidence_grade"] == "B"                                                 # T-12 + rent roll on file but the NOI misses the stated 9.35%
+    assert any("Regraded with the books" in c and "OFFER ANCHOR $7,875,000" in c for c in asana.stories[gid])
+    # 3) nothing double-counted on the next poll
+    assert poll_om_replies(conn, cfg, gm, asana)["replies"] == 0
+
+
+def test_bounce_is_not_an_answer(conn, cfg, tmp_path):
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    gm.threads["t1"].append({"id": "b1", "from": "Mail Delivery Subsystem <mailer-daemon@googlemail.com>", "body": "Address not found", "internal_ts": 1_700_000_100,
+                             "label_ids": [], "attachments": []})
+    out = poll_om_replies(conn, cfg, gm, asana)
+    th = conn.execute("SELECT * FROM commercial_threads").fetchone()
+    assert out["bounces"] == 1 and out["replies"] == 0 and th["bounced"] == 1 and th["hours_to_reply"] is None
+    assert any("Bounced" in c for c in asana.stories[gid])

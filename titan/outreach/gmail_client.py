@@ -138,7 +138,22 @@ class GmailClient:
             out.append({"id": m["id"], "thread_id": thread_id, "from": headers.get("from", ""), "to": headers.get("to", ""),
                         "subject": headers.get("subject", ""), "message_id_header": headers.get("message-id"),
                         "date": headers.get("date"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
-                        "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", [])})
+                        "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", []),
+                        "attachments": _attachment_parts(m.get("payload", {}))})
+        return out
+
+    def attachments(self, message_id: str) -> list[dict[str, Any]]:
+        """Every file attached to one message: [{filename, mime, bytes}]. Used to file the books a broker sends (2026-11-09)."""
+        m = retry(lambda: self.svc.users().messages().get(userId="me", id=message_id, format="full").execute(), what="gmail message")
+        out = []
+        for part in _attachment_parts(m.get("payload", {})):
+            if part.get("attachment_id"):
+                a = retry(lambda: self.svc.users().messages().attachments().get(userId="me", messageId=message_id, id=part["attachment_id"]).execute(),
+                          what="gmail attachment")
+                data = base64.urlsafe_b64decode(a.get("data", "") + "==")
+            else:
+                data = base64.urlsafe_b64decode(part.get("inline_data", "") + "==")
+            out.append({"filename": part["filename"], "mime": part.get("mime"), "bytes": data})
         return out
 
     def search(self, q: str, max_results: int = 50) -> list[str]:
@@ -151,6 +166,21 @@ class GmailClient:
         return {"id": m["id"], "thread_id": m.get("threadId"), "from": headers.get("from", ""), "subject": headers.get("subject", ""),
                 "message_id_header": headers.get("message-id"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
                 "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", [])}
+
+
+def _attachment_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """The file parts of a message (name, mime, attachment id), without downloading them."""
+    out: list[dict[str, Any]] = []
+
+    def walk(p):
+        if p.get("filename"):
+            body = p.get("body", {}) or {}
+            out.append({"filename": p["filename"], "mime": p.get("mimeType"), "size": body.get("size"),
+                        "attachment_id": body.get("attachmentId"), "inline_data": body.get("data")})
+        for part in p.get("parts", []) or []:
+            walk(part)
+    walk(payload or {})
+    return out
 
 
 def _plain_body(payload: dict[str, Any]) -> str:

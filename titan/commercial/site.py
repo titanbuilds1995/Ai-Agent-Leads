@@ -52,6 +52,8 @@ def load_listings(conn) -> list[dict[str, Any]]:
 def build_deals(conn, cfg: Any, run_date: str | None = None) -> dict[str, Any]:
     size = str(cfg.get("commercial.email.photo_size", "116"))
     investor_cols = cfg.get("commercial.site.investor_columns") or ["Good fit", "In touch with the agent", "Books received", "Offer out"]
+    from .outreach import response_clock
+    clock = response_clock(conn)
     deals, private = [], {}
     for L in load_listings(conn):
         L["board_column"] = L.get("board_column") or "New"
@@ -61,7 +63,8 @@ def build_deals(conn, cfg: Any, run_date: str | None = None) -> dict[str, Any]:
         pub["why"] = why_fits(L, cfg)
         pub["investor"] = L["board_column"] in investor_cols and L.get("status") != "gone"
         deals.append(pub)
-        private[L["listing_id"]] = {**{k: L.get(k) for k in PRIVATE_KEYS}, "broker_phone_pretty": pretty_phone(L.get("broker_phone")) if L.get("broker_phone") else L.get("broker_phone_raw")}
+        private[L["listing_id"]] = {**{k: L.get(k) for k in PRIVATE_KEYS}, "broker_phone_pretty": pretty_phone(L.get("broker_phone")) if L.get("broker_phone") else L.get("broker_phone_raw"),
+                                    "om_request": clock.get(L["listing_id"])}
     counts = {c: sum(1 for d in deals if d["board_column"] == c) for c in COLUMNS}
     return {"generated_at": iso(), "run_date": run_date, "columns": COLUMNS, "investor_columns": investor_cols, "buyer_box": cfg.get("commercial.buyer_box", {}),
             "counts": counts, "deals": deals, "private": private}

@@ -240,6 +240,13 @@ def cmd_check_replies(cfg, args):
         res["reply_cards"] = draft_reply_cards(conn, cfg, asana, c["llm"])     # stage 3: Charles drafts his answer as a card
         from .conversations import lead_board
         res["lead_board"] = lead_board(conn, cfg, asana)
+    if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):   # 2026-11-09: brokers' answers + the books they send
+        from .commercial.outreach import poll_om_replies
+        try:
+            res["om_replies"] = poll_om_replies(conn, cfg, c["gmail"], asana)
+        except Exception as e:  # noqa: BLE001
+            log.exception("om replies failed: %s", e)
+            res["om_replies"] = {"error": str(e)[:200]}
     from .end_of_day import maybe_send
     res["end_of_day"] = maybe_send(conn, cfg, c["gmail"], asana)    # once a day, the first run after 7pm ET
     from .catch_up import due as missed, start_background
@@ -515,6 +522,10 @@ def cmd_approvals(cfg, args):
     if c["llm"] is not None and getattr(c["llm"], "available", False):   # Rodrigo, 2026-10-27: waiting cards that still ask how much
         from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
         stage("photo_rule_rewrites", lambda: rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15))
+    if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):   # 2026-11-09: OM requests to brokers go out from the 1031 board
+        from .commercial.outreach import poll_om_replies, send_om_requests
+        stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
+        stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     from .conversations import lead_board, mirror_replies

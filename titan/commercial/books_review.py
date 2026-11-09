@@ -11,7 +11,14 @@ Claude writes it on the paid API like the other card work; a rules-only summary 
 One review per inbound message batch (`commercial_reviews`); `review_pending` runs on every check-replies / approvals round and
 catches the answers that came in before this existed. Books on file that the poll missed are regraded here too and the card is
 moved to "Books received". A broker who says leased / sold / under contract moves the card to "Not a fit".
-Nothing in here sends an email.
+
+Rodrigo, 2026-11-09 evening ("has Charles actually answered any of the agents that were simple answers? … forward me the
+emails that need me … the ones that do not fit, archive them … agents sent us deals on pocket listings"):
+- `send_approved_replies`: with `commercial.review.auto_reply` the simple replies (thanks + what we still need, a polite pass)
+  go out on their own at the next round; a review marked NEEDS YOU still waits for his "send it"; "hold" under a review stops one.
+- `triage_inbox`: a review that needs him, a FITS / LEANS FIT, or a broker who pitched other (pocket / off-market) deals is
+  FORWARDED to REPORT_TO with the broker's words, the read and the files; NOT A FIT / DOES NOT FIT threads are ARCHIVED in
+  Charles's inbox once Charles's reply (if any) has gone. Both once per review, recorded in `commercial_reviews`.
 """
 from __future__ import annotations
 
@@ -36,6 +43,11 @@ LATER_RE = re.compile(r"later today|tomorrow|when i(?:'m| am) back|next week|giv
 OFFER_RE = re.compile(r"ready to review offers|open to offers|bring (?:an|your) offer|make an offer|owner is negotiable|negotiable|motivated", re.I)
 PRICE_RE = re.compile(r"\$\s?([\d,]{7,}(?:\.\d+)?)")
 CAP_RE = re.compile(r"(\d{1,2}(?:\.\d{1,2})?)\s?%?\s?cap", re.I)
+POCKET_RE = re.compile(r"pocket listing|off[- ]market|not (?:yet )?(?:listed|on the market)|i (?:also )?have (?:another|other|a few|some|two|three)|"
+                       r"other (?:propert|listing|deal|package|site|asset)|another (?:propert|listing|deal|asset)|instead,? (?:take a look|consider)", re.I)
+HOLD_RE = re.compile(r"\b(?:hold(?: it| this| off)?|wait|don'?t send|do not send|not yet|stop|let me (?:look|think|review))\b", re.I)
+FORWARD_VERDICTS = ("FITS", "LEANS FIT")
+ARCHIVE_VERDICTS = ("NOT A FIT", "DOES NOT FIT")
 
 VERDICTS = ("FITS", "LEANS FIT", "CAN'T TELL YET", "DOES NOT FIT", "NOT A FIT")
 
@@ -58,6 +70,9 @@ Rules:
   current rent, anything that reads as cooked.
 - Next step is ONE concrete thing. If it is Rodrigo's call (sign an NDA/CA, send proof of funds, decide on a number, call the
   broker), say "NEEDS YOU:" first. Otherwise it is Charles's move.
+- Other deals: when the broker pitches ANOTHER property instead of or besides the one we asked about (a pocket listing, an
+  off-market deal, "I also have…", a package of sites), list each one in other_deals as one short line (what · where · price ·
+  cap if stated · one fact). Empty when none. Rodrigo wants to see these.
 - Charles's reply: write it ONLY when the broker is waiting on something Charles can answer without Rodrigo (thanks + what we
   still need; the exchange timing when asked: "we need to identify within 45 days and are moving now"; proof of funds "we can
   provide on request"). Never a price, never "our buyer"/"client"/"investor" (say "a partner of ours"), never promise to waive
@@ -76,8 +91,9 @@ SCHEMA = {
         "next_step": {"type": "string"},
         "needs_rodrigo": {"type": "boolean"},
         "reply_draft": {"type": "string"},
+        "other_deals": {"type": "array", "items": {"type": "string"}, "description": "other / pocket / off-market deals the broker offered, one line each; [] when none"},
     },
-    "required": ["verdict", "what_they_said", "books_say", "numbers", "red_flags", "next_step", "needs_rodrigo", "reply_draft"],
+    "required": ["verdict", "what_they_said", "books_say", "numbers", "red_flags", "next_step", "needs_rodrigo", "reply_draft", "other_deals"],
     "additionalProperties": False,
 }
 
@@ -124,8 +140,9 @@ def doc_links(text: str) -> list[str]:
 
 
 def _listing_block(L: dict[str, Any]) -> str:
-    lines = [f"Listing {L.get('listing_id')}: {L.get('address') or ''}, {L.get('city') or ''} · {L.get('asset_type') or ''}",
-             f"Asking {money(L.get('price')) if L.get('price') else 'not disclosed'}" + (f" · stated cap {L['cap_rate']}%" if L.get("cap_rate") else "")
+    cap = L.get("stated_cap") or L.get("cap_rate")
+    lines = [f"Listing {L.get('listing_id')}: {L.get('street') or L.get('address') or ''}, {L.get('city') or ''} · {L.get('asset_class') or L.get('property_type') or L.get('asset_type') or ''}",
+             f"Asking {money(L.get('price')) if L.get('price') else 'not disclosed'}" + (f" · stated cap {cap}%" if cap else "")
              + (f" · stated NOI {money(L['stated_noi'])}" if L.get("stated_noi") else "")]
     for k, lab in (("building_sf", "SF"), ("year_built", "built"), ("occupancy", "occupancy %"), ("lease_type", "lease"), ("tenant_count", "tenants"),
                    ("days_on_market", "days on market"), ("tag", "engine tag"), ("evidence_grade", "evidence grade"), ("offer_anchor", "offer anchor")):
@@ -200,11 +217,12 @@ def rules_review(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]
         flags.append("Broker asks for proof of funds.")
     if OFFER_RE.search(body):
         numbers.append("Broker signals the owner is open to offers / negotiable.")
+    other = ["Broker mentions other / off-market property (read the email; Claude's read names them when it is back)."] if POCKET_RE.search(body) else []
     return {"verdict": verdict, "what_they_said": (last[:300] or "(no text)"), "books_say": (f"{len(books)} document(s) on file: " + ", ".join(f["name"] for f in books)) if books else "No documents yet.",
-            "numbers": numbers, "red_flags": flags, "next_step": step, "needs_rodrigo": needs, "reply_draft": "", "_source": "rules"}
+            "numbers": numbers, "red_flags": flags, "next_step": step, "needs_rodrigo": needs, "reply_draft": "", "other_deals": other, "_source": "rules"}
 
 
-def format_review(r: dict[str, Any], books_note: str | None = None) -> str:
+def format_review(r: dict[str, Any], books_note: str | None = None, auto_reply: bool = False) -> str:
     head = f"🧠 READ FOR YOU · {r.get('verdict')}" + ("  (rules only, Claude unreachable; retried next round)" if r.get("_source") == "rules" else "")
     out = [head, "", f"What they said: {r.get('what_they_said', '').strip()}", "", f"What the books say: {r.get('books_say', '').strip()}"]
     if r.get("numbers"):
@@ -214,9 +232,15 @@ def format_review(r: dict[str, Any], books_note: str | None = None) -> str:
     step = (r.get("next_step") or "").strip()
     if r.get("needs_rodrigo") and not step.upper().startswith("NEEDS YOU"):
         step = "NEEDS YOU: " + step
+    if r.get("other_deals"):
+        out += ["", "Other deals they pitched (pocket / off-market), forwarded to you:"] + [f"• {n}" for n in r["other_deals"][:6]]
     out += ["", f"Next step: {step}"]
     if (r.get("reply_draft") or "").strip():
-        out += ["", "Charles's reply (not sent; comment 'send it' on this card and it goes at the next round):", "", r["reply_draft"].strip()]
+        if auto_reply and not r.get("needs_rodrigo"):
+            head = "Charles's reply (goes out at the next round on its own; comment 'hold' here to stop it):"
+        else:
+            head = "Charles's reply (not sent; comment 'send it' on this card and it goes at the next round):"
+        out += ["", head, "", r["reply_draft"].strip()]
     if books_note:
         out += ["", books_note]
     return "\n".join(out)
@@ -251,7 +275,8 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
                 r["verdict"] = "CAN'T TELL YET"
     if r is None:
         r = rules_review(L, t, msgs, files)
-    text = format_review(r, books_note)
+    r["other_deals"] = [str(x).strip() for x in (r.get("other_deals") or []) if str(x).strip()]
+    text = format_review(r, books_note, auto_reply=bool(cfg.get("commercial.review.auto_reply", False)))
     body = "\n".join((m.get("body") or "") for m in msgs)
     dead = r["verdict"] == "NOT A FIT" or bool(DEAD_RE.search((msgs[-1].get("body") or "") if msgs else ""))
     column = "Not a fit" if dead else ("Books received" if books else None)
@@ -265,17 +290,17 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
         if column and secs and secs.get(column):
             asana.move(t["card_gid"], secs[column])
             moved = column
-    conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, gmail_message_id, verdict, needs_rodrigo, text, source, reply_draft, created_at) "
-                 "VALUES (?,?,?,?,?,?,?,?,?)",
+    conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, gmail_message_id, verdict, needs_rodrigo, text, source, reply_draft, other_deals, created_at) "
+                 "VALUES (?,?,?,?,?,?,?,?,?,?)",
                  (t["id"], t["listing_id"], t.get("last_msg_id"), r["verdict"], 1 if r.get("needs_rodrigo") else 0, text, r.get("_source"),
-                  (r.get("reply_draft") or "").strip() or None, iso(now_utc())))
-    return {"verdict": r["verdict"], "source": r.get("_source"), "moved": moved, "needs_rodrigo": bool(r.get("needs_rodrigo"))}
+                  (r.get("reply_draft") or "").strip() or None, json.dumps(r["other_deals"]) if r["other_deals"] else None, iso(now_utc())))
+    return {"verdict": r["verdict"], "source": r.get("_source"), "moved": moved, "needs_rodrigo": bool(r.get("needs_rodrigo")), "other_deals": r["other_deals"]}
 
 
 def review_pending(conn, cfg: Any, asana=None, llm=None, limit: int | None = None) -> dict[str, Any]:
     """Every answered thread without a review of its latest message: read it, post it, move the card. Runs every round."""
     limit = limit or int(cfg.get("commercial.review.per_round", 20))
-    res: dict[str, Any] = {"reviewed": 0, "claude": 0, "rules": 0, "needs_rodrigo": 0, "moved": {}, "errors": 0}
+    res: dict[str, Any] = {"reviewed": 0, "claude": 0, "rules": 0, "needs_rodrigo": 0, "other_deals": 0, "moved": {}, "errors": 0}
     todo = pending(conn, limit)
     if not todo:
         return res
@@ -291,20 +316,24 @@ def review_pending(conn, cfg: Any, asana=None, llm=None, limit: int | None = Non
         res["reviewed"] += 1
         res[out["source"] or "rules"] = res.get(out["source"] or "rules", 0) + 1
         res["needs_rodrigo"] += 1 if out["needs_rodrigo"] else 0
+        res["other_deals"] += 1 if out.get("other_deals") else 0
         if out["moved"]:
             res["moved"][out["moved"]] = res["moved"].get(out["moved"], 0) + 1
     return res
 
 
 def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
-    """Charles's drafted reply on a 1031 card goes out only when Rodrigo comments a plain go-ahead ("send it") under the review.
-    Same Gmail thread, logged as kind om_reply (does not count against the OM-request pace), 📤 comment on the card."""
+    """Charles's drafted reply on a 1031 card goes out in the same Gmail thread, logged as kind om_reply (does not count against
+    the OM-request pace), 📤 comment on the card. With `commercial.review.auto_reply` (Rodrigo, 2026-11-09 evening) a reply that
+    does not need him goes on its own at the next round unless he commented "hold" under the review; a NEEDS YOU review, and
+    everything when auto_reply is off, waits for his plain go-ahead ("send it")."""
     from ..asana import BOT
     from ..comment_router import SEND_RE
     res: dict[str, Any] = {"sent": 0, "waiting": 0, "errors": 0}
     if asana is None:
         return res
     now = now or now_utc()
+    auto = bool(cfg.get("commercial.review.auto_reply", False))
     rows = conn.execute("""SELECT r.*, t.card_gid, t.gmail_thread_id, t.broker_email, t.broker_name, t.subject AS thread_subject, t.listing_id AS lid
                            FROM commercial_reviews r JOIN commercial_threads t ON t.id=r.thread_id
                            WHERE r.reply_draft IS NOT NULL AND r.reply_sent_at IS NULL AND t.card_gid IS NOT NULL
@@ -317,13 +346,15 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
             res["errors"] += 1
             log.warning("comments for %s: %s", r["card_gid"], e)
             continue
-        go = False
-        for c in comments:
+        go = auto and not r.get("needs_rodrigo")          # simple replies go on their own; NEEDS YOU waits for him
+        for c in comments:                                 # his latest word wins: "send it" sends, "hold" stops
             txt = (c.get("text") or "").strip()
             if txt.startswith(BOT) or (c.get("created_at") and c["created_at"] < (r.get("created_at") or "")):
                 continue      # the engine's own comments, and anything he wrote before this review, are not a go-ahead
             if SEND_RE.search(txt):
                 go = True
+            elif HOLD_RE.search(txt):
+                go = False
         if not go:
             res["waiting"] += 1
             continue
@@ -349,3 +380,112 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         asana.comment(r["card_gid"], f"📤 Charles's reply sent to {r['broker_email']} at {now.strftime('%Y-%m-%d %H:%M')} UTC:\n\n{r['reply_draft']}")
         res["sent"] += 1
     return res
+
+
+def _rodrigo_said(asana, card_gid: str, since: str) -> list[str]:
+    from ..asana import BOT
+    try:
+        comments = asana.comments(card_gid) if (asana is not None and card_gid) else []
+    except Exception:  # noqa: BLE001
+        return []
+    return [(c.get("text") or "").strip() for c in comments
+            if not (c.get("text") or "").startswith(BOT) and not (c.get("created_at") and c["created_at"] < since)]
+
+
+def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
+    """Rodrigo, 2026-11-09 evening: "forward me the emails that need me … the ones that do not fit, archive them … agents sent us
+    deals on pocket listings." For the latest review of every thread, once:
+    - FORWARD to REPORT_TO (from Charles's mailbox, the broker's words + the read + the broker's files as attachments) when the
+      review needs him, is FITS / LEANS FIT, or lists other deals the broker pitched;
+    - ARCHIVE the thread in Charles's inbox when the verdict is NOT A FIT / DOES NOT FIT with nothing pitched and Charles's reply
+      (if one was drafted) has already gone. A later answer in that thread is still read (threads are opened by id)."""
+    res: dict[str, Any] = {"forwarded": 0, "archived": 0, "waiting": 0, "errors": 0}
+    if gmail is None:
+        return res
+    now = now or now_utc()
+    fwd_on = bool(cfg.get("commercial.review.forward_to_rodrigo", True))
+    arch_on = bool(cfg.get("commercial.review.archive_not_fit", True))
+    to = cfg.secret("REPORT_TO")
+    max_bytes = int(float(cfg.get("commercial.review.forward_max_mb", 20)) * 1_000_000)
+    rows = conn.execute("""SELECT r.*, t.card_gid, t.gmail_thread_id, t.broker_email, t.broker_name, t.subject AS thread_subject, t.listing_id AS lid,
+                                  t.attachments AS thread_files
+                           FROM commercial_reviews r JOIN commercial_threads t ON t.id=r.thread_id
+                           WHERE r.id = (SELECT MAX(id) FROM commercial_reviews WHERE thread_id=r.thread_id)
+                             AND (r.forwarded_at IS NULL OR r.archived_at IS NULL)""").fetchall()
+    for r in rows:
+        r = db.row_to_dict(r)
+        try:
+            other = json.loads(r.get("other_deals") or "[]")
+        except json.JSONDecodeError:
+            other = []
+        verdict = (r.get("verdict") or "").upper()
+        wants_fwd = bool(r.get("needs_rodrigo")) or verdict in FORWARD_VERDICTS or bool(other)
+        wants_arch = verdict in ARCHIVE_VERDICTS and not other
+        ts = iso(now)
+        if fwd_on and wants_fwd and not r.get("forwarded_at"):
+            if not to:
+                res["errors"] += 1
+                log.warning("triage: REPORT_TO not set, cannot forward %s", r.get("lid"))
+            else:
+                try:
+                    _forward(conn, cfg, gmail, to, r, other, max_bytes, now)
+                    conn.execute("UPDATE commercial_reviews SET forwarded_at=? WHERE id=?", (ts, r["id"]))
+                    if asana is not None and r.get("card_gid"):
+                        why = "needs you" if r.get("needs_rodrigo") else ("pitched other deals" if other else verdict.lower())
+                        asana.comment(r["card_gid"], f"📬 Forwarded to your inbox ({why}).")
+                    res["forwarded"] += 1
+                except Exception as e:  # noqa: BLE001
+                    res["errors"] += 1
+                    log.warning("triage forward %s: %s", r.get("lid"), e)
+        if arch_on and wants_arch and not r.get("archived_at"):
+            if r.get("reply_draft") and not r.get("reply_sent_at"):
+                res["waiting"] += 1          # Charles's pass note goes first; archive at a later round
+                continue
+            if not r.get("gmail_thread_id"):
+                continue
+            try:
+                gmail.archive_thread(r["gmail_thread_id"])
+                conn.execute("UPDATE commercial_reviews SET archived_at=? WHERE id=?", (ts, r["id"]))
+                if asana is not None and r.get("card_gid"):
+                    asana.comment(r["card_gid"], "🗂 Archived in Charles's inbox (does not fit). A new answer from the broker still gets read.")
+                res["archived"] += 1
+            except Exception as e:  # noqa: BLE001
+                res["errors"] += 1
+                log.warning("triage archive %s: %s", r.get("lid"), e)
+    return res
+
+
+def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str], max_bytes: int, now) -> None:
+    L = _listing(conn, r["lid"])
+    msgs = _messages(conn, r["thread_id"])
+    tag = "NEEDS YOU" if r.get("needs_rodrigo") else ("POCKET / OTHER DEALS" if other else (r.get("verdict") or "").upper())
+    addr = f"{L.get('street') or L.get('address') or ''}, {L.get('city') or ''}".strip(", ")
+    subject = f"FW [{tag}] {addr or r.get('thread_subject') or ''} · {r.get('broker_name') or r.get('broker_email') or ''}"
+    card = f"https://app.asana.com/0/{cfg.get('commercial.asana.project')}/{r['card_gid']}" if r.get("card_gid") else ""
+    cap = L.get("stated_cap") or L.get("cap_rate")
+    parts = [f"{tag}: {addr}" + (f" · asking {money(L['price'])}" if L.get("price") else "") + (f" · stated cap {cap}%" if cap else ""),
+             f"Broker: {r.get('broker_name') or ''} <{r.get('broker_email') or ''}>" + (f"\nCard: {card}" if card else ""), ""]
+    if other:
+        parts += ["Other deals they pitched:"] + [f"• {o}" for o in other] + [""]
+    parts += [r.get("text") or "", "", "---- The broker's email(s) ----"]
+    for m in msgs[-3:]:
+        parts.append(f"\nFrom {m.get('from_addr')} · {m.get('created_at')}\n{(m.get('body') or '').strip()[:4000]}")
+    attachments: list[dict[str, Any]] = []
+    total = 0
+    try:
+        files = json.loads(r.get("thread_files") or "[]")
+    except json.JSONDecodeError:
+        files = []
+    for mid in dict.fromkeys(f.get("message_id") for f in files if f.get("message_id")):
+        try:
+            for a in gmail.attachments(mid):
+                if total + len(a.get("bytes") or b"") > max_bytes:
+                    parts.append(f"(file not attached, too big: {a.get('filename')})")
+                    continue
+                total += len(a.get("bytes") or b"")
+                attachments.append(a)
+        except Exception as e:  # noqa: BLE001
+            parts.append(f"(could not fetch the files of message {mid}: {str(e)[:120]})")
+    if files and not attachments:
+        parts.append("Files on the Mac: " + ", ".join(f.get("filename") or "" for f in files))
+    gmail.send(to, subject, "\n".join(parts), attachments=attachments or None)

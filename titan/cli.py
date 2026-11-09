@@ -247,10 +247,11 @@ def cmd_check_replies(cfg, args):
         except Exception as e:  # noqa: BLE001
             log.exception("om replies failed: %s", e)
             res["om_replies"] = {"error": str(e)[:200]}
-        from .commercial.books_review import review_pending, send_approved_replies
+        from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         try:     # Rodrigo, 2026-11-09: "I need everything to be read for me": every answer + its books, read on the card
             res["books_review"] = review_pending(conn, cfg, asana, c["llm"])
             res["om_reply_sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
+            res["om_triage"] = triage_inbox(conn, cfg, asana, c["gmail"])       # forward what needs him, archive what does not fit
         except Exception as e:  # noqa: BLE001
             log.exception("books review failed: %s", e)
             res["books_review"] = {"error": str(e)[:200]}
@@ -535,9 +536,10 @@ def cmd_approvals(cfg, args):
         stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
-        from .commercial.books_review import review_pending, send_approved_replies
+        from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
-        stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # "send it" under a review sends Charles's reply
+        stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # simple replies go on their own; NEEDS YOU waits for "send it"
+        stage("om_triage", lambda: triage_inbox(conn, cfg, asana, c["gmail"]))           # forward what needs Rodrigo / pocket deals; archive not-fit threads
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     from .conversations import lead_board, mirror_replies

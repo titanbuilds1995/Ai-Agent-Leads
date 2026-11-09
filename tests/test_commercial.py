@@ -308,11 +308,13 @@ class FakeOMGmail:
     def send(self, to, subject, body, **kw):
         self._n += 1
         self.sent.append((to, subject, body))
+        self.kw = getattr(self, "kw", []) + [kw]
         self.threads[f"t{self._n}"] = [{"id": f"m{self._n}", "from": "Charles@titanrealtyinvestments.com", "body": body, "internal_ts": 1_700_000_000, "label_ids": [], "attachments": []}]
         return {"message_id": f"m{self._n}", "thread_id": f"t{self._n}"}
 
     def thread_messages(self, tid): return list(self.threads.get(tid, []))
     def attachments(self, mid): return self.files.get(mid, [])
+    def archive_thread(self, tid): self.archived = getattr(self, "archived", []) + [tid]
 
 
 def _om_board(conn, cfg, tmp_path):
@@ -561,6 +563,7 @@ def test_books_review_reads_every_answer_for_rodrigo_and_send_it_sends_the_reply
     from titan.commercial.outreach import poll_om_replies, send_om_requests
     from tests.test_approvals import SAT_10AM_ET
     asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    cfg.raw["commercial"]["review"]["auto_reply"] = False                         # the manual path (his "send it")
     gm = FakeOMGmail()
     send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
     sent_ts = int(SAT_10AM_ET.timestamp())
@@ -627,3 +630,99 @@ def test_spreadsheets_are_read_like_pdfs(tmp_path):
     assert [(f["name"], f["kind"]) for f in files] == [("financials.xlsx", "pnl"), ("notes.csv", "pnl")]
     text = d.doc_text(folder / "financials.xlsx")
     assert "Dollar General | $120,000" in text and d.facts_from_text(text)["noi"] == 314638
+
+
+class FakeTriageLLM:
+    available = True
+    def structured(self, purpose, system, user, schema, max_tokens=1024):
+        sig = "Charles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"
+        user = user.rsplit("--- ", 1)[-1]          # the broker's LAST message decides (the prompt carries the whole thread)
+        if "vacant" in user:
+            return {"verdict": "NOT A FIT", "what_they_said": "Adam says the building is vacant.", "books_say": "No documents yet.",
+                    "numbers": [], "red_flags": [], "needs_rodrigo": False, "next_step": "Pass.",
+                    "reply_draft": "Hey Adam,\n\nThanks, a vacant building is not a fit for us.\n\n" + sig, "other_deals": []}
+        if "pocket" in user:
+            return {"verdict": "DOES NOT FIT", "what_they_said": "Adam says the Orlando site is weak but pitched an off-market Amoco.",
+                    "books_say": "No documents yet.", "numbers": [], "red_flags": [], "needs_rodrigo": False,
+                    "next_step": "Charles asks for the T-12 on the Amoco.", "reply_draft": "Hey Adam,\n\nThanks. Send the trailing twelve on the Amoco.\n\n" + sig,
+                    "other_deals": ["Amoco gas station, West Palm Beach · pocket listing · $3.7M · broker says 8% at that price"]}
+        if "NDA" in user:
+            return {"verdict": "CAN'T TELL YET", "what_they_said": "Adam wants the NDA signed first.", "books_say": "No documents yet.",
+                    "numbers": [], "red_flags": [], "needs_rodrigo": True, "next_step": "NEEDS YOU: sign the NDA.",
+                    "reply_draft": "Hey Adam,\n\nWe are reviewing the NDA and will get it back to you shortly.\n\n" + sig, "other_deals": []}
+        return {"verdict": "CAN'T TELL YET", "what_they_said": "Adam will send the package tomorrow.", "books_say": "No documents yet.",
+                "numbers": [], "red_flags": [], "needs_rodrigo": False, "next_step": "Wait for the books.",
+                "reply_draft": "Hey Adam,\n\nThanks, send it over when ready.\n\n" + sig, "other_deals": []}
+
+
+def _answer(conn, cfg, asana, gm, text, mid, hours, files=None):
+    from titan.commercial.outreach import poll_om_replies
+    from tests.test_approvals import SAT_10AM_ET
+    sent_ts = int(SAT_10AM_ET.timestamp())
+    gm.threads["t1"].append({"id": mid, "from": "adam@trustrealtyusa.com", "body": text, "internal_ts": sent_ts + int(hours * 3600),
+                             "label_ids": [], "attachments": [{"filename": f["filename"]} for f in (files or [])]})
+    if files:
+        gm.files[mid] = files
+    poll_om_replies(conn, cfg, gm, asana)
+
+
+def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_archived(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-09 evening: "has Charles actually answered any of the agents that were simple answers? … forward me the
+    emails that need me … the ones that do not fit, archive them … agents sent us deals on pocket listings."."""
+    from titan.commercial.books_review import review_pending, send_approved_replies, triage_inbox
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    cfg.secrets["REPORT_TO"] = "rodrigo@titanrealtyinvestments.com"
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    llm = FakeTriageLLM()
+    # 1) a simple answer: the reply goes at the next round with no comment from Rodrigo; nothing forwarded, nothing archived
+    _answer(conn, cfg, asana, gm, "Happy to send the package tomorrow.", "r1", 1)
+    review_pending(conn, cfg, asana, llm)
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "goes out at the next round on its own" in read
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1 and gm.sent[-1][0] == "adam@trustrealtyusa.com"
+    assert triage_inbox(conn, cfg, asana, gm) == {"forwarded": 0, "archived": 0, "waiting": 0, "errors": 0}
+    # 2) "hold" under the review stops the next one
+    _answer(conn, cfg, asana, gm, "Package coming tomorrow, promise.", "r2", 2)
+    review_pending(conn, cfg, asana, llm)
+    asana.comment_raw(gid, "hold, let me look at this one")
+    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == 2
+    # 3) NEEDS YOU (an NDA): the reply waits for him; the email is forwarded to his inbox with the file attached, once
+    nda = [{"filename": "CA-NDA.pdf", "mime": "application/pdf", "bytes": b"%PDF-1.4 nda"}]
+    _answer(conn, cfg, asana, gm, "Please sign the NDA attached before I release the OM.", "r3", 3, files=nda)
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["needs_rodrigo"] == 1
+    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1
+    tri = triage_inbox(conn, cfg, asana, gm)
+    assert tri["forwarded"] == 1 and tri["archived"] == 0
+    to, subject, body = gm.sent[-1]
+    assert to == "rodrigo@titanrealtyinvestments.com" and subject.startswith("FW [NEEDS YOU]") and "840 SW 81st Ave" in subject
+    assert "NEEDS YOU: sign the NDA." in body and "Please sign the NDA attached" in body and "app.asana.com" in body
+    assert gm.kw[-1]["attachments"][0]["filename"] == "CA-NDA.pdf"
+    assert any("📬 Forwarded to your inbox (needs you)" in c for c in asana.stories[gid])
+    assert triage_inbox(conn, cfg, asana, gm)["forwarded"] == 0                  # once
+    assert not getattr(gm, "archived", [])
+    asana.comment_raw(gid, "ok send it")                                         # his word is still what sends a NEEDS YOU reply
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1 and "reviewing the NDA" in gm.sent[-1][2]
+    # 4) a pocket listing pitched in a DOES NOT FIT answer: forwarded (not archived), the deal named on the card
+    _answer(conn, cfg, asana, gm, "Orlando is weak, but I have a pocket listing, an Amoco in West Palm at $3.7M.", "r4", 4)
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["other_deals"] == 1
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "Other deals they pitched" in read and "Amoco" in read
+    send_approved_replies(conn, cfg, asana, gm)                                   # Charles asks for the T-12 on his own
+    tri = triage_inbox(conn, cfg, asana, gm)
+    assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("FW [POCKET / OTHER DEALS]")
+    assert "Amoco gas station, West Palm Beach" in gm.sent[-1][2]
+    # 5) a flat NOT A FIT: Charles's pass note goes first, then the thread is archived in his inbox
+    _answer(conn, cfg, asana, gm, "Actually the building is vacant now.", "r5", 5)
+    review_pending(conn, cfg, asana, llm)
+    assert triage_inbox(conn, cfg, asana, gm)["waiting"] == 1                   # reply not sent yet: not archived
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    tri = triage_inbox(conn, cfg, asana, gm)
+    assert tri["archived"] == 1 and gm.archived == ["t1"]
+    assert any("🗂 Archived in Charles's inbox" in c for c in asana.stories[gid])
+    assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0                   # once

@@ -310,6 +310,19 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-09 ~1:30pm ET, RESUME HERE: **Rodrigo: "I'm getting a lot of answers, open the emails, analyze them, get to work. What's
+  needed?"** Checked from the cloud: the Mac IS working (27 OM requests sent 11:41am–12:40pm ET, 6 real answers mirrored on the 1031 cards:
+  Cameron Cauley 8100 Opportunity Dr (OM + lease + income statement, price drop to $3.45M = 9.88% cap, "owner ready for offers"), Armond
+  Aivazyan Clearwater Trulieve (OM filed), Curt Ware Siesta Key (income-statement xlsx filed, "owner negotiable"), Kate Clifford Jax Beach
+  (wants the CA/NDA signed first, asks our exchange timing), Nathan Eissler Alachua (sends later today), Mark Allen Longwood (just leased =
+  Not a fit), Mohammad Hasan Deland (empty reply)). **The cloud cannot open these emails**: both the Gmail connector and the cloud's
+  GMAIL_TOKEN_JSON_CONTENT are rodrigo@, the answers are in Charles@ and the files are on the Mac (`data/listings/<id>/`). Options given to
+  Rodrigo: (a) paste Charles's `secrets/gmail_token.json` from the Mac into the cloud env var GMAIL_TOKEN_JSON_CONTENT, or (b) run the
+  analysis as a Claude Code session on the Mac, or (c) build "books review": Claude reads the books on arrival and posts the analysis on the
+  card (not built). **Two engine gaps found, not fixed yet:** spreadsheets are filed but never read (`documents.local_files` only takes
+  pdf/txt/md, so Curt's xlsx counts for nothing); Armond's and Curt's cards did not move to Books received / got no "Regraded with the books"
+  line although `poll_om_replies` should have done both (check `logs/` on the Mac). Cameron's attachments were not filed at all (no
+  "Files filed" line): likely links or a nested part.
 - 2026-11-09 ~12:15pm ET, RESUME HERE: **Rodrigo said go: 26 OM-request cards (every in-box listing with a stated cap; the 5 missing broker
   emails were found online: Michael Grant, Adriana Montes, Dan Fischer, Mohammad Hasan ×3 in one email) sit in "Approved · send OM request"**.
   **No-cap blast built**: one email per broker (372 brokers / 468 listings), eight-cap-once-reassessed question, no card until the broker answers.

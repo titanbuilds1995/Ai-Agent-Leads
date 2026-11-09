@@ -330,6 +330,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-09 ~6:50pm ET: **merged to the default branch** (PR titanbuilds1995/Ai-Agent-Leads#2) so the Mac's next check-replies run
+  (every 15 min, no send window on om_reply) sends the ~19 simple replies tonight and forwards Kate / Michael / the two leans-fit /
+  Albert's pocket pitch from Charles@ with files. Rodrigo also got a "needs you tonight" email from the cloud (his own mailbox) with the
+  two decisions (Kate's CA/NDA, Michael's NDA + call) and the three for-his-eyes items. Watch: 📤 / 📬 / 🗂 comments on the 1031 cards.
 - 2026-11-09 ~6:30pm ET, RESUME HERE: **Rodrigo's evening asks built** (see Decisions → Simple replies go on their own). Answer to his
   question: **no, Charles had answered nobody**: all 21 drafted replies sat on the cards waiting for "send it". From the Mac's next
   round (after the 10-min self-update): the drafted replies that do not need him go out (about 19; Kate Clifford's and Michael/Dreamify's

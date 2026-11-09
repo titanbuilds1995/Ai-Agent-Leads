@@ -320,6 +320,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-09 ~3pm ET: Rodrigo's agent friend sent 6 commercial deals (1495 N Park Dr Weston $11M 7.53%; 2200 N Ocean Blvd CU3 Fort
+  Lauderdale $7.995M 7.5%; 8946 77th Ter E Lakewood Ranch $6.44M 7.25%; 2510 Miccosukee Rd Tallahassee $7.25M 7.14%; 3400 N Andrews Ave Ext
+  Pompano $6M 7%; 4331 N Federal Hwy Oakland Park $7.25M 6.58%). **None is in the statewide pull** (checked all 21 Apify datasets, 2,175 rows):
+  five are Crexi / broker-site / off-market (we only pull LoopNet) and Weston is on LoopNet but above the $8M box. All six caps are under
+  the 8% floor, so none would be in the box anyway. Open idea (not built): add Crexi as a second source.
 - 2026-11-09 ~2:15pm ET, RESUME HERE: **"Read everything for me" built** (see Decisions → Every broker answer is READ): the Mac's next round
   (10-min self-update, then check-replies / approvals) reads today's 6 answers retroactively and posts a 🧠 READ FOR YOU comment on each card:
   Cameron Cauley (OM + lease + income statement, $3.45M / 9.88% claimed), Armond Aivazyan (OM), Curt Ware (xlsx now actually read), Kate Clifford

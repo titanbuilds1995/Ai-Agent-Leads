@@ -37,6 +37,10 @@ def why_fits(L: dict[str, Any], cfg: Any) -> str:
         bits.append("seller signals: " + ", ".join(sig))
     if (L.get("days_on_market") or 0) >= 90 and not L.get("dom_basis"):
         bits.append(f"{L['days_on_market']} days on market")
+    if L.get("airport_code") and L.get("airport_minutes") is not None:
+        bits.append(f"{L['airport_minutes']} min to {L['airport_code']}")
+    if (L.get("building_class") or "").upper()[:1] in ("A", "B"):
+        bits.append(f"class {L['building_class'][:1].upper()} building")
     if L.get("brokerage_size") == "small":
         bits.append("small brokerage, easy conversation")
     if L.get("tag") == "SUSPECT":

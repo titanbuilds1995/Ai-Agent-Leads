@@ -353,6 +353,13 @@ commercial:
     asset_types_in: ["nnn", "retail", "hotel", "industrial", "office", "multifamily", "medical"]
     multifamily_min_units: 5
     include_undisclosed_price: false  # "Price Not Disclosed" rows stay in the master (flagged) but out of the Top 25 and the broker list
+    # Rodrigo, 2026-11-09: no further than 45 minutes from a commercial airport (titan/commercial/airports.py; straight-line miles ×
+    # minutes_per_mile ≈ drive time), and quality: building class C or better, no distressed / below-C-area language
+    # (titan/commercial/quality.py). LoopNet has no neighborhood class, so the text is the only signal for that part.
+    airport_max_minutes: 45
+    airport_minutes_per_mile: 1.4
+    min_building_class: "C"
+    min_year_built: null             # e.g. 1980 to flag older buildings as "watch"
   scoring:                           # weights add up to 100 (titan/commercial/scoring.py explains each)
     cap: 25
     dom_and_cuts: 12

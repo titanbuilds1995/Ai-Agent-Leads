@@ -69,6 +69,10 @@ def in_box(L: dict[str, Any], cfg: Any) -> tuple[bool | None, str]:
         return False, f"stated cap {cap}% under the floor"
     if L.get("business_only") or L.get("asset_class") in ("land", "business"):
         return False, "land / development / business only"
+    if L.get("airport_ok") is False:
+        return False, f"{L.get('airport_minutes')} min to the nearest airport ({L.get('airport_code')}), over the {_box(cfg, 'airport_max_minutes')} min limit"
+    if L.get("quality") == "out":
+        return False, "quality: " + "; ".join(L.get("quality_reasons") or [])
     return True, ""
 
 

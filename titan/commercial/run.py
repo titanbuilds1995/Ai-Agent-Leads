@@ -22,6 +22,7 @@ STORE_COLS = [
     "tenants", "tenancy", "lease_type", "remaining_term_years", "days_on_market", "listed_at", "price_cuts", "previous_price", "broker_name", "brokerage",
     "broker_phone", "broker_email", "brokerage_size", "score", "score_parts", "tag", "tag_reasons", "evidence_grade", "evidence_note", "in_box", "box_note",
     "tier", "motivation", "credit_tenants", "documents", "docs_missing", "detail_level", "status", "description", "highlights",
+    "airport_code", "airport_minutes", "quality",
 ]
 JSON_COLS = {"score_parts", "tag_reasons", "motivation", "credit_tenants", "documents", "docs_missing", "highlights"}
 
@@ -163,9 +164,13 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
     # a FULL pull (every family, no row cap, live) is the only run that may mark missing listings gone; saved rows and samples never do
     full_pull = (apify is not None and families is None and max_items is None and not rows_handed_in) if full_pull is None else full_pull
     # 2. merge with what earlier runs already fetched, then a first scoring pass to know who is in the box
+    from .airports import airport_screen
+    from .quality import quality_screen
     for i, L in enumerate(listings):
         listings[i] = L = merge_with_stored(L, _stored(conn, L["listing_id"]))
         L["region"] = region_for(L.get("county"))
+        L.update(airport_screen(L, cfg))
+        L.update(quality_screen(L, cfg))
         L.update(scoring.score(L, cfg))
     # 3. detail sheets for in-box listings still on a summary card (budgeted)
     want_details = bool(cfg.get("commercial.loopnet.details", True)) if details is None else details
@@ -219,6 +224,8 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
                 L["dom_basis"] = "since we first saw it (sheet pending)"
     meds = scoring.ppsf_medians([L for L in listings if L.get("in_box")])
     for L in listings:
+        L.update(airport_screen(L, cfg))
+        L.update(quality_screen(L, cfg))
         L.update(scoring.score(L, cfg, meds.get((L.get("county"), L.get("asset_class")))))
     # 5. store + gone + diff
     with db.tx(conn):

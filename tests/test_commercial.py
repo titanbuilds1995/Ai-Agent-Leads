@@ -406,3 +406,28 @@ def test_bounce_is_not_an_answer(conn, cfg, tmp_path):
     th = conn.execute("SELECT * FROM commercial_threads").fetchone()
     assert out["bounces"] == 1 and out["replies"] == 0 and th["bounced"] == 1 and th["hours_to_reply"] is None
     assert any("Bounced" in c for c in asana.stories[gid])
+
+
+# --- airport + quality screens (Rodrigo, 2026-11-09) -------------------------------------------------------------------------------
+
+def test_airport_screen_limits_the_box_to_45_minutes(cfg):
+    from titan.commercial.airports import airport_screen, nearest
+    assert nearest(26.218624, -80.235947)["code"] == "FXE"
+    near = airport_screen({"lat": 26.218624, "lng": -80.235947}, cfg)
+    far = airport_screen({"lat": 30.73, "lng": -85.2}, cfg)          # Marianna, over an hour from Panama City
+    assert near["airport_ok"] is True and near["airport_minutes"] < 45 and far["airport_ok"] is False
+    assert airport_screen({}, cfg)["airport_ok"] is None               # no coordinates: not thrown out, just unknown
+    assert scoring.score(clean_listing(**far), cfg)["in_box"] is False
+    assert "airport" in scoring.score(clean_listing(**far), cfg)["box_note"]
+    assert scoring.score(clean_listing(**near), cfg)["in_box"] is True
+
+
+def test_quality_screen_building_class_and_language(cfg):
+    from titan.commercial.quality import quality_screen
+    assert quality_screen({"building_class": "D", "text": "great cap rate"}, cfg)["quality"] == "out"
+    assert quality_screen({"building_class": "C", "text": "stabilized retail"}, cfg)["quality"] == "pass"
+    assert quality_screen({"building_class": "B", "text": "located in a high-crime transitional area"}, cfg)["quality"] == "out"
+    w = quality_screen({"building_class": "B", "text": "some deferred maintenance on the roof"}, cfg)
+    assert w["quality"] == "watch" and "condition language" in w["quality_reasons"][0]
+    assert scoring.score(clean_listing(quality="out", quality_reasons=["building class D (minimum C)"]), cfg)["in_box"] is False
+    assert scoring.score(clean_listing(quality="watch"), cfg)["in_box"] is True

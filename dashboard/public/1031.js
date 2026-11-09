@@ -89,7 +89,8 @@ function renderDetail(id) {
           ${kv("Type", [d.property_type, d.property_subtype].filter(Boolean).join(" / ") || d.asset_class || "")}${kv("Building", d.building_sf ? d.building_sf.toLocaleString("en-US") + " SF" : "—")}
           ${kv("Year built", d.year_built || "—")}${kv("Units / tenancy", d.units > 1 ? d.units + " units" : (d.tenancy || "—"))}
           ${kv("Lease", (d.lease_type || "—").toUpperCase() + (d.remaining_term_years ? ` · ${d.remaining_term_years} yrs left` : ""))}${kv("Occupancy", d.occupancy ? d.occupancy + "%" : "—")}
-          ${d.stated_noi ? kv("Stated NOI", money(d.stated_noi)) : ""}${d.days_on_market ? kv("On market", d.days_on_market + " days") : ""}</div>
+          ${d.stated_noi ? kv("Stated NOI", money(d.stated_noi)) : ""}${d.days_on_market ? kv("On market", d.days_on_market + " days") : ""}
+          ${d.airport_code ? kv("Nearest airport", `${d.airport_code} · ~${d.airport_minutes} min`) : ""}${d.building_class ? kv("Building class", d.building_class) : ""}</div>
         <div class="whybox"><div class="eyebrow" style="color:var(--gold-ink)">Why this fits</div>${esc(d.why)}</div>
         <p style="margin-top:12px"><a href="${esc(d.listing_url)}" target="_blank" rel="noopener">View on LoopNet ↗</a></p></div></div>
     <div class="blocks">
@@ -100,7 +101,8 @@ function renderDetail(id) {
           <p class="muted">${esc(p.offer_anchor_basis || "")}</p>
           <p><b>${esc(d.tag || "")}</b>: ${esc((p.tag_reasons || []).join("; "))}</p><p>Evidence grade ${esc(d.evidence_grade || "?")}: ${esc(p.evidence_note || "")}</p>
           <p>Score parts: ${esc(Object.entries(p.parts || {}).map(([k, v]) => `${k} ${v}`).join(" · "))}</p>
-          ${p.docs_missing && p.docs_missing.length ? `<p>Docs missing: ${esc(p.docs_missing.join(", "))}</p>` : ""}</div>
+          ${p.docs_missing && p.docs_missing.length ? `<p>Docs missing: ${esc(p.docs_missing.join(", "))}</p>` : ""}
+          ${p.quality ? `<p>Quality screen: <b>${esc(p.quality)}</b>${p.quality_reasons && p.quality_reasons.length ? " · " + esc(p.quality_reasons.join("; ")) : ""}</p>` : ""}</div>
         <div class="block internal"><h3>Broker</h3><p><b>${esc(p.broker_name || "?")}</b> · ${esc(p.brokerage || "")} (${esc(p.brokerage_size || "")})</p>
           <p>${p.broker_phone ? `<a href="tel:${esc(p.broker_phone)}">${esc(p.broker_phone_pretty || p.broker_phone)}</a>` : "no phone"} · ${p.broker_email ? `<a href="mailto:${esc(p.broker_email)}">${esc(p.broker_email)}</a>` : "no email"}</p>
           ${p.om_request ? `<p><b>Books requested</b> ${esc((p.om_request.sent_at || "").slice(0, 10))}${p.om_request.bounced ? " · bounced" : p.om_request.hours_to_reply != null ? ` · answered in ${esc(p.om_request.hours_to_reply)} h` : " · no answer yet"}${p.om_request.state === "BOOKS" ? " · books received" : ""}</p>` : ""}

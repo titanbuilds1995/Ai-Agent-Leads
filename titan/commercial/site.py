@@ -18,10 +18,10 @@ BLOB_PATH = "titan/deals.json"
 PUBLIC_KEYS = ["listing_id", "street", "city", "county", "region", "zip", "asset_class", "property_type", "property_subtype", "price", "price_text",
                "stated_cap", "stated_noi", "building_sf", "lot_sf", "year_built", "units", "occupancy", "tenancy", "lease_type", "remaining_term_years",
                "credit_tenants", "days_on_market", "listed_at", "highlights", "description", "listing_url", "tag", "evidence_grade", "board_column",
-               "status", "first_seen", "last_seen"]
+               "status", "first_seen", "last_seen", "airport_code", "airport_name", "airport_minutes", "building_class"]
 PRIVATE_KEYS = ["score", "parts", "score_parts", "offer_anchor", "offer_anchor_basis", "back_solved_cap", "cap_mismatch", "tag_reasons", "evidence_note",
                 "tier", "motivation", "brokerage_size", "broker_name", "brokerage", "broker_phone", "broker_email", "docs_missing", "docs_gated",
-                "documents", "detail_level", "asana_task_id", "asana_om_task_id", "price_cuts", "previous_price"]
+                "documents", "detail_level", "asana_task_id", "asana_om_task_id", "price_cuts", "previous_price", "quality", "quality_reasons"]
 
 
 def _loads(v: Any, default: Any) -> Any:

@@ -40,7 +40,8 @@ def card(L: dict[str, Any], cfg: Any, size: str) -> str:
     facts = [money(L.get("price")) if L.get("price") else "price not disclosed",
              f"{L['stated_cap']:.2f}% cap" if L.get("stated_cap") else "cap on request",
              f"{L['building_sf']:,} SF" if L.get("building_sf") else "", f"{L['units']} units" if (L.get("units") or 0) > 1 else "",
-             f"built {L['year_built']}" if L.get("year_built") else ""]
+             f"built {L['year_built']}" if L.get("year_built") else "", f"class {str(L['building_class'])[:1].upper()}" if L.get("building_class") else "",
+             f"{L['airport_minutes']} min to {L['airport_code']}" if L.get("airport_code") else ""]
     col = L.get("board_column") or "New"
     color, bg = COL_COLORS.get(col, (MUTED, SUNK))
     img = (f'<a href="{e(link)}" style="text-decoration:none"><img src="{e(photo)}" width="100%" alt="" style="display:block;width:100%;max-height:260px;'

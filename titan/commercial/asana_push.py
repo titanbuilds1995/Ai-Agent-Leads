@@ -48,6 +48,8 @@ def facts_block(L: dict[str, Any]) -> str:
         (f"Seen by us for {L.get('days_on_market')} days (LoopNet listing date comes with the property sheet)" if L.get("dom_basis")
          else f"On market {L.get('days_on_market') if L.get('days_on_market') is not None else '?'} days") + f" · {L.get('price_cuts') or 0} price cut(s)"
         + (f" · signals: {', '.join(L['motivation'])}" if L.get("motivation") else ""),
+        (f"Airport: {L.get('airport_name')} ({L.get('airport_code')}) about {L.get('airport_minutes')} min" if L.get("airport_code") else "Airport: no coordinates on the listing"),
+        f"Quality: {L.get('quality')}" + (" · " + "; ".join(L["quality_reasons"]) if L.get("quality_reasons") else ""),
         f"Docs missing: {', '.join(L.get('docs_missing') or [])}" if L.get("docs_missing") else "",
         f"Gated: {', '.join(L['docs_gated'])}" if L.get("docs_gated") else "",
         f"Score parts: {json.dumps(L.get('parts') or L.get('score_parts') or {})}",

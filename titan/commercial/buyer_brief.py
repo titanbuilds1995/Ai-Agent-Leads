@@ -96,7 +96,8 @@ def build(conn, cfg: Any, path: Path, today: date | None = None) -> Path:
             [Paragraph("<b>Return</b>", cell), Paragraph(f"Cap rate of {box.get('cap_min')}% or better.", cell)],
             [Paragraph("<b>Property</b>", cell), Paragraph("Existing, cash-flowing: single-tenant net lease, retail centers, hotels, industrial / flex, office, "
                                                            "multifamily (5+ units), medical. No land, no development, no business-only sales.", cell)],
-            [Paragraph("<b>Where</b>", cell), Paragraph("All of Florida.", cell)]]
+            [Paragraph("<b>Where</b>", cell), Paragraph(f"All of Florida, within {box.get('airport_max_minutes', 45)} minutes of a commercial airport.", cell)],
+            [Paragraph("<b>Quality</b>", cell), Paragraph(f"Building class {box.get('min_building_class', 'C')} or better. No distressed property and no below-C neighborhoods: a high cap rate does not buy its way past this.", cell)]]
     story.append(Table(crit, colWidths=[1.1 * inch, 6.2 * inch], style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LINEBELOW", (0, 0), (-1, -2), 0.4, LINE),
                                                                                    ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2)])))
     story.append(Paragraph("WHAT WE HAVE IDENTIFIED SO FAR", eye))

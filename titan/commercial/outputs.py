@@ -15,6 +15,7 @@ MASTER_COLS = [
     "county", "region", "zip", "price", "price_text", "stated_cap", "stated_noi", "back_solved_cap", "cap_mismatch", "offer_anchor", "offer_anchor_basis",
     "building_sf", "ppsf", "lot_sf", "year_built", "units", "occupancy", "tenants", "tenancy", "lease_type", "remaining_term_years", "credit_tenants",
     "days_on_market", "listed_at", "price_cuts", "previous_price", "motivation", "tag_reasons", "evidence_note", "docs_missing", "docs_gated",
+    "airport_code", "airport_name", "airport_minutes", "building_class", "quality", "quality_reasons",
     "detail_level", "broker_name", "brokerage", "brokerage_size", "broker_phone", "broker_email", "listing_url", "listing_id", "first_seen", "last_seen",
     "status", "description",
 ]

@@ -20,3 +20,4 @@ reports/*.local.md
 reports/comps/
 *.db-wal
 *.db-shm
+reports/commercial/

@@ -490,7 +490,7 @@ def cmd_approvals(cfg, args):
     if asana is None:
         print("ASANA_TOKEN missing in .env (Asana → My settings → Apps → Developer apps → Personal access token)")
         sys.exit(1)
-    c = build_clients(cfg, conn, need=("llm", "gmail"))
+    c = build_clients(cfg, conn, need=("llm", "gmail", "apify"))
     # 2026-10-29 (Rodrigo: "there's a lot of approved, it's already past the 20 minutes"): rounds overlapped (a round with many
     # rewrites runs longer than 20 min), one Asana error killed the whole round, and sending came last. Now: one round at a
     # time, approved emails go out FIRST, and each stage fails on its own.
@@ -523,7 +523,9 @@ def cmd_approvals(cfg, args):
         from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
         stage("photo_rule_rewrites", lambda: rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15))
     if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):   # 2026-11-09: OM requests to brokers go out from the 1031 board
+        from .commercial.blast import bootstrap
         from .commercial.outreach import poll_om_replies, send_om_requests
+        stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
     from .learning import learn_tick

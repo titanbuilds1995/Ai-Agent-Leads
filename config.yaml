@@ -403,9 +403,18 @@ commercial:
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
   outreach:
-    per_round: 25                    # commercial emails per round (cards + queue)
-    daily_cap: 450                   # per day, separate from the residential daily_email_cap
+    per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
+    daily_cap: 220                   # per day, separate from the residential daily_email_cap
     queue_dir: "data/commercial_queue"
+  # The Mac's database never saw the cloud's statewide pull. These are that pull's Apify datasets (free to re-read, already paid for):
+  # the first approvals round on a Mac that has fewer listings than min_listings loads them, scores offline, builds the blast queue. Once.
+  bootstrap:
+    label: "2026-11-09 statewide pull"
+    min_listings: 1000
+    datasets: ["v1bfc8d4wxl3YKpds", "bitLCWCBZZItMJD0D", "TQ9Lf3RqZ2HQPwhp6", "8RiF4Zbe62CTB95hv", "4jaB3VYRIywPqIqEe", "Q08wYiWB16Lb40u16",
+               "YPUU4QdTIVqgPt0Zs", "aQ1uLUBZcHEUkQwmS", "MRCy4jUKf46fvcJpN", "l3D3ev4tWhi4gzzXu", "Keg246m89T9JbDJzj", "NIbdYqvayLsayu8Xe",
+               "fX5N8HIOqyafhNQGk", "mZi0Yo4Xq7o3Myi62", "O5WNtBatjXeo99YKy", "kWcXPy02oST6NMIgK", "2UApmJy2UYBd5jvqI", "9MZ86VHnda61FecKH",
+               "iSiGHYQKXkIJyy7pA", "WSmOs8TJFE25aC6aa", "dKMsEVEZRQyqNEPVm"]
   schedule: "manual"                 # manual | daily. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
   # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a

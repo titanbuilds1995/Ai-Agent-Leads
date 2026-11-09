@@ -134,3 +134,42 @@ def send_queue(conn, cfg: Any, gmail, room: int, now: datetime | None = None) ->
         res["sent"] += 1
     res["waiting"] = max(0, len(todo) - res["sent"])
     return res
+
+
+def bootstrap(conn, cfg: Any, apify, run_date: str | None = None) -> dict[str, Any]:
+    """Rodrigo, 2026-11-09 ("how do I add the leads in to there, can you do it"): a Mac whose database never saw the cloud's pull loads
+    that pull's Apify datasets (already paid for, reads are free), scores them offline (no cards, no email, no site) and builds the blast
+    queue. Runs inside the approvals round; does nothing once the label is recorded or the database already holds the listings."""
+    res: dict[str, Any] = {"loaded": 0, "queued": 0, "skipped": None}
+    ids = [str(x) for x in (cfg.get("commercial.bootstrap.datasets") or [])]
+    label = str(cfg.get("commercial.bootstrap.label") or "bootstrap")
+    if not ids or apify is None:
+        res["skipped"] = "no datasets or no Apify"
+        return res
+    if conn.execute("SELECT 1 FROM commercial_runs WHERE kind='bootstrap' AND notes=?", (label,)).fetchone():
+        res["skipped"] = "already done"
+        return res
+    have = conn.execute("SELECT COUNT(*) FROM commercial_listings").fetchone()[0]
+    if have >= int(cfg.get("commercial.bootstrap.min_listings") or 1000):
+        conn.execute("INSERT INTO commercial_runs (run_date, kind, started_at, finished_at, notes) VALUES (?,?,?,?,?)",
+                     (run_date or now_utc().strftime("%Y-%m-%d"), "bootstrap", iso(now_utc()), iso(now_utc()), label))
+        res["skipped"] = f"database already holds {have} listings"
+        return res
+    rows: list[dict[str, Any]] = []
+    for d in ids:
+        try:
+            rows += apify.dataset_items(d, 5000)
+        except Exception as e:  # noqa: BLE001
+            log.error("bootstrap: dataset %s failed: %s", d, e)
+            res["errors"] = res.get("errors", 0) + 1
+    if not rows:
+        res["skipped"] = "no rows came back"
+        return res
+    from .run import run
+    started = iso(now_utc())
+    run(conn, cfg, apify=None, raw_rows=rows, push_asana=False, email=False, site=False, details=False, run_date=run_date)
+    res["loaded"] = conn.execute("SELECT COUNT(*) FROM commercial_listings").fetchone()[0]
+    res["queued"] = len(build_queue(conn, cfg, run_date))
+    conn.execute("INSERT INTO commercial_runs (run_date, kind, started_at, finished_at, counts, notes) VALUES (?,?,?,?,?,?)",
+                 (run_date or now_utc().strftime("%Y-%m-%d"), "bootstrap", started, iso(now_utc()), json.dumps(res), label))
+    return res

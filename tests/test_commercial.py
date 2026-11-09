@@ -518,3 +518,22 @@ def test_blast_queue_groups_by_broker_sends_at_the_commercial_pace_and_a_reply_m
     from titan.commercial.board import ensure_board
     assert asana.where[th2["card_gid"]] == ensure_board(asana, "proj-1031")["In touch with the agent"]
     assert any("📩" in c for c in asana.stories[th2["card_gid"]])
+
+
+def test_bootstrap_loads_the_pull_from_apify_datasets_once_and_builds_the_queue(conn, cfg, tmp_path):
+    from titan.commercial.blast import bootstrap, pending
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["bootstrap"] = {"label": "test pull", "min_listings": 1000, "datasets": ["d1", "d2"]}
+
+    class FakeApify:
+        calls = []
+        def dataset_items(self, dataset_id, max_items):
+            self.calls.append(dataset_id)
+            return ROWS if dataset_id == "d1" else []
+
+    ap = FakeApify()
+    res = bootstrap(conn, cfg, ap, run_date="2026-11-09")
+    assert ap.calls == ["d1", "d2"] and res["loaded"] == conn.execute("SELECT COUNT(*) FROM commercial_listings").fetchone()[0] > 0
+    assert res["queued"] == len(pending(conn, cfg))
+    assert bootstrap(conn, cfg, ap, run_date="2026-11-09")["skipped"] == "already done" and ap.calls == ["d1", "d2"]
+    assert bootstrap(conn, cfg, None)["skipped"] == "no datasets or no Apify"

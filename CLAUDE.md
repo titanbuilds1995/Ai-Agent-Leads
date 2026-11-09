@@ -300,26 +300,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (`_card_for_thread`). **Commercial pace** (`commercial.outreach.per_round` 25 / `daily_cap` 450, Rodrigo: "shorten the time frame … but not too
   too fast"): every approvals round sends the "Approved · send OM request" cards first, then the queue, inside the send window; commercial sends
   are kind `om_request` and do not count against the residential `daily_email_cap`. `titan.cli commercial-blast --list` shows who is waiting.
+  **Bootstrap from Apify (Rodrigo, 2026-11-09: "how do I add the leads in to there, can you do it")**: the Mac never saw the cloud's pull, so
+  `commercial.bootstrap.datasets` lists that pull's 21 Apify dataset ids (reads are free); the first approvals round on a database with fewer than
+  `min_listings` loads them, scores offline (no cards / email / site), builds the queue and records a `commercial_runs` row kind `bootstrap`
+  (`blast.bootstrap`, stage `commercial_bootstrap`). Pace set to **8 per round / 220 a day** ("space it out between the next couple of days").
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
-- 2026-11-09 ~11:50am ET, RESUME HERE: **Rodrigo said go: 26 OM-request cards (every in-box listing with a stated cap; the 5 missing broker
-  emails were found online: Michael Grant, Adriana Montes, Dan Fischer, Mohammad Hasan ×3 in one email) are in "Approved · send OM request"**; the
-  Mac's rounds send them from Charles@ at 25 per 20-min round once it pulls this code (default branch fast-forwarded). **No-cap blast built and
-  queued in the cloud: 372 brokers / 468 listings** (`data/commercial_queue/2026-11-09.json`, 1.7 MB, gitignored); it only sends once that file
-  sits in `data/commercial_queue/` on the Mac (sent to Rodrigo in chat to drop in; or `make commercial-offline RAW=…` + `make commercial-blast`
-  there). Then ≈ 400 emails ≈ 16 rounds. Watch the first round: 📤 comments on the 26 cards, `commercial_threads` rows, no card for blast sends
-  until a broker answers. Risk flagged: ~400 cold emails from one mailbox in an afternoon can hurt Charles@'s sender reputation. 349 tests.
-- 2026-11-09 ~11am ET, RESUME HERE: **the 23 OM-request emails to every in-box broker with a stated cap are written and waiting on Rodrigo's
-  go-ahead** (he paused them to fix the voice: no "buyer", "a partner of ours", Titan as the principal; done, templates + validator + test).
-  Payloads for the "Approved · send OM request" column (section 1220334263742624) are rebuilt in the cloud scratchpad; once he says go they are
-  posted there and the Mac's approvals rounds send them from Charles@ (5 per 20 min, daily cap). 5 cap-stated brokers have no email (call list:
-  Mohammad Hasan 386-405-1382 ×2, Michael Grant 941-800-8585, Adriana Montes 321-689-6258, Daniel Fischer 615-804-3579). Rodrigo: no more Asana
-  cards for the rest of the 542; the no-cap "where is the cap rate" email to those brokers is the next build (queue without cards). The Mac's
-  DB still lacks this pull. 347 tests.
+- 2026-11-09 ~12:15pm ET, RESUME HERE: **Rodrigo said go: 26 OM-request cards (every in-box listing with a stated cap; the 5 missing broker
+  emails were found online: Michael Grant, Adriana Montes, Dan Fischer, Mohammad Hasan ×3 in one email) sit in "Approved · send OM request"**.
+  **No-cap blast built**: one email per broker (372 brokers / 468 listings), eight-cap-once-reassessed question, no card until the broker answers.
+  **Nothing to do on the Mac**: its next approvals round (after the 10-min self-update) bootstraps the statewide pull from the 21 Apify datasets,
+  builds the queue on the Mac, then sends cards first, then the queue, **8 per 20-min round / 220 a day** → ~130 today, ~220 Tue, the rest Wed
+  morning. Watch the first round: `commercial_runs` row kind `bootstrap`, 📤 comments on the 26 cards, `commercial_threads` rows; a blast reply
+  creates its card in "In touch with the agent". Verified in the cloud on a scratch DB (bootstrap loads 1,290 listings from the 21 datasets in 60 s, queue 378 brokers). 350 tests.
 - 2026-11-09 ~9:45am ET, RESUME HERE: **FULL STATEWIDE PULL DONE in the cloud** on the new Apify Starter plan ($6.88: 7 searches ≈1,830
   rows + 347 property sheets, 280 of which came through this time): **1,307 listings, 542 in the box across 41 counties, 435 brokers**,
   629 "price not disclosed" (kept, flagged, out of the lists), 136 out (51 on the new quality screen, 4 on the 45-min airport screen),

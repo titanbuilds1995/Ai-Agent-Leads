@@ -41,7 +41,16 @@ def parse_om_card(notes: str) -> dict[str, Any] | None:
 
 
 def _sent_today(conn, run_date: str) -> int:
-    return conn.execute("SELECT COUNT(*) FROM outreach WHERE channel='email' AND status='sent' AND substr(sent_at,1,10)=?", (run_date,)).fetchone()[0]
+    """Commercial emails sent today (OM requests + the no-cap blast); the residential cap counts its own."""
+    return conn.execute("SELECT COUNT(*) FROM outreach WHERE channel='email' AND status='sent' AND kind='om_request' AND substr(sent_at,1,10)=?",
+                        (run_date,)).fetchone()[0]
+
+
+def pace(cfg: Any) -> tuple[int, int]:
+    """(per round, per day) for commercial sends. Rodrigo, 2026-11-09: faster than the residential 5 a round, 'but not too too fast'."""
+    per_round = int(cfg.get("commercial.outreach.per_round") or cfg.get("outreach.asana.per_tick", 2))
+    cap = int(cfg.get("commercial.outreach.daily_cap") or cfg.get("outreach.daily_email_cap", 25))
+    return per_round, cap
 
 
 def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) -> dict[str, Any]:
@@ -51,10 +60,12 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
     project = cfg.get("commercial.asana.project")
     if not project or asana is None:
         return res
+    from .blast import pending, send_queue
     secs = ensure_board(asana, project)
     cards = asana.section_tasks(secs[SEND])
     res["waiting"] = len(cards)
-    if not cards:
+    res["queue_waiting"] = len(pending(conn, cfg))
+    if not cards and not res["queue_waiting"]:
         return res
     if not in_window(cfg, now):
         res["reason"] = "outside the send window"
@@ -64,9 +75,8 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
         return res
     now = now or now_utc()
     run_date = now.astimezone(timezone.utc).strftime("%Y-%m-%d")
-    cap = int(cfg.get("outreach.daily_email_cap", 25))
-    per_tick = int(cfg.get("outreach.asana.per_tick", 2))
-    room = max(0, min(per_tick, cap - _sent_today(conn, run_date)))
+    per_round, cap = pace(cfg)
+    room = max(0, min(per_round, cap - _sent_today(conn, run_date)))
     for t in sorted(cards, key=lambda x: x.get("created_at") or "")[:room]:
         notes = t.get("notes") or ""
         if not notes:
@@ -104,6 +114,10 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
                                f"the reply clock is running.")
         asana.move(t["gid"], secs["In touch with the agent"])
         res["sent"] += 1
+    left = room - res["sent"]
+    if left > 0 and res["queue_waiting"]:     # the no-cap blast rides the same round, after the cards
+        q = send_queue(conn, cfg, gmail, left, now=now)
+        res["queue_sent"], res["queue_waiting"], res["errors"] = q["sent"], q["waiting"], res["errors"] + q["errors"]
     return res
 
 
@@ -237,6 +251,8 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
                     verdict = regrade(conn, cfg, t["listing_id"])
                 except Exception as e:  # noqa: BLE001
                     log.exception("regrade %s failed: %s", t["listing_id"], e)
+            if asana is not None and not t.get("card_gid") and secs.get(column):
+                t["card_gid"] = _card_for_thread(conn, cfg, asana, project, secs[column], t)
             if asana is not None and t.get("card_gid"):
                 asana.comment(t["card_gid"], note + (("\n\n" + verdict_text(verdict)) if verdict else ""))
                 if secs.get(column):
@@ -244,6 +260,32 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
                     if cur and cur[0] == column:
                         asana.move(t["card_gid"], secs[column])
     return res
+
+
+def _card_for_thread(conn, cfg: Any, asana, project: str, section: str, t: dict[str, Any]) -> str | None:
+    """A blast email got a real answer: now the listing earns its card (no card was made when the email went out)."""
+    from .asana_push import card_name, card_notes
+    row = conn.execute("SELECT data FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
+    try:
+        L = json.loads(row[0]) if row and row[0] else {}
+    except json.JSONDecodeError:
+        L = {}
+    if not L:
+        return None
+    L.setdefault("listing_id", t["listing_id"])
+    try:
+        ids = json.loads(t.get("listing_ids") or "[]")
+    except json.JSONDecodeError:
+        ids = []
+    extra = f"\n\nThe email also asked about listing(s) {', '.join(i for i in ids if i != t['listing_id'])}." if len(ids) > 1 else ""
+    try:
+        made = asana.create_task(project, section, "OM request · " + card_name(L), card_notes(cfg, L, with_email=False) + extra)
+    except Exception as e:  # noqa: BLE001
+        log.error("card for thread %s failed: %s", t.get("id"), e)
+        return None
+    gid = made.get("gid")
+    conn.execute("UPDATE commercial_threads SET card_gid=? WHERE id=?", (gid, t["id"]))
+    return gid
 
 
 def response_clock(conn) -> dict[str, dict[str, Any]]:

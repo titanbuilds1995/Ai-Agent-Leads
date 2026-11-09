@@ -66,6 +66,50 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
     return {"subject": subject[:90], "body": body}
 
 
+def _where(L: dict[str, Any]) -> str:
+    """'1 Main St in Tampa', or 'the 3-property listing in Miami' for LoopNet's 'Portfolio of 3 Properties For Sale in' rows ('portfolio' is a banned word)."""
+    street = (L.get("street") or L.get("address") or "your listing").strip()
+    city = (L.get("city") or "").strip()
+    m = re.match(r"(?i)portfolio of (\d+)", street)
+    if m:
+        return f"the {m.group(1)}-property listing" + (f" in {city}" if city else "")
+    return street + (f" in {city}" if city else "")
+
+
+def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
+    """Rodrigo, 2026-11-09, for every in-box listing with no cap rate: one email per broker, naming their listings, asking whether
+    it holds an eight cap once sold and reassessed; if so we take a look and move fast. Titan speaks as the principal."""
+    Ls = [L for L in listings if L]
+    if not Ls:
+        raise ValueError("no listings")
+    name = first_name(Ls[0].get("broker_name"))
+    places = [_where(L) for L in Ls[:2]]
+    if len(Ls) == 1:
+        saw = f"I saw {places[0]} on LoopNet." if places[0].startswith("the ") else f"I saw your listing at {places[0]} on LoopNet."
+    else:
+        saw = f"I saw your listings on LoopNet, {places[0]} and {len(Ls) - 1} more."
+    asks = "the trailing twelve, the rent roll and the offering memorandum"
+    if all(L.get("asset_class") == "hotel" for L in Ls):
+        asks = asks.replace("the rent roll", "the STR report")
+    if len(Ls) == 1:
+        ask = ("The listing does not show a cap rate, so one straight question: at the asking price, does it hold an eight cap or better "
+               "once it sells and the taxes are reassessed?")
+        close = f"If it does, we want to take a look and we move fast. Send over {asks} and you will have an answer from us quickly."
+    else:
+        ask = "None of them show a cap rate, so one straight question: does any of them hold an eight cap or better at asking once it sells and the taxes are reassessed?"
+        close = f"If one does, we want to take a look and we move fast. Send over {asks} for that one and you will have a quick answer."
+    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n"
+            f"We are placing a 1031 exchange with a partner of ours and the clock is running. {ask}\n\n{close}\n\n" + signature(cfg))
+    body = format_paragraphs(body)
+    first = Ls[0]
+    street = first.get("street") or "Your listing"
+    pm = re.match(r"(?i)portfolio of (\d+)", street)
+    if pm:
+        street = f"Your {pm.group(1)}-property listing"
+    subject = street + (f", {first['city']}" if first.get("city") else "") + (" and more" if len(Ls) > 1 else "") + " on LoopNet"
+    return {"subject": subject[:90], "body": body}
+
+
 def validate_om_request(subject: str, body: str) -> list[str]:
     """Same house rules as the first emails, minus the residential-only ones."""
     problems: list[str] = []

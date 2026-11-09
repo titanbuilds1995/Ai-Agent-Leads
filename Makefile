@@ -107,6 +107,9 @@ commercial:       ## 1031 buyer screen, FULL statewide LoopNet pull → reports/
 commercial-offline: ## re-score the last saved LoopNet rows without pulling: make commercial-offline RAW="raw/2026-11-08_*loopnet*.json"
 	$(PY) -m titan.cli commercial --no-asana --from-raw $(RAW)
 
+commercial-blast: ## queue the no-cap question for every in-box broker without a cap rate (one email per broker); the approvals rounds send it from Charles@
+	$(PY) -m titan.cli commercial-blast --build --list
+
 commercial-sheets: ## the top listings still missing their LoopNet sheet + the prompt for a Claude in Chrome session on this Mac (make commercial-sheets TOP=15)
 	$(PY) -m titan.cli commercial-sheets --top $(or $(TOP),15)
 

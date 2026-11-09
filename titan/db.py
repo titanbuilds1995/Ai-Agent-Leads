@@ -210,7 +210,9 @@ MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outrea
               # 2026-11-08: the 1031 board's column (Rodrigo's category) on each commercial listing
               "ALTER TABLE commercial_listings ADD COLUMN board_column TEXT",
               "ALTER TABLE commercial_listings ADD COLUMN airport_code TEXT", "ALTER TABLE commercial_listings ADD COLUMN airport_minutes INTEGER",
-              "ALTER TABLE commercial_listings ADD COLUMN quality TEXT"]   # databases created before the column existed
+              "ALTER TABLE commercial_listings ADD COLUMN quality TEXT",
+              # 2026-11-09: one blast email can cover several of a broker's listings
+              "ALTER TABLE commercial_threads ADD COLUMN listing_ids TEXT"]   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

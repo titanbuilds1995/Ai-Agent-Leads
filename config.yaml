@@ -400,6 +400,12 @@ commercial:
     project: "1220324280677489"      # "Titan 1031 · Commercial (LoopNet)" board (created 2026-11-08; sections Top tier / Needs OM / Suspect / Contacted / Skip are found by name)
     push_top_n: 25                   # CLEAN top-tier cards
     needs_om_n: 40                   # OM-request task list
+  # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
+  # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
+  outreach:
+    per_round: 25                    # commercial emails per round (cards + queue)
+    daily_cap: 450                   # per day, separate from the residential daily_email_cap
+    queue_dir: "data/commercial_queue"
   schedule: "manual"                 # manual | daily. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
   # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a

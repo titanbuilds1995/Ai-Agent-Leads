@@ -290,13 +290,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   **Charles speaks as the principal (Rodrigo, 2026-11-09: "we have to make sure that we do not say that we have a buyer … a partner of ours …
   sound like we are the principal")**: every OM request says "We are placing a 1031 exchange with a partner of ours and the clock is running",
   never "a buyer we work with" / client / investor (`validate_om_request` rejects those words). Cap-stated listings get "we need the numbers
-  behind the cap rate to verify it holds up as a real eight plus cap"; no-cap listings get "where is the cap rate?"; both offer proof of funds.
+  behind the cap rate to verify it holds up as a real eight plus cap"; no-cap listings get the eight-cap question; both offer proof of funds.
+- **The no-cap blast (Rodrigo, 2026-11-09: "the rest of the agents that do not show a cap rate, I want us to email them asking them if it fits an
+  8 cap, once sold and re assessed … send those emails out also today"; `titan/commercial/blast.py`, `make commercial-blast`):** one email per
+  broker naming all of their in-box listings without a cap rate (`cap_question`: "does it hold an eight cap or better at asking once it sells and
+  the taxes are reassessed? If it does, we want to take a look and we move fast"), queued in `data/commercial_queue/<date>.json` (gitignored: it
+  holds broker emails and a listing snapshot per entry, so a Mac that never saw the pull can send and store them; the file travels by hand, never
+  through GitHub). **No Asana card** for these until the broker answers: `poll_om_replies` then creates the card in the column the answer earns
+  (`_card_for_thread`). **Commercial pace** (`commercial.outreach.per_round` 25 / `daily_cap` 450, Rodrigo: "shorten the time frame … but not too
+  too fast"): every approvals round sends the "Approved · send OM request" cards first, then the queue, inside the send window; commercial sends
+  are kind `om_request` and do not count against the residential `daily_email_cap`. `titan.cli commercial-blast --list` shows who is waiting.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-09 ~11:50am ET, RESUME HERE: **Rodrigo said go: 26 OM-request cards (every in-box listing with a stated cap; the 5 missing broker
+  emails were found online: Michael Grant, Adriana Montes, Dan Fischer, Mohammad Hasan ×3 in one email) are in "Approved · send OM request"**; the
+  Mac's rounds send them from Charles@ at 25 per 20-min round once it pulls this code (default branch fast-forwarded). **No-cap blast built and
+  queued in the cloud: 372 brokers / 468 listings** (`data/commercial_queue/2026-11-09.json`, 1.7 MB, gitignored); it only sends once that file
+  sits in `data/commercial_queue/` on the Mac (sent to Rodrigo in chat to drop in; or `make commercial-offline RAW=…` + `make commercial-blast`
+  there). Then ≈ 400 emails ≈ 16 rounds. Watch the first round: 📤 comments on the 26 cards, `commercial_threads` rows, no card for blast sends
+  until a broker answers. Risk flagged: ~400 cold emails from one mailbox in an afternoon can hurt Charles@'s sender reputation. 349 tests.
 - 2026-11-09 ~11am ET, RESUME HERE: **the 23 OM-request emails to every in-box broker with a stated cap are written and waiting on Rodrigo's
   go-ahead** (he paused them to fix the voice: no "buyer", "a partner of ours", Titan as the principal; done, templates + validator + test).
   Payloads for the "Approved · send OM request" column (section 1220334263742624) are rebuilt in the cloud scratchpad; once he says go they are

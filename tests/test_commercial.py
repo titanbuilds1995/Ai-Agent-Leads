@@ -450,3 +450,71 @@ def test_om_request_speaks_as_the_principal(cfg):
         assert "buyer" not in r["body"].lower()
         assert validate_om_request(r["subject"], r["body"]) == []
     assert "names a buyer" in " ".join(validate_om_request("x", "Hey Jo,\n\nCharles with Titan Realty Investments. I saw it.\n\nOur buyer wants it.\n\nCharles"))
+
+
+# --- the no-cap blast (Rodrigo, 2026-11-09: one email per broker without a cap rate, no card until they answer) -----------------
+
+def test_cap_question_for_one_and_for_several_listings(cfg):
+    from titan.commercial.om_request import cap_question, validate_om_request
+    Ls = [{"broker_name": "Jane Doe, CCIM", "street": "1 Main St", "city": "Tampa", "asset_class": "retail"},
+          {"street": "2 Oak Ave", "city": "Orlando", "asset_class": "office"}, {"street": "3 Pine Rd", "city": "Miami", "asset_class": "nnn"},
+          {"street": "4 Elm St", "city": "Ocala", "asset_class": "nnn"}]
+    for n in (1, 2, 4):
+        r = cap_question(cfg, Ls[:n])
+        assert validate_om_request(r["subject"], r["body"]) == [], (n, r["body"])
+        assert "eight cap" in r["body"] and "reassessed" in r["body"] and "partner of ours" in r["body"] and "buyer" not in r["body"].lower()
+    assert "1 Main St in Tampa and 3 more." in cap_question(cfg, Ls)["body"]
+    assert cap_question(cfg, Ls[:1])["subject"] == "1 Main St, Tampa on LoopNet"
+    port = cap_question(cfg, [{"broker_name": "Landy", "street": "Portfolio of 2 Properties For Sale in", "city": "Coral Gables", "asset_class": "retail"}])
+    assert "I saw the 2-property listing in Coral Gables on LoopNet." in port["body"] and port["subject"] == "Your 2-property listing, Coral Gables on LoopNet"
+    assert validate_om_request(port["subject"], port["body"]) == []
+
+
+def test_blast_queue_groups_by_broker_sends_at_the_commercial_pace_and_a_reply_makes_the_card(conn, cfg, tmp_path):
+    from titan.commercial.blast import build_queue, pending, send_queue
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["asana"]["project"] = "proj-1031"
+    cfg.raw["commercial"]["outreach"] = {"per_round": 3, "daily_cap": 100}
+    run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    conn.execute("UPDATE commercial_listings SET in_box=1, stated_cap=NULL, broker_email='same@broker.com' WHERE listing_id IN "
+                 "(SELECT listing_id FROM commercial_listings ORDER BY score DESC LIMIT 2)")
+    conn.execute("UPDATE commercial_listings SET in_box=1, stated_cap=NULL, broker_email='solo@broker.com' WHERE listing_id IN "
+                 "(SELECT listing_id FROM commercial_listings WHERE broker_email<>'same@broker.com' ORDER BY score DESC LIMIT 1)")
+    conn.execute("UPDATE commercial_listings SET in_box=1, stated_cap=8.5 WHERE listing_id IN "
+                 "(SELECT listing_id FROM commercial_listings WHERE broker_email NOT IN ('same@broker.com','solo@broker.com') ORDER BY score DESC LIMIT 1)")
+    q = build_queue(conn, cfg, "2026-11-09")
+    emails = {e["broker_email"]: e for e in q}
+    assert len(emails["same@broker.com"]["listing_ids"]) == 2 and "your listings on LoopNet" in emails["same@broker.com"]["body"]
+    assert len(emails["solo@broker.com"]["listing_ids"]) == 1
+    assert all(conn.execute("SELECT stated_cap FROM commercial_listings WHERE listing_id=?", (i,)).fetchone()[0] is None
+               for e in q for i in e["listing_ids"])          # cap-stated listings are the cards' business, not the blast's
+    assert (tmp_path / "data/commercial_queue/2026-11-09.json").exists()
+    n = len(pending(conn, cfg))
+    assert n == len(q) >= 2
+    asana = Fake1031Asana()
+    gm = FakeOMGmail()
+    out = send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)      # no cards in the send column → the round sends the queue
+    assert out["queue_sent"] == 3 and len(gm.sent) == 3 and out["queue_waiting"] == n - 3
+    th = conn.execute("SELECT * FROM commercial_threads WHERE broker_email='same@broker.com'").fetchone()
+    assert th is not None and len(json.loads(th["listing_ids"])) == 2 and th["card_gid"] is None
+    # a database that never saw the pull (the Mac) learns the listing from the queue file when it sends
+    conn.execute("DELETE FROM commercial_listings WHERE listing_id=?", (json.loads(th["listing_ids"])[0],))
+    conn.execute("DELETE FROM commercial_threads WHERE id=?", (th["id"],))
+    assert send_queue(conn, cfg, gm, 1, now=SAT_10AM_ET)["sent"] == 1
+    assert conn.execute("SELECT street FROM commercial_listings WHERE listing_id=?", (json.loads(th["listing_ids"])[0],)).fetchone()[0]
+    th = conn.execute("SELECT * FROM commercial_threads WHERE broker_email='same@broker.com'").fetchone()
+    assert conn.execute("SELECT COUNT(*) FROM outreach WHERE kind='om_request' AND status='sent'").fetchone()[0] == 4
+    assert len(pending(conn, cfg)) == n - 3                            # a second round never emails the same broker twice
+    assert send_queue(conn, cfg, gm, 0, now=SAT_10AM_ET)["sent"] == 0
+    # the broker answers → the listing earns its card in "In touch with the agent"
+    gm.threads[th["gmail_thread_id"]].append({"id": "r1", "from": "same@broker.com", "body": "Yes, it clears 8 at asking. OM attached soon.",
+                                              "internal_ts": 1_700_010_000, "label_ids": [], "attachments": []})
+    res = poll_om_replies(conn, cfg, gm, asana, now=SAT_10AM_ET)
+    assert res["replies"] == 1
+    th2 = conn.execute("SELECT card_gid, state FROM commercial_threads WHERE id=?", (th["id"],)).fetchone()
+    assert th2["card_gid"] and th2["state"] == "REPLIED"
+    from titan.commercial.board import ensure_board
+    assert asana.where[th2["card_gid"]] == ensure_board(asana, "proj-1031")["In touch with the agent"]
+    assert any("📩" in c for c in asana.stories[th2["card_gid"]])

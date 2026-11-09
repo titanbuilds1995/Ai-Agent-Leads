@@ -21,3 +21,4 @@ reports/comps/
 *.db-wal
 *.db-shm
 reports/commercial/
+data/commercial_queue/

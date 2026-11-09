@@ -304,12 +304,28 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   `commercial.bootstrap.datasets` lists that pull's 21 Apify dataset ids (reads are free); the first approvals round on a database with fewer than
   `min_listings` loads them, scores offline (no cards / email / site), builds the queue and records a `commercial_runs` row kind `bootstrap`
   (`blast.bootstrap`, stage `commercial_bootstrap`). Pace set to **8 per round / 220 a day** ("space it out between the next couple of days").
+- **Every broker answer is READ for Rodrigo (Rodrigo, 2026-11-09: "I need everything to be read for me"; `titan/commercial/books_review.py`,
+  `make books-review`):** after `poll_om_replies` mirrors an answer and files the attachments, every check-replies / approvals round reads the
+  thread (broker's words + every file in `data/listings/<id>/`, PDFs AND spreadsheets, which were filed but never read before) and posts ONE
+  "🧠 READ FOR YOU · <verdict>" comment on the 1031 card: what they said / what the books say / numbers (real NOI ÷ ask = real cap) / red flags /
+  next step ("NEEDS YOU:" when it is his: NDA, proof of funds, a number) / Charles's reply when one is due. Verdicts FITS · LEANS FIT · CAN'T
+  TELL YET · DOES NOT FIT · NOT A FIT. Paid API like other card work; rules-only read (marked) when Claude is unreachable, retried. Books on
+  file are regraded here too and the card moves to Books received; "leased / sold / under contract" → Not a fit + thread CLOSED. **A plain
+  "send it" comment under the review sends Charles's drafted reply** in the same Gmail thread (kind `om_reply`, not counted against the OM
+  pace; 📤 comment). Documents behind a link (Dropbox/Drive) are listed, never fetched (NEEDS YOU). One review per inbound message
+  (`commercial_reviews`); `commercial.review.per_round` 20. Nothing else sends.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-09 ~2:15pm ET, RESUME HERE: **"Read everything for me" built** (see Decisions → Every broker answer is READ): the Mac's next round
+  (10-min self-update, then check-replies / approvals) reads today's 6 answers retroactively and posts a 🧠 READ FOR YOU comment on each card:
+  Cameron Cauley (OM + lease + income statement, $3.45M / 9.88% claimed), Armond Aivazyan (OM), Curt Ware (xlsx now actually read), Kate Clifford
+  (CA/NDA → NEEDS YOU), Nathan Eissler (sends later), Mark Allen (leased → Not a fit), Mohammad Hasan (empty). Armond + Curt get regraded and
+  move to Books received there (the poll missed it; a regrade error now shows on the card). **Watch the first round**: the 🧠 comments, the two
+  moves, and that "send it" under a drafted reply sends it. Default branch fast-forwarded to this work. 352 tests.
 - 2026-11-09 ~1:30pm ET, RESUME HERE: **Rodrigo: "I'm getting a lot of answers, open the emails, analyze them, get to work. What's
   needed?"** Checked from the cloud: the Mac IS working (27 OM requests sent 11:41am–12:40pm ET, 6 real answers mirrored on the 1031 cards:
   Cameron Cauley 8100 Opportunity Dr (OM + lease + income statement, price drop to $3.45M = 9.88% cap, "owner ready for offers"), Armond

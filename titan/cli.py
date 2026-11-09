@@ -247,6 +247,13 @@ def cmd_check_replies(cfg, args):
         except Exception as e:  # noqa: BLE001
             log.exception("om replies failed: %s", e)
             res["om_replies"] = {"error": str(e)[:200]}
+        from .commercial.books_review import review_pending, send_approved_replies
+        try:     # Rodrigo, 2026-11-09: "I need everything to be read for me": every answer + its books, read on the card
+            res["books_review"] = review_pending(conn, cfg, asana, c["llm"])
+            res["om_reply_sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
+        except Exception as e:  # noqa: BLE001
+            log.exception("books review failed: %s", e)
+            res["books_review"] = {"error": str(e)[:200]}
     from .end_of_day import maybe_send
     res["end_of_day"] = maybe_send(conn, cfg, c["gmail"], asana)    # once a day, the first run after 7pm ET
     from .catch_up import due as missed, start_background
@@ -528,6 +535,9 @@ def cmd_approvals(cfg, args):
         stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
+        from .commercial.books_review import review_pending, send_approved_replies
+        stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
+        stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # "send it" under a review sends Charles's reply
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     from .conversations import lead_board, mirror_replies
@@ -687,6 +697,26 @@ def cmd_buyer_brief(cfg, args):
     conn = _open(cfg)
     out = cfg.path("reports") / "commercial" / f"buyer_brief_{today_et()}.pdf"
     print(build(conn, cfg, out))
+
+def cmd_books_review(cfg, args):
+    """Rodrigo, 2026-11-09: read every broker answer + the books on file and put the read on the 1031 card. Runs on every
+    round on its own; this runs it now (and --all redoes the latest review of every answered thread)."""
+    from .commercial.books_review import pending, review_pending, send_approved_replies
+    conn = db.connect(cfg.db_path)
+    c = build_clients(cfg, conn, need=("llm", "gmail"))
+    asana = None if args.no_asana else _asana(cfg)
+    if args.all:
+        conn.execute("DELETE FROM commercial_reviews WHERE reply_sent_at IS NULL")
+    if args.list:
+        for t in pending(conn, 500):
+            print(f"{t['listing_id']:>10}  {t.get('broker_name') or t.get('broker_email')}  replies {t.get('reply_count')}  state {t.get('state')}")
+        return
+    out = review_pending(conn, cfg, asana, c["llm"], limit=args.limit or 500)
+    if asana is not None:
+        out["sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
+    conn.commit()
+    print(json.dumps(out, indent=2))
+
 
 def cmd_follow_ups(cfg, args):
     """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
@@ -899,6 +929,11 @@ def main(argv: list[str] | None = None) -> int:
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
+    br = sub.add_parser("books-review", help="read every broker answer + the books on file for Rodrigo; the read goes on the 1031 card")
+    br.add_argument("--all", action="store_true", help="redo the latest review of every answered thread")
+    br.add_argument("--list", action="store_true", help="only print which threads are waiting for a read")
+    br.add_argument("--limit", type=int, default=None)
+    br.add_argument("--no-asana", action="store_true")
     fu = sub.add_parser("follow-ups", help="Good morning follow-up (same thread) to every agent who never answered; cards in Needs Me")
     fu.add_argument("--days", type=int, default=None, help="first email at least this many days old (config outreach.follow_up.after_days)")
     fu.add_argument("--limit", type=int, default=None)
@@ -914,7 +949,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-blast": cmd_commercial_blast}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review}[args.cmd](cfg, args)
     return 0
 
 

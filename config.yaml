@@ -406,6 +406,10 @@ commercial:
     per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
     daily_cap: 220                   # per day, separate from the residential daily_email_cap
     queue_dir: "data/commercial_queue"
+  # Every broker answer + the books they sent are READ for Rodrigo (2026-11-09) and the read goes on the card (🧠 READ FOR YOU):
+  # verdict against the 8 cap, numbers, red flags, next step, Charles's reply when one is due ("send it" under it sends).
+  review:
+    per_round: 20                    # reads per round (paid API, pennies each)
   # The Mac's database never saw the cloud's statewide pull. These are that pull's Apify datasets (free to re-read, already paid for):
   # the first approvals round on a Mac that has fewer listings than min_listings loads them, scores offline, builds the blast queue. Once.
   bootstrap:

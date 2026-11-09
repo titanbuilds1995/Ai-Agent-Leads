@@ -537,3 +537,93 @@ def test_bootstrap_loads_the_pull_from_apify_datasets_once_and_builds_the_queue(
     assert res["queued"] == len(pending(conn, cfg))
     assert bootstrap(conn, cfg, ap, run_date="2026-11-09")["skipped"] == "already done" and ap.calls == ["d1", "d2"]
     assert bootstrap(conn, cfg, None)["skipped"] == "no datasets or no Apify"
+
+
+class FakeReviewLLM:
+    available = True
+    def __init__(self): self.prompts = []
+    def structured(self, purpose, system, user, schema, max_tokens=1024):
+        self.prompts.append((purpose, user))
+        if "Trailing 12 months actuals" in user:
+            return {"verdict": "DOES NOT FIT", "what_they_said": "Adam sent the T-12 and the rent roll.",
+                    "books_say": "NOI of $630,000 on the trailing twelve against a $7.895M ask is a 7.98% cap, under the stated 9.35%.",
+                    "numbers": ["NOI (T-12) $630,000", "Real cap at ask 7.98%"], "red_flags": ["Stated cap 9.35% is not supported by the books."],
+                    "next_step": "NEEDS YOU: decide whether to anchor at $7.875M (8% on the real NOI) or pass.", "needs_rodrigo": True, "reply_draft": ""}
+        return {"verdict": "CAN'T TELL YET", "what_they_said": "Adam will send the package in a day.", "books_say": "No documents yet.",
+                "numbers": [], "red_flags": [], "next_step": "Wait for the books; Charles thanks him.", "needs_rodrigo": False,
+                "reply_draft": "Hey Adam,\n\nThanks, that works. Whenever the trailing twelve and rent roll are ready, send them over and we will turn them around fast.\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"}
+
+
+def test_books_review_reads_every_answer_for_rodrigo_and_send_it_sends_the_reply(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-09: 'I need everything to be read for me.' Every answer + its books → one 🧠 READ FOR YOU comment on the card;
+    a plain 'send it' under a drafted reply sends it in the same thread; a spreadsheet counts as books and is read; 'leased' → Not a fit."""
+    from titan.commercial.books_review import pending, review_pending, send_approved_replies
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    sent_ts = int(SAT_10AM_ET.timestamp())
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    llm = FakeReviewLLM()
+    assert review_pending(conn, cfg, asana, llm)["reviewed"] == 0                 # nothing answered yet: nothing to read
+    # 1) a plain answer: read, no card move, Charles's reply drafted
+    gm.threads["t1"].append({"id": "r1", "from": "adam@trustrealtyusa.com", "body": "Happy to send the package, give me a day.",
+                             "internal_ts": sent_ts + 3 * 3600, "label_ids": [], "attachments": []})
+    poll_om_replies(conn, cfg, gm, asana)
+    assert [t["listing_id"] for t in pending(conn)] == ["28440860"]
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["reviewed"] == 1 and out["claude"] == 1 and out["needs_rodrigo"] == 0
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c]
+    assert len(read) == 1 and "CAN'T TELL YET" in read[0] and "Charles's reply" in read[0] and "Hey Adam," in read[0]
+    assert asana.where[gid] == secs["In touch with the agent"]
+    assert review_pending(conn, cfg, asana, llm)["reviewed"] == 0                 # once per message
+    # nothing sends until Rodrigo says so
+    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == 1
+    asana.comment_raw(gid, "send it")
+    s = send_approved_replies(conn, cfg, asana, gm)
+    assert s["sent"] == 1 and len(gm.sent) == 2 and gm.sent[-1][0] == "adam@trustrealtyusa.com" and gm.sent[-1][1].startswith("Re: ")
+    assert any("📤 Charles's reply sent" in c for c in asana.stories[gid])
+    assert conn.execute("SELECT COUNT(*) FROM outreach WHERE kind='om_reply' AND status='sent'").fetchone()[0] == 1
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 0              # never twice
+    # 2) the books come as a SPREADSHEET: filed, read, regraded, card to Books received, Claude's read on the card
+    import openpyxl, io
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "T12"
+    for row in (("Trailing 12 months actuals",), ("Gross Income", 980000), ("Operating Expenses", 350000), ("Net Operating Income", 630000), ("Occupancy", "92% occupied")):
+        ws.append(row)
+    buf = io.BytesIO(); wb.save(buf)
+    gm.files["r2"] = [{"filename": "CFC Income Statement.xlsx", "mime": "application/vnd.ms-excel", "bytes": buf.getvalue()}]
+    gm.threads["t1"].append({"id": "r2", "from": "adam@trustrealtyusa.com", "body": "Attached, owner is negotiable.", "internal_ts": sent_ts + 26 * 3600,
+                             "label_ids": [], "attachments": [{"filename": "CFC Income Statement.xlsx"}]})
+    out = poll_om_replies(conn, cfg, gm, asana)
+    assert out["books"] == 1
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["reviewed"] == 1 and out["needs_rodrigo"] == 1
+    assert "Trailing 12 months actuals" in llm.prompts[-1][1] and "Net Operating Income | $630,000" in llm.prompts[-1][1]   # the spreadsheet was READ
+    row = conn.execute("SELECT board_column, stated_noi FROM commercial_listings WHERE listing_id='28440860'").fetchone()
+    assert row["board_column"] == "Books received" and row["stated_noi"] == 630_000 and asana.where[gid] == secs["Books received"]
+    last = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "DOES NOT FIT" in last and "NEEDS YOU" in last and "Real cap at ask 7.98%" in last
+    # 3) Claude unreachable → rules-only read, marked as such; 'leased' → Not a fit
+    gm.threads["t1"].append({"id": "r3", "from": "adam@trustrealtyusa.com", "body": "Update: we just signed a lease for the entire space, it is off market.",
+                             "internal_ts": sent_ts + 48 * 3600, "label_ids": [], "attachments": []})
+    poll_om_replies(conn, cfg, gm, asana)
+    out = review_pending(conn, cfg, asana, llm=None)
+    assert out["reviewed"] == 1 and out["rules"] == 1 and out["moved"] == {"Not a fit": 1}
+    last = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "NOT A FIT" in last and "rules only" in last and asana.where[gid] == secs["Not a fit"]
+    assert conn.execute("SELECT state FROM commercial_threads").fetchone()[0] == "CLOSED"
+
+
+def test_spreadsheets_are_read_like_pdfs(tmp_path):
+    import openpyxl
+    from titan.commercial import documents as d
+    folder = tmp_path / "L1"; folder.mkdir()
+    wb = openpyxl.Workbook(); ws = wb.active
+    ws.append(("Rent Roll",)); ws.append(("Suite 100", "Dollar General", 120000)); ws.append(("Net Operating Income", 314638))
+    wb.save(folder / "financials.xlsx")
+    (folder / "notes.csv").write_text("a,b\n1,2\n")
+    files = d.local_files(folder)
+    assert [(f["name"], f["kind"]) for f in files] == [("financials.xlsx", "pnl"), ("notes.csv", "pnl")]
+    text = d.doc_text(folder / "financials.xlsx")
+    assert "Dollar General | $120,000" in text and d.facts_from_text(text)["noi"] == 314638

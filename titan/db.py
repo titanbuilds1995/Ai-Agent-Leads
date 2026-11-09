@@ -168,6 +168,12 @@ CREATE TABLE IF NOT EXISTS commercial_messages (
   id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES commercial_threads(id), gmail_message_id TEXT UNIQUE, from_addr TEXT,
   body TEXT, created_at TEXT NOT NULL
 );
+-- Claude's read of a broker's answer + the books (titan/commercial/books_review.py): one per inbound message batch, on the card.
+CREATE TABLE IF NOT EXISTS commercial_reviews (
+  id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES commercial_threads(id), listing_id TEXT, gmail_message_id TEXT,
+  verdict TEXT, needs_rodrigo INTEGER DEFAULT 0, text TEXT, source TEXT, reply_draft TEXT, reply_sent_at TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_commercial_reviews_thread ON commercial_reviews(thread_id);
 CREATE TABLE IF NOT EXISTS commercial_runs (
   id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, counts TEXT,
   cost_usd REAL, notes TEXT

@@ -244,17 +244,19 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
                          (column, t["listing_id"]))
             note = (f"📩 {t.get('broker_name') or t['broker_email']} answered" + (f" in {hours:g} h" if first else "") + f" ({ts.strftime('%Y-%m-%d %H:%M')} UTC):\n"
                     f"{body[:1200]}" + (f"\n\nFiles filed under data/listings/{t['listing_id']}/: " + ", ".join(f["filename"] for f in files) if files else ""))
-            verdict = None
+            verdict, regrade_err = None, None
             if books:
                 res["books"] += 1
                 try:
                     verdict = regrade(conn, cfg, t["listing_id"])
                 except Exception as e:  # noqa: BLE001
                     log.exception("regrade %s failed: %s", t["listing_id"], e)
+                    regrade_err = f"{type(e).__name__}: {e}"[:200]
             if asana is not None and not t.get("card_gid") and secs.get(column):
                 t["card_gid"] = _card_for_thread(conn, cfg, asana, project, secs[column], t)
             if asana is not None and t.get("card_gid"):
-                asana.comment(t["card_gid"], note + (("\n\n" + verdict_text(verdict)) if verdict else ""))
+                asana.comment(t["card_gid"], note + (("\n\n" + verdict_text(verdict)) if verdict else "")
+                              + (f"\n\nRegrade failed ({regrade_err}); the books review retries it." if regrade_err else ""))
                 if secs.get(column):
                     cur = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
                     if cur and cur[0] == column:

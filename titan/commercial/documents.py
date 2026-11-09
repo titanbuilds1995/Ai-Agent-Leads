@@ -114,6 +114,64 @@ def download(doc: dict[str, Any], folder: Path, max_mb: float = 25, session: req
     return doc
 
 
+SHEET_EXT = (".xlsx", ".xlsm", ".xls", ".csv")
+READABLE_EXT = (".pdf", ".txt", ".md", ".docx") + SHEET_EXT
+
+
+def _cell(c: Any) -> str:
+    """A spreadsheet cell as text. Whole numbers of 1,000+ are written as dollars ($630,000) so the NOI / gross / expense readers,
+    which look for a dollar sign, read a bare financial statement the way they read an OM."""
+    if isinstance(c, bool):
+        return str(c)
+    if isinstance(c, (int, float)):
+        if abs(c) >= 1000 and float(c).is_integer():
+            return f"${int(c):,}"
+        if float(c).is_integer():
+            return str(int(c))
+        return f"{c:.4g}" if abs(c) < 1 else f"{c:,.2f}"
+    return str(c).strip()
+
+
+def sheet_text(path: Path, max_chars: int = 40_000) -> str:
+    """A spreadsheet as plain text (one line per row, cells joined by ' | '). Brokers send income statements and rent rolls as
+    Excel files (Curt Ware, 2026-11-09); before this they were filed and never read."""
+    try:
+        if path.suffix.lower() == ".csv":
+            return path.read_text(errors="ignore")[:max_chars]
+        import openpyxl
+        wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+        lines = []
+        for ws in wb.worksheets[:8]:
+            lines.append(f"## {ws.title}")
+            for row in ws.iter_rows(values_only=True):
+                cells = [_cell(c) for c in row if c not in (None, "")]
+                if cells:
+                    lines.append(" | ".join(cells))
+            if sum(len(l) for l in lines) > max_chars:
+                break
+        return "\n".join(lines)[:max_chars]
+    except Exception as e:  # noqa: BLE001
+        log.warning("sheet text failed for %s: %s", path, e)
+        return ""
+
+
+def doc_text(path: Path) -> str:
+    """Whatever text a filed document holds: PDF, spreadsheet, Word, or plain text."""
+    suf = path.suffix.lower()
+    if suf in (".txt", ".md"):
+        return path.read_text(errors="ignore")
+    if suf in SHEET_EXT:
+        return sheet_text(path)
+    if suf == ".docx":
+        try:
+            import docx  # python-docx
+            return "\n".join(p.text for p in docx.Document(str(path)).paragraphs)
+        except Exception as e:  # noqa: BLE001
+            log.warning("docx text failed for %s: %s", path, e)
+            return ""
+    return pdf_text(path)
+
+
 def pdf_text(path: Path, max_pages: int = 60) -> str:
     try:
         import pdfplumber
@@ -151,10 +209,12 @@ def local_files(folder: Path) -> list[dict[str, Any]]:
         return []
     out = []
     for f in sorted(folder.iterdir()):
-        if f.suffix.lower() in (".pdf", ".txt", ".md") and f.is_file():
+        if f.suffix.lower() in READABLE_EXT and f.is_file():
             kind = classify(f.name)
             if kind == "other" and f.suffix.lower() in (".txt", ".md"):
                 kind = "sheet"
+            elif kind == "other" and f.suffix.lower() in SHEET_EXT:
+                kind = "pnl"        # an unnamed spreadsheet from a broker is the financials (income statement / rent roll)
             out.append({"name": f.name, "url": None, "kind": kind, "downloaded": True, "path": str(f), "local": True})
     return out
 
@@ -174,7 +234,7 @@ def doc_facts(L: dict[str, Any], base_dir: Path, enabled: bool = True, max_mb: f
             d.update(download(d, folder, max_mb=max_mb, session=session))
         if d.get("downloaded"):
             path = Path(d["path"])
-            facts = facts_from_text(path.read_text(errors="ignore") if path.suffix.lower() in (".txt", ".md") else pdf_text(path))
+            facts = facts_from_text(doc_text(path))
             d["facts"] = {k: v for k, v in facts.items() if v not in (None, [], False)}
             if d.get("kind") == "sheet":
                 d["facts"]["_text"] = (path.read_text(errors="ignore") if path.suffix.lower() in (".txt", ".md") else "")[:20000]

@@ -78,6 +78,9 @@ approvals-now:    ## run one approvals round now (rewrites commented cards, send
 follow-ups:       ## Good morning follow-up (same thread) to every agent who never answered: cards in Needs Me
 	$(PY) -m titan.cli follow-ups
 
+books-review:     ## read every broker answer + the books on file for Rodrigo now (runs on every round on its own); make books-review ARGS=--all redoes them
+	$(PY) -m titan.cli books-review $(ARGS)
+
 comps-loop:       ## comp-quality loop now: back-test the comp rules on real sales, tune, re-value the board, Claude review
 	$(PY) -m titan.cli comps-loop
 

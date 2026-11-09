@@ -293,6 +293,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-09 ~9:45am ET, RESUME HERE: **FULL STATEWIDE PULL DONE in the cloud** on the new Apify Starter plan ($6.88: 7 searches ≈1,830
+  rows + 347 property sheets, 280 of which came through this time): **1,307 listings, 542 in the box across 41 counties, 435 brokers**,
+  629 "price not disclosed" (kept, flagged, out of the lists), 136 out (51 on the new quality screen, 4 on the 45-min airport screen),
+  0 CLEAN / 17 SUSPECT / 525 NEEDS-OM; only 28 in-box listings state a cap, 25 an NOI. Files `reports/commercial/2026-11-09/`
+  (gitignored; master.xlsx, broker_contacts.csv, needs_om.csv, deals_email.html), buyer brief `reports/commercial/buyer_brief_2026-11-09.pdf`
+  sent to Rodrigo (chat + inbox). **New this morning (Rodrigo):** airport screen (`titan/commercial/airports.py`, ≤45 min, config
+  `airport_max_minutes`), quality screen (`titan/commercial/quality.py`: building class ≥ C, no below-C-area / distress language; LoopNet
+  has no neighborhood class), both on cards/email/site/brief; the sourced-property agreement draft for the buyer's agent
+  (`docs/legal/Titan_Sourced_Property_Agreement.docx` + .md; attorney review before signing). Apify saga: his first upgrade landed on
+  the Creator plan (no Store actors) → removed → Starter ($39/mo, $19 cap shown; raise it in Billing → Limits if a pull stops).
+  **The Mac's DB does not have this pull**: on the Mac run `make commercial` (its own pull, ~$7) or copy the cloud's raw files; the
+  cloud cannot post the 542 cards (no ASANA_TOKEN) nor the site (no BLOB token). Monday: he drags cards to "Approved · send OM request".
 - 2026-11-09 ~1:30am ET: **buyer brief** (`make buyer-brief` → `reports/commercial/buyer_brief_<date>.pdf`, `titan/commercial/buyer_brief.py`):
   one sheet for the 1031 buyer and his agent with the live numbers (screened / fit / brokers / by type / by region), the week's plan
   (book requests Monday, analysis as books land, review call Wednesday, offers after), and what we need from them (proof of funds,

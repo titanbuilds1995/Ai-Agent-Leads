@@ -293,6 +293,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-09 ~1:30am ET: **buyer brief** (`make buyer-brief` → `reports/commercial/buyer_brief_<date>.pdf`, `titan/commercial/buyer_brief.py`):
+  one sheet for the 1031 buyer and his agent with the live numbers (screened / fit / brokers / by type / by region), the week's plan
+  (book requests Monday, analysis as books land, review call Wednesday, offers after), and what we need from them (proof of funds,
+  confidentiality agreements, a decision on the call). `commercial.buyer_name` prints on it. Sent to Rodrigo from the sample numbers.
 - 2026-11-09 ~1am ET, RESUME HERE: **the loop is closed** (see Decisions → OM requests out, books back): drag a 1031 card to "Approved ·
   send OM request" → Charles@ sends the book request → answers, response clock and attachments land on the card → books regrade the
   deal and move it to Books received. Default branch `claude/funny-bohr-d0mkrt` fast-forwarded to this work (Vercel deploys from it);

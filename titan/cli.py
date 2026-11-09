@@ -662,6 +662,14 @@ def cmd_commercial_sheets(cfg, args):
     for L in rows:
         print(f"{L.get('listing_url')} -> {base / L['listing_id'] / 'sheet.txt'}")
 
+
+def cmd_buyer_brief(cfg, args):
+    """One-page PDF for the 1031 buyer: what we found, this week's plan, what we need from them (Rodrigo, 2026-11-09)."""
+    from .commercial.buyer_brief import build
+    conn = _open(cfg)
+    out = cfg.path("reports") / "commercial" / f"buyer_brief_{today_et()}.pdf"
+    print(build(conn, cfg, out))
+
 def cmd_follow_ups(cfg, args):
     """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
     (or Approved with --approve: only when he said to send them)."""
@@ -865,6 +873,7 @@ def main(argv: list[str] | None = None) -> int:
     cm.add_argument("--print-sample", action="store_true")
     cm.add_argument("--from-raw", nargs="*", default=None, help="score saved actor JSON files instead of pulling (raw/*.json)")
     cm.add_argument("--retry-details", action="store_true", help="with --from-raw: still try the detail sheets still missing (spends Apify credit)")
+    sub.add_parser("buyer-brief", help="one-page PDF for the 1031 buyer: numbers found, this week's plan, what we need from them")
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
@@ -883,7 +892,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief}[args.cmd](cfg, args)
     return 0
 
 

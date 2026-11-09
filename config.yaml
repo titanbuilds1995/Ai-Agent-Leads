@@ -339,6 +339,7 @@ autonomy:
 commercial:
   enabled: true
   tag: "1031-buyer"
+  buyer_name: "1031 Exchange Buyer"     # printed on the buyer brief (make buyer-brief); put the buyer's name here when he wants it on paper
   buyer_box:
     price_min: 3500000
     price_max: 8000000

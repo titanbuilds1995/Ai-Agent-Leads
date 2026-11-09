@@ -18,3 +18,5 @@ reports/knowledge/
 reports/*.md
 reports/*.local.md
 reports/comps/
+*.db-wal
+*.db-shm

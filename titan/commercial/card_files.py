@@ -4,10 +4,14 @@ from the finances on the deals … should I drop them on the Asana card … yes 
 Every approvals round: the cards on the 1031 board that changed since the last look are checked for attachments; each PDF or
 spreadsheet not seen before is downloaded into data/listings/<listing_id>/ (the same folder the broker's emailed files go to), the
 listing is regraded off the books, and a fresh 🧠 READ FOR YOU is posted on the card (with the true-8-cap price, pros, cons, doubts
-and what checks out). A read triggered by his own files never drafts an email to the broker. Images and other files are left alone."""
+and what checks out). A read triggered by his own files never drafts an email to the broker. Images and other files are left alone.
+A ZIP (Rodrigo, 2026-11-10, the Sleep Inn DeFuniak Springs package from Revere CRE) is unpacked and every PDF / spreadsheet / document /
+text file / screenshot inside is filed and read like a direct attachment; anything else in it (photos folders, videos) is skipped."""
 from __future__ import annotations
 
+import io
 import re
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +19,7 @@ from .. import db
 from ..util import iso, log, now_utc
 from .board import LISTING_URL_RE
 
-TAKE_EXT = (".pdf", ".xlsx", ".xls", ".xlsm", ".csv", ".docx", ".txt", ".jpg", ".jpeg", ".png")
+TAKE_EXT = (".pdf", ".xlsx", ".xls", ".xlsm", ".csv", ".docx", ".txt", ".jpg", ".jpeg", ".png", ".zip")
 IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
 KIND_LABEL = {"pnl": "P&L", "t12": "T-12", "rent_roll": "Rent roll", "om": "OM", "other": "Notes"}
 SHOT_PROMPT = ("This is a screenshot a commercial real estate broker sent about a property for sale (a P&L, a T-12, a rent roll, a "
@@ -36,6 +40,25 @@ def transcribe(llm, path: Path, data: bytes) -> Path | None:
     txt.write_text(f"Transcribed by Claude from the screenshot {path.name}:\n\n{out['text'].strip()}\n")
     return txt
 MAX_BYTES = 40_000_000
+MAX_ZIP_FILES = 60
+
+
+def unzip(data: bytes) -> list[tuple[str, bytes]]:
+    """(name, bytes) for every readable file inside a ZIP, in archive order; folders, hidden files and other types skipped."""
+    out: list[tuple[str, bytes]] = []
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for info in z.infolist():
+            if info.is_dir() or info.file_size == 0 or info.file_size > MAX_BYTES:
+                continue
+            base = Path(info.filename).name
+            if base.startswith((".", "__MACOSX")) or "__MACOSX" in info.filename:
+                continue
+            if Path(base).suffix.lower() not in TAKE_EXT or base.lower().endswith(".zip"):
+                continue
+            out.append((base, z.read(info)))
+            if len(out) >= MAX_ZIP_FILES:
+                break
+    return out
 
 
 def _safe_name(name: str) -> str:
@@ -123,20 +146,33 @@ def pull_card_files(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]
                 if not a.get("download_url"):
                     raise AsanaError("no download link (a file linked from Dropbox / Drive is not attached)")
                 data = asana.download(a["download_url"])
-                path = folder / _safe_name(a.get("name"))
-                if path.exists() and path.read_bytes() != data:
-                    path = folder / f"{path.stem} ({a['gid'][-5:]}){path.suffix}"
-                path.write_bytes(data)
-                if path.suffix.lower() in IMAGE_TYPES:       # a screenshot: Claude types it out, the text file is what gets read
-                    txt = transcribe(llm, path, data)
-                    if not txt:
-                        raise RuntimeError("it is a picture and Claude could not type it out (no API key on this machine, or the call failed); "
-                                           "attach it as a PDF or type the numbers in a comment")
-                    path = txt
+                if Path(a.get("name") or "").suffix.lower() == ".zip":
+                    items = unzip(data)
+                    if not items:
+                        raise RuntimeError("the ZIP holds no PDF, spreadsheet, document or screenshot I can read")
+                else:
+                    items = [(a.get("name"), data)]
+                saved = []
+                for name, blob in items:
+                    path = folder / _safe_name(name)
+                    if path.exists() and path.read_bytes() != blob:
+                        path = folder / f"{path.stem} ({a['gid'][-5:]}){path.suffix}"
+                    path.write_bytes(blob)
+                    if path.suffix.lower() in IMAGE_TYPES:       # a screenshot: Claude types it out, the text file is what gets read
+                        txt = transcribe(llm, path, blob)
+                        if not txt:
+                            if len(items) > 1:                   # a photo inside a package: skip it, the documents still count
+                                continue
+                            raise RuntimeError("it is a picture and Claude could not type it out (no API key on this machine, or the call failed); "
+                                               "attach it as a PDF or type the numbers in a comment")
+                        path = txt
+                    saved.append(path.name)
+                    res["files"] += 1
+                if not saved:
+                    raise RuntimeError("nothing readable inside")
                 conn.execute("INSERT OR IGNORE INTO commercial_card_files (attachment_gid, listing_id, card_gid, name, path, created_at) VALUES (?,?,?,?,?,?)",
-                             (a["gid"], lid, gid, a.get("name"), str(path), iso(now)))
-                got.append(path.name)
-                res["files"] += 1
+                             (a["gid"], lid, gid, a.get("name"), "; ".join(str(folder / n) for n in saved), iso(now)))
+                got += saved if len(saved) <= 8 else saved[:8] + [f"… {len(saved) - 8} more"]
             except Exception as e:  # noqa: BLE001
                 res["errors"] += 1
                 log.warning("download %s on %s: %s", a.get("name"), gid, e)

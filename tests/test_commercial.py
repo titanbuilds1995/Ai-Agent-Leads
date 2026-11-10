@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from titan.util import iso
+from tests.test_approvals import SAT_10AM_ET
 
 from titan.commercial import extract as x
 from titan.commercial import loopnet, outputs, scoring
@@ -584,13 +585,13 @@ def test_books_review_reads_every_answer_for_rodrigo_and_send_it_sends_the_reply
     assert asana.where[gid] == secs["In touch with the agent"]
     assert review_pending(conn, cfg, asana, llm)["reviewed"] == 0                 # once per message
     # nothing sends until Rodrigo says so
-    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == 1
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1 and len(gm.sent) == 1
     asana.comment_raw(gid, "send it")
-    s = send_approved_replies(conn, cfg, asana, gm)
+    s = send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)
     assert s["sent"] == 1 and len(gm.sent) == 2 and gm.sent[-1][0] == "adam@trustrealtyusa.com" and gm.sent[-1][1].startswith("Re: ")
     assert any("📤 Charles's reply sent" in c for c in asana.stories[gid])
     assert conn.execute("SELECT COUNT(*) FROM outreach WHERE kind='om_reply' AND status='sent'").fetchone()[0] == 1
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 0              # never twice
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0              # never twice
     # 2) the books come as a SPREADSHEET: filed, read, regraded, card to Books received, Claude's read on the card
     import openpyxl, io
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "T12"
@@ -685,19 +686,19 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     review_pending(conn, cfg, asana, llm)
     read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
     assert "goes out at the next round on its own" in read
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1 and gm.sent[-1][0] == "adam@trustrealtyusa.com"
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and gm.sent[-1][0] == "adam@trustrealtyusa.com"
     assert triage_inbox(conn, cfg, asana, gm) == {"forwarded": 0, "archived": 0, "waiting": 0, "errors": 0}
     # 2) "hold" under the review stops the next one
     _answer(conn, cfg, asana, gm, "Package coming tomorrow, promise.", "r2", 2)
     review_pending(conn, cfg, asana, llm)
     asana.comment_raw(gid, "hold, let me look at this one")
-    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == 2
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1 and len(gm.sent) == 2
     # 3) NEEDS YOU (an NDA): the reply waits for him; the email is forwarded to his inbox with the file attached, once
     nda = [{"filename": "CA-NDA.pdf", "mime": "application/pdf", "bytes": b"%PDF-1.4 nda"}]
     _answer(conn, cfg, asana, gm, "Please sign the NDA attached before I release the OM.", "r3", 3, files=nda)
     out = review_pending(conn, cfg, asana, llm)
     assert out["needs_rodrigo"] == 1
-    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1
     tri = triage_inbox(conn, cfg, asana, gm)
     assert tri["forwarded"] == 1 and tri["archived"] == 0
     to, subject, body = gm.sent[-1]
@@ -708,14 +709,14 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     assert triage_inbox(conn, cfg, asana, gm)["forwarded"] == 0                  # once
     assert not getattr(gm, "archived", [])
     asana.comment_raw(gid, "ok send it")                                         # his word is still what sends a NEEDS YOU reply
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1 and "reviewing the NDA" in gm.sent[-1][2]
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and "reviewing the NDA" in gm.sent[-1][2]
     # 4) a pocket listing pitched in a DOES NOT FIT answer: forwarded (not archived), the deal named on the card
     _answer(conn, cfg, asana, gm, "Orlando is weak, but I have a pocket listing, an Amoco in West Palm at $3.7M.", "r4", 4)
     out = review_pending(conn, cfg, asana, llm)
     assert out["other_deals"] == 1
     read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
     assert "Other deals they pitched" in read and "Amoco" in read
-    send_approved_replies(conn, cfg, asana, gm)                                   # Charles asks for the T-12 on his own
+    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)                                   # Charles asks for the T-12 on his own
     tri = triage_inbox(conn, cfg, asana, gm)
     assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("FW [POCKET / OTHER DEALS]")
     assert "Amoco gas station, West Palm Beach" in gm.sent[-1][2]
@@ -723,7 +724,7 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     _answer(conn, cfg, asana, gm, "Actually the building is vacant now.", "r5", 5)
     review_pending(conn, cfg, asana, llm)
     assert triage_inbox(conn, cfg, asana, gm)["waiting"] == 1                   # reply not sent yet: not archived
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
     tri = triage_inbox(conn, cfg, asana, gm)
     assert tri["archived"] == 1 and gm.archived == ["t1"]
     assert any("🗂 Archived in Charles's inbox" in c for c in asana.stories[gid])
@@ -746,7 +747,7 @@ def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(con
     # 1) an answer with no books and no question → "can you please send us the books", on its own
     _answer(conn, cfg, asana, gm, "Thanks for reaching out, it is a great property with a strong tenant.", "r1", 1)
     review_pending(conn, cfg, asana, llm)
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
     body = gm.sent[-1][2]
     assert body.startswith("Hey Adam,") and "Can you please send us the books?" in body and "840 SW 81st Ave" in body and "Charles Grant" in body
     assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] == "ask_books"
@@ -764,13 +765,13 @@ def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(con
             files=[{"filename": "T12.xlsx", "mime": "application/vnd.ms-excel", "bytes": buf.getvalue()}])
     out = review_pending(conn, cfg, asana, llm)
     assert out["needs_rodrigo"] == 1
-    send_approved_replies(conn, cfg, asana, gm)
+    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)
     body = gm.sent[-1][2]
     assert body.startswith("Hey Adam,") and "840 SW 81st Ave" in body and "24 hours" in body
     # 4) not a fit → polite pass that plants the seed; then the thread is archived as before
     _answer(conn, cfg, asana, gm, "Update: the building is vacant now.", "r4", 4)
     review_pending(conn, cfg, asana, llm)
-    send_approved_replies(conn, cfg, asana, gm)
+    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)
     body = gm.sent[-1][2]
     assert "This one won't work for us, but we are always buying." in body and "pocket listings" in body and "apartment buildings" in body
     # the fixed replies never call us someone's agent
@@ -808,7 +809,7 @@ def test_rodrigo_writing_in_the_thread_shows_on_the_card_logs_the_offer_and_sile
     read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
     assert "you are writing to this broker yourself" in read
     n = len(gm.sent)
-    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == n
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1 and len(gm.sent) == n
     assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0
     assert asana.where[gid] == secs["Offer out"]                                    # the offer card does not jump back
 
@@ -886,9 +887,9 @@ def test_cards_that_need_rodrigo_land_in_needs_me_once_and_overlapping_rounds_ne
     out = triage_inbox(conn, cfg, asana, gm)
     assert out["forwarded"] == 1 and out.get("parked") is None                   # parked once: he can drag it away and it stays away
     asana.comment_raw(gid, "send it")
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
     assert asana.where[gid] == secs["In touch with the agent"]                    # his move is done
-    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 0               # and never twice
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0               # and never twice
     # a card he put in Offer out is never pulled into Needs Me
     asana.move(gid, secs["Offer out"])
     conn.execute("UPDATE commercial_listings SET board_column='Offer out'")
@@ -1118,6 +1119,47 @@ def test_financials_dropped_on_a_1031_card_are_filed_read_and_never_trigger_an_e
     assert conn.execute("SELECT reply_draft FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None   # nothing drafted to the broker
     assert len(gm.sent) == n
     # the same card checked again: nothing new, nothing read twice
+    asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "modified_at": "2026-11-10T16:00:00Z"} for g in asana.tasks]
+    assert pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)["files"] == 0
+
+
+def test_zip_dropped_on_a_1031_card_is_unpacked_and_read(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10 (Sleep Inn DeFuniak Springs): the broker's platform hands out one ZIP; he dropped it on the card and the
+    engine skipped it. A ZIP is unpacked: the PDFs / spreadsheets inside are filed and read, photos and folders are left alone."""
+    import io, zipfile, openpyxl
+    from titan.commercial.card_files import pull_card_files, unzip
+    from titan.commercial.outreach import send_om_requests
+    from titan.commercial.board import NEEDS_ME, NEEDS_REVISION, ensure_board
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    send_om_requests(conn, cfg, asana, FakeOMGmail(), now=SAT_10AM_ET)
+    wb = openpyxl.Workbook(); ws = wb.active
+    for row in (("Trailing 12 months actuals",), ("Net Operating Income", 455000)):
+        ws.append(row)
+    xbuf = io.BytesIO(); wb.save(xbuf)
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as z:
+        z.writestr("Sleep Inn/Financials/T-12 Sept 2026.xlsx", xbuf.getvalue())
+        z.writestr("Sleep Inn/Financials/notes.txt", "Franchise: Choice, expires 2035")
+        z.writestr("Sleep Inn/Photos/lobby.heic", b"\x00" * 50)          # not a type we read
+        z.writestr("__MACOSX/Sleep Inn/._T-12 Sept 2026.xlsx", b"junk")
+        z.writestr("Sleep Inn/Photos/", b"")
+    names = [n for n, _ in unzip(zbuf.getvalue())]
+    assert names == ["T-12 Sept 2026.xlsx", "notes.txt"]
+    files = {"https://s3/pkg": zbuf.getvalue()}
+    asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "name": t.get("name"), "modified_at": "2026-11-10T15:00:00Z"} for g, t in asana.tasks.items()]
+    asana.attachments = lambda task: ([{"gid": "zip1", "name": "Sleep Inn DeFuniak Springs - Property Information.zip", "download_url": "https://s3/pkg",
+                                        "size": len(files["https://s3/pkg"])}] if task == gid else [])
+    asana.download = lambda url: files[url]
+    secs = ensure_board(asana, "proj-1031")
+    asana.move(gid, secs[NEEDS_REVISION])
+    out = pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)
+    assert out["files"] == 2 and out["reads"] == 1 and out["errors"] == 0
+    folder = tmp_path / "data" / "listings" / "28440860"
+    assert (folder / "T-12 Sept 2026.xlsx").exists() and (folder / "notes.txt").exists() and not (folder / "lobby.heic").exists()
+    assert asana.where[gid] == secs[NEEDS_ME]
+    assert any("📎 Filed your file(s)" in c and "T-12 Sept 2026.xlsx" in c for c in asana.stories[gid])
+    assert conn.execute("SELECT COUNT(*) FROM commercial_card_files WHERE attachment_gid='zip1'").fetchone()[0] == 1
     asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "modified_at": "2026-11-10T16:00:00Z"} for g in asana.tasks]
     assert pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)["files"] == 0
 

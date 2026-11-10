@@ -416,6 +416,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~5:55pm ET, RESUME HERE: **Sleep Inn DeFuniak Springs (17834 State Hwy 285 S, Dennis Hopper / DSH; card 1220358635284810,
+  Working Deals → Needs Revision)**: Rodrigo got the Revere CRE "Tier 1 Private files" and dropped them on the card as ONE ZIP (13 MB).
+  Nobody could read it: the cloud cannot download Asana files or reach platform.reverecre.com, and `card_files` skipped `.zip`. Built:
+  a ZIP on a card is unpacked and every PDF / spreadsheet / document / text / screenshot inside is filed and read like a direct
+  attachment (`card_files.unzip`, test added). **The Mac's next approvals round reads the package and posts the 🧠 READ FOR YOU; the
+  card then goes back to Needs Me.** Faster path given to Rodrigo: unzip and upload the files to his Google Drive, the cloud reads them
+  through the Drive connector at once. Also fixed: three commercial tests called `send_approved_replies` on the wall clock and failed
+  outside the 8:30–5:30 ET send window; pinned to SAT_10AM_ET. 359 tests.
 - 2026-11-10 ~1:35pm ET, RESUME HERE: **Coral Shores / 9022 Midnight Pass Rd (Michael Grant, Dreamify) read from the post-NDA files.**
   Rodrigo signed the NDA; Michael's package (13 files) arrived as Drive links in Rodrigo's inbox, so the cloud read them through the
   Drive connector (the engine never follows links and cannot download Asana files from the cloud). Full read pinned on the card

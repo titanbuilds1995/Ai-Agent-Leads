@@ -373,6 +373,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~1:45pm ET: Rodrigo asked where the 1031 comps live and to continue the analysis in his own Claude account. There are no
+  independent commercial sales comps (the engine pulls comps for houses only); Byronessa's only comps are the 3 broker-picked sales in the OM.
+  Built the Claude Doc "Byronessa · 7320 Byron Ave · Deal Analysis" (https://claude.ai/artifact/AEis1sRaKXUHowoY2MmGKG): status, property,
+  T-12, tax reset, a chart of the 8-cap price by how it is run, comps, offer history, open questions. Numbers live there and on the Asana card.
 - 2026-11-10 ~1:15pm ET, RESUME HERE: **Charles's unapproved replies stopped** (see Decisions → No dates, no commitments). Audit of the
   1031 cards: 25 replies sent, 21 with "identify within 45 days" / proof of funds / signed NDA; the St Petersburg broker was told twice that
   a signed NDA was attached (nothing was): Rodrigo should correct that one himself. OM request no longer offers proof of funds. 349 tests.

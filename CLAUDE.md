@@ -384,13 +384,21 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (`commercial_card_files`) into `data/listings/<listing_id>/`, the listing is regraded and a fresh 🧠 READ FOR YOU is posted with
   `review_thread(no_reply=True)`: a read of HIS files never drafts or sends anything to the broker. Images are ignored; a card with no
   LoopNet link gets one comment. Cards never emailed get the regrade line only. Asana client: `attachments()`, `download()` (pre-signed
-  link, fetched without the token).
+  link, fetched without the token). **Screenshots too** (11-10, Julio's "Year-to-date.jpg"): a JPG / PNG is typed out by Claude
+  (`llm.transcribe_image`, paid API, pennies) into "<kind> - <name> (from screenshot).txt" next to it, and that text is read. Files are
+  read BEFORE notes in the round (stage `card_files` before `om_notes`), so a card with fresh files is never bounced out of Needs
+  Revision; after the read a card he put in Needs Revision / Reviewed comes back to Needs Me. A read never moves a card out of a column
+  he chose (Needs Me / Needs Revision / Reviewed / Offer out / Closed / Not a fit).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~11:15am ET, RESUME HERE: **Julio's card** (2648 NE 32nd St, card 1220386118395527) is in Needs Revision with 3 P&L PDFs
+  (2022, YTD 2023, 2024 & 2025) and a "Year-to-date.jpg", no comment. Fixed so the Mac's next round reads them: files before the
+  Needs Revision bounce, the JPG transcribed by Claude, then a 🧠 READ FOR YOU and the card back to Needs Me. The cloud can't download
+  Asana files (asanausercontent.com blocked), so the read happens on the Mac. Watch that card for 📎 + 🧠. 352 tests.
 - 2026-11-10 ~10:50am ET (real time; this session's earlier status lines from "~10:15am" on were stamped hours late), RESUME HERE:
   Rodrigo dragged **Julio Leyva / 2648 NE 32nd St, Fort Lauderdale** (card 1220386118395527) to Needs Revision with **no comment**, so the
   next round sends it back to Needs Me. The real numbers (historical P&Ls) sit in a Box folder Julio linked; the engine never opens links

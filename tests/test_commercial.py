@@ -1099,9 +1099,18 @@ def test_financials_dropped_on_a_1031_card_are_filed_read_and_never_trigger_an_e
     asana.attachments = lambda task: ([{"gid": "att1", "name": "T-12 2026.xlsx", "download_url": "https://s3/t12", "size": len(files["https://s3/t12"])},
                                        {"gid": "att2", "name": "photo.png", "download_url": "https://s3/p"}] if task == gid else [])
     asana.download = lambda url: files[url]
+    files["https://s3/p"] = b"\x89PNG fake"
+    class ShotLLM(FakeReviewLLM):                       # a screenshot of numbers is typed out by Claude and read as text
+        def transcribe_image(self, purpose, data, media_type, prompt, schema, max_tokens=4000):
+            return {"kind": "pnl", "text": "Revenue YTD 2026 | $402,000\nNet Operating Income YTD | $301,000"}
     n = len(gm.sent)
-    out = pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)
-    assert out["files"] == 1 and out["reads"] == 1
+    from titan.commercial.board import NEEDS_ME, NEEDS_REVISION, ensure_board
+    secs = ensure_board(asana, "proj-1031")
+    asana.move(gid, secs[NEEDS_REVISION])               # he drops the files and leaves the card in Needs Revision
+    out = pull_card_files(conn, cfg, asana, ShotLLM(), now=SAT_10AM_ET)
+    assert out["files"] == 2 and out["reads"] == 1
+    assert (tmp_path / "data" / "listings" / "28440860" / "P&L - photo (from screenshot).txt").read_text().count("$301,000") == 1
+    assert asana.where[gid] == secs[NEEDS_ME]           # read, then back to Needs Me
     saved = tmp_path / "data" / "listings" / "28440860" / "T-12 2026.xlsx"
     assert saved.exists()
     assert any("📎 Filed your file(s)" in c and "T-12 2026.xlsx" in c for c in asana.stories[gid])

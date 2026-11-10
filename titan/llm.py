@@ -263,6 +263,40 @@ class LLM:
             log.error("claude:%s returned non-JSON", purpose)
             return None
 
+    def transcribe_image(self, purpose: str, data: bytes, media_type: str, prompt: str, schema: dict[str, Any], max_tokens: int = 4000) -> dict[str, Any] | None:
+        """One paid API call that reads an image (a screenshot of a P&L, say) and returns JSON per schema. None when the API key is
+        missing or the call fails: the caller says so on the card. (Rodrigo, 2026-11-10: a "Year-to-date" screenshot on a 1031 card.)"""
+        if anthropic is None or not self._api_key:
+            return None
+        import base64
+        client = self._api_client()
+        a = anthropic
+
+        def call():
+            return client.messages.create(
+                model=self.model, max_tokens=max_tokens,
+                messages=[{"role": "user", "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": base64.b64encode(data).decode()}},
+                    {"type": "text", "text": prompt}]}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+            )
+
+        try:
+            resp = retry(call, attempts=3, base=2.0, retry_on=(a.RateLimitError, a.InternalServerError, a.APIConnectionError, a.APITimeoutError),
+                         what=f"claude:{purpose}")
+        except Exception as e:  # noqa: BLE001
+            log.error("claude:%s failed: %s", purpose, e)
+            self.last_error = f"{type(e).__name__}: {getattr(e, 'message', e)}"[:300]
+            self._record(purpose, 0, 0, ok=False)
+            return None
+        usage = getattr(resp, "usage", None)
+        self._record(purpose, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0, ok=True, model=resp.model)
+        text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
     def _record(self, purpose: str, inp: int, out: int, ok: bool, model: str | None = None) -> None:
         model = model or self.model
         cost = self._cost(model, inp, out)

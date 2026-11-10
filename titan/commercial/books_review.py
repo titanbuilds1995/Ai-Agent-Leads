@@ -447,6 +447,7 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     dead = r["verdict"] == "NOT A FIT" or bool(DEAD_RE.search((msgs[-1].get("body") or "") if msgs else ""))
     column = "Not a fit" if dead else ("Books received" if books else None)
     moved = None
+    where = _column_now(conn, asana, t["listing_id"], t["card_gid"]) if (column and asana is not None and t.get("card_gid")) else None
     if column:
         conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=? AND board_column NOT IN ('Offer out','Closed')", (column, t["listing_id"]))
         if dead:
@@ -454,7 +455,9 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     if asana is not None and t.get("card_gid"):
         asana.comment(t["card_gid"], text)
         cur = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
-        if column and secs and secs.get(column) and (not cur or cur[0] in (None, column)):   # an offer out / closed card stays put
+        from .board import REVIEWED
+        if (column and secs and secs.get(column) and (not cur or cur[0] in (None, column))
+                and where not in STAYS_PUT + (REVIEWED,)):   # a card he put in Needs Me / Needs Revision / Reviewed / Offer out … stays put
             asana.move(t["card_gid"], secs[column])
             moved = column
     conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, gmail_message_id, verdict, needs_rodrigo, text, source, reply_draft, other_deals, "

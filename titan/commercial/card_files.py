@@ -15,7 +15,26 @@ from .. import db
 from ..util import iso, log, now_utc
 from .board import LISTING_URL_RE
 
-TAKE_EXT = (".pdf", ".xlsx", ".xls", ".xlsm", ".csv", ".docx", ".txt")
+TAKE_EXT = (".pdf", ".xlsx", ".xls", ".xlsm", ".csv", ".docx", ".txt", ".jpg", ".jpeg", ".png")
+IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+KIND_LABEL = {"pnl": "P&L", "t12": "T-12", "rent_roll": "Rent roll", "om": "OM", "other": "Notes"}
+SHOT_PROMPT = ("This is a screenshot a commercial real estate broker sent about a property for sale (a P&L, a T-12, a rent roll, a "
+               "summary page). Type out every number and label exactly as shown, row by row, as plain text lines 'Label | value | value', "
+               "keeping the column headers (months, years, YTD). Do not add, total or interpret anything. Say what kind of document it is.")
+SHOT_SCHEMA = {"type": "object", "properties": {"kind": {"type": "string", "enum": list(KIND_LABEL)}, "text": {"type": "string"}},
+               "required": ["kind", "text"], "additionalProperties": False}
+
+
+def transcribe(llm, path: Path, data: bytes) -> Path | None:
+    """A screenshot of numbers → a text file next to it that the document reader reads like a PDF (the image itself is not read)."""
+    if llm is None or not hasattr(llm, "transcribe_image"):
+        return None
+    out = llm.transcribe_image("commercial_screenshot", data, IMAGE_TYPES[path.suffix.lower()], SHOT_PROMPT, SHOT_SCHEMA)
+    if not out or not (out.get("text") or "").strip():
+        return None
+    txt = path.with_name(f"{KIND_LABEL.get(out.get('kind'), 'Notes')} - {path.stem} (from screenshot).txt")
+    txt.write_text(f"Transcribed by Claude from the screenshot {path.name}:\n\n{out['text'].strip()}\n")
+    return txt
 MAX_BYTES = 40_000_000
 
 
@@ -34,6 +53,24 @@ def _card_map(conn) -> dict[str, str]:
             if gid:
                 out.setdefault(gid, lid)
     return out
+
+
+def _in_revision(asana, secs: dict[str, str], gid: str) -> bool:
+    from .board import NEEDS_REVISION, REVIEWED
+    for col in (NEEDS_REVISION, REVIEWED):
+        try:
+            if secs.get(col) and any(x["gid"] == gid for x in asana.section_tasks(secs[col])):
+                return True
+        except Exception as e:  # noqa: BLE001
+            log.warning("column of %s: %s", gid, e)
+    return False
+
+
+def _back_to_needs_me(asana, secs: dict[str, str], gid: str) -> None:
+    """His files were the thing to work on: a card he put in Needs Revision / Reviewed comes back to Needs Me with the read on it."""
+    from .board import NEEDS_ME
+    if secs.get(NEEDS_ME):
+        asana.move(gid, secs[NEEDS_ME])
 
 
 def pull_card_files(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
@@ -90,6 +127,12 @@ def pull_card_files(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]
                 if path.exists() and path.read_bytes() != data:
                     path = folder / f"{path.stem} ({a['gid'][-5:]}){path.suffix}"
                 path.write_bytes(data)
+                if path.suffix.lower() in IMAGE_TYPES:       # a screenshot: Claude types it out, the text file is what gets read
+                    txt = transcribe(llm, path, data)
+                    if not txt:
+                        raise RuntimeError("it is a picture and Claude could not type it out (no API key on this machine, or the call failed); "
+                                           "attach it as a PDF or type the numbers in a comment")
+                    path = txt
                 conn.execute("INSERT OR IGNORE INTO commercial_card_files (attachment_gid, listing_id, card_gid, name, path, created_at) VALUES (?,?,?,?,?,?)",
                              (a["gid"], lid, gid, a.get("name"), str(path), iso(now)))
                 got.append(path.name)
@@ -111,9 +154,12 @@ def pull_card_files(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]
             t = db.row_to_dict(t)
             t["card_gid"] = gid
             asana.comment(gid, "📎 Filed your file(s) under data/listings/" + str(lid) + "/: " + ", ".join(got) + ". Reading them now.")
+            was_revising = _in_revision(asana, secs, gid)
             try:
                 review_thread(conn, cfg, llm, t, asana, secs, no_reply=True)
                 res["reads"] += 1
+                if was_revising:
+                    _back_to_needs_me(asana, secs, gid)
             except Exception as e:  # noqa: BLE001
                 res["errors"] += 1
                 log.exception("read after card files %s: %s", lid, e)

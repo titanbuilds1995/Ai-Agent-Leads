@@ -391,6 +391,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~10:50am ET (real time; this session's earlier status lines from "~10:15am" on were stamped hours late), RESUME HERE:
+  Rodrigo dragged **Julio Leyva / 2648 NE 32nd St, Fort Lauderdale** (card 1220386118395527) to Needs Revision with **no comment**, so the
+  next round sends it back to Needs Me. The real numbers (historical P&Ls) sit in a Box folder Julio linked; the engine never opens links
+  and the cloud cannot reach box.com (proxy 403). Told Rodrigo: download the P&Ls from Box, attach them to the card (card_files reads them),
+  and write what he wants on the card. Only the OM (no expense lines, $425k NOI unverified) has been read so far.
 - 2026-11-10 ~3pm ET, RESUME HERE: **drop financials on the 1031 card** (see Decisions). Built and tested against a fake Asana only:
   watch the first real attachment (📎 Filed your file(s) … comment, then a 🧠 READ FOR YOU). 352 tests.
 - 2026-11-10 ~2:30pm ET, RESUME HERE: **1031 Reviewed column** (see Decisions): columns now New · Approved · send OM request · Needs Me ·

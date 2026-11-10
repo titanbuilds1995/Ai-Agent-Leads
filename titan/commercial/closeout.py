@@ -21,13 +21,13 @@ from typing import Any
 
 from .. import db
 from ..util import iso, log, now_utc
-from .board import NEEDS_ME, NEEDS_REVISION, NOT_A_FIT, REVIEWED, SEND, ensure_board
+from .board import IN_TOUCH, NEEDS_ME, NEEDS_REVISION, NO_ANSWER, NOT_A_FIT, REVIEWED, SEND, ensure_board
 from .books_review import ARCHIVE_VERDICTS, DEAD_RE, _first_name, _listing, _messages, template_reply
 
 DECLINE_RE = re.compile(r"won'?t work for us|will not work for us|(?:we(?:'ll| will)?|going to) pass\b|pass (?:on|for now)|"
                         r"(?:doesn'?t|does not|isn'?t|is not) (?:a )?fit|not a fit|below what|not for us|not what (?:we|a partner)", re.I)
 HIS_COLUMNS = (NEEDS_ME, NEEDS_REVISION, REVIEWED, SEND, "Good fit", "Offer out", "Closed")
-CLEARABLE = ("New", "In touch with the agent", "Books received", NOT_A_FIT)
+CLEARABLE = ("New", NO_ANSWER, IN_TOUCH, "Books received", NOT_A_FIT)
 
 
 def columns_by_card(asana, secs: dict[str, str]) -> dict[str, str]:

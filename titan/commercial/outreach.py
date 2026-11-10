@@ -20,7 +20,7 @@ from typing import Any
 from .. import db
 from ..util import iso, log, now_utc, parse_iso
 from . import documents, scoring
-from .board import SEND, ensure_board
+from .board import IN_TOUCH, NO_ANSWER, SEND, ensure_board
 from .fl_geo import region_for
 
 START, END = "=== EMAIL (what will be sent) ===", "=== END EMAIL ==="
@@ -117,10 +117,10 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
                      "sent_at, state, card_gid, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                      (card["listing_id"], card["to"].lower(), row[0] if row else None, sent.get("thread_id"), sent.get("message_id"), cur.lastrowid,
                       card["subject"], ts, "SENT", t["gid"], ts, ts))
-        conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=?", ("In touch with the agent", card["listing_id"]))
+        conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=?", (NO_ANSWER, card["listing_id"]))
         asana.comment(t["gid"], f"📤 Sent to {card['to']} at {now.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC. Waiting for the books; "
                                f"the reply clock is running.")
-        asana.move(t["gid"], secs["In touch with the agent"])
+        asana.move(t["gid"], secs[NO_ANSWER])
         res["sent"] += 1
     left = room - res["sent"]
     if left > 0 and res["queue_waiting"]:     # the no-cap blast rides the same round, after the cards
@@ -316,7 +316,36 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
                     cur = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
                     if cur and cur[0] == column:
                         asana.move(t["card_gid"], secs[column])
+    if asana is not None and secs:
+        res["parked"] = park_unanswered(conn, asana, secs)
     return res
+
+
+def park_unanswered(conn, asana, secs: dict[str, str]) -> int:
+    """Rodrigo, 2026-11-10: "In touch with the agent is only if we're negotiating and there's something moving." A card still sitting in
+    In touch whose broker never answered (OM request out, no reply, no bounce) belongs in Sent · no answer yet. Runs every round, so
+    cards that landed in In touch under the old rule are sorted out too."""
+    if not secs.get(IN_TOUCH) or not secs.get(NO_ANSWER):
+        return 0
+    try:
+        cards = [t for t in asana.section_tasks(secs[IN_TOUCH]) if not t.get("completed")]
+    except Exception as e:  # noqa: BLE001
+        log.warning("park_unanswered: %s", e)
+        return 0
+    moved = 0
+    for t in cards:
+        rows = conn.execute("SELECT reply_count, bounced, cleared_at, rodrigo_at, listing_id FROM commercial_threads WHERE card_gid=?", (t["gid"],)).fetchall()
+        if not rows or any(r[0] or r[1] or r[2] or r[3] for r in rows):
+            continue                             # no thread we know of, or someone answered / bounced / Rodrigo wrote: leave it
+        try:
+            asana.move(t["gid"], secs[NO_ANSWER])
+        except Exception as e:  # noqa: BLE001
+            log.warning("park_unanswered %s: %s", t["gid"], e)
+            continue
+        for r in rows:
+            conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=?", (NO_ANSWER, r[4]))
+        moved += 1
+    return moved
 
 
 def _card_for_thread(conn, cfg: Any, asana, project: str, section: str, t: dict[str, Any]) -> str | None:

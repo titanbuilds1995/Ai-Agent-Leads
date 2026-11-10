@@ -13,7 +13,9 @@ NEEDS_ME = "Needs Me"                     # the next move is Rodrigo's (2026-11-
 NEEDS_REVISION = "Needs Revision"         # drag a card here + comment = talk it over with Claude (2026-11-10, like the email board)
 REVIEWED = "Reviewed"                     # he answered on the card: Claude acts on it, then the card comes back to Needs Me (2026-11-10)
 NOT_A_FIT = "Not a fit"                   # always the LAST column; cards there are cleared off the board after the pass email (closeout.py)
-COLUMNS = ["New", SEND, NEEDS_ME, NEEDS_REVISION, REVIEWED, "Good fit", "In touch with the agent", "Books received", "Offer out", "Closed", NOT_A_FIT]
+NO_ANSWER = "Sent · no answer yet"        # OM request out, broker silent (Rodrigo, 2026-11-10: In touch is only for live conversations)
+IN_TOUCH = "In touch with the agent"      # the broker answered and the deal is still open; dead ones are cleared to Not a fit (closeout.py)
+COLUMNS = ["New", SEND, NEEDS_ME, NEEDS_REVISION, REVIEWED, "Good fit", NO_ANSWER, IN_TOUCH, "Books received", "Offer out", "Closed", NOT_A_FIT]
 STAYS_PUT = ("Offer out", "Closed", "Not a fit", NEEDS_ME, NEEDS_REVISION)   # the engine never pulls a card out of these to park it
 RENAMES = {"top tier": "Good fit", "needs om": "New", "suspect": "Not a fit", "contacted": "In touch with the agent", "skip": "Closed",
            "approved": SEND, "send om request": SEND, "send": SEND,
@@ -44,6 +46,8 @@ def ensure_board(asana, project: str) -> dict[str, str]:
     for col in COLUMNS:
         if col not in have:
             before = have.get("Good fit") if col in (NEEDS_ME, NEEDS_REVISION, REVIEWED) else None    # up front, next to the send column
+            if col == NO_ANSWER:
+                before = have.get(IN_TOUCH)                                                                 # right before In touch
             have[col] = asana.ensure_section(project, col, insert_before=before) if before else asana.ensure_section(project, col)
     last_at_end(asana, project, have.get(NOT_A_FIT))
     return have

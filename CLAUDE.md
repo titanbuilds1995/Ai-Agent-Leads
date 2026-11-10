@@ -404,12 +404,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   card's own board ("In touch with the agent" = "Waiting on the broker"; New / send / Good fit have none, so the card stays), column reads
   include both boards, and a card on both boards is taken off the 1031 board. (3) A broker asking for a call (`CALL_RE`) makes the read
   NEEDS YOU, so the card goes to Needs Me.
+- **1031 "In touch with the agent" = live conversations only (Rodrigo, 2026-11-10: "that tab is only if we're negotiating and there's
+  something moving … if they're not a fit, put everybody into not a fit")**: new column **"Sent · no answer yet"** (`board.NO_ANSWER`, right
+  before In touch; the engine creates it). An OM request lands there when sent; the broker's first real answer moves the card to In touch
+  (books → Books received). Every poll, a card still in In touch whose broker never answered (no reply, no bounce, Rodrigo silent) is sorted
+  into Sent · no answer yet (`outreach.park_unanswered`). A broker who said no 8 cap / not a cap-rate sale is a DOES NOT FIT read → `closeout`
+  clears it to Not a fit (pass email where owed, then off the board). Nothing he dragged himself is touched.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~1:00pm ET, RESUME HERE: **In touch cleaned (Rodrigo: "most of them were dead")**. Of 26 cards there: 7 dead (broker said no
+  8 cap: Estero/Rob Carroll, Key Largo/Hampson, Orlando All American/McGregor, Miami NE 2nd/Yesharim, Davie Orange/Waite, Bonita Springs/
+  McClimans, Panama City/Clubbs new build) moved to Not a fit by hand; the Mac's next round sends the pass where still owed (McGregor,
+  Yesharim) and clears them. 14 never answered (sent 11-09 ~5pm): the Mac creates "Sent · no answer yet" and sorts them there on its next
+  check-replies/approvals round (see Decisions). 5 stay in In touch: Bushnell/April (karting, asked for books), Spring Hill/Pannone (sending
+  numbers), Tarpon Springs/Foose (P&L only in DD), Tampa 16th/Silverman and Deland/Hasan (empty replies, asked to resend; weak). Also still
+  to be cleared by the engine: the 52 cards sitting in Not a fit (10 passes per round). 358 tests.
 - 2026-11-10 ~1:30pm ET, RESUME HERE: **Julio's hotel (2648 NE 32nd St) P&Ls were never read by Claude**: every read since ~2pm Nov 10
   was "rules only". Cause found: the 🧠 read's word budget (max_tokens 1200) was too small for the new sections (8-cap, pros, cons,
   doubts, believe), so Claude's answer was cut off, thrown away and labeled "unreachable"; and "retried next round" was never true.

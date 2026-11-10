@@ -342,11 +342,11 @@ def test_om_requests_send_from_the_send_column_once_and_move_the_card(conn, cfg,
     gm = FakeOMGmail()
     out = send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
     assert out["sent"] == 1 and gm.sent[0][0] == "adam@trustrealtyusa.com" and "Titan Realty Investments" in gm.sent[0][2]
-    assert asana.where[gid] == secs["In touch with the agent"] and any("📤 Sent" in c for c in asana.stories[gid])
+    assert asana.where[gid] == secs["Sent · no answer yet"] and any("📤 Sent" in c for c in asana.stories[gid])
     th = conn.execute("SELECT * FROM commercial_threads").fetchone()
     assert th["listing_id"] == "28440860" and th["gmail_thread_id"] == "t1" and th["state"] == "SENT"
     assert conn.execute("SELECT kind, status FROM outreach").fetchone()[0] == "om_request"
-    assert conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0] == "In touch with the agent"
+    assert conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0] == "Sent · no answer yet"
     # dragged back into the send column by mistake: not sent twice
     asana.move(gid, secs[SEND])
     out2 = send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
@@ -1279,3 +1279,26 @@ def test_rules_only_read_is_really_retried_with_claude(conn, cfg, tmp_path):
     last = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
     assert "rules only" not in last and "Charles's reply" not in last       # Claude's read, no new email drafted
     assert br.retry_pending(conn) == []                                      # done once Claude read it
+
+
+def test_in_touch_holds_only_brokers_who_answered(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: In touch with the agent is only for live conversations. A sent OM request waits in Sent · no answer yet; the
+    first real answer moves the card into In touch; a card left in In touch with a silent broker is sorted out at the next poll."""
+    from titan.commercial.board import IN_TOUCH, NO_ANSWER
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert asana.where[gid] == secs[NO_ANSWER]
+    # a card that landed in In touch under the old rule, broker silent → sorted into Sent · no answer yet
+    asana.move(gid, secs[IN_TOUCH])
+    conn.execute("UPDATE commercial_listings SET board_column=?", (IN_TOUCH,))
+    out = poll_om_replies(conn, cfg, gm, asana, now=SAT_10AM_ET)
+    assert out["parked"] == 1 and asana.where[gid] == secs[NO_ANSWER]
+    assert conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0] == NO_ANSWER
+    # the broker answers → In touch, and it stays there
+    gm.threads["t1"].append({"id": "m2", "from": "Adam <adam@trustrealtyusa.com>", "subject": "Re: books", "body": "Sending the T-12 tomorrow.",
+                             "internal_ts": SAT_10AM_ET.timestamp() + 3 * 3600, "label_ids": [], "attachments": []})
+    out = poll_om_replies(conn, cfg, gm, asana, now=SAT_10AM_ET)
+    assert out["replies"] == 1 and out["parked"] == 0 and asana.where[gid] == secs[IN_TOUCH]

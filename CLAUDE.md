@@ -290,7 +290,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   **Charles speaks as the principal (Rodrigo, 2026-11-09: "we have to make sure that we do not say that we have a buyer … a partner of ours …
   sound like we are the principal")**: every OM request says "We are placing a 1031 exchange with a partner of ours and the clock is running",
   never "a buyer we work with" / client / investor (`validate_om_request` rejects those words). Cap-stated listings get "we need the numbers
-  behind the cap rate to verify it holds up as a real eight plus cap"; no-cap listings get the eight-cap question; both offer proof of funds.
+  behind the cap rate to verify it holds up as a real eight plus cap"; no-cap listings get the eight-cap question. **No proof-of-funds offer
+  any more** (Rodrigo, 2026-11-10: no commitments).
 - **The no-cap blast (Rodrigo, 2026-11-09: "the rest of the agents that do not show a cap rate, I want us to email them asking them if it fits an
   8 cap, once sold and re assessed … send those emails out also today"; `titan/commercial/blast.py`, `make commercial-blast`):** one email per
   broker naming all of their in-box listings without a cap rate (`cap_question`: "does it hold an eight cap or better at asking once it sells and
@@ -358,12 +359,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "send it". Stored as a review row (reply_kind note / note_send), sent by `send_approved_replies`. (2) A question on a card → "💬" answer
   from the listing, reads, deal sheet and thread. (3) A card in the 1031 Needs Me column → one "💬 What I think" per new development.
   DEAL SHEET comments are never notes. Paid API like other card work; Claude unreachable → retried next round, the note kept.
+- **No dates, no commitments, no claims in anything Charles sends on his own (Rodrigo, 2026-11-10, after Charles auto-answered Adriana:
+  "I did not approve that message … let's not have us answer or say anything that has dates involved, or committing us to do anything like
+  sending anything signed or POF")**: the books-review prompt no longer feeds "identify within 45 days" / "proof of funds on request" (it
+  did, and 21 of 25 replies on 11-09/10 carried them; two told a broker a signed NDA was attached when nothing was). `books_review.COMMIT_RE`
+  / `commits_us()`: a draft with a date, timeframe, weekday, month, "identify", closing timing, proof of funds, signing, NDA, LOI, contract,
+  deposit, "we will send / provide", or any claim of an attachment is marked NEEDS YOU and never goes out on its own (also re-checked at
+  send time for drafts stored earlier); only his "send it" sends it. Broker replies also wait for the send window (8:30–5:30 ET).
+  The three fixed replies are his own words and still go; books_ack keeps his "within 24 hours" (his wording, 11-10 morning).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~1:15pm ET, RESUME HERE: **Charles's unapproved replies stopped** (see Decisions → No dates, no commitments). Audit of the
+  1031 cards: 25 replies sent, 21 with "identify within 45 days" / proof of funds / signed NDA; the St Petersburg broker was told twice that
+  a signed NDA was attached (nothing was): Rodrigo should correct that one himself. OM request no longer offers proof of funds. 349 tests.
 - 2026-11-10 ~12:30pm ET, RESUME HERE: **the 1031 board talks back** (see Decisions): notes on a card become Charles's next email
   (sent by "send it" or by dragging the card to Approved), questions get a 💬 answer, Needs Me cards get one 💬 What I think. The 5 cards in
   Needs Me (Michael, Kate, Armond, Cameron, Jake) get their take at the Mac's next approvals round. Watch the first ✍️ / 💬 comments. 348 tests.

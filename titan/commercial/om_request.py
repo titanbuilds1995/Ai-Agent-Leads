@@ -48,7 +48,6 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
             f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. This one is in our box. We need the numbers "
             f"behind the cap rate to verify it holds up as a real eight plus cap. Could you send over {asks}?\n\n"
-            f"If you need anything from our side to release them, proof of funds or otherwise, say the word and it is yours.\n\n"
             + signature(cfg)
         )
     else:
@@ -58,7 +57,7 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
             f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. This property is in our box as long as it is "
             f"a real eight plus cap. The listing does not show a cap rate, so I have to ask straight out: where is it?\n\n"
-            f"If it clears that bar, could you send over {asks}? If you need anything from our side to release them, say the word.\n\n"
+            f"If it clears that bar, could you send over {asks}?\n\n"
             + signature(cfg)
         )
     body = format_paragraphs(body)

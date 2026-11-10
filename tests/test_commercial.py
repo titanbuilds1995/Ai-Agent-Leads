@@ -204,6 +204,7 @@ def test_run_offline_writes_files_stores_and_diffs(conn, cfg, tmp_path):
 def test_full_sheet_from_an_earlier_run_is_kept_when_today_is_a_summary_card(conn, cfg, tmp_path):
     cfg.root = tmp_path
     run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    cfg.raw["outreach"]["asana"]["send_window"] = {"start": "00:00", "end": "23:59"}   # broker replies respect the window; tests run at any hour
     summary_only = [r for r in ROWS if not r.get("propertyFacts")]
     assert not any(r.get("propertyId") == "40757439" for r in summary_only)
     card = {"propertyId": "40757439", "listingUrl": "https://www.loopnet.com/Listing/40757439/", "address": "5450-5460 5th Ave", "city": "Fort Myers", "price": "$6.9M",
@@ -975,3 +976,35 @@ def test_the_1031_board_talks_back_notes_become_emails_questions_get_answers(con
     assert needs_me_takes(conn, cfg, asana, llm)["takes"] == 1
     assert any("💬 What I think" in c for c in asana.stories[gid])
     assert needs_me_takes(conn, cfg, asana, llm)["takes"] == 0
+
+
+def test_no_dates_no_commitments_no_fake_attachments_go_out_on_their_own(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10 (Adriana): "let's not have us answer or say anything that has dates involved, or committing us to do
+    anything like sending anything signed or POF." 21 of 25 replies on 11-09/10 said "identify within 45 days", offered proof of
+    funds, or claimed a signed NDA was attached. Those drafts now wait for his 'send it'; nothing goes out after 5:30pm ET."""
+    from titan.commercial.books_review import commits_us, send_approved_replies
+    bad = ["We need to identify within 45 days and are moving now.", "We can provide proof of funds on request.",
+           "The signed NDA is attached.", "We're reviewing the P&Ls now.", "We will send the LOI by Friday."]
+    for b in bad:
+        assert commits_us(f"Hey Adam,\n\n{b}\n\nCharles Grant\nJunior Acquisitions Agent"), b
+    assert not commits_us("Hey Adam,\n\nThanks. Please send the trailing twelve and the rent roll.\n\nCharles Grant\nJunior Acquisitions Agent\n"
+                          "Titan Realty Investments\nOffice Line: +1 (561) 405 7379")
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert "proof of funds" not in gm.sent[-1][2].lower()                        # the first email no longer offers it either
+    tid = conn.execute("SELECT id, gmail_message_id FROM commercial_threads").fetchone()
+    conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, verdict, needs_rodrigo, text, source, reply_draft, created_at) "
+                 "VALUES (?,?,?,?,?,?,?,?)", (tid[0], "28440860", "CAN'T TELL YET", 0, "old read", "claude",
+                                              "Hey Adam,\n\nWe need to identify within 45 days and are moving now.\n\nCharles Grant", iso(SAT_10AM_ET)))
+    n = len(gm.sent)
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1 and len(gm.sent) == n   # an old auto draft is held
+    cfg.raw["outreach"]["asana"]["send_window"] = {"start": "08:30", "end": "17:30"}
+    asana.comment_raw(gid, "send it")
+    from datetime import timedelta
+    late = SAT_10AM_ET.replace(hour=23)                                           # 7pm ET: his go-ahead waits for the morning
+    assert send_approved_replies(conn, cfg, asana, gm, now=late)["sent"] == 0
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET + timedelta(minutes=5))["sent"] == 1
+

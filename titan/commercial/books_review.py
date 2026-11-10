@@ -58,6 +58,23 @@ HOLD_RE = re.compile(r"\b(?:hold(?: it| this| off)?|wait|don'?t send|do not send
 QUESTION_RE = re.compile(r"\?|\b(?:can you|could you|would you|do you|are you|is (?:your|the) (?:buyer|partner|client)|what (?:is|are|kind)|"
                          r"when (?:do|can|will|would)|how (?:soon|much|fast|quickly)|let me know (?:if|what|when)|please (?:confirm|advise))\b", re.I)
 AUTO_KINDS = ("books_ack", "ask_books", "pass")
+# Rodrigo, 2026-11-10 (Adriana): "let's not have us answer or say anything that has dates involved, or committing us to do anything
+# like sending anything signed or POF." Any drafted reply that does goes nowhere on its own: it waits for his "send it".
+COMMIT_RE = re.compile(
+    r"\b(?:\d+\s*(?:business\s+|calendar\s+)?(?:days?|weeks?|months?)|within|deadline|timeline|timeframe|time frame|"
+    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|tonight|next week|this week|end of (?:the )?(?:day|week|month)|"
+    r"january|february|april|june|july|august|september|october|november|december|"
+    r"identif(?:y|ication)|clos(?:e|ing) (?:date|by|in|on|within)|"
+    r"proof of funds|\bpof\b|sign(?:ed|ing)?\b|nda|confidentiality|non-?disclosure|\bloi\b|letter of intent|contract|"
+    r"deposit|escrow|earnest|we(?:'ll| will| can| would) (?:send|provide|sign|get you|have)|i(?:'ll| will) (?:send|provide|sign|get you)|"
+    # Charles never attaches anything: a draft that says it did is false (St Petersburg, 11-10: "The signed NDA is attached", twice, with nothing attached)
+    r"attach(?:ed|ing)?|enclosed|see below|reviewing (?:the|your) (?:p&ls?|books|numbers|financials) now)", re.I)
+
+
+def commits_us(draft: str) -> list[str]:
+    """The dates / commitments in a drafted reply (signature lines ignored)."""
+    body = "\n".join(ln for ln in (draft or "").splitlines() if not re.match(r"\s*(?:Charles Grant|Junior Acquisitions|Titan Realty|Office Line)", ln))
+    return sorted({m.group(0).lower() for m in COMMIT_RE.finditer(body)})
 FORWARD_VERDICTS = ("FITS", "LEANS FIT")
 ARCHIVE_VERDICTS = ("NOT A FIT", "DOES NOT FIT")
 
@@ -86,9 +103,13 @@ Rules:
   off-market deal, "I also have…", a package of sites), list each one in other_deals as one short line (what · where · price ·
   cap if stated · one fact). Empty when none. Rodrigo wants to see these.
 - Charles's reply: write it ONLY when the broker is waiting on something Charles can answer without Rodrigo (thanks + what we
-  still need; the exchange timing when asked: "we need to identify within 45 days and are moving now"; proof of funds "we can
-  provide on request"). Never a price, never "our buyer"/"client"/"investor" (say "a partner of ours"), never promise to waive
-  anything. 30 to 80 words, starts "Hey <first name>,", ends with the signature lines exactly:
+  still need that they have NOT already sent; read the attachments list before asking for anything). Never a price, never
+  "our buyer"/"client"/"investor" (say "a partner of ours"), never promise to waive anything.
+- NEVER put a date, deadline or timeframe in Charles's reply (no "45 days", no closing or identification timing, no "this week",
+  no "by Friday"), and NEVER commit us to do or send anything (no proof of funds, no signing an NDA / CA / LOI / contract, no
+  deposit, no "we will send", "we can provide"). Rodrigo, 2026-11-10: those are his call. When the broker asks for any of that
+  (our deadlines, proof of funds, a signed NDA, an LOI), the next step is "NEEDS YOU:" and the reply is either empty or only says
+  thanks and that we will come back to them, with no date. 30 to 80 words, starts "Hey <first name>,", ends with the signature lines exactly:
   Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379 (each on its own line).
   Empty string when no reply is due (broker will send later, said no, or Rodrigo must act first)."""
 
@@ -384,6 +405,10 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
         r = rules_review(L, t, msgs, files)
     r["other_deals"] = [str(x).strip() for x in (r.get("other_deals") or []) if str(x).strip()]
     r["_rodrigo"] = bool(t.get("rodrigo_at"))
+    hits = commits_us(r.get("reply_draft") or "")
+    if hits:      # a date or a commitment in Claude's draft: it waits for Rodrigo, whatever else the read says
+        r["needs_rodrigo"] = True
+        r["red_flags"] = list(r.get("red_flags") or []) + [f"Charles's draft mentions {', '.join(hits[:4])}: held for you (no dates or commitments go out on their own)."]
     kind, opts = template_kind(conn, t, msgs, files, r)
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
         r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
@@ -463,6 +488,8 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
             continue
         # simple replies and Rodrigo's three fixed replies go on their own; NEEDS YOU, and any thread he is writing in himself, wait for him
         go = _auto_sends({**r, "_rodrigo": bool(r.get("rodrigo_at"))}, auto)
+        if go and r.get("reply_kind") not in AUTO_KINDS + ("note_send",) and commits_us(r.get("reply_draft") or ""):
+            go = False                                     # belt and braces for drafts stored before the rule: only his word sends these
         for c in comments:                                 # his latest word wins: "send it" sends, "hold" stops
             txt = (c.get("text") or "").strip()
             if txt.startswith(BOT) or (c.get("created_at") and c["created_at"] < (r.get("created_at") or "")):
@@ -473,6 +500,11 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
                 go = False
         if not go:
             res["waiting"] += 1
+            continue
+        from ..approvals import in_window
+        if not in_window(cfg, now):                        # brokers hear from Charles inside the send window only (8:30-5:30 ET)
+            res["waiting"] += 1
+            res["reason"] = "outside the send window"
             continue
         if gmail is None:
             res["errors"] += 1

@@ -51,6 +51,8 @@ Rules:
 - Titan speaks as the principal: "we", "our side", "a partner of ours" for the 1031 exchange. Never "our buyer", "our client" or
   "our investor".
 - Use a dollar figure only if Rodrigo's note gives it. Never invent terms.
+- No date, deadline or timeframe and no commitment (proof of funds, signing an NDA / LOI / contract, a deposit, "we will send")
+  unless Rodrigo's note itself says it.
 - Start "Hey <broker first name>," on its own line. End with these lines, each on its own line:
   Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379"""
 SCHEMA = {"type": "object", "properties": {"email": {"type": "string"}}, "required": ["email"], "additionalProperties": False}

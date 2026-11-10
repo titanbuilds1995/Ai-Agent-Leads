@@ -856,3 +856,42 @@ def test_deal_sheet_from_the_card_shows_inside_numbers_privately_and_only_our_pr
     sync(conn, cfg, asana, publish=False)
     deal = build_deals(conn, cfg)["private"][lid]["deal"]
     assert deal["our_offer"] == 3_100_000 and deal["offer_status"].startswith("sent ")
+
+
+def test_cards_that_need_rodrigo_land_in_needs_me_once_and_overlapping_rounds_never_double_send(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "why are all of the emails that I am getting on the people that need me not on my board?" The card behind
+    every forward goes to the 1031 board's Needs Me column (never out of Offer out / Closed / Not a fit); his 'send it' takes it back to
+    In touch. Two rounds at once (check-replies + approvals) forwarded Luca and Cameron twice: a review is claimed before acting."""
+    from titan.commercial.board import NEEDS_ME
+    from titan.commercial.books_review import review_pending, send_approved_replies, triage_inbox
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    secs = __import__("titan.commercial.board", fromlist=["ensure_board"]).ensure_board(asana, "proj-1031")
+    assert NEEDS_ME in secs
+    cfg.secrets["REPORT_TO"] = "rodrigo@titanrealtyinvestments.com"
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    _answer(conn, cfg, asana, gm, "Please sign the NDA attached before I release the OM.", "r1", 1)
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    # a second round racing the first: the claim is already taken, so it does nothing
+    rid = conn.execute("SELECT id FROM commercial_reviews ORDER BY id DESC").fetchone()[0]
+    conn.execute("UPDATE commercial_reviews SET forwarded_at='x' WHERE id=?", (rid,))
+    n = len(gm.sent)
+    out = triage_inbox(conn, cfg, asana, gm)
+    assert out["forwarded"] == 0 and len(gm.sent) == n and out.get("parked") == 1 and asana.where[gid] == secs[NEEDS_ME]
+    conn.execute("UPDATE commercial_reviews SET forwarded_at=NULL WHERE id=?", (rid,))
+    out = triage_inbox(conn, cfg, asana, gm)
+    assert out["forwarded"] == 1 and out.get("parked") is None                   # parked once: he can drag it away and it stays away
+    asana.comment_raw(gid, "send it")
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    assert asana.where[gid] == secs["In touch with the agent"]                    # his move is done
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 0               # and never twice
+    # a card he put in Offer out is never pulled into Needs Me
+    asana.move(gid, secs["Offer out"])
+    conn.execute("UPDATE commercial_listings SET board_column='Offer out'")
+    _answer(conn, cfg, asana, gm, "Also please sign this second NDA.", "r2", 2)
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    triage_inbox(conn, cfg, asana, gm)
+    assert asana.where[gid] == secs["Offer out"]

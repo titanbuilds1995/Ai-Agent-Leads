@@ -164,6 +164,9 @@ def record_rodrigo_message(conn, cfg: Any, asana, secs: dict[str, str], t: dict[
         asana.comment(t["card_gid"], note)
         if price and secs.get("Offer out"):
             asana.move(t["card_gid"], secs["Offer out"])
+        elif not price:                     # he answered the broker himself: his move is done
+            from .books_review import _unpark
+            _unpark(conn, cfg, asana, t["listing_id"], t["card_gid"])
     return {"price": price}
 
 

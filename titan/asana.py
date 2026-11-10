@@ -115,8 +115,8 @@ class Asana:
     def complete(self, task: str) -> None:
         self._req("PUT", f"/tasks/{task}", json={"data": {"completed": True}})
 
-    def task(self, task: str) -> dict[str, Any]:
-        return self._req("GET", f"/tasks/{task}", params={"opt_fields": "name,notes"}) or {}
+    def task(self, task: str, fields: str = "name,notes") -> dict[str, Any]:
+        return self._req("GET", f"/tasks/{task}", params={"opt_fields": fields}) or {}
 
     def move(self, task: str, section: str) -> None:
         self._req("POST", f"/sections/{section}/addTask", json={"data": {"task": task}})

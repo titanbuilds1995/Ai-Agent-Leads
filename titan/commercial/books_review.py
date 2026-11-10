@@ -39,7 +39,7 @@ from typing import Any
 from .. import db
 from ..util import iso, log, money, now_utc
 from . import documents
-from .board import ensure_board
+from .board import NEEDS_ME, STAYS_PUT, ensure_board
 from .outreach import BOOK_KINDS, regrade, verdict_text
 
 LINK_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
@@ -476,13 +476,16 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
             continue
         subject = r.get("thread_subject") or ""
         subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+        ts = iso(now)
+        if not _claim(conn, "reply_sent_at", r["id"], ts):
+            continue                        # another round (check-replies vs approvals) took this one: never email a broker twice
         try:
             sent = gmail.send(r["broker_email"], subject, r["reply_draft"], thread_id=r.get("gmail_thread_id"))
         except Exception as e:  # noqa: BLE001
+            conn.execute("UPDATE commercial_reviews SET reply_sent_at=NULL WHERE id=?", (r["id"],))
             res["errors"] += 1
             asana.comment(r["card_gid"], f"Could not send Charles's reply (Gmail: {str(e)[:160]}). The next round retries.")
             continue
-        ts = iso(now)
         conn.execute("INSERT INTO outreach (agent_id, property_ids, channel, kind, status, subject, body, to_address, gmail_thread_id, gmail_message_id, "
                      "run_date, created_at, sent_at, asana_task_id) VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                      (json.dumps([f"loopnet:{r['lid']}"]), "email", "om_reply", "sent", subject, r["reply_draft"], r["broker_email"],
@@ -490,6 +493,8 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         conn.execute("UPDATE commercial_reviews SET reply_sent_at=? WHERE id=?", (ts, r["id"]))
         conn.execute("UPDATE commercial_threads SET updated_at=? WHERE id=?", (ts, r["thread_id"]))
         asana.comment(r["card_gid"], f"📤 Charles's reply sent to {r['broker_email']} at {now.strftime('%Y-%m-%d %H:%M')} UTC:\n\n{r['reply_draft']}")
+        if r.get("needs_rodrigo"):          # his "send it" was the move he owed: the card leaves Needs Me
+            _unpark(conn, cfg, asana, r["lid"], r["card_gid"])
         res["sent"] += 1
     return res
 
@@ -523,7 +528,8 @@ def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
                                   t.attachments AS thread_files, t.rodrigo_at
                            FROM commercial_reviews r JOIN commercial_threads t ON t.id=r.thread_id
                            WHERE r.id = (SELECT MAX(id) FROM commercial_reviews WHERE thread_id=r.thread_id)
-                             AND (r.forwarded_at IS NULL OR r.archived_at IS NULL)""").fetchall()
+                             AND (r.forwarded_at IS NULL OR r.archived_at IS NULL OR r.parked_at IS NULL)""").fetchall()
+    secs = None
     for r in rows:
         r = db.row_to_dict(r)
         try:
@@ -538,33 +544,84 @@ def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
             if not to:
                 res["errors"] += 1
                 log.warning("triage: REPORT_TO not set, cannot forward %s", r.get("lid"))
-            else:
+            elif _claim(conn, "forwarded_at", r["id"], ts):     # one forward per review, even when two rounds overlap
                 try:
                     _forward(conn, cfg, gmail, to, r, other, max_bytes, now)
-                    conn.execute("UPDATE commercial_reviews SET forwarded_at=? WHERE id=?", (ts, r["id"]))
                     if asana is not None and r.get("card_gid"):
                         why = "needs you" if r.get("needs_rodrigo") else ("pitched other deals" if other else verdict.lower())
                         asana.comment(r["card_gid"], f"📬 Forwarded to your inbox ({why}).")
                     res["forwarded"] += 1
                 except Exception as e:  # noqa: BLE001
+                    conn.execute("UPDATE commercial_reviews SET forwarded_at=NULL WHERE id=?", (r["id"],))
                     res["errors"] += 1
                     log.warning("triage forward %s: %s", r.get("lid"), e)
+        if wants_fwd and not r.get("parked_at") and asana is not None and r.get("card_gid") and _claim(conn, "parked_at", r["id"], ts):
+            # Rodrigo, 2026-11-10: the cards behind the emails that need him belong in ONE column on the 1031 board
+            if secs is None:
+                project = cfg.get("commercial.asana.project")
+                secs = ensure_board(asana, project) if project else {}
+            try:
+                if _park(conn, asana, secs, r["lid"], r["card_gid"]):
+                    res["parked"] = res.get("parked", 0) + 1
+            except Exception as e:  # noqa: BLE001
+                log.warning("park %s in Needs Me: %s", r.get("lid"), e)
         if arch_on and wants_arch and not r.get("archived_at"):
             if r.get("reply_draft") and not r.get("reply_sent_at"):
                 res["waiting"] += 1          # Charles's pass note goes first; archive at a later round
                 continue
             if not r.get("gmail_thread_id"):
                 continue
+            if not _claim(conn, "archived_at", r["id"], ts):
+                continue
             try:
                 gmail.archive_thread(r["gmail_thread_id"])
-                conn.execute("UPDATE commercial_reviews SET archived_at=? WHERE id=?", (ts, r["id"]))
                 if asana is not None and r.get("card_gid"):
                     asana.comment(r["card_gid"], "🗂 Archived in Charles's inbox (does not fit). A new answer from the broker still gets read.")
                 res["archived"] += 1
             except Exception as e:  # noqa: BLE001
+                conn.execute("UPDATE commercial_reviews SET archived_at=NULL WHERE id=?", (r["id"],))
                 res["errors"] += 1
                 log.warning("triage archive %s: %s", r.get("lid"), e)
     return res
+
+
+def _claim(conn, column: str, review_id: int, ts: str) -> bool:
+    """Mark a review done BEFORE doing the thing, so two rounds running at once (check-replies and approvals) never both do it."""
+    return conn.execute(f"UPDATE commercial_reviews SET {column}=? WHERE id=? AND {column} IS NULL", (ts, review_id)).rowcount == 1
+
+
+def _column_now(conn, asana, listing_id: str, card_gid: str) -> str | None:
+    """Where the card really sits (Rodrigo drags cards; the stored column can be behind)."""
+    from .board import column_key
+    try:
+        for mem in (asana.task(card_gid, fields="name,memberships.section.name") or {}).get("memberships") or []:
+            key = column_key((mem.get("section") or {}).get("name"))
+            if key:
+                return key
+    except Exception:  # noqa: BLE001
+        pass
+    row = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (listing_id,)).fetchone()
+    return row[0] if row else None
+
+
+def _park(conn, asana, secs: dict[str, str], listing_id: str, card_gid: str) -> bool:
+    """Move the card to Needs Me unless he already put it somewhere that settles it (Offer out / Closed / Not a fit)."""
+    if not secs.get(NEEDS_ME) or _column_now(conn, asana, listing_id, card_gid) in STAYS_PUT:
+        return False
+    asana.move(card_gid, secs[NEEDS_ME])
+    conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=?", (NEEDS_ME, listing_id))
+    return True
+
+
+def _unpark(conn, cfg: Any, asana, listing_id: str, card_gid: str) -> None:
+    """His move is done (reply sent / he wrote the broker): back to In touch with the agent, if the card still sits in Needs Me."""
+    if _column_now(conn, asana, listing_id, card_gid) != NEEDS_ME:
+        return
+    project = cfg.get("commercial.asana.project")
+    secs = ensure_board(asana, project) if project else {}
+    if secs.get("In touch with the agent"):
+        asana.move(card_gid, secs["In touch with the agent"])
+        conn.execute("UPDATE commercial_listings SET board_column='In touch with the agent' WHERE listing_id=?", (listing_id,))
 
 
 def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str], max_bytes: int, now) -> None:

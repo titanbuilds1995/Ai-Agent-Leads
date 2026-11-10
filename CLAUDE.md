@@ -342,12 +342,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Books received / Offer out / Closed (stage `deal_sheets`, table `commercial_deals`); a change republishes the site. Private view: the full
   sheet (offer % of ask, spread). Investor view: our price, the cap and NOI at that price, the Investor lines; never the contract price,
   the asking price or the LoopNet link.
+- **1031 Needs Me column (Rodrigo, 2026-11-10: "why are all of the emails that I am getting on the people that need me not on my board?")**:
+  the 1031 board has a **Needs Me** column (`board.NEEDS_ME`, created by `ensure_board` next to the send column). Every review that is
+  forwarded to him (NEEDS YOU, FITS / LEANS FIT, other deals pitched) moves its card there once (`commercial_reviews.parked_at`,
+  retroactive on the latest review of every thread), never out of Offer out / Closed / Not a fit. It leaves Needs Me when his move is done:
+  his 'send it' reply went, or he wrote the broker himself (back to In touch; a price → Offer out). Forwards, replies and archives are
+  claimed before they happen (`_claim`), so overlapping check-replies / approvals rounds never email anyone twice (Luca and Cameron got
+  two forwards each on 11-10).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~11:15am ET, RESUME HERE: **1031 Needs Me column built** (see Decisions). The cards behind his forwards sat in In touch
+  (Cameron Cauley, Armond Aivazyan, Michael/Dreamify, Kate Clifford) and Books received (Jake Hayutin, Tampa); Luca stays in Offer out.
+  The Mac's next approvals round creates the column and moves them. Duplicate forwards fixed. Watch: the column appears and holds those 5. 347 tests.
 - 2026-11-10 ~10:40am ET, RESUME HERE: **Luca answered the Byronessa offer at 8:59am ET**: too far to negotiate point by point; a small
   short-term rental is not run with four on payroll. Nothing auto-sent (thread checked). Re-run with an STR manager fee instead of payroll:
   numbers posted as a DEAL SHEET update on the card (not here: public repo). A reply for Rodrigo to send himself was given in chat (concede

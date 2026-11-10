@@ -30,7 +30,7 @@ FIELDS = {"asking": "asking", "asking price": "asking", "our offer": "our_offer"
           "investor cap": "investor_cap", "investor noi": "investor_noi", "real noi": "real_noi", "noi": "real_noi"}
 MONEY_FIELDS = {"asking", "our_offer", "counter", "landed", "ceiling", "investor_price", "investor_noi", "real_noi"}
 LISTS = {"internal": "internal", "note": "internal", "investor": "investor", "pitch": "investor", "found": "found"}
-WATCH_COLUMNS = ("Good fit", "In touch with the agent", "Books received", "Offer out", "Closed")
+WATCH_COLUMNS = ("Needs Me", "Good fit", "In touch with the agent", "Books received", "Offer out", "Closed")
 
 
 def money(v: str) -> int | None:

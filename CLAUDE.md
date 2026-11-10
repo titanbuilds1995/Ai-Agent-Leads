@@ -416,6 +416,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~6:10pm ET, RESUME HERE: **331 John Ringling Blvd, Sarasota (St Armands; Larry Starr / SVN; card 1220358917981163, now Working
+  Deals → Needs Me)**: Larry answered 29 h later with a rent schedule, the OM PDF and four Everything But Water insurance policies (the
+  TENANT's corporate policies, not the building's). Rodrigo dropped them on the card (Needs Revision) and asked for the analysis now. Cloud
+  read the xlsx through Drive and Rodrigo's own copy of the thread (Larry cc'd rodrigo@); the OM could not be opened from the cloud (Asana
+  downloads and LoopNet/Crexi are blocked here). Pinned 🧠 read on the card: the listing's "NOI $402,193" is the 5-YEAR AVERAGE of GROSS
+  rent (year-1 rent $378,768 = 7.58% at ask, no expenses taken out); Larry's own sheet prices the ask at a 7.5 cap on gross rent; 8 cap ≈
+  $4.5M if NNN, ≈ $3.5M if gross. **Needs the OM for the lease type**: Rodrigo saves the OM PDF to Drive (cloud reads it) or the Mac's next
+  round reads the card files and posts its own 🧠 (duplicate, harmless). No code change. Nothing sent to Larry.
 - 2026-11-10 ~5:55pm ET, RESUME HERE: **Sleep Inn DeFuniak Springs (17834 State Hwy 285 S, Dennis Hopper / DSH; card 1220358635284810,
   Working Deals → Needs Revision)**: Rodrigo got the Revere CRE "Tier 1 Private files" and dropped them on the card as ONE ZIP (13 MB).
   Nobody could read it: the cloud cannot download Asana files or reach platform.reverecre.com, and `card_files` skipped `.zip`. Built:

@@ -401,7 +401,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   not arrive / asks to resend waits for Rodrigo, and the prompt forbids it. Also fixed: P&Ls named "P_L …" (how the card files are
   saved) were not read as P&Ls, and Matthews' "CONFIDENTIALITY NOTICE" footer was read as an NDA request (the 16:05 rules-only read).
   **That 16:05 read was rules-only: Claude was unreachable from the Mac (the JPG failed the same way): check ANTHROPIC_API_KEY /
-  API credit on the Mac.** The retry re-reads the folder, so Julio's P&Ls get read once Claude is reachable. 353 tests.
+  API credit on the Mac.** (11-10 noon: `make doctor` passed the Anthropic key, so it was a passing failure; a Gmail "Quota exceeded" in doctor is a busy minute, not a login problem, and doctor now says so.) The retry re-reads the folder, so Julio's P&Ls get read once Claude is reachable. 353 tests.
 - 2026-11-10 ~11:15am ET, RESUME HERE: **Julio's card** (2648 NE 32nd St, card 1220386118395527) is in Needs Revision with 3 P&L PDFs
   (2022, YTD 2023, 2024 & 2025) and a "Year-to-date.jpg", no comment. Fixed so the Mac's next round reads them: files before the
   Needs Revision bounce, the JPG transcribed by Claude, then a 🧠 READ FOR YOU and the card back to Needs Me. The cloud can't download

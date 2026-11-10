@@ -134,8 +134,14 @@ def check_gmail(cfg) -> Check:
         g = GmailClient(cfg.root / oauth, token, cfg.secret("GMAIL_SENDER"), cfg.get("operator.sender_name"), interactive=False)
         prof = g.svc.users().getProfile(userId="me").execute()
     except GmailUnavailable as e:
+        if "rateLimitExceeded" in str(e) or "Quota exceeded" in str(e):   # a busy minute, not a login problem (11-10)
+            return _warn("Gmail is busy (per-minute limit hit while the engine was working); the login is fine",
+                         "nothing to fix: run `make doctor` again in a minute; do NOT re-run gmail-auth")
         return _fail(str(e), "run `make gmail-auth` again")
     except Exception as e:  # noqa: BLE001
+        if "rateLimitExceeded" in str(e) or "Quota exceeded" in str(e):
+            return _warn("Gmail is busy (per-minute limit hit while the engine was working); the login is fine",
+                         "nothing to fix: run `make doctor` again in a minute; do NOT re-run gmail-auth")
         return _fail(f"{type(e).__name__}: {str(e)[:120]}", "token may be revoked; delete secrets/gmail_token.json and run `make gmail-auth`")
     addr = prof.get("emailAddress", "")
     if addr.lower() != (cfg.secret("GMAIL_SENDER") or "").lower():

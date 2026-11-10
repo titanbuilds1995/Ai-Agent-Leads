@@ -330,6 +330,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~7:30am ET, RESUME HERE: **Peter Dacko (82 Tortuga, $245k): terms agreed Mon** ($5k EMD, 10-day inspection; Peter
+  "that will be fine"), revised PSA sent 6:08pm for e-signature, and he asks **who signs for the LLC** (Needs Rodrigo card). His 11:15am
+  counter ("$2000 is not enough to place the property in escrow") was read as SOLD and the approvals card went to Skip (the warm-board
+  card is right); fixed: bare "in escrow" no longer means sold (test added). No 7am report by 7:25am today.
 - 2026-11-09 ~6:30pm ET, RESUME HERE: **Rodrigo's evening asks built** (see Decisions → Simple replies go on their own). Answer to his
   question: **no, Charles had answered nobody**: all 21 drafted replies sat on the cards waiting for "send it". From the Mac's next
   round (after the 10-min self-update): the drafted replies that do not need him go out (about 19; Kate Clifford's and Michael/Dreamify's

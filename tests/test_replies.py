@@ -295,3 +295,14 @@ def test_asking_for_a_signed_contract_is_not_sold():
     assert classify(milton).label != "SOLD_OR_PENDING"
     assert classify("Sorry, we already have a signed contract on it.").label == "SOLD_OR_PENDING"
     assert classify("The seller accepted an executed contract yesterday.").label == "SOLD_OR_PENDING"
+
+
+def test_escrow_deposit_terms_are_not_sold():
+    """Peter Dacko (Nov 9) countered our terms ("$2000 is not enough to place the property in escrow ... $5000 EMD, 5 day DD");
+    the bare "in escrow" read it as sold and moved a live deal card to Skip."""
+    from titan.replies.classifier import classify
+    peter = ("Just a couple of things - 1. $2000 is not enough to place the property in escrow 2. 15 days for this property "
+             "is 10 days too long. You either get price or terms but not both. The seller requires $5000 EMD 5 day DD thank you")
+    assert classify(peter).label != "SOLD_OR_PENDING"
+    assert classify("Sorry, the house is already in escrow.").label == "SOLD_OR_PENDING"
+    assert classify("It's in escrow, closing next week.").label == "SOLD_OR_PENDING"

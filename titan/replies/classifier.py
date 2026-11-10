@@ -25,7 +25,7 @@ STOP_RE = re.compile(r"\b(stop|unsubscribe|remove me|take me off|do not (contact
                      r"stop (emailing|texting|contacting|messaging)( me)?|opt ?out|no more (emails|texts|messages)|leave me alone|cease)\b", re.I)
 OOO_RE = re.compile(r"\b(out of (the )?office|ooo|on vacation|away from (my )?(email|desk)|auto[\s-]?(reply|response|responder)|automatic reply|"
                     r"limited access to email|will (be )?(return|be back|respond) (on|after|when)|currently (away|unavailable|traveling))\b", re.I)
-SOLD_RE = re.compile(r"\b(under contract|pending|sold|accepted (an )?offer|went (to )?contract|in escrow|closed|contingent|"
+SOLD_RE = re.compile(r"\b(under contract|pending|sold|accepted (an )?offer|went (to )?contract|(it|house|property|home) (is|went)( already| currently| now)? in escrow|it'?s( already| currently| now)? in escrow|(already|currently) in escrow|closed|contingent|"
                      r"(no longer|not) (available|on the market|for sale)|off (the )?market|withdrawn|already (sold|under contract|has a contract)|"
                      r"(have|has|got|received|accepted|took) (a |an )?(fully )?(signed|executed) contract|we have a contract|cancelled|canceled)\b", re.I)
 NOT_RE = re.compile(r"\b(not interested|no interest|no thanks|no thank you|pass|not (looking|going) to (entertain|consider|accept)|won'?t (go|take|accept|consider|entertain)|"

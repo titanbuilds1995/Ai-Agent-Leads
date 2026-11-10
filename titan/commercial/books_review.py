@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import db
-from ..util import iso, log, money, now_utc
+from ..util import iso, log, money, now_utc, parse_iso
 from . import documents
 from .board import NEEDS_ME, STAYS_PUT, ensure_board
 from .outreach import BOOK_KINDS, regrade, verdict_text
@@ -174,6 +174,50 @@ def pending(conn, limit: int = 20) -> list[dict[str, Any]]:
           AND NOT EXISTS (SELECT 1 FROM commercial_reviews r WHERE r.thread_id=t.id AND r.gmail_message_id=m.gmail_message_id)
         ORDER BY m.created_at ASC LIMIT ?""", (limit,)).fetchall()
     return [db.row_to_dict(r) for r in rows]
+
+
+RETRY_MAX = 3          # rules-only reads of one message retried this many times with Claude
+RETRY_GAP_MIN = 30     # minutes between retries
+
+
+def _retry_key(t: dict[str, Any]) -> str:
+    return f"review_retry:{t['id']}:{t.get('last_msg_id')}"
+
+
+def retry_pending(conn, limit: int = 10) -> list[dict[str, Any]]:
+    """Threads whose latest message only ever got a rules-only read (Claude failed): read again with Claude.
+    Rodrigo, 2026-11-10 (Julio's hotel): the card said "retried next round" but nothing ever retried, so the P&Ls were never read."""
+    rows = conn.execute("""
+        SELECT t.*, m.gmail_message_id AS last_msg_id, m.created_at AS last_msg_at
+        FROM commercial_threads t
+        JOIN commercial_messages m ON m.id = (SELECT id FROM commercial_messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1)
+        WHERE t.bounced=0 AND t.state NOT IN ('CLOSED','BOUNCED') AND t.reply_count > 0
+          AND EXISTS (SELECT 1 FROM commercial_reviews r WHERE r.thread_id=t.id AND r.gmail_message_id=m.gmail_message_id AND r.source='rules')
+          AND NOT EXISTS (SELECT 1 FROM commercial_reviews r WHERE r.thread_id=t.id AND r.gmail_message_id=m.gmail_message_id AND r.source='claude')
+        ORDER BY m.created_at ASC""").fetchall()
+    out = []
+    now = now_utc()
+    for r in rows:
+        t = db.row_to_dict(r)
+        kv = conn.execute("SELECT value FROM commercial_kv WHERE key=?", (_retry_key(t),)).fetchone()
+        n, last = 0, None
+        if kv and kv[0]:
+            try:
+                d = json.loads(kv[0])
+                n, last = int(d.get("n", 0)), d.get("at")
+            except (ValueError, TypeError):
+                pass
+        if n >= RETRY_MAX:
+            continue
+        if last:
+            at = parse_iso(last)
+            if at and (now - at).total_seconds() < RETRY_GAP_MIN * 60:
+                continue
+        t["_retry_n"] = n
+        out.append(t)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _listing(conn, listing_id: str) -> dict[str, Any]:
@@ -418,8 +462,10 @@ def format_review(r: dict[str, Any], books_note: str | None = None, auto_reply: 
     return "\n".join(out)
 
 
-def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict[str, str] | None = None, no_reply: bool = False) -> dict[str, Any]:
-    """Read one thread's latest state, post the review on the card, record it. Returns {verdict, source, moved}."""
+def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict[str, str] | None = None, no_reply: bool = False,
+                  retry: bool = False) -> dict[str, Any] | None:
+    """Read one thread's latest state, post the review on the card, record it. Returns {verdict, source, moved}.
+    retry=True: a second try at a message that only got a rules read; nothing is posted unless Claude answers (None then)."""
     L = _listing(conn, t["listing_id"])
     msgs = _messages(conn, t["id"])
     files = _files(cfg, t["listing_id"])
@@ -437,7 +483,7 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     r = None
     if llm is not None and getattr(llm, "available", False):
         try:
-            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files), SCHEMA, max_tokens=1200)
+            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files), SCHEMA, max_tokens=4000)
         except Exception as e:  # noqa: BLE001
             log.warning("books review %s: %s", t["listing_id"], e)
             r = None
@@ -445,11 +491,15 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
             r["_source"] = "claude"
             if r.get("verdict") not in VERDICTS:
                 r["verdict"] = "CAN'T TELL YET"
+    if r is None and retry:
+        conn.execute("INSERT INTO commercial_kv (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                     (_retry_key(t), json.dumps({"n": int(t.get("_retry_n", 0)) + 1, "at": iso(now_utc())})))
+        return None
     if r is None:
         r = rules_review(L, t, msgs, files)
     r["other_deals"] = [str(x).strip() for x in (r.get("other_deals") or []) if str(x).strip()]
     r["_rodrigo"] = bool(t.get("rodrigo_at"))
-    if no_reply:      # a read of files HE dropped on the card: nothing is drafted to the broker
+    if no_reply or retry:      # a read of files HE dropped on the card, or a re-read: nothing new is drafted to the broker
         r["reply_draft"] = ""
     if msgs and CALL_RE.search(_no_disclaimer(msgs[-1].get("body") or "")) and not no_reply:
         # Rodrigo, 2026-11-10: "anyone that I need to touch base with needs to be in Needs Me": a broker who asks for a call is his
@@ -459,7 +509,7 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     if hits:      # a date or a commitment in Claude's draft: it waits for Rodrigo, whatever else the read says
         r["needs_rodrigo"] = True
         r["red_flags"] = list(r.get("red_flags") or []) + [f"Charles's draft mentions {', '.join(hits[:4])}: held for you (no dates or commitments go out on their own)."]
-    kind, opts = (None, {}) if no_reply else template_kind(conn, t, msgs, files, r)
+    kind, opts = (None, {}) if (no_reply or retry) else template_kind(conn, t, msgs, files, r)
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
         r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
                                                            street=L.get("street"), seed=int(t.get("id") or 0)), kind
@@ -494,7 +544,7 @@ def review_pending(conn, cfg: Any, asana=None, llm=None, limit: int | None = Non
     limit = limit or int(cfg.get("commercial.review.per_round", 20))
     res: dict[str, Any] = {"reviewed": 0, "claude": 0, "rules": 0, "needs_rodrigo": 0, "other_deals": 0, "moved": {}, "errors": 0}
     todo = pending(conn, limit)
-    if not todo:
+    if not todo and not (llm is not None and getattr(llm, "available", False) and retry_pending(conn, 1)):
         return res
     project = cfg.get("commercial.asana.project")
     secs = ensure_board(asana, project) if (asana is not None and project) else {}
@@ -511,6 +561,16 @@ def review_pending(conn, cfg: Any, asana=None, llm=None, limit: int | None = Non
         res["other_deals"] += 1 if out.get("other_deals") else 0
         if out["moved"]:
             res["moved"][out["moved"]] = res["moved"].get(out["moved"], 0) + 1
+    if llm is not None and getattr(llm, "available", False):   # the "retried next round" the rules-only reads promise
+        for t in retry_pending(conn, limit=max(1, limit // 2)):
+            try:
+                out = review_thread(conn, cfg, llm, t, asana, secs, retry=True)
+            except Exception as e:  # noqa: BLE001
+                res["errors"] += 1
+                log.exception("books re-read %s failed: %s", t.get("listing_id"), e)
+                continue
+            if out:
+                res["retried"] = res.get("retried", 0) + 1
     return res
 
 

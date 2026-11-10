@@ -410,6 +410,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~1:30pm ET, RESUME HERE: **Julio's hotel (2648 NE 32nd St) P&Ls were never read by Claude**: every read since ~2pm Nov 10
+  was "rules only". Cause found: the 🧠 read's word budget (max_tokens 1200) was too small for the new sections (8-cap, pros, cons,
+  doubts, believe), so Claude's answer was cut off, thrown away and labeled "unreachable"; and "retried next round" was never true.
+  Fixed: budget 4000 (card chat / notes 2000), and rules-only reads are really retried with Claude (max 3, 30 min apart, no new email
+  to the broker; `books_review.retry_pending`). Julio's card gets the full read at the Mac's next round. The JPG still needs a check
+  (same API key; may be image size). Rules numbers on the card are raw: 2023 "YTD" $56,812 is a part year.
 - 2026-11-10 ~12:20pm ET, RESUME HERE: **1031 clean-up built** (see Decisions → 1031 Not a fit). The 1031 board's "In touch with the agent"
   held 35 cards: 13 already read DOES NOT FIT and told no (the engine archived them but never moved them: that was the gap), 5 needed
   Rodrigo (moved to Needs Me by hand with a 🤖 note: Cameron Cauley call, Eric Cederman NDA, Albert Hernandez gas stations, Curt Ware

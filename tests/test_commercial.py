@@ -1244,3 +1244,38 @@ def test_working_deals_board_keeps_the_engine_moves_on_that_board(conn, cfg, tmp
     assert a.where[gid] == "proj-work-needs-me"
     from titan.commercial.board import column_key
     assert column_key(WAITING) == "In touch with the agent"
+
+
+def test_rules_only_read_is_really_retried_with_claude(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10 (Julio's hotel, 2648 NE 32nd St): the card said 'rules only … retried next round' but nothing retried,
+    so the P&Ls he dropped were never read by Claude. Now: retried (no new email to the broker), at most RETRY_MAX times, spaced out."""
+    from titan.commercial import books_review as br
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    sent_ts = int(SAT_10AM_ET.timestamp())
+    gm.threads["t1"].append({"id": "r1", "from": "adam@trustrealtyusa.com", "body": "Happy to send the package, give me a day.",
+                             "internal_ts": sent_ts + 3 * 3600, "label_ids": [], "attachments": []})
+    poll_om_replies(conn, cfg, gm, asana)
+    assert br.review_pending(conn, cfg, asana, llm=None)["rules"] == 1
+
+    class Broken:
+        available = True
+        calls = 0
+        def structured(self, *a, **k):
+            Broken.calls += 1
+            return None
+    before = len(asana.stories[gid])
+    br.review_pending(conn, cfg, asana, Broken())
+    assert Broken.calls == 1 and len(asana.stories[gid]) == before          # a failed retry posts nothing
+    br.review_pending(conn, cfg, asana, Broken())
+    assert Broken.calls == 1                                                 # spaced out
+    conn.execute("UPDATE commercial_kv SET value=json_set(value, '$.at', '2000-01-01T00:00:00Z') WHERE key LIKE 'review_retry:%'")
+    llm = FakeReviewLLM()
+    out = br.review_pending(conn, cfg, asana, llm)
+    assert out.get("retried") == 1
+    last = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "rules only" not in last and "Charles's reply" not in last       # Claude's read, no new email drafted
+    assert br.retry_pending(conn) == []                                      # done once Claude read it

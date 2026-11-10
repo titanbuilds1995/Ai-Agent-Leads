@@ -92,7 +92,7 @@ def write_email(cfg: Any, llm, t: dict[str, Any], listing: dict[str, Any], msgs:
                 f"<{t.get('broker_email') or ''}> (first name: {first}).\n\nThe broker's latest messages:\n{convo or '(none yet)'}\n\n"
                 f"Rodrigo's note:\n{note}\n\nWrite the email now.")
         try:
-            out = llm.structured("commercial_note_reply", SYSTEM, user, SCHEMA, max_tokens=700)
+            out = llm.structured("commercial_note_reply", SYSTEM, user, SCHEMA, max_tokens=2000)
         except Exception as e:  # noqa: BLE001
             log.warning("note reply %s: %s", t.get("listing_id"), e)
             out = None
@@ -139,7 +139,7 @@ def chat(conn, cfg: Any, llm, t: dict[str, Any], question: str) -> str | None:
     if llm is None or not getattr(llm, "available", False):
         return None
     try:
-        out = llm.structured("commercial_card_chat", CHAT_SYSTEM, _context(conn, cfg, t) + f"\n\nRodrigo asks:\n{question}", CHAT_SCHEMA, max_tokens=700)
+        out = llm.structured("commercial_card_chat", CHAT_SYSTEM, _context(conn, cfg, t) + f"\n\nRodrigo asks:\n{question}", CHAT_SCHEMA, max_tokens=2000)
     except Exception as e:  # noqa: BLE001
         log.warning("1031 card chat %s: %s", t.get("listing_id"), e)
         return None

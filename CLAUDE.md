@@ -348,6 +348,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~10:40am ET, RESUME HERE: **Luca answered the Byronessa offer at 8:59am ET**: too far to negotiate point by point; a small
+  short-term rental is not run with four on payroll. Nothing auto-sent (thread checked). Re-run with an STR manager fee instead of payroll:
+  numbers posted as a DEAL SHEET update on the card (not here: public repo). A reply for Rodrigo to send himself was given in chat (concede
+  the payroll point, manager-fee framing, ask where the seller trades, no new number). Next: Luca's answer; ask the 1031 partner if they self-manage.
 - 2026-11-10 ~10:15am ET, RESUME HERE: **Rodrigo sent the Byronessa offer at 8:48am ET** from rodrigo@ in Luca's thread (To Charles, Cc
   Luca, signed Charles): the engine logs it on the Mac's next round (✉️ comment, Offer out). Card moved to **Offer out** by hand and a pinned
   📊 DEAL SHEET comment posted on it (card 1220369552444711). **Built:** the deal sheet on the 1031 site (see Decisions) and a more human books

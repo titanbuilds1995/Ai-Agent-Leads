@@ -747,7 +747,7 @@ def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(con
     review_pending(conn, cfg, asana, llm)
     assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
     body = gm.sent[-1][2]
-    assert body.startswith("Hey Adam,") and "Can you please send us the books?" in body and "Charles Grant" in body
+    assert body.startswith("Hey Adam,") and "Can you please send us the books?" in body and "840 SW 81st Ave" in body and "Charles Grant" in body
     assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] == "ask_books"
     # 2) a question gets Claude's answer, not the fixed ask (and never a second ask)
     _answer(conn, cfg, asana, gm, "Is the exchange already open? Happy to send the package tomorrow.", "r2", 2)
@@ -765,7 +765,7 @@ def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(con
     assert out["needs_rodrigo"] == 1
     send_approved_replies(conn, cfg, asana, gm)
     body = gm.sent[-1][2]
-    assert "Thank you for sending it over" in body and "no later than 24 hours" in body
+    assert body.startswith("Hey Adam,") and "840 SW 81st Ave" in body and "24 hours" in body
     # 4) not a fit → polite pass that plants the seed; then the thread is archived as before
     _answer(conn, cfg, asana, gm, "Update: the building is vacant now.", "r4", 4)
     review_pending(conn, cfg, asana, llm)
@@ -810,3 +810,49 @@ def test_rodrigo_writing_in_the_thread_shows_on_the_card_logs_the_offer_and_sile
     assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == n
     assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0
     assert asana.where[gid] == secs["Offer out"]                                    # the offer card does not jump back
+
+
+def test_deal_sheet_from_the_card_shows_inside_numbers_privately_and_only_our_price_to_the_investor(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10 (Byronessa): "an internal and an external side … internal tells me what we are getting it for and how it
+    makes sense, the outside what works for them, the price we will sell it at." Numbers come from a DEAL SHEET comment on the
+    card (never the public repo); his own offer email fills 'Our offer' by itself."""
+    from titan.commercial.board import ensure_board
+    from titan.commercial.deal_sheet import parse_sheet, sync
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from titan.commercial.site import build_deals
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)                         # the broker thread exists (card moves on later)
+    s = parse_sheet("📊 DEAL SHEET\nAsking: $4,590,000\nOur offer: $3,000,000 (drafted, not sent)\nOur ceiling: $3.3M\nInvestor price: 3,550,000\n"
+                    "Investor cap: 8.0%\nReal NOI: $372,604\nInternal: taxes reset at sale\nInternal: no payroll for a 24/7 desk\nInvestor: #1 rated on Booking.com")
+    assert s["our_offer"] == 3_000_000 and s["offer_status"] == "drafted, not sent" and s["ceiling"] == 3_300_000 and s["investor_cap"] == 8.0
+    assert s["internal"] == ["taxes reset at sale", "no payroll for a 24/7 desk"] and s["investor"] == ["#1 rated on Booking.com"]
+    asana.move(gid, secs["Books received"])
+    asana.project_tasks = lambda project, completed_since="now": [{**dict(t), "gid": g, "memberships": [{"project": {"gid": "proj-1031"}, "section": {"name": next(n for n, sg in secs.items() if sg == asana.where[g])}}]}
+                                                                  for g, t in asana.tasks.items()]
+    asana.comment_raw(gid, "📊 DEAL SHEET\nOur offer: $3,000,000 (drafted)\nOur ceiling: $3,300,000\nInvestor price: $3,550,000\nInvestor cap: 8.0%\n"
+                           "Internal: taxes reset at sale\nInvestor: #1 rated on Booking.com")
+    out = sync(conn, cfg, asana, publish=False)
+    assert out["sheets"] == 1 and out["changed"] == 1
+    assert sync(conn, cfg, asana, publish=False)["changed"] == 0                     # unchanged: nothing rewritten
+    asana.comment_raw(gid, "DEAL SHEET\nTheir counter: $4.1M")                         # a one-line update merges in
+    sync(conn, cfg, asana, publish=False)
+    snap = build_deals(conn, cfg)
+    lid = "28440860"
+    pub = next(d for d in snap["deals"] if d["listing_id"] == lid)
+    deal = snap["private"][lid]["deal"]
+    ask = snap["private"][lid]["asking"]
+    assert deal["counter"] == 4_100_000 and deal["our_offer"] == 3_000_000 and deal["spread"] == 550_000 and deal["investor_noi"] == 284_000
+    assert pub["price"] == 3_550_000 and pub["price_text"] == "Titan price" and pub["listing_url"] is None and pub["why"] == "#1 rated on Booking.com"
+    leak = json.dumps(pub)
+    for secret in ("3000000", "3300000", "4100000", str(ask), "taxes reset", "loopnet.com/Listing"):
+        assert secret not in leak, secret
+    # Rodrigo's own email to the broker becomes the offer, marked sent, newer than the sheet's draft
+    cfg.secrets["REPORT_TO"] = "rodrigo@titanrealtyinvestments.com"
+    gm.threads["t1"].append({"id": "x1", "from": "rodrigo@titanrealtyinvestments.com", "body": "Hi Adam,\n\nPurchase price: $3,100,000, all cash.",
+                             "internal_ts": 4_000_000_000, "label_ids": [], "attachments": []})
+    poll_om_replies(conn, cfg, gm, asana)
+    sync(conn, cfg, asana, publish=False)
+    deal = build_deals(conn, cfg)["private"][lid]["deal"]
+    assert deal["our_offer"] == 3_100_000 and deal["offer_status"].startswith("sent ")

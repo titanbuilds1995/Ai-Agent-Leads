@@ -540,6 +540,8 @@ def cmd_approvals(cfg, args):
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
         stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # simple replies go on their own; NEEDS YOU waits for "send it"
         stage("om_triage", lambda: triage_inbox(conn, cfg, asana, c["gmail"]))           # forward what needs Rodrigo / pocket deals; archive not-fit threads
+        from .commercial.deal_sheet import sync as sync_deal_sheets
+        stage("deal_sheets", lambda: sync_deal_sheets(conn, cfg, asana))   # 2026-11-10: offers / counters / investor price on the 1031 site
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     from .conversations import lead_board, mirror_replies

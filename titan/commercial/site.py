@@ -54,6 +54,8 @@ def build_deals(conn, cfg: Any, run_date: str | None = None) -> dict[str, Any]:
     investor_cols = cfg.get("commercial.site.investor_columns") or ["Good fit", "In touch with the agent", "Books received", "Offer out"]
     from .outreach import response_clock
     clock = response_clock(conn)
+    from .deal_sheet import computed, load as load_sheets
+    sheets = load_sheets(conn)
     deals, private = [], {}
     for L in load_listings(conn):
         L["board_column"] = L.get("board_column") or "New"
@@ -62,9 +64,19 @@ def build_deals(conn, cfg: Any, run_date: str | None = None) -> dict[str, Any]:
         pub["photos"] = [str(u).replace("{s}", size) for u in ((L.get("raw") or {}).get("images") or (L.get("raw") or {}).get("photos") or [])][:12]
         pub["why"] = why_fits(L, cfg)
         pub["investor"] = L["board_column"] in investor_cols and L.get("status") != "gone"
+        entry = sheets.get(L["listing_id"])
+        deal = computed(entry.get("sheet") or {}, L, entry.get("offer")) if entry else None
+        if deal and deal.get("investor_price"):
+            # the investor side (Rodrigo, 2026-11-10): our price to them and what it earns at that price. Never the contract price,
+            # the asking price or the LoopNet link, which would show the spread.
+            pub.update(price=deal["investor_price"], price_text="Titan price", stated_cap=deal.get("investor_cap"),
+                       stated_noi=deal.get("investor_noi"), listing_url=None)
+            pub["offer"] = {"price": deal["investor_price"], "cap": deal.get("investor_cap"), "noi": deal.get("investor_noi"), "points": deal["investor"]}
+            if deal["investor"]:
+                pub["why"] = deal["investor"][0]
         deals.append(pub)
         private[L["listing_id"]] = {**{k: L.get(k) for k in PRIVATE_KEYS}, "broker_phone_pretty": pretty_phone(L.get("broker_phone")) if L.get("broker_phone") else L.get("broker_phone_raw"),
-                                    "om_request": clock.get(L["listing_id"])}
+                                    "om_request": clock.get(L["listing_id"]), "deal": deal, "listing_url": L.get("listing_url"), "asking": L.get("price")}
     counts = {c: sum(1 for d in deals if d["board_column"] == c) for c in COLUMNS}
     return {"generated_at": iso(), "run_date": run_date, "columns": COLUMNS, "investor_columns": investor_cols, "buyer_box": cfg.get("commercial.buyer_box", {}),
             "counts": counts, "deals": deals, "private": private}

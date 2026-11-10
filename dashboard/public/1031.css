@@ -30,3 +30,7 @@
 .internal { border-color:var(--gold) } .internal h3 { color:var(--gold-ink) }
 .tag { display:inline-block; font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; padding:4px 9px; border-radius:999px; border:1px solid var(--line2); color:var(--muted) }
 .tag.CLEAN { border-color:var(--good); color:var(--good) } .tag.SUSPECT { border-color:var(--bad); color:var(--bad) } .tag.NEEDS-OM { border-color:var(--gold); color:var(--gold-ink) }
+/* deal sheet (2026-11-10): internal numbers in the private view, the investor's price in the investor view */
+.deal-sheet { grid-column:1 / -1 } .deal-sheet h4 { margin:14px 0 4px; font-size:14px; color:var(--gold-ink) }
+.nums { width:100%; border-collapse:collapse; font-size:14px } .nums td { padding:6px 0; border-top:1px solid var(--line) } .nums td.num { text-align:right; font-variant-numeric:tabular-nums }
+.offer { grid-column:1 / -1; border-color:var(--navy) } .offer h3 { color:var(--navy) }

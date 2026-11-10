@@ -333,12 +333,26 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   ready, other partners looking). Questions, NDAs, proof of funds, pocket pitches still get Claude's draft. **Rodrigo's own email in an OM thread**
   (from REPORT_TO, e.g. reply-all after Charles cc's him) is mirrored on the card (✉️ You wrote …), a purchase-price figure moves the card to Offer
   out, and the thread becomes his (`commercial_threads.rodrigo_at`): nothing auto-sends there, never archived, the card does not jump columns.
+- **Deal sheet per 1031 deal, inside and outside view (Rodrigo, 2026-11-10, Byronessa: "what numbers we are negotiating, what they are
+  asking, where we land … internal: what we are getting it for and how it makes sense; outside: what works for them, the price we sell it at")**:
+  `titan/commercial/deal_sheet.py`. **The numbers live on the 1031 Asana card, never in this repo (it is PUBLIC)**: any comment containing
+  "DEAL SHEET" is read as `Key: value` lines (Asking / Our offer (status) / Their counter / Landed at / Our ceiling / Investor price / Investor
+  cap / Investor NOI / Real NOI, plus repeatable Internal: / Found: / Investor: lines); later comments win, so a one-line update works.
+  Rodrigo's own offer email in the thread fills Our offer and marks it sent. Read every approvals round for cards in Good fit / In touch /
+  Books received / Offer out / Closed (stage `deal_sheets`, table `commercial_deals`); a change republishes the site. Private view: the full
+  sheet (offer % of ask, spread). Investor view: our price, the cap and NOI at that price, the Investor lines; never the contract price,
+  the asking price or the LoopNet link.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~10:15am ET, RESUME HERE: **Rodrigo sent the Byronessa offer at 8:48am ET** from rodrigo@ in Luca's thread (To Charles, Cc
+  Luca, signed Charles): the engine logs it on the Mac's next round (✉️ comment, Offer out). Card moved to **Offer out** by hand and a pinned
+  📊 DEAL SHEET comment posted on it (card 1220369552444711). **Built:** the deal sheet on the 1031 site (see Decisions) and a more human books
+  thank-you (three wordings, first name from the name or the mailbox, names the street). The site updates once the Mac republishes
+  (needs BLOB_READ_WRITE_TOKEN on the Mac). **Flag for Rodrigo:** this repo is public and older status notes here hold deal numbers. 346 tests.
 - 2026-11-10 ~9:45am ET, RESUME HERE: **built Rodrigo's fast-reply rules for the 1031 brokers** (see Decisions → Charles answers the 1031
   brokers fast). Applies to every NEW broker answer from the Mac's next round (10-min self-update); yesterday's answers are not re-answered.
   **Byronessa:** Charles cc'd Rodrigo at 8:04am ET in Luca's thread ("Rodrigo will take it from here"); Rodrigo replies there himself. Before this

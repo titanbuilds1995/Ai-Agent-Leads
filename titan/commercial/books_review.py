@@ -234,9 +234,19 @@ def rules_review(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]
             "numbers": numbers, "red_flags": flags, "next_step": step, "needs_rodrigo": needs, "reply_draft": "", "other_deals": other, "_source": "rules"}
 
 
-def _first_name(name: str | None) -> str:
+GENERIC_LOCAL = {"info", "sales", "admin", "office", "team", "contact", "listings", "leasing", "hello", "mail", "inquiries", "deals", "broker", "agent"}
+
+
+def _first_name(name: str | None, email: str | None = None) -> str:
+    """The broker's first name: from their name, else from a name-like mailbox (luca@… → Luca), else "there"."""
     n = re.sub(r"[^A-Za-z' -]", " ", (name or "")).split()
-    return n[0].capitalize() if n and len(n[0]) > 1 else "there"
+    if n and len(n[0]) > 1 and n[0].lower() not in GENERIC_LOCAL:
+        return n[0].capitalize()
+    local = (email or "").split("@")[0].lower()
+    first = re.split(r"[._-]", local)[0] if local else ""
+    if first.isalpha() and 3 <= len(first) <= 12 and first not in GENERIC_LOCAL:
+        return first.capitalize()
+    return "there"
 
 
 def _signature(cfg: Any) -> str:
@@ -244,24 +254,37 @@ def _signature(cfg: Any) -> str:
     return "\n".join(lines or ["Charles Grant", "Junior Acquisitions Agent", "Titan Realty Investments", "Office Line: +1 (561) 405 7379"])
 
 
-def template_reply(kind: str, first: str, cfg: Any = None, *, sold: bool = False, later: bool = False) -> str:
+# Rodrigo, 2026-11-10: the first books thank-you "seems too robotic, make it sound more human, use their first name". Three ways of
+# saying the same thing (picked by thread, so two brokers in one office do not get the identical email), each naming the property.
+BOOKS_ACK = [
+    "Got everything on {street}, thank you for turning it around so fast. That makes our job a lot easier.\n\n"
+    "Our underwriting team is going through every package that came in today, and yours is in the stack. Bear with us: "
+    "you'll hear back from me within 24 hours, sooner if the numbers line up.",
+    "Thanks for sending the books on {street}, that's exactly what we needed.\n\n"
+    "We're working through them today along with the other packages that came in. Give us a little time and I'll come back "
+    "to you within 24 hours at the latest.",
+    "Really appreciate you sending everything on {street} so quickly. Not everyone does.\n\n"
+    "Our underwriting team is on it today. Bear with us, and I'll get back to you no later than 24 hours from now.",
+]
+
+
+def template_reply(kind: str, first: str, cfg: Any = None, *, sold: bool = False, later: bool = False, street: str | None = None, seed: int = 0) -> str:
     """Rodrigo's own words (2026-11-10), in Charles's voice. No price, no "buyer"/"client"/"investor"."""
+    place = (street or "").strip() or "the property"
     if kind == "books_ack":
-        body = ("Thank you for sending it over. Our underwriting team is working hard today to get back to everyone who sent all of the "
-                "information we need to make this work.\n\nPlease bear with us. We will get back to you no later than 24 hours from now.")
+        body = BOOKS_ACK[seed % len(BOOKS_ACK)].format(street=place)
     elif kind == "ask_books":
         if later:
-            body = ("Thank you, we appreciate it. The books are what we are analyzing right now: the trailing twelve P&L, the rent roll and "
-                    "the offering memorandum.\n\nOnce we have them we will analyze it and get back to you quickly.")
+            body = (f"Thanks for getting back to me on {place}, I appreciate it. The books are what we're analyzing right now: the "
+                    "trailing twelve P&L, the rent roll and the offering memorandum.\n\nOnce they're in, we'll go through them and get "
+                    "back to you quickly.")
         else:
-            body = ("Thank you for getting back to us. Can you please send us the books? The trailing twelve P&L, the rent roll and the "
-                    "offering memorandum.\n\nWe are analyzing everything off the books right now, and once we have them we will analyze it "
-                    "and get back to you.")
+            body = (f"Thanks for getting back to me on {place}. Can you please send us the books? The trailing twelve P&L, the rent "
+                    "roll and the offering memorandum.\n\nWe're analyzing everything off the books right now, and once we have them "
+                    "we'll go through it and get back to you.")
     elif kind == "pass":
-        opener = ("Thank you for letting us know, and congrats on getting it done." if sold
+        opener = ("Thank you for letting us know, and congrats on getting it done. We are always buying." if sold
                   else "Thank you for getting back to us. This one won't work for us, but we are always buying.")
-        if sold:
-            opener += " We are always buying."
         body = (opener + "\n\nIf you ever come across pocket listings, distressed properties that need work, or apartment buildings, we have "
                 "capital ready and other partners looking. Please send them our way.")
     else:
@@ -359,7 +382,8 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     r["_rodrigo"] = bool(t.get("rodrigo_at"))
     kind, opts = template_kind(conn, t, msgs, files, r)
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
-        r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name")), cfg, **opts), kind
+        r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
+                                                           street=L.get("street"), seed=int(t.get("id") or 0)), kind
     text = format_review(r, books_note, auto_reply=bool(cfg.get("commercial.review.auto_reply", False)))
     body = "\n".join((m.get("body") or "") for m in msgs)
     dead = r["verdict"] == "NOT A FIT" or bool(DEAD_RE.search((msgs[-1].get("body") or "") if msgs else ""))

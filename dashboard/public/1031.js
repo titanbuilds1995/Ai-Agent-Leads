@@ -39,8 +39,13 @@ function renderCols() {
   }
 }
 
+function dealOf(id) { return ((DATA.private || {})[id] || {}).deal || null; }
+
 function card(d) {
-  const facts = [d.price ? money(d.price) : "price n/a", d.stated_cap ? pct(d.stated_cap) + " cap" : "cap on request",
+  const p = (DATA.private || {})[d.listing_id] || null, deal = p && p.deal;
+  const priceBit = deal ? [p.asking ? "ask " + money(p.asking) : "", deal.our_offer ? "offer " + money(deal.our_offer) : "", deal.investor_price ? "to investor " + money(deal.investor_price) : ""].filter(Boolean).join(" · ")
+                        : (d.price ? (d.price_text === "Titan price" ? "Titan price " : "") + money(d.price) : "price n/a");
+  const facts = [priceBit, d.stated_cap ? pct(d.stated_cap) + " cap" : "cap on request",
                  d.building_sf ? d.building_sf.toLocaleString("en-US") + " SF" : "", d.units > 1 ? d.units + " units" : "", d.year_built ? "built " + d.year_built : ""].filter(Boolean);
   return `<article class="deal" data-id="${esc(d.listing_id)}">
     <div class="ph" style="${d.photo ? `background-image:url('${esc(d.photo)}')` : ""}">${d.photo ? "" : '<div class="nop">no photo</div>'}
@@ -74,6 +79,19 @@ function renderGallery() {
 
 function kv(k, v) { return `<div><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`; }
 
+function dealBlock(x) {
+  const row = (k, v, strong) => v == null || v === "" ? "" : `<tr><td>${esc(k)}</td><td class="num">${strong ? "<b>" : ""}${esc(v)}${strong ? "</b>" : ""}</td></tr>`;
+  const m = v => v ? money(v) : null;
+  return `<div class="block internal deal-sheet"><h3>The deal (internal)</h3>
+    <table class="nums">${row("Asking", m(x.asking))}${row("Our offer", x.our_offer ? money(x.our_offer) + (x.offer_pct_of_ask ? ` · ${x.offer_pct_of_ask}% of ask` : "") : null, true)}
+      ${row("Offer status", x.offer_status || (x.our_offer ? "" : "no offer yet"))}${row("Their counter", m(x.counter))}${row("Landed at", m(x.landed), true)}
+      ${row("Our ceiling", m(x.ceiling))}${row("Price to the investor", m(x.investor_price), true)}${row("Investor cap at that price", x.investor_cap ? pct(x.investor_cap) : null)}
+      ${row("Investor NOI at that price", m(x.investor_noi))}${row("Real NOI (T-12)", m(x.real_noi))}${row("Our spread", m(x.spread), true)}</table>
+    ${x.internal && x.internal.length ? `<h4>How it makes sense</h4><ul>${x.internal.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+    ${x.found && x.found.length ? `<h4>What we found</h4><ul>${x.found.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+    ${x.investor && x.investor.length ? `<h4>What the investor sees</h4><ul>${x.investor.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</div>`;
+}
+
 function renderDetail(id) {
   const d = DATA.deals.find(x => x.listing_id === id);
   if (!d) { renderGallery(); return; }
@@ -85,15 +103,19 @@ function renderDetail(id) {
       ${photos.length > 1 ? `<div class="thumbs">${photos.slice(0, 12).map(u => `<div style="background-image:url('${esc(u)}')" data-u="${esc(u)}"></div>`).join("")}</div>` : ""}</div>
       <div><span class="pill">${esc(d.board_column)}</span> ${p ? `<span class="tag ${esc(d.tag || "")}">${esc(d.tag || "")}</span> <span class="tag">grade ${esc(d.evidence_grade || "?")}</span>` : ""}
         <h2 style="margin-top:10px">${esc(d.street)}</h2><div class="where">${esc(d.city)}, FL ${esc(d.zip || "")} · ${esc(d.county || "?")} County · ${esc(d.region || "")}</div>
-        <div class="kv">${kv("Asking", d.price ? money(d.price) : (d.price_text || "not disclosed"))}${kv("Stated cap", d.stated_cap ? pct(d.stated_cap) : "on request")}
+        <div class="kv">${p ? kv("Asking", p.asking ? money(p.asking) : "not disclosed") : kv(d.offer ? "Price" : "Asking", d.price ? money(d.price) : (d.price_text || "not disclosed"))}${kv(d.offer ? (p ? "Investor cap" : "Cap at this price") : "Stated cap", d.stated_cap ? pct(d.stated_cap) : "on request")}
           ${kv("Type", [d.property_type, d.property_subtype].filter(Boolean).join(" / ") || d.asset_class || "")}${kv("Building", d.building_sf ? d.building_sf.toLocaleString("en-US") + " SF" : "—")}
           ${kv("Year built", d.year_built || "—")}${kv("Units / tenancy", d.units > 1 ? d.units + " units" : (d.tenancy || "—"))}
           ${kv("Lease", (d.lease_type || "—").toUpperCase() + (d.remaining_term_years ? ` · ${d.remaining_term_years} yrs left` : ""))}${kv("Occupancy", d.occupancy ? d.occupancy + "%" : "—")}
-          ${d.stated_noi ? kv("Stated NOI", money(d.stated_noi)) : ""}${d.days_on_market ? kv("On market", d.days_on_market + " days") : ""}
+          ${d.stated_noi ? kv(d.offer ? (p ? "Investor NOI" : "NOI at this price") : "Stated NOI", money(d.stated_noi)) : ""}${d.days_on_market ? kv("On market", d.days_on_market + " days") : ""}
           ${d.airport_code ? kv("Nearest airport", `${d.airport_code} · ~${d.airport_minutes} min`) : ""}${d.building_class ? kv("Building class", d.building_class) : ""}</div>
         <div class="whybox"><div class="eyebrow" style="color:var(--gold-ink)">Why this fits</div>${esc(d.why)}</div>
-        <p style="margin-top:12px"><a href="${esc(d.listing_url)}" target="_blank" rel="noopener">View on LoopNet ↗</a></p></div></div>
+        ${(p ? p.listing_url : d.listing_url) ? `<p style="margin-top:12px"><a href="${esc(p ? p.listing_url : d.listing_url)}" target="_blank" rel="noopener">View on LoopNet ↗</a></p>` : ""}</div></div>
     <div class="blocks">
+      ${p && p.deal ? dealBlock(p.deal) : ""}
+      ${!p && d.offer ? `<div class="block offer"><h3>The deal for you</h3>
+          <div class="kv">${kv("Price", money(d.offer.price))}${kv("Cap at this price", d.offer.cap ? pct(d.offer.cap) : "—")}${d.offer.noi ? kv("NOI at this price", money(d.offer.noi)) : ""}</div>
+          ${d.offer.points && d.offer.points.length ? `<ul>${d.offer.points.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div>` : ""}
       ${d.highlights && d.highlights.length ? `<div class="block"><h3>Highlights</h3><ul>${d.highlights.map(h => `<li>${esc(h)}</li>`).join("")}</ul></div>` : ""}
       ${d.description ? `<div class="block"><h3>From the listing</h3><p>${esc(d.description)}</p></div>` : ""}
       ${p ? `<div class="block internal"><h3>Internal (not for the investor)</h3>

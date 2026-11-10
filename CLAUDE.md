@@ -374,12 +374,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   comment goes straight back to Needs Me with one line (same as the email board). Every 🧠 READ FOR YOU and every 💬 What I think now gives:
   where it has to be for a TRUE 8 cap with the assumptions (NOI used, tax after a sale at ~85% of price x county millage, manager / reserve
   a passive owner carries, the price), pros, cons, what we don't believe (inflated / left out / untrue, and why), and what checks out.
+- **1031 Reviewed column (Rodrigo, 2026-11-10: "once I answer the question on the chat I need to drag it somewhere … a card for everyone that
+  I have answered already, and then once it's answered it can be dragged to Needs Me again")**: `board.REVIEWED`, next to Needs Revision. He
+  answers on the card and drags it to Reviewed; `handle_notes` acts on his answer (💬 answer or ✍️ Charles's email), then moves the card back
+  to Needs Me. A Reviewed card with nothing new on it stays there. Flow: Needs Me → (he answers) → Reviewed → (Claude acts) → Needs Me.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~2:30pm ET, RESUME HERE: **1031 Reviewed column** (see Decisions): columns now New · Approved · send OM request · Needs Me ·
+  Needs Revision · Reviewed · Good fit · Not a fit · In touch · Books received · Offer out · Closed. The Mac creates it on its next round. 351 tests.
 - 2026-11-10 ~2:15pm ET, RESUME HERE: **1031 Needs Revision column + the four new parts in every deal read** (see Decisions). Reads
   written from the Mac's next round on carry them; older reads do not (drag a card to Needs Revision with "redo the read" to get one). 350 tests.
 - 2026-11-10 ~1:45pm ET: Rodrigo asked where the 1031 comps live and to continue the analysis in his own Claude account. There are no

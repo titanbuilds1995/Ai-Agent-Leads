@@ -183,17 +183,25 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
     # Needs Revision (Rodrigo, 2026-11-10: "a section that says needs revision … so I can chat with the agent there", like the email
     # board): a card there with his comment is answered / rewritten, then moves to Needs Me; one dragged there with no comment goes
     # straight back to Needs Me with one line.
-    from .board import NEEDS_ME, NEEDS_REVISION, ensure_board
+    # Reviewed (Rodrigo, 2026-11-10: "once I answer the question on the chat I need to drag it somewhere … then once it's answered it
+    # can be dragged to Needs Me again"): a card he answered on goes to Reviewed; Claude acts on his answer, then moves the card back to
+    # Needs Me. A Reviewed card with nothing new on it stays put (he has seen it and is done for now).
+    from .board import NEEDS_ME, NEEDS_REVISION, REVIEWED, ensure_board
     project = cfg.get("commercial.asana.project")
     secs = ensure_board(asana, project) if project else {}
-    try:
-        in_rev = {x["gid"] for x in asana.section_tasks(secs[NEEDS_REVISION])} if secs.get(NEEDS_REVISION) else set()
-    except Exception as e:  # noqa: BLE001
-        log.warning("Needs Revision column: %s", e)
-        in_rev = set()
+
+    def column_gids(name: str) -> set[str]:
+        try:
+            return {x["gid"] for x in asana.section_tasks(secs[name])} if secs.get(name) else set()
+        except Exception as e:  # noqa: BLE001
+            log.warning("%s column: %s", name, e)
+            return set()
+    in_rev, in_reviewed = column_gids(NEEDS_REVISION), column_gids(REVIEWED)
 
     def done_revising(gid: str, empty: bool = False) -> None:
-        if gid in in_rev and secs.get(NEEDS_ME):
+        if empty and gid in in_reviewed:
+            return                                   # Reviewed with nothing new: he is done with it for now
+        if (gid in in_rev or gid in in_reviewed) and secs.get(NEEDS_ME):
             if empty:
                 asana.comment(gid, "Moved back to Needs Me: there is no comment on it to work on. Write what is unclear, then drag it to Needs Revision again.")
             asana.move(gid, secs[NEEDS_ME])

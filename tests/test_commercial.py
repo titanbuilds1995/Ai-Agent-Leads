@@ -1047,3 +1047,34 @@ def test_needs_revision_column_and_the_read_gives_the_true_8_cap_pros_cons_and_d
     asana.comment_raw(gid, "why don't you believe the cap?")
     out = handle_notes(conn, cfg, asana, llm, now=now)
     assert out.get("answered") == 1 and asana.where[gid] == secs[NEEDS_ME]
+
+
+def test_reviewed_column_his_answer_is_acted_on_then_the_card_comes_back_to_needs_me(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "once I answer the question on the chat I need to drag it somewhere … a card for everyone that I have answered
+    already, and then once it's answered it can be dragged to Needs Me again"."""
+    from datetime import timedelta
+    from titan.commercial.board import NEEDS_ME, REVIEWED, ensure_board
+    from titan.commercial.card_notes import handle_notes
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    secs = ensure_board(asana, "proj-1031")
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    llm = FakeNoteLLM()
+    now = SAT_10AM_ET + timedelta(hours=1)
+    when = {}
+    raw = asana.comment_raw
+    def comment_raw(task, text):
+        when[text] = iso(now - timedelta(minutes=5)); raw(task, text)
+    asana.comment_raw = comment_raw
+    asana.comments = lambda task: [{"text": t, "created_at": when.get(t, "2000-01-01")} for t in asana.stories[task]]
+    # in Reviewed with nothing new: it stays there
+    asana.move(gid, secs[REVIEWED])
+    handle_notes(conn, cfg, asana, llm, now=now)
+    assert asana.where[gid] == secs[REVIEWED]
+    # he answers on the card ("tell him we will sign the NDA") and leaves it in Reviewed → Charles's email is drafted, card back to Needs Me
+    now += timedelta(minutes=10)
+    asana.comment_raw(gid, "tell him we will sign the NDA and ask for the T-12")
+    out = handle_notes(conn, cfg, asana, llm, now=now)
+    assert out["drafted"] == 1 and asana.where[gid] == secs[NEEDS_ME]

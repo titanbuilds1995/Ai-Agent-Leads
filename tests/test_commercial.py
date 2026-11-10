@@ -1,5 +1,6 @@
 """Commercial screen for the 1031 buyer (2026-11-08): LoopNet rows → extraction → score / tag / grade → files, broker list, Asana cards, diff."""
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -726,3 +727,86 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     assert tri["archived"] == 1 and gm.archived == ["t1"]
     assert any("🗂 Archived in Charles's inbox" in c for c in asana.stories[gid])
     assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0                   # once
+
+
+def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "if someone sends all of the information … answer them before I can get to it … anything but the books
+    or questions, grab the conversation, can you please send us the books … answer politely to anyone that it's not a fit … plant the
+    seed, pocket listings, distressed properties, apartments." Each fixed reply goes on its own, once per thread."""
+    from titan.commercial.books_review import review_pending, send_approved_replies, template_reply
+    from titan.commercial.om_request import validate_om_request
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
+    llm = FakeTriageLLM()
+    # 1) an answer with no books and no question → "can you please send us the books", on its own
+    _answer(conn, cfg, asana, gm, "Thanks for reaching out, it is a great property with a strong tenant.", "r1", 1)
+    review_pending(conn, cfg, asana, llm)
+    assert send_approved_replies(conn, cfg, asana, gm)["sent"] == 1
+    body = gm.sent[-1][2]
+    assert body.startswith("Hey Adam,") and "Can you please send us the books?" in body and "Charles Grant" in body
+    assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] == "ask_books"
+    # 2) a question gets Claude's answer, not the fixed ask (and never a second ask)
+    _answer(conn, cfg, asana, gm, "Is the exchange already open? Happy to send the package tomorrow.", "r2", 2)
+    review_pending(conn, cfg, asana, llm)
+    assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None
+    # 3) the books arrive → thanks + answer within 24 hours, even though the read NEEDS him
+    import openpyxl, io
+    wb = openpyxl.Workbook(); ws = wb.active
+    for row in (("Trailing 12 months actuals",), ("Net Operating Income", 630000)):
+        ws.append(row)
+    buf = io.BytesIO(); wb.save(buf)
+    _answer(conn, cfg, asana, gm, "Please sign the NDA too. T-12 attached.", "r3", 3,
+            files=[{"filename": "T12.xlsx", "mime": "application/vnd.ms-excel", "bytes": buf.getvalue()}])
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["needs_rodrigo"] == 1
+    send_approved_replies(conn, cfg, asana, gm)
+    body = gm.sent[-1][2]
+    assert "Thank you for sending it over" in body and "no later than 24 hours" in body
+    # 4) not a fit → polite pass that plants the seed; then the thread is archived as before
+    _answer(conn, cfg, asana, gm, "Update: the building is vacant now.", "r4", 4)
+    review_pending(conn, cfg, asana, llm)
+    send_approved_replies(conn, cfg, asana, gm)
+    body = gm.sent[-1][2]
+    assert "This one won't work for us, but we are always buying." in body and "pocket listings" in body and "apartment buildings" in body
+    # the fixed replies never call us someone's agent
+    for k, o in (("books_ack", {}), ("ask_books", {}), ("ask_books", {"later": True}), ("pass", {}), ("pass", {"sold": True})):
+        t = template_reply(k, "Adam", cfg, **o)
+        assert not re.search(r"\b(?:buyer|client|investor)s?\b", t, re.I), t
+
+
+def test_rodrigo_writing_in_the_thread_shows_on_the_card_logs_the_offer_and_silences_charles(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10 (Byronessa): Charles cc'd him, he answers the broker himself. The card must read it, the offer moves the
+    card to Offer out, and Charles must not auto-answer inside his negotiation."""
+    from titan.commercial.books_review import review_pending, send_approved_replies, triage_inbox
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    cfg.secrets["REPORT_TO"] = "rodrigo@titanrealtyinvestments.com"
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    ask = conn.execute("SELECT price FROM commercial_listings WHERE listing_id='28440860'").fetchone()[0]
+    offer = int(ask * 0.7)
+    gm.threads["t1"].append({"id": "x1", "from": "Rodrigo D. Gayoso <rodrigo@titanrealtyinvestments.com>",
+                             "body": f"Hi Adam,\n\nOur offer is ${offer:,} cash with a $100,000 deposit.\n\nOn Mon wrote:\n> old", "internal_ts": int(SAT_10AM_ET.timestamp()) + 7200,
+                             "label_ids": [], "attachments": []})
+    out = poll_om_replies(conn, cfg, gm, asana)
+    assert out["rodrigo"] == 1 and out["offers"] == 1 and out["replies"] == 0
+    note = [c for c in asana.stories[gid] if "✉️ You wrote" in c]
+    assert len(note) == 1 and f"Offer out: ${offer:,}" in note[0] and "> old" not in note[0]
+    assert asana.where[gid] == secs["Offer out"]
+    assert poll_om_replies(conn, cfg, gm, asana)["rodrigo"] == 0                  # once
+    assert conn.execute("SELECT COUNT(*) FROM outreach WHERE kind='om_rodrigo'").fetchone()[0] == 1
+    # the broker answers (not a fit, no books, anything): reviewed for him, but nothing auto-sends and nothing is archived
+    _answer(conn, cfg, asana, gm, "Building is vacant now, sorry.", "r1", 3)
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "you are writing to this broker yourself" in read
+    n = len(gm.sent)
+    assert send_approved_replies(conn, cfg, asana, gm)["waiting"] == 1 and len(gm.sent) == n
+    assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0
+    assert asana.where[gid] == secs["Offer out"]                                    # the offer card does not jump back

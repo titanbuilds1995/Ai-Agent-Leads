@@ -131,6 +131,42 @@ def _is_ours(from_addr: str, cfg: Any) -> bool:
     return bool(dom and f"@{dom}" in f)
 
 
+def _from_rodrigo(from_addr: str, cfg: Any) -> bool:
+    me = (cfg.secret("REPORT_TO") or "").lower()
+    return bool(me and me in (from_addr or "").lower())
+
+
+def record_rodrigo_message(conn, cfg: Any, asana, secs: dict[str, str], t: dict[str, Any], m: dict[str, Any], now: datetime) -> dict[str, Any]:
+    """Rodrigo wrote to the broker himself in the OM thread (2026-11-10, Byronessa: Charles cc'd him and he answered Luca). The card
+    shows it, a dollar figure in his words is an offer (card → Offer out), and the thread becomes his: Charles sends nothing there on
+    his own any more and it is never archived. Logged in `outreach` as kind om_rodrigo (one row per Gmail message)."""
+    from ..offers import offer_price
+    from ..replies.clean import clean_reply
+    ts = datetime.fromtimestamp(m.get("internal_ts") or 0, tz=timezone.utc)
+    body = clean_reply(m.get("body") or "")
+    row = conn.execute("SELECT price FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
+    ask = row[0] if row and row[0] else None
+    price = offer_price(body, ask)
+    if price and price < (0.25 * ask if ask else 250_000):
+        price = None                       # a deposit, a tax bill or a payroll figure, not a purchase price
+    conn.execute("INSERT INTO outreach (agent_id, property_ids, channel, kind, status, subject, body, to_address, gmail_thread_id, gmail_message_id, "
+                 "run_date, created_at, sent_at, asana_task_id) VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                 (json.dumps([f"loopnet:{t['listing_id']}"]), "email", "om_rodrigo", "sent", m.get("subject") or t.get("subject"), body[:5000],
+                  t.get("broker_email"), t.get("gmail_thread_id"), m["id"], iso(ts)[:10], iso(now), iso(ts), t.get("card_gid")))
+    conn.execute("UPDATE commercial_threads SET rodrigo_at=COALESCE(rodrigo_at, ?), updated_at=? WHERE id=?", (iso(ts), iso(now), t["id"]))
+    t["rodrigo_at"] = t.get("rodrigo_at") or iso(ts)
+    if price:
+        conn.execute("UPDATE commercial_listings SET board_column='Offer out' WHERE listing_id=? AND board_column IS NOT 'Closed'", (t["listing_id"],))
+    if asana is not None and t.get("card_gid"):
+        note = (f"✉️ You wrote to {t.get('broker_name') or t.get('broker_email')} ({ts.strftime('%Y-%m-%d %H:%M')} UTC):\n{body[:1500]}"
+                + (f"\n\nOffer out: ${price:,}" + (f" ({price / ask * 100:.0f}% of the ${ask:,} ask)" if ask else "") + "." if price else "")
+                + "\n\nThis thread is yours now: Charles sends nothing here on his own (his drafts wait for your 'send it').")
+        asana.comment(t["card_gid"], note)
+        if price and secs.get("Offer out"):
+            asana.move(t["card_gid"], secs["Offer out"])
+    return {"price": price}
+
+
 def file_attachments(gmail, message: dict[str, Any], folder: Path) -> list[dict[str, Any]]:
     """Save every file on one message into the listing's folder. Returns [{filename, kind, path}]."""
     saved = []
@@ -195,7 +231,7 @@ def verdict_text(L: dict[str, Any]) -> str:
 
 def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = None) -> dict[str, Any]:
     """Open every OM thread, mirror new answers to the card, file attachments, regrade when the books are in."""
-    res: dict[str, Any] = {"threads": 0, "replies": 0, "books": 0, "bounces": 0, "errors": 0}
+    res: dict[str, Any] = {"threads": 0, "replies": 0, "books": 0, "bounces": 0, "rodrigo": 0, "offers": 0, "errors": 0}
     if gmail is None:
         return res
     now = now or now_utc()
@@ -212,7 +248,15 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
             log.error("OM thread %s: %s", t["gmail_thread_id"], e)
             continue
         for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
-            if _is_ours(m.get("from"), cfg) or "DRAFT" in (m.get("label_ids") or []):
+            if "DRAFT" in (m.get("label_ids") or []):
+                continue
+            if _from_rodrigo(m.get("from"), cfg):
+                if not conn.execute("SELECT 1 FROM outreach WHERE kind='om_rodrigo' AND gmail_message_id=?", (m["id"],)).fetchone():
+                    got = record_rodrigo_message(conn, cfg, asana, secs, t, m, now)
+                    res["rodrigo"] += 1
+                    res["offers"] += 1 if got["price"] else 0
+                continue
+            if _is_ours(m.get("from"), cfg):
                 continue
             if conn.execute("SELECT 1 FROM commercial_messages WHERE gmail_message_id=?", (m["id"],)).fetchone():
                 continue

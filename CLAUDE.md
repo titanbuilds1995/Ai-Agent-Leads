@@ -324,12 +324,27 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   REPORT_TO ("FW [NEEDS YOU] <address> · <broker>", the read + the broker's words + their files attached, 📬 comment); NOT A FIT /
   DOES NOT FIT threads are ARCHIVED in Charles's inbox once Charles's pass note has gone (🗂 comment; the thread is still read by id,
   so a later answer is not lost). Once per review (`commercial_reviews.forwarded_at / archived_at`), retroactive on existing reviews.
+- **Charles answers the 1031 brokers fast in Rodrigo's words; a thread Rodrigo writes in is his (Rodrigo, 2026-11-10: "if someone sends all of the
+  information … answer them before I can get to it … anything but the books or questions, grab the conversation … answer politely to anyone
+  that it's not a fit … plant the seed")**: three fixed replies (`books_review.template_kind` / `template_reply`), each once per thread, go out on
+  their own at the next round (window, `auto_reply`): **books_ack** (books attached or linked: thanks, underwriting team on it, answer no later than
+  24 hours; goes even when the read NEEDS YOU), **ask_books** (no books, no question, no NDA: "can you please send us the books", we analyze off the
+  books), **pass** (NOT A FIT / DOES NOT FIT, nothing else pitched: won't work, always buying, pocket listings / distressed / apartments, capital
+  ready, other partners looking). Questions, NDAs, proof of funds, pocket pitches still get Claude's draft. **Rodrigo's own email in an OM thread**
+  (from REPORT_TO, e.g. reply-all after Charles cc's him) is mirrored on the card (✉️ You wrote …), a purchase-price figure moves the card to Offer
+  out, and the thread becomes his (`commercial_threads.rodrigo_at`): nothing auto-sends there, never archived, the card does not jump columns.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~9:45am ET, RESUME HERE: **built Rodrigo's fast-reply rules for the 1031 brokers** (see Decisions → Charles answers the 1031
+  brokers fast). Applies to every NEW broker answer from the Mac's next round (10-min self-update); yesterday's answers are not re-answered.
+  **Byronessa:** Charles cc'd Rodrigo at 8:04am ET in Luca's thread ("Rodrigo will take it from here"); Rodrigo replies there himself. Before this
+  fix the engine skipped his emails (card blind) and could have auto-answered Luca inside his negotiation; now his email shows on the card, $3.0M
+  moves it to Offer out, Charles stays silent there. Watch: the first ✉️ comment on card 1220369552444711 and the first books_ack / ask_books /
+  pass sends (📤). Default branch fast-forwarded. 345 tests.
 - 2026-11-10 ~8:30am ET, RESUME HERE: **Byronessa, 7320 Byron Ave Miami Beach (Luca Migliore, ask $4.59M) read from the books Rodrigo uploaded** (T-12 Nov25–Oct26, 2025 P&L, OM). Real T-12: revenue $783,831, NOI after taxes+insurance $372,604 = **8.1% at ask** (OM's $390k / 8.5% leaves out ~$18k; Luca's 8.2 is honest). Taxes today $40.8k on ~$2.3M taxable; a sale reassesses to ~$74k at ask (85% of price × ~19 mills, estimate: miamidadepa.gov is blocked from the cloud) → 7.4% at ask. **8% after reassessment = $4.30M on the owner's books; $3.65M once a 4% manager and 4% FF&E reserve are in** (owner-operated, no PM fee, no reserves, no debt service). First target was open $3.7M / land $3.9–4.1M; **Rodrigo then pointed out the books carry almost no staff** (front desk $31k, night $1.7k: one part-timer, owner-run; cleaning IS in the books, Airbnb/Booking do not pay for it). With 3–4 on-site staff (~$42k loaded each) + 4% FF&E the 8-cap-after-reassessment price is **$2.7M–$3.2M**, under the $3.5M box floor; at $4.59M it is a 4–5 cap staffed. Revised read: only a deal if the partner runs it owner-style, or in the low $3Ms. **Offer email written for Rodrigo to send himself (chat, ~9am ET): $3.2M cash, $100k deposit, 30-day DD from full books, 30-day close, as-is with FF&E, reasons = reassessment / no payroll for 24/7 desk / no FF&E reserve; ceiling $3.5M.** Ask still $4,590,000. **Then Rodrigo: "we need room to send it to my buyer at an 8 cap"** → offer email revised to **$3.0M, Titan and/or assigns** (at $3.0M it is an 8.5 cap even with 3 staff + reserve); resell to the 1031 buyer at ~$3.5–3.55M (8 cap after reassessment on books + 4% reserve + one more full-time person) = ~$300–350k room; our contract ceiling $3.3M. If the buyer underwrites the owner's books + reserve only, the buyer price is ~$3.97M and the ceiling rises to ~$3.7M. If he sends it, log it with `titan.cli offers` and move the 1031 card to Offer out.
 - 2026-11-10 ~7:30am ET, RESUME HERE: **Peter Dacko (82 Tortuga, $245k): terms agreed Mon** ($5k EMD, 10-day inspection; Peter
   "that will be fine"), revised PSA sent 6:08pm for e-signature, and he asks **who signs for the LLC** (Needs Rodrigo card). His 11:15am

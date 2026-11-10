@@ -68,7 +68,7 @@ class Asana:
                       files={"file": (name or path.name, fh, "image/png")})
 
     def section_tasks(self, section: str) -> list[dict[str, Any]]:
-        return self._req("GET", f"/sections/{section}/tasks", params={"opt_fields": "name,notes,created_at,modified_at", "limit": 100}) or []
+        return self._req("GET", f"/sections/{section}/tasks", params={"opt_fields": "name,notes,created_at,modified_at,completed", "limit": 100}) or []
 
     def attachments(self, task: str) -> list[dict[str, Any]]:
         """Files attached to a card: [{gid, name, download_url, created_at, size, host}]. download_url is a short-lived link."""
@@ -126,6 +126,17 @@ class Asana:
 
     def complete(self, task: str) -> None:
         self._req("PUT", f"/tasks/{task}", json={"data": {"completed": True}})
+
+    def uncomplete(self, task: str) -> None:
+        self._req("PUT", f"/tasks/{task}", json={"data": {"completed": False}})
+
+    def remove_project(self, task: str, project: str) -> None:
+        """Take a card off one board (it stays on the others it belongs to)."""
+        self._req("POST", f"/tasks/{task}/removeProject", json={"data": {"project": project}})
+
+    def order_section_after(self, project: str, section: str, after: str) -> None:
+        """Move a column so it sits right after another one (2026-11-10: "Not a fit" goes at the end of the board)."""
+        self._req("POST", f"/projects/{project}/sections/insert", json={"data": {"section": section, "after_section": after}})
 
     def task(self, task: str, fields: str = "name,notes") -> dict[str, Any]:
         return self._req("GET", f"/tasks/{task}", params={"opt_fields": fields}) or {}

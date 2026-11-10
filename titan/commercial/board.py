@@ -12,10 +12,12 @@ SEND = "Approved · send OM request"      # drag a card here = Charles emails th
 NEEDS_ME = "Needs Me"                     # the next move is Rodrigo's (2026-11-10: "why are the emails on the people that need me not on my board?")
 NEEDS_REVISION = "Needs Revision"         # drag a card here + comment = talk it over with Claude (2026-11-10, like the email board)
 REVIEWED = "Reviewed"                     # he answered on the card: Claude acts on it, then the card comes back to Needs Me (2026-11-10)
-COLUMNS = ["New", SEND, NEEDS_ME, NEEDS_REVISION, REVIEWED, "Good fit", "Not a fit", "In touch with the agent", "Books received", "Offer out", "Closed"]
+NOT_A_FIT = "Not a fit"                   # always the LAST column; cards there are cleared off the board after the pass email (closeout.py)
+COLUMNS = ["New", SEND, NEEDS_ME, NEEDS_REVISION, REVIEWED, "Good fit", "In touch with the agent", "Books received", "Offer out", "Closed", NOT_A_FIT]
 STAYS_PUT = ("Offer out", "Closed", "Not a fit", NEEDS_ME, NEEDS_REVISION)   # the engine never pulls a card out of these to park it
 RENAMES = {"top tier": "Good fit", "needs om": "New", "suspect": "Not a fit", "contacted": "In touch with the agent", "skip": "Closed",
-           "approved": SEND, "send om request": SEND, "send": SEND}
+           "approved": SEND, "send om request": SEND, "send": SEND,
+           "waiting on the broker": "In touch with the agent"}   # the Working Deals board's name for the same column (working.py)
 INVESTOR_COLUMNS = ["Good fit", "In touch with the agent", "Books received", "Offer out"]     # what the shareable view shows
 LISTING_URL_RE = re.compile(r"loopnet\.com/Listing/(?:[^/\s]+/)?(\d+)/?", re.I)
 
@@ -43,7 +45,20 @@ def ensure_board(asana, project: str) -> dict[str, str]:
         if col not in have:
             before = have.get("Good fit") if col in (NEEDS_ME, NEEDS_REVISION, REVIEWED) else None    # up front, next to the send column
             have[col] = asana.ensure_section(project, col, insert_before=before) if before else asana.ensure_section(project, col)
+    last_at_end(asana, project, have.get(NOT_A_FIT))
     return have
+
+
+def last_at_end(asana, project: str, section: str | None) -> None:
+    """Rodrigo, 2026-11-10: "everybody that we're 100% they're not a fit with, let's just put them at the end of my board"."""
+    if not section or not hasattr(asana, "order_section_after"):
+        return
+    try:
+        order = [s["gid"] for s in asana.sections(project)]
+        if order and order[-1] != section:
+            asana.order_section_after(project, section, order[-1])
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not put %s at the end of the board: %s", NOT_A_FIT, e)
 
 
 def read_board(asana, project: str) -> dict[str, dict[str, Any]]:

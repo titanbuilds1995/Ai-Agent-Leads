@@ -242,6 +242,8 @@ def cmd_check_replies(cfg, args):
         res["lead_board"] = lead_board(conn, cfg, asana)
     if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):   # 2026-11-09: brokers' answers + the books they send
         from .commercial.outreach import poll_om_replies
+        from .commercial.working import wrap as working_board
+        asana = working_board(cfg, asana)          # 2026-11-10: the 1031 board and Titan 1031 · Working Deals seen as one board
         try:
             res["om_replies"] = poll_om_replies(conn, cfg, c["gmail"], asana)
         except Exception as e:  # noqa: BLE001
@@ -252,6 +254,8 @@ def cmd_check_replies(cfg, args):
             res["books_review"] = review_pending(conn, cfg, asana, c["llm"])
             res["om_reply_sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
             res["om_triage"] = triage_inbox(conn, cfg, asana, c["gmail"])       # forward what needs him, archive what does not fit
+            from .commercial.closeout import clear_not_fit
+            res["not_fit_cleared"] = clear_not_fit(conn, cfg, asana, c["gmail"])  # pass email, then the card leaves the board
         except Exception as e:  # noqa: BLE001
             log.exception("books review failed: %s", e)
             res["books_review"] = {"error": str(e)[:200]}
@@ -533,6 +537,8 @@ def cmd_approvals(cfg, args):
     if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):   # 2026-11-09: OM requests to brokers go out from the 1031 board
         from .commercial.blast import bootstrap
         from .commercial.outreach import poll_om_replies, send_om_requests
+        from .commercial.working import wrap as working_board
+        email_asana, asana = asana, working_board(cfg, asana)   # 2026-11-10: the 1031 board + Working Deals seen as one board
         stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
         from .commercial.card_files import pull_card_files
         stage("card_files", lambda: pull_card_files(conn, cfg, asana, c["llm"]))   # files he drops on a 1031 card are read FIRST (before notes)
@@ -548,6 +554,9 @@ def cmd_approvals(cfg, args):
         stage("needs_me_takes", lambda: needs_me_takes(conn, cfg, asana, c["llm"]))   # "💬 What I think" on every card in the 1031 Needs Me column
         from .commercial.deal_sheet import sync as sync_deal_sheets
         stage("deal_sheets", lambda: sync_deal_sheets(conn, cfg, asana))   # 2026-11-10: offers / counters / investor price on the 1031 site
+        from .commercial.closeout import clear_not_fit
+        stage("not_fit_cleared", lambda: clear_not_fit(conn, cfg, asana, c["gmail"]))   # 2026-11-10: pass email, then off the board
+        asana = email_asana
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)
     from .conversations import lead_board, mirror_replies

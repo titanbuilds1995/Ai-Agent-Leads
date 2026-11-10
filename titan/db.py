@@ -231,7 +231,8 @@ MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outrea
               "ALTER TABLE commercial_reviews ADD COLUMN reply_kind TEXT", "ALTER TABLE commercial_threads ADD COLUMN rodrigo_at TEXT",
               "ALTER TABLE commercial_reviews ADD COLUMN parked_at TEXT",
               "ALTER TABLE commercial_threads ADD COLUMN notes_seen_at TEXT",
-              "ALTER TABLE commercial_threads ADD COLUMN take_review_id INTEGER"]   # last "💬 What I think" on a Needs Me card   # 2026-11-10: his notes on 1031 cards (card_notes.py)   # 2026-11-10: card moved to the 1031 Needs Me column   # databases created before the column existed
+              "ALTER TABLE commercial_threads ADD COLUMN take_review_id INTEGER",
+              "ALTER TABLE commercial_threads ADD COLUMN cleared_at TEXT"]   # 2026-11-10: not a fit → pass sent, card cleared off the board (closeout.py)   # last "💬 What I think" on a Needs Me card   # 2026-11-10: his notes on 1031 cards (card_notes.py)   # 2026-11-10: card moved to the 1031 Needs Me column   # databases created before the column existed
 
 
 def init_db(conn: sqlite3.Connection) -> None:

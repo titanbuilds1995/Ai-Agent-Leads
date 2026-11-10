@@ -389,12 +389,33 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   read BEFORE notes in the round (stage `card_files` before `om_notes`), so a card with fresh files is never bounced out of Needs
   Revision; after the read a card he put in Needs Revision / Reviewed comes back to Needs Me. A read never moves a card out of a column
   he chose (Needs Me / Needs Revision / Reviewed / Offer out / Closed / Not a fit).
+- **1031 Not a fit = pass email, then off the board; Working Deals board (Rodrigo, 2026-11-10: "everybody that we're 100% they're not a fit
+  with, let's just put them at the end of my board and delete them … send them that last email … get them out … another board where I can
+  add everybody that I'm in communication with and that I've already finished filtering … if they need me, it needs to be on Needs Me")**:
+  (1) `titan/commercial/closeout.py` (stage `not_fit_cleared`, after `om_triage` in check-replies and approvals): a card in **Not a fit**
+  (now always the LAST column), or one read NOT A FIT / DOES NOT FIT with nothing pitched and not NEEDS YOU in New / In touch / Books
+  received, gets the polite pass (`template_reply("pass")`) unless Charles already declined in that thread (`DECLINE_RE`), the broker never
+  answered, the thread is Rodrigo's, or a drafted pass is still waiting (never two emails); then the thread is archived and the card is
+  marked **done** (leaves the board, kept in search; a later non-pass answer reopens it in Needs Me). His drag to Not a fit drops any other
+  waiting draft. Inside the send window, `commercial.review.pass_per_round` 10. A card in a column he chose is never cleared.
+  (2) **"Titan 1031 · Working Deals"** (project 1220397720099247, config `commercial.asana.working_project`; columns Needs Me · Needs
+  Revision · Reviewed · Waiting on the broker · Books received · Offer out · Closed · Not a fit): he moves filtered conversations there
+  himself. `titan/commercial/working.py` wraps the Asana client for every commercial stage: engine moves land on the same column of the
+  card's own board ("In touch with the agent" = "Waiting on the broker"; New / send / Good fit have none, so the card stays), column reads
+  include both boards, and a card on both boards is taken off the 1031 board. (3) A broker asking for a call (`CALL_RE`) makes the read
+  NEEDS YOU, so the card goes to Needs Me.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~12:20pm ET, RESUME HERE: **1031 clean-up built** (see Decisions → 1031 Not a fit). The 1031 board's "In touch with the agent"
+  held 35 cards: 13 already read DOES NOT FIT and told no (the engine archived them but never moved them: that was the gap), 5 needed
+  Rodrigo (moved to Needs Me by hand with a 🤖 note: Cameron Cauley call, Eric Cederman NDA, Albert Hernandez gas stations, Curt Ware
+  number, DeFuniak hotel platform link), 15 never answered, a few waiting on docs. The Mac's next rounds clear the not-fit ones (pass
+  where still owed, e.g. Steve McGregor and Babba Yesharim), plus the 45 in Not a fit, 10 pass emails per round in the window. Working
+  Deals board created, empty: Rodrigo moves cards there. Watch: the first 🗑 comments and that no broker gets two passes. 356 tests.
 - 2026-11-10 ~11:40am ET, RESUME HERE: **why Charles told Julio "we haven't received the Box invitation"** (7:49am ET): Charles reads
   only the broker's thread; the Box invite came as its own email, so the read assumed it never arrived and the draft went out on
   its own (before the no-commitments guard landed; it also said "identify within 45 days"). Fixed: a draft that says something did

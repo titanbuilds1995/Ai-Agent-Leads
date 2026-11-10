@@ -62,6 +62,9 @@ PRICE_RE = re.compile(r"\$\s?([\d,]{7,}(?:\.\d+)?)")
 CAP_RE = re.compile(r"(\d{1,2}(?:\.\d{1,2})?)\s?%?\s?cap", re.I)
 POCKET_RE = re.compile(r"pocket listing|off[- ]market|not (?:yet )?(?:listed|on the market)|i (?:also )?have (?:another|other|a few|some|two|three)|"
                        r"other (?:propert|listing|deal|package|site|asset)|another (?:propert|listing|deal|asset)|instead,? (?:take a look|consider)", re.I)
+CALL_RE = re.compile(r"\b(?:give me a call|call me|please call|can you call|could you call|let'?s (?:hop on a |get on a |set up a |have a )?call|"
+                     r"(?:hop|jump|get) on a (?:quick )?call|schedule a call|set up a call|reach me at|did call you|tried (?:calling|to call) you|"
+                     r"call (?:me )?at your earliest)\b", re.I)
 HOLD_RE = re.compile(r"\b(?:hold(?: it| this| off)?|wait|don'?t send|do not send|not yet|stop|let me (?:look|think|review))\b", re.I)
 QUESTION_RE = re.compile(r"\?|\b(?:can you|could you|would you|do you|are you|is (?:your|the) (?:buyer|partner|client)|what (?:is|are|kind)|"
                          r"when (?:do|can|will|would)|how (?:soon|much|fast|quickly)|let me know (?:if|what|when)|please (?:confirm|advise))\b", re.I)
@@ -448,6 +451,10 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     r["_rodrigo"] = bool(t.get("rodrigo_at"))
     if no_reply:      # a read of files HE dropped on the card: nothing is drafted to the broker
         r["reply_draft"] = ""
+    if msgs and CALL_RE.search(_no_disclaimer(msgs[-1].get("body") or "")) and not no_reply:
+        # Rodrigo, 2026-11-10: "anyone that I need to touch base with needs to be in Needs Me": a broker who asks for a call is his
+        r["needs_rodrigo"] = True
+        r["next_step"] = "NEEDS YOU: the broker asked for a call. " + (r.get("next_step") or "")
     hits = commits_us(r.get("reply_draft") or "")
     if hits:      # a date or a commitment in Claude's draft: it waits for Rodrigo, whatever else the read says
         r["needs_rodrigo"] = True

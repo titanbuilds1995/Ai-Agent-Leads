@@ -1138,3 +1138,109 @@ def test_julio_box_invite_pl_names_and_footer_nda():
             "CONFIDENTIALITY NOTICE and DISCLAIMER: This email message is intended only for the person or entity to which it is addressed")
     r = rules_review({"listing_id": "41176345", "price": 4_550_000}, {}, [{"body": body}], [])
     assert "NDA" not in str(r)
+
+
+class FakeWorkingAsana(Fake1031Asana):
+    """Two boards: the 1031 board (proj-1031) and Working Deals (proj-work), sections named per board."""
+    def __init__(self):
+        super().__init__()
+        self.board_of, self.removed = {}, []
+    def sections(self, project): return [{"gid": g, "name": n} for g, n in getattr(self, "_sections", {}).items() if self.board_of.get(g, "proj-1031") == project]
+    def ensure_section(self, project, name, insert_before=None):
+        secs = getattr(self, "_sections", {})
+        for g, n in secs.items():
+            if n == name and self.board_of.get(g, "proj-1031") == project: return g
+        gid = f"{project}-{name.lower().replace(' ', '-')}"; secs[gid] = name; self._sections = secs; self.board_of[gid] = project
+        return gid
+    def project_tasks(self, project, completed_since="now"):
+        return [dict(t, memberships=[{"project": {"gid": self.board_of.get(self.where[g], "proj-1031")}}]) for g, t in self.tasks.items()
+                if self.board_of.get(self.where[g], "proj-1031") == project and not t.get("completed")]
+    def remove_project(self, task, project): self.removed.append((task, project))
+    def uncomplete(self, task): self.tasks[task]["completed"] = False
+
+
+def test_not_a_fit_gets_the_pass_then_leaves_the_board_and_comes_back_if_they_write_again(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "everybody that we're 100% they're not a fit with, let's just put them at the end of my board and delete
+    them … send them that last email that we mentioned and get them out. I don't want to have to see them here on my board"."""
+    from titan.commercial.board import COLUMNS, NOT_A_FIT
+    from titan.commercial.books_review import review_pending, send_approved_replies
+    from titan.commercial.closeout import clear_not_fit
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    assert COLUMNS[-1] == NOT_A_FIT
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
+    llm = FakeTriageLLM()
+    # 1) the broker says it is vacant: read NOT A FIT, Charles's pass is drafted and waits to go → the card is not cleared yet
+    _answer(conn, cfg, asana, gm, "The building is vacant now.", "r1", 1)
+    review_pending(conn, cfg, asana, llm)
+    assert asana.where[gid] == secs[NOT_A_FIT]
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)["cleared"] == 0
+    sent_before = len(gm.sent)
+    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert len(gm.sent) == sent_before + 1 and "This one won't work for us" in gm.sent[-1][2]
+    out = clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    # Charles already said no in the thread: no second email; archived; card done (off the board)
+    assert out["cleared"] == 1 and out["passes"] == 0 and len(gm.sent) == sent_before + 1
+    assert asana.tasks[gid].get("completed") and "t1" in gm.archived
+    assert any("🗑 Not a fit · cleared off the board" in c for c in asana.stories[gid])
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)["cleared"] == 0          # once
+
+
+def test_his_drag_to_not_a_fit_sends_the_pass_once_and_a_call_request_needs_him(conn, cfg, tmp_path):
+    from titan.commercial.board import NOT_A_FIT
+    from titan.commercial.books_review import review_pending
+    from titan.commercial.closeout import clear_not_fit
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    lone = asana.create_task("proj-1031", secs["New"], "OM request · never emailed", "https://www.loopnet.com/Listing/77/")["gid"]
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)["cleared"] == 0 and not asana.tasks[lone].get("completed")
+    _answer(conn, cfg, asana, gm, "Great property. Please give me a call at your earliest convenience. 850-291-3341", "r1", 1)
+    out = review_pending(conn, cfg, asana, FakeTriageLLM())
+    assert out["needs_rodrigo"] == 1                                                     # a call request is his
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)["cleared"] == 0          # not sure → stays
+    asana.move(gid, secs[NOT_A_FIT])                                                     # he decides: not a fit
+    from datetime import datetime, timezone
+    assert clear_not_fit(conn, cfg, asana, gm, now=datetime(2026, 11, 9, 3, 0, tzinfo=timezone.utc))["waiting"] == 1   # night: waits
+    n = len(gm.sent)
+    out = clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert out == {**out, "cleared": 1, "passes": 1} and len(gm.sent) == n + 1
+    to, subject, body = gm.sent[-1]
+    assert to == "adam@trustrealtyusa.com" and subject.startswith("Re:") and "This one won't work for us, but we are always buying." in body
+    assert asana.tasks[gid]["completed"]
+    assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] == "pass"
+    # the broker writes again with something real: the card comes back, in Needs Me
+    asana.uncomplete = lambda t: asana.tasks[t].update(completed=False)
+    _answer(conn, cfg, asana, gm, "Happy to send the package tomorrow.", "r2", 2)
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)["reopened"] == 1
+    assert not asana.tasks[gid].get("completed") and asana.where[gid] == secs["Needs Me"]
+
+
+def test_working_deals_board_keeps_the_engine_moves_on_that_board(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "another board where I can add everybody that I'm in communication with and that I've already finished
+    filtering"; the engine moves his cards there between its own columns and never back onto the 1031 board."""
+    from titan.commercial.board import NEEDS_ME, ensure_board
+    from titan.commercial.working import CommercialAsana, WAITING
+    a = FakeWorkingAsana()
+    secs = ensure_board(a, "proj-1031")
+    gid = a.create_task("proj-1031", secs["In touch with the agent"], "OM request · x", "https://www.loopnet.com/Listing/9/")["gid"]
+    w = CommercialAsana(a, "proj-1031", "proj-work")
+    w.section_tasks(secs[NEEDS_ME])                                # loads Working Deals (creates its columns)
+    a.move(gid, "proj-work-waiting-on-the-broker")                 # he moves the card to Working Deals
+    w = CommercialAsana(a, "proj-1031", "proj-work")
+    assert w.on_working(gid)
+    w.move(gid, secs[NEEDS_ME])                                    # the engine "parks it in Needs Me" …
+    assert a.where[gid] == "proj-work-needs-me"                    # … on Working Deals
+    assert [t["gid"] for t in w.section_tasks(secs[NEEDS_ME])] == [gid]
+    assert gid in {t["gid"] for t in w.project_tasks("proj-1031")}
+    w.move(gid, secs["New"])                                       # no such column there: stays put
+    assert a.where[gid] == "proj-work-needs-me"
+    from titan.commercial.board import column_key
+    assert column_key(WAITING) == "In touch with the agent"

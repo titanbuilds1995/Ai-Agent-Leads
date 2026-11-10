@@ -400,6 +400,7 @@ commercial:
     project: "1220324280677489"      # "Titan 1031 · Commercial (LoopNet)" board (created 2026-11-08; sections Top tier / Needs OM / Suspect / Contacted / Skip are found by name)
     push_top_n: 25                   # CLEAN top-tier cards
     needs_om_n: 40                   # OM-request task list
+    working_project: "1220397720099247"   # "Titan 1031 · Working Deals" (2026-11-10): brokers he is talking to and has filtered; he moves cards there (working.py)
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
   outreach:
@@ -419,6 +420,11 @@ commercial:
     forward_to_rodrigo: true
     archive_not_fit: true
     forward_max_mb: 20
+    # Rodrigo, 2026-11-10: "everybody that we're 100% they're not a fit with … send them that last email … and get them out": a card
+    # in Not a fit (or read NOT A FIT / DOES NOT FIT in a column the engine owns) gets the polite pass if still owed, then is marked
+    # done so it leaves the board (closeout.py). pass_per_round = pass emails per round, inside the send window.
+    clear_not_fit: true
+    pass_per_round: 10
   # The Mac's database never saw the cloud's statewide pull. These are that pull's Apify datasets (free to re-read, already paid for):
   # the first approvals round on a Mac that has fewer listings than min_listings loads them, scores offline, builds the blast queue. Once.
   bootstrap:

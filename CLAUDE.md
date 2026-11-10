@@ -330,6 +330,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~8:30am ET, RESUME HERE: **Byronessa, 7320 Byron Ave Miami Beach (Luca Migliore, ask $4.59M) read from the books Rodrigo uploaded** (T-12 Nov25–Oct26, 2025 P&L, OM). Real T-12: revenue $783,831, NOI after taxes+insurance $372,604 = **8.1% at ask** (OM's $390k / 8.5% leaves out ~$18k; Luca's 8.2 is honest). Taxes today $40.8k on ~$2.3M taxable; a sale reassesses to ~$74k at ask (85% of price × ~19 mills, estimate: miamidadepa.gov is blocked from the cloud) → 7.4% at ask. **8% after reassessment = $4.30M on the owner's books; $3.65M once a 4% manager and 4% FF&E reserve are in** (owner-operated, no PM fee, no reserves, no debt service). Target told to Rodrigo: open ~$3.7M, expect to land $3.9–4.1M. Nothing sent, no card changed.
 - 2026-11-10 ~7:30am ET, RESUME HERE: **Peter Dacko (82 Tortuga, $245k): terms agreed Mon** ($5k EMD, 10-day inspection; Peter
   "that will be fine"), revised PSA sent 6:08pm for e-signature, and he asks **who signs for the LLC** (Needs Rodrigo card). His 11:15am
   counter ("$2000 is not enough to place the property in escrow") was read as SOLD and the approvals card went to Skip (the warm-board

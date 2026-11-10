@@ -416,6 +416,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~1:35pm ET, RESUME HERE: **Coral Shores / 9022 Midnight Pass Rd (Michael Grant, Dreamify) read from the post-NDA files.**
+  Rodrigo signed the NDA; Michael's package (13 files) arrived as Drive links in Rodrigo's inbox, so the cloud read them through the
+  Drive connector (the engine never follows links and cannot download Asana files from the cloud). Full read pinned on the card
+  (1220358634696289, Working Deals board), card moved Needs Revision → Needs Me; the numbers live on the card, not here (public repo).
+  Verdict: leans does not fit at ask once management, insurance and reserves are real; 8 cap sits well under the ask. Nothing sent to
+  Michael. **Rodrigo must remove the two "82_Tortuga" PDFs attached to that card by mistake (Peter Dacko's contract)**, or the Mac's
+  card_files stage reads them as deal documents. The Mac's next round will also download the P&L and post its own 🧠 read (duplicate,
+  harmless). Engine gap seen: the ✍️ draft on a Working Deals card still says "drag to Approved · send OM request", a column that board
+  does not have (use "send it").
 - 2026-11-10 ~1:00pm ET, RESUME HERE: **In touch cleaned (Rodrigo: "most of them were dead")**. Of 26 cards there: 7 dead (broker said no
   8 cap: Estero/Rob Carroll, Key Largo/Hampson, Orlando All American/McGregor, Miami NE 2nd/Yesharim, Davie Orange/Waite, Bonita Springs/
   McClimans, Panama City/Clubbs new build) moved to Not a fit by hand; the Mac's next round sends the pass where still owed (McGregor,

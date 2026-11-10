@@ -99,6 +99,16 @@ Rules:
   current rent, anything that reads as cooked.
 - Next step is ONE concrete thing. If it is Rodrigo's call (sign an NDA/CA, send proof of funds, decide on a number, call the
   broker), say "NEEDS YOU:" first. Otherwise it is Charles's move.
+- Where it has to be for a TRUE 8 cap (Rodrigo, 2026-11-10): state your assumptions and the result, one short line each: the NOI you
+  used and where it came from (T-12 / OM / listing; note what you added back or took out), the property tax after a sale (Florida
+  reassesses at the sale: taxable value about 85% of the price times the county's all-in millage, about 17 to 22 mills; say the
+  number you used), any management fee or reserve a passive owner would carry that the books leave out, and the price that makes
+  it an 8.0% cap after all of that: price = (NOI before property tax - added costs) / (0.08 + 0.85 x millage). Compare that price
+  with the ask.
+- Pros and cons: the real ones for a 1031 owner, short.
+- What you do not believe: what in their numbers or story looks inflated, left out or untrue (pro forma dressed as actual,
+  missing expenses, a cap that does not tie to the books, a trend they leave out), and why.
+- What checks out: what ties across the documents and we can rely on.
 - Other deals: when the broker pitches ANOTHER property instead of or besides the one we asked about (a pocket listing, an
   off-market deal, "I also have…", a package of sites), list each one in other_deals as one short line (what · where · price ·
   cap if stated · one fact). Empty when none. Rodrigo wants to see these.
@@ -125,8 +135,14 @@ SCHEMA = {
         "needs_rodrigo": {"type": "boolean"},
         "reply_draft": {"type": "string"},
         "other_deals": {"type": "array", "items": {"type": "string"}, "description": "other / pocket / off-market deals the broker offered, one line each; [] when none"},
+        "eight_cap": {"type": "array", "items": {"type": "string"}, "description": "assumption lines then the result: 'NOI used $X (T-12)', 'Tax after a sale ~$Y (85% x Z mills)', 'Added: 15% manager $W', 'True 8 cap at $P (ask $A)'"},
+        "pros": {"type": "array", "items": {"type": "string"}},
+        "cons": {"type": "array", "items": {"type": "string"}},
+        "doubts": {"type": "array", "items": {"type": "string"}, "description": "what looks inflated, left out or untrue, and why"},
+        "believe": {"type": "array", "items": {"type": "string"}, "description": "what ties across the documents and we can rely on"},
     },
-    "required": ["verdict", "what_they_said", "books_say", "numbers", "red_flags", "next_step", "needs_rodrigo", "reply_draft", "other_deals"],
+    "required": ["verdict", "what_they_said", "books_say", "numbers", "red_flags", "next_step", "needs_rodrigo", "reply_draft", "other_deals",
+                 "eight_cap", "pros", "cons", "doubts", "believe"],
     "additionalProperties": False,
 }
 
@@ -251,8 +267,15 @@ def rules_review(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]
     if OFFER_RE.search(body):
         numbers.append("Broker signals the owner is open to offers / negotiable.")
     other = ["Broker mentions other / off-market property (read the email; Claude's read names them when it is back)."] if POCKET_RE.search(body) else []
+    eight = []
+    noi = next((documents.facts_from_text(f.get("text") or "").get("noi") for f in books if documents.facts_from_text(f.get("text") or "").get("noi")), None) or L.get("stated_noi")
+    if noi:
+        eight = [f"NOI used {money(noi)} (as stated; tax reset and management not taken out yet)",
+                 f"8 cap before the tax reset at {money(noi / 0.08)}" + (f" (ask {money(price)})" if price else ""),
+                 "Claude's full read adds the tax reset and a manager/reserve when it is reachable."]
     return {"verdict": verdict, "what_they_said": (last[:300] or "(no text)"), "books_say": (f"{len(books)} document(s) on file: " + ", ".join(f["name"] for f in books)) if books else "No documents yet.",
-            "numbers": numbers, "red_flags": flags, "next_step": step, "needs_rodrigo": needs, "reply_draft": "", "other_deals": other, "_source": "rules"}
+            "numbers": numbers, "red_flags": flags, "next_step": step, "needs_rodrigo": needs, "reply_draft": "", "other_deals": other,
+            "eight_cap": eight, "pros": [], "cons": [], "doubts": [], "believe": [], "_source": "rules"}
 
 
 GENERIC_LOCAL = {"info", "sales", "admin", "office", "team", "contact", "listings", "leasing", "hello", "mail", "inquiries", "deals", "broker", "agent"}
@@ -353,6 +376,10 @@ def format_review(r: dict[str, Any], books_note: str | None = None, auto_reply: 
     out = [head, "", f"What they said: {r.get('what_they_said', '').strip()}", "", f"What the books say: {r.get('books_say', '').strip()}"]
     if r.get("numbers"):
         out += ["", "Numbers:"] + [f"• {n}" for n in r["numbers"][:8]]
+    for key, title in (("eight_cap", "Where it has to be for a true 8 cap (our assumptions):"), ("pros", "Pros:"), ("cons", "Cons:"),
+                       ("doubts", "What I don't believe (looks inflated, left out or untrue):"), ("believe", "What checks out:")):
+        if r.get(key):
+            out += ["", title] + [f"• {n}" for n in r[key][:8]]
     if r.get("red_flags"):
         out += ["", "Red flags:"] + [f"• {n}" for n in r["red_flags"][:8]]
     step = (r.get("next_step") or "").strip()

@@ -367,12 +367,21 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   deposit, "we will send / provide", or any claim of an attachment is marked NEEDS YOU and never goes out on its own (also re-checked at
   send time for drafts stored earlier); only his "send it" sends it. Broker replies also wait for the send window (8:30–5:30 ET).
   The three fixed replies are his own words and still go; books_ack keeps his "within 24 hours" (his wording, 11-10 morning).
+- **1031 Needs Revision + what every read must give (Rodrigo, 2026-11-10: "a section that says needs revision this way I can chat with the
+  agent there … give me the data on what our assumption is on where we need to be for a true 8 cap, then the pros and cons, what it thinks
+  they're lying about, and where we agree")**: the 1031 board has a **Needs Revision** column (`board.NEEDS_REVISION`, up front). A card
+  there with his comment is answered (💬) or rewritten (✍️) by `card_notes.handle_notes`, then moves to Needs Me; one dragged there with no
+  comment goes straight back to Needs Me with one line (same as the email board). Every 🧠 READ FOR YOU and every 💬 What I think now gives:
+  where it has to be for a TRUE 8 cap with the assumptions (NOI used, tax after a sale at ~85% of price x county millage, manager / reserve
+  a passive owner carries, the price), pros, cons, what we don't believe (inflated / left out / untrue, and why), and what checks out.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~2:15pm ET, RESUME HERE: **1031 Needs Revision column + the four new parts in every deal read** (see Decisions). Reads
+  written from the Mac's next round on carry them; older reads do not (drag a card to Needs Revision with "redo the read" to get one). 350 tests.
 - 2026-11-10 ~1:45pm ET: Rodrigo asked where the 1031 comps live and to continue the analysis in his own Claude account. There are no
   independent commercial sales comps (the engine pulls comps for houses only); Byronessa's only comps are the 3 broker-picked sales in the OM.
   Built the Claude Doc "Byronessa · 7320 Byron Ave · Deal Analysis" (https://claude.ai/artifact/AEis1sRaKXUHowoY2MmGKG): status, property,

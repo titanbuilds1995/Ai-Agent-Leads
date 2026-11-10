@@ -10,8 +10,9 @@ from ..util import log
 
 SEND = "Approved · send OM request"      # drag a card here = Charles emails the broker for the books (2026-11-09)
 NEEDS_ME = "Needs Me"                     # the next move is Rodrigo's (2026-11-10: "why are the emails on the people that need me not on my board?")
-COLUMNS = ["New", SEND, NEEDS_ME, "Good fit", "Not a fit", "In touch with the agent", "Books received", "Offer out", "Closed"]
-STAYS_PUT = ("Offer out", "Closed", "Not a fit", NEEDS_ME)   # the engine never pulls a card out of these to park it
+NEEDS_REVISION = "Needs Revision"         # drag a card here + comment = talk it over with Claude (2026-11-10, like the email board)
+COLUMNS = ["New", SEND, NEEDS_ME, NEEDS_REVISION, "Good fit", "Not a fit", "In touch with the agent", "Books received", "Offer out", "Closed"]
+STAYS_PUT = ("Offer out", "Closed", "Not a fit", NEEDS_ME, NEEDS_REVISION)   # the engine never pulls a card out of these to park it
 RENAMES = {"top tier": "Good fit", "needs om": "New", "suspect": "Not a fit", "contacted": "In touch with the agent", "skip": "Closed",
            "approved": SEND, "send om request": SEND, "send": SEND}
 INVESTOR_COLUMNS = ["Good fit", "In touch with the agent", "Books received", "Offer out"]     # what the shareable view shows
@@ -39,7 +40,7 @@ def ensure_board(asana, project: str) -> dict[str, str]:
             have[key] = sec["gid"]
     for col in COLUMNS:
         if col not in have:
-            before = have.get("Good fit") if col == NEEDS_ME else None    # Needs Me sits up front, next to the send column
+            before = have.get("Good fit") if col in (NEEDS_ME, NEEDS_REVISION) else None    # up front, next to the send column
             have[col] = asana.ensure_section(project, col, insert_before=before) if before else asana.ensure_section(project, col)
     return have
 

@@ -35,7 +35,8 @@ INSTRUCT_RE = re.compile(r"\b(?:tell|ask|say|let (?:him|her|them) know|reply|res
 CHAT_SYSTEM = """You are the acquisitions analyst at Titan Realty Investments, talking with Rodrigo Gayoso (principal) on the card of a
 commercial deal for a 1031 exchange: the box is $3.5M to $8M at an 8 percent cap or better on real trailing numbers after the tax
 reassessment at our price. Answer him like a sharp colleague: plain words, short, your actual opinion, the numbers that matter, and
-the next move. No hedging, no fluff, no headers. If the data cannot answer it, say what is missing and how to get it. Never send or
+the next move. No hedging, no fluff, no headers. When he asks about the price or whether it works, say where it has to be for a true
+8 cap after the tax reset at that price (taxable ~85% of price x the county's ~17-22 mills) with your assumptions. If the data cannot answer it, say what is missing and how to get it. Never send or
 promise anything to the broker; this is between you and Rodrigo."""
 CHAT_SCHEMA = {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"], "additionalProperties": False}
 FIRST_LOOK = timedelta(hours=2)      # a thread seen for the first time: only his comments from the last two hours count as notes
@@ -157,8 +158,10 @@ def needs_me_takes(conn, cfg: Any, asana, llm, now=None) -> dict[str, Any]:
         latest = conn.execute("SELECT MAX(id) FROM commercial_reviews WHERE thread_id=? AND source != 'note'", (t["id"],)).fetchone()[0] or 0
         if t.get("take_review_id") is not None and t["take_review_id"] == latest or _column_now(conn, asana, t["listing_id"], t["card_gid"]) != NEEDS_ME:
             continue
-        answer = chat(conn, cfg, llm, t, "This card is in my Needs Me column. What do you think: pursue or pass, what number or terms should "
-                                        "we aim for, and what is the one next move? If something blocks it (NDA, missing books), say so.")
+        answer = chat(conn, cfg, llm, t, "This card is in my Needs Me column. Give me, short and in this order: (1) where it has to be for a "
+                                        "true 8 cap, with your assumptions (NOI used, tax after a sale, manager / reserve) and the price; "
+                                        "(2) pros; (3) cons; (4) what you don't believe in what they gave us, and why; (5) what checks out; "
+                                        "(6) pursue or pass and the one next move. If something blocks it (NDA, missing books), say so.")
         if not answer:
             res["waiting"] += 1
             continue
@@ -177,6 +180,25 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
     if asana is None:
         return res
     now = now or now_utc()
+    # Needs Revision (Rodrigo, 2026-11-10: "a section that says needs revision … so I can chat with the agent there", like the email
+    # board): a card there with his comment is answered / rewritten, then moves to Needs Me; one dragged there with no comment goes
+    # straight back to Needs Me with one line.
+    from .board import NEEDS_ME, NEEDS_REVISION, ensure_board
+    project = cfg.get("commercial.asana.project")
+    secs = ensure_board(asana, project) if project else {}
+    try:
+        in_rev = {x["gid"] for x in asana.section_tasks(secs[NEEDS_REVISION])} if secs.get(NEEDS_REVISION) else set()
+    except Exception as e:  # noqa: BLE001
+        log.warning("Needs Revision column: %s", e)
+        in_rev = set()
+
+    def done_revising(gid: str, empty: bool = False) -> None:
+        if gid in in_rev and secs.get(NEEDS_ME):
+            if empty:
+                asana.comment(gid, "Moved back to Needs Me: there is no comment on it to work on. Write what is unclear, then drag it to Needs Revision again.")
+            asana.move(gid, secs[NEEDS_ME])
+            res["revised"] = res.get("revised", 0) + 1
+
     rows = conn.execute("SELECT * FROM commercial_threads WHERE card_gid IS NOT NULL AND bounced=0").fetchall()
     for t in rows:
         t = db.row_to_dict(t)
@@ -195,6 +217,7 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
             mark = max([seen] + [c.get("created_at") for c in comments if c.get("created_at")])
             if mark != t.get("notes_seen_at"):
                 conn.execute("UPDATE commercial_threads SET notes_seen_at=? WHERE id=?", (mark, t["id"]))
+            done_revising(t["card_gid"], empty=True)
             continue
         res["notes"] += 1
         questions = [n for n in notes if is_question(n)]
@@ -210,6 +233,7 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
             res["answered"] = res.get("answered", 0) + 1
         if not orders:
             conn.execute("UPDATE commercial_threads SET notes_seen_at=? WHERE id=?", (max(c.get("created_at") or "" for c in new), t["id"]))
+            done_revising(t["card_gid"])
             continue
         notes = orders
         note = "\n\n".join(notes)
@@ -236,6 +260,7 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
         conn.execute("UPDATE commercial_threads SET notes_seen_at=? WHERE id=?", (max(c.get("created_at") or "" for c in new), t["id"]))
         asana.comment(t["card_gid"], f"{text}:\n\n{email}")
         res["drafted"] += 1
+        done_revising(t["card_gid"])
     return res
 
 

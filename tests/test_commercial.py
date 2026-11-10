@@ -1008,3 +1008,42 @@ def test_no_dates_no_commitments_no_fake_attachments_go_out_on_their_own(conn, c
     assert send_approved_replies(conn, cfg, asana, gm, now=late)["sent"] == 0
     assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET + timedelta(minutes=5))["sent"] == 1
 
+
+
+def test_needs_revision_column_and_the_read_gives_the_true_8_cap_pros_cons_and_doubts(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "a section that says needs revision this way I can chat with the agent there … give me the data on what our
+    assumption is on where we need to be for a true 8 cap, then the pros and cons, what it thinks they're lying about, and where we agree"."""
+    from datetime import timedelta
+    from titan.commercial.board import NEEDS_ME, NEEDS_REVISION, ensure_board
+    from titan.commercial.books_review import format_review
+    from titan.commercial.card_notes import handle_notes
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    text = format_review({"verdict": "LEANS FIT", "what_they_said": "x", "books_say": "y", "numbers": [], "red_flags": [], "next_step": "z",
+                          "eight_cap": ["NOI used $372,604 (T-12)", "True 8 cap at $3.24M (ask $4.59M)"], "pros": ["#1 rated"], "cons": ["owner-run"],
+                          "doubts": ["no payroll in the books"], "believe": ["revenue ties to the OTA statements"]})
+    for part in ("Where it has to be for a true 8 cap", "True 8 cap at $3.24M", "Pros:", "Cons:", "What I don't believe", "What checks out:"):
+        assert part in text, part
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    secs = ensure_board(asana, "proj-1031")
+    assert NEEDS_REVISION in secs
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    llm = FakeNoteLLM()
+    now = SAT_10AM_ET + timedelta(hours=1)
+    when = {}
+    raw = asana.comment_raw
+    def comment_raw(task, text):
+        when[text] = iso(now - timedelta(minutes=5)); raw(task, text)
+    asana.comment_raw = comment_raw
+    asana.comments = lambda task: [{"text": t, "created_at": when.get(t, "2000-01-01")} for t in asana.stories[task]]
+    # dragged to Needs Revision with no comment → straight back to Needs Me, with one line
+    asana.move(gid, secs[NEEDS_REVISION])
+    handle_notes(conn, cfg, asana, llm, now=now)
+    assert asana.where[gid] == secs[NEEDS_ME] and any("no comment on it" in c for c in asana.stories[gid])
+    # with a question → answered on the card, then to Needs Me
+    now += timedelta(minutes=10)
+    asana.move(gid, secs[NEEDS_REVISION])
+    asana.comment_raw(gid, "why don't you believe the cap?")
+    out = handle_notes(conn, cfg, asana, llm, now=now)
+    assert out.get("answered") == 1 and asana.where[gid] == secs[NEEDS_ME]

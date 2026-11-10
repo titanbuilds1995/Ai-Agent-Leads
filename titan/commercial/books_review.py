@@ -46,6 +46,14 @@ LINK_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
 DOC_HOST_RE = re.compile(r"dropbox|drive\.google|docs\.google|box\.com|sharefile|wetransfer|onedrive|sharepoint|dealroom|buildout|crexi|loopnet\.com/.*(?:document|brochure|om)|\.pdf", re.I)
 DEAD_RE = re.compile(r"(?:just |already |recently )?(?:signed a lease|leased|under contract|sold|off (?:the )?market|no longer (?:available|for sale)|"
                      r"accepted an offer|in escrow|withdrawn)", re.I)
+DISCLAIMER_RE = re.compile(r"(?:confidentiality notice|disclaimer|this (?:e-?mail|message) (?:message )?(?:is intended|and any attachments|may contain))[\s\S]*", re.I)
+
+
+def _no_disclaimer(text: str) -> str:
+    """The broker's words without the legal footer ("CONFIDENTIALITY NOTICE and DISCLAIMER: ..."), which is not an NDA request."""
+    return DISCLAIMER_RE.sub("", text or "")
+
+
 NDA_RE = re.compile(r"\b(?:nda|ca/nda|confidentiality agreement|confidentiality|non-?disclosure)\b", re.I)
 POF_RE = re.compile(r"proof of funds|\bpof\b", re.I)
 LATER_RE = re.compile(r"later today|tomorrow|when i(?:'m| am) back|next week|give me a day|will send|i'll send|i’ll send|shortly", re.I)
@@ -68,7 +76,11 @@ COMMIT_RE = re.compile(
     r"proof of funds|\bpof\b|sign(?:ed|ing)?\b|nda|confidentiality|non-?disclosure|\bloi\b|letter of intent|contract|"
     r"deposit|escrow|earnest|we(?:'ll| will| can| would) (?:send|provide|sign|get you|have)|i(?:'ll| will) (?:send|provide|sign|get you)|"
     # Charles never attaches anything: a draft that says it did is false (St Petersburg, 11-10: "The signed NDA is attached", twice, with nothing attached)
-    r"attach(?:ed|ing)?|enclosed|see below|reviewing (?:the|your) (?:p&ls?|books|numbers|financials) now)", re.I)
+    r"attach(?:ed|ing)?|enclosed|see below|reviewing (?:the|your) (?:p&ls?|books|numbers|financials) now|"
+    # Charles only sees the broker's thread, not the rest of the inbox: Box / Dropbox / DocuSign invitations arrive as their own
+    # emails, so he can never say something did not arrive (Julio, 11-10: "We haven't received the Box invitation yet" when it had)
+    r"(?:have(?:n't| not)|has(?:n't| not)|didn't|did not|never|not yet|yet to) (?:been )?(?:receiv\w*|get|got|gotten|come through|arriv\w*|show\w* up|see\w*)|"
+    r"(?:didn't|did not|doesn't|does not) (?:come|go) through|not received|re-?send|missing on our end|on our end)", re.I)
 
 
 def commits_us(draft: str) -> list[str]:
@@ -115,6 +127,8 @@ Rules:
 - Charles's reply: write it ONLY when the broker is waiting on something Charles can answer without Rodrigo (thanks + what we
   still need that they have NOT already sent; read the attachments list before asking for anything). Never a price, never
   "our buyer"/"client"/"investor" (say "a partner of ours"), never promise to waive anything.
+- Charles sees ONLY this thread. Never say something did not arrive, was not received or did not come through, and never ask
+  them to resend: invitations (Box, Dropbox, DocuSign) come as separate emails he cannot see, and the files may be on the card.
 - NEVER put a date, deadline or timeframe in Charles's reply (no "45 days", no closing or identification timing, no "this week",
   no "by Friday"), and NEVER commit us to do or send anything (no proof of funds, no signing an NDA / CA / LOI / contract, no
   deposit, no "we will send", "we can provide"). Rodrigo, 2026-11-10: those are his call. When the broker asks for any of that
@@ -248,7 +262,7 @@ def rules_review(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]
     flags: list[str] = []
     if dead:
         verdict, step, needs = "NOT A FIT", "Mark it Not a fit; nothing to do.", False
-    elif NDA_RE.search(body):
+    elif NDA_RE.search(_no_disclaimer(body)):
         verdict, step, needs = "CAN'T TELL YET", "NEEDS YOU: the broker wants the CA/NDA signed before releasing the books.", True
     elif books:
         verdict, step, needs = ("LEANS FIT" if numbers else "CAN'T TELL YET"), "Read the numbers above against the 8 cap; Claude's full read follows when it is reachable.", False
@@ -358,7 +372,7 @@ def template_kind(conn, t: dict[str, Any], msgs: list[dict[str, Any]], files: li
     if (verdict in ARCHIVE_VERDICTS or dead) and not r.get("other_deals") and not POCKET_RE.search(last) and "pass" not in done:
         return "pass", {"sold": dead}
     if (not books_ever and not dead and verdict not in ARCHIVE_VERDICTS and not r.get("other_deals") and not POCKET_RE.search(last)
-            and not NDA_RE.search(last) and not POF_RE.search(last) and not QUESTION_RE.search(last) and "ask_books" not in done):
+            and not NDA_RE.search(_no_disclaimer(last)) and not POF_RE.search(last) and not QUESTION_RE.search(last) and "ask_books" not in done):
         return "ask_books", {"later": bool(LATER_RE.search(last))}
     return None, {}
 

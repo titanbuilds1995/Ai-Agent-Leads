@@ -14,7 +14,7 @@ from . import extract as x
 
 DOC_KINDS = [   # (kind, pattern on the link text / file name)
     ("t12", r"t[-_ ]?12|trailing[-_ ]?(?:12|twelve)|ttm|operating[_ ]statement|income[_ ]statement"),
-    ("pnl", r"p\s*&\s*l|profit[_ ](?:and|&)[_ ]loss|financial(?:s|[_ ]summary|[_ ]statement)|actuals"),
+    ("pnl", r"p\s*&\s*l|(?<![a-z])p[_ ]?l(?![a-z])|(?<![a-z])pnl(?![a-z])|profit[_ ](?:and|&)[_ ]loss|financial(?:s|[_ ]summary|[_ ]statement)|actuals"),
     ("rent_roll", r"rent[-_ ]?roll"),
     ("lease_abstract", r"lease[_ ](?:abstract|summary)|abstract[_ ]of[_ ]lease"),
     ("om", r"(?<![a-z])om(?![a-z])|offering[_ ]memorandum|offering[_ ]memo|investment[_ ](?:memorandum|package|summary)|(?<![a-z])cim(?![a-z])"),

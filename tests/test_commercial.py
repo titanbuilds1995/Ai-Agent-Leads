@@ -1120,3 +1120,21 @@ def test_financials_dropped_on_a_1031_card_are_filed_read_and_never_trigger_an_e
     # the same card checked again: nothing new, nothing read twice
     asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "modified_at": "2026-11-10T16:00:00Z"} for g in asana.tasks]
     assert pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)["files"] == 0
+
+
+def test_julio_box_invite_pl_names_and_footer_nda():
+    """Rodrigo, 2026-11-10 (Julio Leyva, 2648 NE 32nd St): Charles told Julio "We haven't received the Box invitation yet" when it
+    had arrived (Charles only reads the broker's thread), the P&Ls he dropped on the card ("P_L Casitas 2022.pdf") were not read
+    as P&Ls, and the rules-only read called Matthews' email footer an NDA request."""
+    from titan.commercial.books_review import commits_us, rules_review
+    from titan.commercial.documents import classify
+    for b in ["We haven't received the Box invitation yet, and the OM didn't come through on our end. Could you resend both?",
+              "The OM did not come through.", "We have not received the files."]:
+        assert commits_us(f"Hey Julio,\n\n{b}\n\nCharles Grant"), b
+    for n in ["P_L YTD 2023 (1).pdf", "P_L Casitas 2022 (1).pdf", "P L 2024.pdf", "PnL 2025.xlsx", "P&L 2022.pdf"]:
+        assert classify(n) == "pnl", n
+    assert classify("map_list.pdf") != "pnl"
+    body = ("I've attached the OM on here and I also included the Box link above.\n\nJulio Leyva\nAssociate | Matthews\n"
+            "CONFIDENTIALITY NOTICE and DISCLAIMER: This email message is intended only for the person or entity to which it is addressed")
+    r = rules_review({"listing_id": "41176345", "price": 4_550_000}, {}, [{"body": body}], [])
+    assert "NDA" not in str(r)

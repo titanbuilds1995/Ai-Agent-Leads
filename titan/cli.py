@@ -538,6 +538,8 @@ def cmd_approvals(cfg, args):
         stage("om_notes", lambda: handle_notes(conn, cfg, asana, c["llm"]))   # his notes on 1031 cards → Charles's next email (before the drag is read)
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
+        from .commercial.card_files import pull_card_files
+        stage("card_files", lambda: pull_card_files(conn, cfg, asana, c["llm"]))   # financials he drops on a 1031 card are read too
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
         stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # simple replies go on their own; NEEDS YOU waits for "send it"

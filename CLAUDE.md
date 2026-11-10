@@ -378,12 +378,21 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   I have answered already, and then once it's answered it can be dragged to Needs Me again")**: `board.REVIEWED`, next to Needs Revision. He
   answers on the card and drags it to Reviewed; `handle_notes` acts on his answer (💬 answer or ✍️ Charles's email), then moves the card back
   to Needs Me. A Reviewed card with nothing new on it stays there. Flow: Needs Me → (he answers) → Reviewed → (Claude acts) → Needs Me.
+- **Financials dropped on a 1031 card are read (Rodrigo, 2026-11-10: "should I drop them on the Asana card … yes let's do that")**:
+  `titan/commercial/card_files.py`, approvals-round stage `card_files` (after `om_replies`). Cards changed since the last look
+  (`commercial_kv.card_files_seen`) are checked for attachments; each new PDF / Excel / CSV / Word / text file is downloaded once
+  (`commercial_card_files`) into `data/listings/<listing_id>/`, the listing is regraded and a fresh 🧠 READ FOR YOU is posted with
+  `review_thread(no_reply=True)`: a read of HIS files never drafts or sends anything to the broker. Images are ignored; a card with no
+  LoopNet link gets one comment. Cards never emailed get the regrade line only. Asana client: `attachments()`, `download()` (pre-signed
+  link, fetched without the token).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~3pm ET, RESUME HERE: **drop financials on the 1031 card** (see Decisions). Built and tested against a fake Asana only:
+  watch the first real attachment (📎 Filed your file(s) … comment, then a 🧠 READ FOR YOU). 352 tests.
 - 2026-11-10 ~2:30pm ET, RESUME HERE: **1031 Reviewed column** (see Decisions): columns now New · Approved · send OM request · Needs Me ·
   Needs Revision · Reviewed · Good fit · Not a fit · In touch · Books received · Offer out · Closed. The Mac creates it on its next round. 351 tests.
 - 2026-11-10 ~2:15pm ET, RESUME HERE: **1031 Needs Revision column + the four new parts in every deal read** (see Decisions). Reads

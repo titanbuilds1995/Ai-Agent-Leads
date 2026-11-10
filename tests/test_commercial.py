@@ -1078,3 +1078,36 @@ def test_reviewed_column_his_answer_is_acted_on_then_the_card_comes_back_to_need
     asana.comment_raw(gid, "tell him we will sign the NDA and ask for the T-12")
     out = handle_notes(conn, cfg, asana, llm, now=now)
     assert out["drafted"] == 1 and asana.where[gid] == secs[NEEDS_ME]
+
+
+def test_financials_dropped_on_a_1031_card_are_filed_read_and_never_trigger_an_email(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "once I get all of the info from the finances on the deals … should I drop them on the Asana card …
+    yes let's do that". A spreadsheet attached to the card lands in data/listings/<id>/, is read once, and a fresh read is posted."""
+    import io, openpyxl
+    from titan.commercial.card_files import pull_card_files
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    wb = openpyxl.Workbook(); ws = wb.active
+    for row in (("Trailing 12 months actuals",), ("Net Operating Income", 610000)):
+        ws.append(row)
+    buf = io.BytesIO(); wb.save(buf)
+    files = {"https://s3/t12": buf.getvalue()}
+    asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "name": t.get("name"), "modified_at": "2026-11-10T15:00:00Z"} for g, t in asana.tasks.items()]
+    asana.attachments = lambda task: ([{"gid": "att1", "name": "T-12 2026.xlsx", "download_url": "https://s3/t12", "size": len(files["https://s3/t12"])},
+                                       {"gid": "att2", "name": "photo.png", "download_url": "https://s3/p"}] if task == gid else [])
+    asana.download = lambda url: files[url]
+    n = len(gm.sent)
+    out = pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)
+    assert out["files"] == 1 and out["reads"] == 1
+    saved = tmp_path / "data" / "listings" / "28440860" / "T-12 2026.xlsx"
+    assert saved.exists()
+    assert any("📎 Filed your file(s)" in c and "T-12 2026.xlsx" in c for c in asana.stories[gid])
+    assert any("READ FOR YOU" in c for c in asana.stories[gid])
+    assert conn.execute("SELECT reply_draft FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None   # nothing drafted to the broker
+    assert len(gm.sent) == n
+    # the same card checked again: nothing new, nothing read twice
+    asana.project_tasks = lambda project, completed_since="now": [{"gid": g, "modified_at": "2026-11-10T16:00:00Z"} for g in asana.tasks]
+    assert pull_card_files(conn, cfg, asana, FakeReviewLLM(), now=SAT_10AM_ET)["files"] == 0

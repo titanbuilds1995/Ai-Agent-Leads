@@ -70,6 +70,18 @@ class Asana:
     def section_tasks(self, section: str) -> list[dict[str, Any]]:
         return self._req("GET", f"/sections/{section}/tasks", params={"opt_fields": "name,notes,created_at,modified_at", "limit": 100}) or []
 
+    def attachments(self, task: str) -> list[dict[str, Any]]:
+        """Files attached to a card: [{gid, name, download_url, created_at, size, host}]. download_url is a short-lived link."""
+        return self._req("GET", "/attachments", params={"parent": task, "opt_fields": "name,download_url,created_at,size,host,resource_subtype"}) or []
+
+    def download(self, url: str) -> bytes:
+        """Fetch an attachment's bytes from its short-lived download_url (a pre-signed link: sent WITHOUT the Asana token)."""
+        import requests
+        r = requests.get(url, timeout=120)
+        if r.status_code >= 400:
+            raise AsanaError(f"download: HTTP {r.status_code}")
+        return r.content
+
     def project_tasks(self, project: str, completed_since: str = "now") -> list[dict[str, Any]]:
         """Every card on the board with its column (paged). completed_since "now" = open cards only; an ISO time also
         returns the cards completed since then."""

@@ -177,6 +177,9 @@ CREATE INDEX IF NOT EXISTS idx_commercial_reviews_thread ON commercial_reviews(t
 -- The deal sheet of a 1031 listing (titan/commercial/deal_sheet.py): read from DEAL SHEET comments on its Asana card + Rodrigo's
 -- own offer email; the numbers never live in the (public) repository.
 CREATE TABLE IF NOT EXISTS commercial_deals (listing_id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);
+-- Files Rodrigo attaches to a 1031 card (titan/commercial/card_files.py): downloaded once into data/listings/<id>/ and read.
+CREATE TABLE IF NOT EXISTS commercial_card_files (attachment_gid TEXT PRIMARY KEY, listing_id TEXT, card_gid TEXT, name TEXT, path TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS commercial_kv (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS commercial_runs (
   id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, counts TEXT,
   cost_usd REAL, notes TEXT

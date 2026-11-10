@@ -401,7 +401,7 @@ def format_review(r: dict[str, Any], books_note: str | None = None, auto_reply: 
     return "\n".join(out)
 
 
-def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict[str, str] | None = None) -> dict[str, Any]:
+def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict[str, str] | None = None, no_reply: bool = False) -> dict[str, Any]:
     """Read one thread's latest state, post the review on the card, record it. Returns {verdict, source, moved}."""
     L = _listing(conn, t["listing_id"])
     msgs = _messages(conn, t["id"])
@@ -432,11 +432,13 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
         r = rules_review(L, t, msgs, files)
     r["other_deals"] = [str(x).strip() for x in (r.get("other_deals") or []) if str(x).strip()]
     r["_rodrigo"] = bool(t.get("rodrigo_at"))
+    if no_reply:      # a read of files HE dropped on the card: nothing is drafted to the broker
+        r["reply_draft"] = ""
     hits = commits_us(r.get("reply_draft") or "")
     if hits:      # a date or a commitment in Claude's draft: it waits for Rodrigo, whatever else the read says
         r["needs_rodrigo"] = True
         r["red_flags"] = list(r.get("red_flags") or []) + [f"Charles's draft mentions {', '.join(hits[:4])}: held for you (no dates or commitments go out on their own)."]
-    kind, opts = template_kind(conn, t, msgs, files, r)
+    kind, opts = (None, {}) if no_reply else template_kind(conn, t, msgs, files, r)
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
         r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
                                                            street=L.get("street"), seed=int(t.get("id") or 0)), kind

@@ -561,10 +561,15 @@ def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
                 project = cfg.get("commercial.asana.project")
                 secs = ensure_board(asana, project) if project else {}
             try:
-                if _park(conn, asana, secs, r["lid"], r["card_gid"]):
-                    res["parked"] = res.get("parked", 0) + 1
+                done = _park(conn, asana, secs, r["lid"], r["card_gid"])
             except Exception as e:  # noqa: BLE001
+                done = "failed"
                 log.warning("park %s in Needs Me: %s", r.get("lid"), e)
+            if done == "moved":
+                res["parked"] = res.get("parked", 0) + 1
+            elif done == "failed":      # never mark a card parked that did not move: the next round tries again
+                conn.execute("UPDATE commercial_reviews SET parked_at=NULL WHERE id=?", (r["id"],))
+                res["errors"] += 1
         if arch_on and wants_arch and not r.get("archived_at"):
             if r.get("reply_draft") and not r.get("reply_sent_at"):
                 res["waiting"] += 1          # Charles's pass note goes first; archive at a later round
@@ -604,13 +609,16 @@ def _column_now(conn, asana, listing_id: str, card_gid: str) -> str | None:
     return row[0] if row else None
 
 
-def _park(conn, asana, secs: dict[str, str], listing_id: str, card_gid: str) -> bool:
-    """Move the card to Needs Me unless he already put it somewhere that settles it (Offer out / Closed / Not a fit)."""
-    if not secs.get(NEEDS_ME) or _column_now(conn, asana, listing_id, card_gid) in STAYS_PUT:
-        return False
+def _park(conn, asana, secs: dict[str, str], listing_id: str, card_gid: str) -> str:
+    """Move the card to Needs Me unless he already put it somewhere that settles it (Offer out / Closed / Not a fit / Needs Me).
+    Returns "moved", "kept" (it stays where he put it) or "failed" (no Needs Me column yet: try again next round)."""
+    if not secs.get(NEEDS_ME):
+        return "failed"
+    if _column_now(conn, asana, listing_id, card_gid) in STAYS_PUT:
+        return "kept"
     asana.move(card_gid, secs[NEEDS_ME])
     conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=?", (NEEDS_ME, listing_id))
-    return True
+    return "moved"
 
 
 def _unpark(conn, cfg: Any, asana, listing_id: str, card_gid: str) -> None:

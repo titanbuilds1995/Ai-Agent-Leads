@@ -895,3 +895,15 @@ def test_cards_that_need_rodrigo_land_in_needs_me_once_and_overlapping_rounds_ne
     review_pending(conn, cfg, asana, FakeTriageLLM())
     triage_inbox(conn, cfg, asana, gm)
     assert asana.where[gid] == secs["Offer out"]
+    # a move that fails is retried next round, not marked done
+    class Boom(Exception): pass
+    _answer(conn, cfg, asana, gm, "One more NDA, sorry.", "r3", 3)
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    asana.move(gid, secs["In touch with the agent"]); conn.execute("UPDATE commercial_listings SET board_column='In touch with the agent'")
+    real_move = asana.move
+    asana.move = lambda *a: (_ for _ in ()).throw(Boom("Asana 500"))
+    triage_inbox(conn, cfg, asana, gm)
+    assert conn.execute("SELECT parked_at FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None
+    asana.move = real_move
+    assert triage_inbox(conn, cfg, asana, gm).get("parked") == 1 and asana.where[gid] == secs[NEEDS_ME]
+

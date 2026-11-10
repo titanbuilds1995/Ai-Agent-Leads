@@ -355,6 +355,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~11:45am ET, RESUME HERE: Rodrigo could not find 9022 Midnight Pass Rd (Michael/Dreamify) on the board: the Mac had
+  created the 1031 Needs Me column but moved nothing into it. Moved by hand: Michael, Kate Clifford, Armond Aivazyan, Cameron Cauley,
+  Jake Hayutin (Luca stays in Offer out). Fixed: a card was marked parked before the move, so one failed move was never retried; now a
+  failed move is retried next round. Exact cause on the Mac not confirmed (check `logs/` for "park … in Needs Me"). 347 tests.
 - 2026-11-10 ~11:15am ET, RESUME HERE: **1031 Needs Me column built** (see Decisions). The cards behind his forwards sat in In touch
   (Cameron Cauley, Armond Aivazyan, Michael/Dreamify, Kate Clifford) and Books received (Jake Hayutin, Tampa); Luca stays in Offer out.
   The Mac's next approvals round creates the column and moves them. Duplicate forwards fixed. Watch: the column appears and holds those 5. 347 tests.

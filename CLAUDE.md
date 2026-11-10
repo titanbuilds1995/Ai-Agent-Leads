@@ -424,6 +424,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   rent (year-1 rent $378,768 = 7.58% at ask, no expenses taken out); Larry's own sheet prices the ask at a 7.5 cap on gross rent; 8 cap ≈
   $4.5M if NNN, ≈ $3.5M if gross. **Needs the OM for the lease type**: Rodrigo saves the OM PDF to Drive (cloud reads it) or the Mac's next
   round reads the card files and posts its own 🧠 (duplicate, harmless). No code change. Nothing sent to Larry.
+  **Then Rodrigo uploaded the OM in chat ("all triple net, flagship store")**: the OM (11 pp) is an older $6.65M / 6.5% book, "100%
+  single occupancy, home of Everything but Water", floor plan + storefront labeled PROPOSED with the 1,452 SF second space as "additional
+  tenant space"; no lease abstract, no NNN language, no expenses anywhere. Second pinned 🧠 on the card: Space 2's $185,520 lease may be
+  pro forma (in-place income then $193k = 3.9% at ask, 8 cap $2.3M in place / $4.5M once leased); NNN is a claim from the call, not a
+  document. Charles's draft to Larry (executed leases, Space 2 status, tax bill + insurance, year built/roof/AC, is EBW the seller) sits
+  on the card for Rodrigo's "send it". Card in Working Deals → Needs Me.
 - 2026-11-10 ~5:55pm ET, RESUME HERE: **Sleep Inn DeFuniak Springs (17834 State Hwy 285 S, Dennis Hopper / DSH; card 1220358635284810,
   Working Deals → Needs Revision)**: Rodrigo got the Revere CRE "Tier 1 Private files" and dropped them on the card as ONE ZIP (13 MB).
   Nobody could read it: the cloud cannot download Asana files or reach platform.reverecre.com, and `card_files` skipped `.zip`. Built:

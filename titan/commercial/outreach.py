@@ -88,9 +88,17 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
             res["skipped"] += 1
             continue
         if conn.execute("SELECT 1 FROM commercial_threads WHERE listing_id=? AND bounced=0", (card["listing_id"],)).fetchone():
-            asana.comment(t["gid"], "Already emailed this broker about this listing; not sending twice. Moved to In touch with the agent.")
+            # already in conversation: dragging the card here approves the reply waiting on it (Rodrigo, 2026-11-10: "like the other board")
+            from .card_notes import approve_waiting
+            ok = approve_waiting(conn, card["listing_id"])
+            if ok:
+                asana.comment(t["gid"], f"Approved: Charles sends the reply waiting on this card to {ok['to']} at this round.")
+                res["approved"] = res.get("approved", 0) + 1
+            else:
+                asana.comment(t["gid"], "Nothing is drafted to send on this card. Write in a comment what Charles should say, then drag it here "
+                                        "again (or end the comment with 'send it').")
+                res["skipped"] += 1
             asana.move(t["gid"], secs["In touch with the agent"])
-            res["skipped"] += 1
             continue
         try:
             sent = gmail.send(card["to"], card["subject"], card["body"])

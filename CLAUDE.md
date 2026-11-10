@@ -349,12 +349,24 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   his 'send it' reply went, or he wrote the broker himself (back to In touch; a price → Offer out). Forwards, replies and archives are
   claimed before they happen (`_claim`), so overlapping check-replies / approvals rounds never email anyone twice (Luca and Cameron got
   two forwards each on 11-10).
+- **The 1031 board talks back, like the email board (Rodrigo, 2026-11-10: "can I just put a message on the comments and it will read it
+  when I put it in Approved, like the other board … have this whole board have conversations with us … if I send it to Needs Me, it can
+  answer me back what it thinks")**: `titan/commercial/card_notes.py`, stages `om_notes` (before `om_requests`) and `needs_me_takes`.
+  (1) A note telling Charles what to say (or the email itself) → Claude writes Charles's reply in the broker's thread and posts it on the
+  card "✍️ From your note"; it goes out when the note ends with a plain "send it", when he drags the card to "Approved · send OM
+  request" (for a card already in conversation that drag approves the waiting draft; nothing waiting = one comment), or on a later
+  "send it". Stored as a review row (reply_kind note / note_send), sent by `send_approved_replies`. (2) A question on a card → "💬" answer
+  from the listing, reads, deal sheet and thread. (3) A card in the 1031 Needs Me column → one "💬 What I think" per new development.
+  DEAL SHEET comments are never notes. Paid API like other card work; Claude unreachable → retried next round, the note kept.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-10 ~12:30pm ET, RESUME HERE: **the 1031 board talks back** (see Decisions): notes on a card become Charles's next email
+  (sent by "send it" or by dragging the card to Approved), questions get a 💬 answer, Needs Me cards get one 💬 What I think. The 5 cards in
+  Needs Me (Michael, Kate, Armond, Cameron, Jake) get their take at the Mac's next approvals round. Watch the first ✍️ / 💬 comments. 348 tests.
 - 2026-11-10 ~11:45am ET, RESUME HERE: Rodrigo could not find 9022 Midnight Pass Rd (Michael/Dreamify) on the board: the Mac had
   created the 1031 Needs Me column but moved nothing into it. Moved by hand: Michael, Kate Clifford, Armond Aivazyan, Cameron Cauley,
   Jake Hayutin (Luca stays in Offer out). Fixed: a card was marked parked before the move, so one failed move was never retried; now a

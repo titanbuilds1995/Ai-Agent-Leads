@@ -907,3 +907,71 @@ def test_cards_that_need_rodrigo_land_in_needs_me_once_and_overlapping_rounds_ne
     asana.move = real_move
     assert triage_inbox(conn, cfg, asana, gm).get("parked") == 1 and asana.where[gid] == secs[NEEDS_ME]
 
+
+
+class FakeNoteLLM:
+    available = True
+    def __init__(self): self.calls = []
+    def structured(self, purpose, system, user, schema, max_tokens=1024):
+        self.calls.append(purpose)
+        if purpose == "commercial_card_chat":
+            return {"answer": "Pass at the ask: the real cap is 7.4 after the tax reset. Aim at $3.2M."}
+        return {"email": "Hey Adam,\n\nWe will sign the NDA today. Please send the trailing twelve and the rent roll once it is back.\n\n"
+                         "Charles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379"}
+
+
+def test_the_1031_board_talks_back_notes_become_emails_questions_get_answers(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-10: "can I just put a message on the comments and it will read it when I put it in Approved, like the other
+    board … have this whole board have conversations with us … if I send it to Needs Me, it can answer me back what it thinks"."""
+    from datetime import timedelta
+    from titan.commercial.board import NEEDS_ME, SEND, ensure_board
+    from titan.commercial.books_review import send_approved_replies
+    from titan.commercial.card_notes import handle_notes, needs_me_takes
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    secs = ensure_board(asana, "proj-1031")
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
+    llm = FakeNoteLLM()
+    now = SAT_10AM_ET + timedelta(hours=1)
+    when = {}
+    raw = asana.comment_raw
+    def comment_raw(task, text):                   # each of his comments keeps the time it was written (5 minutes before "now")
+        when[text] = iso(now - timedelta(minutes=5)); raw(task, text)
+    asana.comment_raw = comment_raw
+    asana.comments = lambda task: [{"text": t, "created_at": when.get(t, "2000-01-01")} for t in asana.stories[task]]
+    # 0) a DEAL SHEET update is never read as a note
+    asana.comment_raw(gid, "📊 DEAL SHEET\nInternal: ask Luca where the seller would trade")
+    assert handle_notes(conn, cfg, asana, llm, now=now)["notes"] == 0
+    # 1) a note telling Charles what to say → drafted on the card, NOT sent
+    now += timedelta(minutes=1)
+    asana.comment_raw(gid, "tell him we will sign the NDA and ask for the T-12")
+    out = handle_notes(conn, cfg, asana, llm, now=now)
+    assert out["drafted"] == 1 and any("✍️ From your note (not sent" in c for c in asana.stories[gid])
+    n = len(gm.sent)
+    assert send_approved_replies(conn, cfg, asana, gm, now=now)["sent"] == 0 and len(gm.sent) == n
+    # 2) he drags the card to Approved → the waiting draft is approved and goes out in the broker's thread
+    asana.move(gid, secs[SEND])
+    assert send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET).get("approved") == 1
+    assert asana.where[gid] == secs["In touch with the agent"]
+    assert send_approved_replies(conn, cfg, asana, gm, now=now)["sent"] == 1 and "sign the NDA" in gm.sent[-1][2]
+    assert gm.sent[-1][0] == "adam@trustrealtyusa.com" and gm.kw[-1].get("thread_id") == "t1"
+    # 3) a question gets a 💬 answer on the card; nothing is drafted or sent
+    now += timedelta(hours=1)
+    asana.comment_raw(gid, "what do you think, is this worth chasing?")
+    out = handle_notes(conn, cfg, asana, llm, now=now)
+    assert out.get("answered") == 1 and out["drafted"] == 0
+    assert any(c.startswith("🤖 💬 Pass at the ask") for c in asana.stories[gid])
+    # 4) a note that ends with "send it" goes on its own
+    now += timedelta(hours=1)
+    asana.comment_raw(gid, "tell him we will sign the NDA and send it")
+    handle_notes(conn, cfg, asana, llm, now=now)
+    assert send_approved_replies(conn, cfg, asana, gm, now=now)["sent"] == 1
+    # 5) a card in Needs Me gets ONE take, until something new happens
+    asana.move(gid, secs[NEEDS_ME])
+    conn.execute("UPDATE commercial_listings SET board_column=?", (NEEDS_ME,))
+    assert needs_me_takes(conn, cfg, asana, llm)["takes"] == 1
+    assert any("💬 What I think" in c for c in asana.stories[gid])
+    assert needs_me_takes(conn, cfg, asana, llm)["takes"] == 0

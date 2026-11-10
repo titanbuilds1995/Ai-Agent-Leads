@@ -320,6 +320,10 @@ def template_kind(conn, t: dict[str, Any], msgs: list[dict[str, Any]], files: li
 
 
 def _auto_sends(r: dict[str, Any], auto_reply: bool) -> bool:
+    if r.get("reply_kind") == "note_send":        # his own note said send, or he dragged the card to Approved (card_notes.py)
+        return True
+    if r.get("reply_kind") == "note":             # written from his note: waits for his 'send it' or the drag
+        return False
     return bool(auto_reply and not r.get("_rodrigo") and (not r.get("needs_rodrigo") or r.get("reply_kind") in AUTO_KINDS))
 
 
@@ -493,7 +497,7 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         conn.execute("UPDATE commercial_reviews SET reply_sent_at=? WHERE id=?", (ts, r["id"]))
         conn.execute("UPDATE commercial_threads SET updated_at=? WHERE id=?", (ts, r["thread_id"]))
         asana.comment(r["card_gid"], f"📤 Charles's reply sent to {r['broker_email']} at {now.strftime('%Y-%m-%d %H:%M')} UTC:\n\n{r['reply_draft']}")
-        if r.get("needs_rodrigo"):          # his "send it" was the move he owed: the card leaves Needs Me
+        if r.get("needs_rodrigo") or (r.get("reply_kind") or "").startswith("note"):   # his move is done: the card leaves Needs Me
             _unpark(conn, cfg, asana, r["lid"], r["card_gid"])
         res["sent"] += 1
     return res

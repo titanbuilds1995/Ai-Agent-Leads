@@ -534,12 +534,16 @@ def cmd_approvals(cfg, args):
         from .commercial.blast import bootstrap
         from .commercial.outreach import poll_om_replies, send_om_requests
         stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
+        from .commercial.card_notes import handle_notes
+        stage("om_notes", lambda: handle_notes(conn, cfg, asana, c["llm"]))   # his notes on 1031 cards → Charles's next email (before the drag is read)
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
         stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # simple replies go on their own; NEEDS YOU waits for "send it"
         stage("om_triage", lambda: triage_inbox(conn, cfg, asana, c["gmail"]))           # forward what needs Rodrigo / pocket deals; archive not-fit threads
+        from .commercial.card_notes import needs_me_takes
+        stage("needs_me_takes", lambda: needs_me_takes(conn, cfg, asana, c["llm"]))   # "💬 What I think" on every card in the 1031 Needs Me column
         from .commercial.deal_sheet import sync as sync_deal_sheets
         stage("deal_sheets", lambda: sync_deal_sheets(conn, cfg, asana))   # 2026-11-10: offers / counters / investor price on the 1031 site
     from .learning import learn_tick

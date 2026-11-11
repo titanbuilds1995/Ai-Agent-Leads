@@ -437,6 +437,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (`commercial_stray_seen`), 150 per round (`commercial.strays.per_round`). `make om-strays` runs it now and prints who was missed
   (`ARGS=--redo` looks again from the first OM request). Charles's own answers still go in the original thread. Also fixed: two answers from one
   broker in the same round no longer wipe the first one's files / BOOKS state, and a plain note after the books no longer pulls the card back to In touch.
+- **The 1031 reply check opens only conversations with new mail (2026-11-11, the Mac's log: Gmail "Quota exceeded … Units per minute per user")**:
+  `poll_om_replies` used to open all ~400 OM threads every check-replies AND approvals round; Gmail cut it off and every thread after the cut
+  was skipped that round (the likely reason answers and books sat unread). Now one search (`strays.new_refs`: inbound mail since the last look,
+  minus what was handled) decides which threads to open; the same list feeds the stray sweep. A quota error stops the round, leaves the look-back
+  date alone, and the unread ones are picked up next round. `util.retry` waits 20 / 40 / 60 s on a quota error instead of 2–6 s. A Gmail client
+  without `search_refs` (tests) still opens every thread. The residential reply check (`replies/inbox.py`) still opens every thread: same change
+  is worth making there if the quota errors continue.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -449,7 +456,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   likely) or simply arrived after the Mac's last round is unconfirmed. **Rodrigo runs `make om-strays` on the Mac** (or waits for the next round):
   it prints every broker answer the board had missed and puts each on its card. Watch: Christian's card gets 📩 + the T-12 filed + Books received;
   check the list for false matches (a non-broker email naming a street). If Christian's email still is not found, look at how it arrived
-  (Spam is not searched; a link instead of a file is listed, never fetched). 365 tests.
+  (Spam is not searched; a link instead of a file is listed, never fetched). **Root cause found after that from the Mac's log: Gmail quota errors were skipping threads every round** (see Decisions → opens only conversations with new mail); fixed the same day. 365 tests.
 - 2026-11-10 ~10pm ET, RESUME HERE: **Cameron Cauley (8100 Opportunity Dr, Milton; card 1220358628718111, Needs Me) got three emails from
   Charles on his own**: two said his attachments "didn't come through" and re-asked for a T-12 he had said he can't give; the third (the fixed
   ask_books reply) asked for the books right after he asked for a call. Causes: the read never saw Charles's own earlier emails; fixed replies

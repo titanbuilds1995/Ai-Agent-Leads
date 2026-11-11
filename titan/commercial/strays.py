@@ -81,8 +81,28 @@ def match(threads: list[dict[str, Any]], m: dict[str, Any], me: str) -> dict[str
     return None
 
 
-def sweep(conn, cfg: Any, gmail, handle: Callable[[dict[str, Any], dict[str, Any]], None], now: datetime) -> dict[str, Any]:
-    """Look at new inbox messages since the last sweep; hand each stray broker answer to `handle(thread, message)`."""
+def new_refs(conn, cfg: Any, gmail, now: datetime) -> list[dict[str, str]]:
+    """ONE cheap Gmail search: every inbound message since the last look that the engine has not handled yet. `poll_om_replies` opens
+    only the OM threads that appear here (2026-11-11: opening all ~400 threads every round ran into Gmail's per-minute quota and the
+    threads after the cut were never read), and `sweep` looks at the rest for stray broker answers."""
+    kv = conn.execute("SELECT value FROM commercial_kv WHERE key='stray_since'").fetchone()
+    first = conn.execute("SELECT MIN(sent_at) FROM commercial_threads").fetchone()[0]
+    since = (parse_iso(kv[0]) if kv else None) or parse_iso(first) or now
+    q = f"after:{(since - timedelta(days=1)):%Y/%m/%d} -in:sent -in:drafts -in:chats"
+    seen = {r[0] for r in conn.execute("SELECT gmail_message_id FROM commercial_stray_seen")}
+    seen |= {r[0] for r in conn.execute("SELECT gmail_message_id FROM commercial_messages")}
+    return [r for r in gmail.search_refs(q, max_results=3000) if r["id"] not in seen]
+
+
+def mark_seen(conn, ids: list[str], thread_id: int | None, now: datetime) -> None:
+    for i in ids:
+        conn.execute("INSERT OR IGNORE INTO commercial_stray_seen (gmail_message_id, thread_id, created_at) VALUES (?,?,?)", (i, thread_id, iso(now)))
+
+
+def sweep(conn, cfg: Any, gmail, handle: Callable[[dict[str, Any], dict[str, Any]], None], now: datetime,
+          refs: list[dict[str, str]] | None = None, clean: bool = True) -> dict[str, Any]:
+    """Look at new inbox messages outside the known threads; hand each stray broker answer to `handle(thread, message)`.
+    `clean` False (a thread could not be opened this round) keeps the look-back date where it is, so nothing is skipped."""
     res: dict[str, Any] = {"looked": 0, "found": 0, "who": []}
     if gmail is None or not hasattr(gmail, "search_refs"):
         return res
@@ -91,14 +111,12 @@ def sweep(conn, cfg: Any, gmail, handle: Callable[[dict[str, Any], dict[str, Any
         return res
     me = (cfg.secret("GMAIL_SENDER") or "").lower()
     dom = (cfg.get("operator.sender_email") or me).split("@")[-1].lower()
-    kv = conn.execute("SELECT value FROM commercial_kv WHERE key='stray_since'").fetchone()
-    since = parse_iso(kv[0]) if kv else min(parse_iso(t["sent_at"]) or now for t in threads)
-    q = f"after:{(since - timedelta(days=1)):%Y/%m/%d} -in:sent -in:drafts -in:chats" + (f" -from:{dom}" if dom else "")
     per_round = int(cfg.get("commercial.strays.per_round", 150) or 150)
     known = {r[0] for r in conn.execute("SELECT gmail_thread_id FROM commercial_threads WHERE gmail_thread_id IS NOT NULL")}
     known |= {r[0] for r in conn.execute("SELECT gmail_thread_id FROM outreach WHERE gmail_thread_id IS NOT NULL")}
-    seen = {r[0] for r in conn.execute("SELECT gmail_message_id FROM commercial_stray_seen")}
-    refs = [r for r in gmail.search_refs(q, max_results=1000) if r["id"] not in seen and r.get("thread_id") not in known]
+    if refs is None:
+        refs = new_refs(conn, cfg, gmail, now)
+    refs = [r for r in refs if r.get("thread_id") not in known]
     capped = len(refs) > per_round
     msgs = []
     for r in refs[:per_round]:
@@ -107,14 +125,14 @@ def sweep(conn, cfg: Any, gmail, handle: Callable[[dict[str, Any], dict[str, Any
         except Exception as e:  # noqa: BLE001
             log.warning("stray sweep: message %s: %s", r["id"], e)
             capped = True
+            break                                       # Gmail is pushing back: stop, the rest waits for the next round
     for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
         res["looked"] += 1
-        t = match(threads, m, me)
+        t = None if (dom and f"@{dom}" in (m.get("from") or "").lower()) else match(threads, m, me)     # our own mail is never a broker answer
         sent_at = parse_iso(t["sent_at"]) if t else None
         if t and sent_at and (m.get("internal_ts") or 0) < sent_at.timestamp():
             t = None                                    # written before Charles ever emailed: not an answer to us
-        conn.execute("INSERT OR IGNORE INTO commercial_stray_seen (gmail_message_id, thread_id, created_at) VALUES (?,?,?)",
-                     (m["id"], t["id"] if t else None, iso(now)))
+        mark_seen(conn, [m["id"]], t["id"] if t else None, now)
         if not t:
             continue
         log.info("stray broker answer %s → thread %s (%s)", m["id"], t["id"], t.get("broker_email"))
@@ -122,7 +140,8 @@ def sweep(conn, cfg: Any, gmail, handle: Callable[[dict[str, Any], dict[str, Any
         res["who"].append({"broker": t.get("broker_name") or t.get("broker_email"), "listing_id": t["listing_id"],
                            "from": m.get("from"), "subject": m.get("subject"), "files": len(m.get("attachments") or [])})
         handle(t, m)
-    if not capped:
+    if clean and not capped:
         conn.execute("INSERT INTO commercial_kv (key, value) VALUES ('stray_since', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                      (iso(now),))
+    res["waiting"] = max(0, len(refs) - per_round)
     return res

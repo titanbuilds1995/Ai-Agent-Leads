@@ -249,22 +249,40 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
     project = cfg.get("commercial.asana.project")
     secs = ensure_board(asana, project) if (asana is not None and project) else {}
     doc_dir = cfg.root / cfg.get("commercial.documents.dir", "data/listings")
+    # 2026-11-11: ask Gmail ONCE what came in, then open only the OM threads with something new. Opening every thread every round
+    # (~400) ran into Gmail's per-minute quota; the threads after the cut were skipped, so answers and books sat unread.
+    from . import strays
+    refs = None
+    if hasattr(gmail, "search_refs"):
+        try:
+            refs = strays.new_refs(conn, cfg, gmail, now)
+        except Exception as e:  # noqa: BLE001
+            res["errors"] += 1
+            log.error("OM inbox search failed, opening every thread instead: %s", e)
+    fresh: dict[str, list[str]] = {}
+    for r in refs or []:
+        fresh.setdefault(r.get("thread_id") or "", []).append(r["id"])
     for t in conn.execute("SELECT * FROM commercial_threads WHERE gmail_thread_id IS NOT NULL AND state NOT IN ('CLOSED')").fetchall():
         t = db.row_to_dict(t)
+        if refs is not None and t["gmail_thread_id"] not in fresh:
+            continue                                     # nothing new in this conversation
         res["threads"] += 1
         try:
             msgs = gmail.thread_messages(t["gmail_thread_id"])
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1
             log.error("OM thread %s: %s", t["gmail_thread_id"], e)
+            if re.search(r"quota exceeded|ratelimit", str(e), re.I):
+                break                                    # Gmail is pushing back: stop here, the unread ones are picked up next round
             continue
         for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
             take_message(conn, cfg, gmail, asana, secs, doc_dir, t, m, now, res)
-    # 2026-11-11 (Christian Bennett / 772 Cortaro Dr sent the T-12 and the card never knew): brokers who answer with a NEW email
-    # instead of hitting reply, or from a colleague's address, are found by one inbox sweep and handled exactly like a reply.
-    from .strays import sweep
+        strays.mark_seen(conn, fresh.get(t["gmail_thread_id"], []), t["id"], now)
+    # Christian Bennett / 772 Cortaro Dr sent the T-12 and the card never knew: brokers who answer with a NEW email instead of
+    # hitting reply, or from a colleague's address, are found in the same search and handled exactly like a reply.
     try:
-        res["strays"] = sweep(conn, cfg, gmail, lambda t, m: take_message(conn, cfg, gmail, asana, secs, doc_dir, t, m, now, res, stray=True), now)
+        res["strays"] = strays.sweep(conn, cfg, gmail, lambda t, m: take_message(conn, cfg, gmail, asana, secs, doc_dir, t, m, now, res, stray=True),
+                                     now, refs=refs, clean=res["errors"] == 0)
     except Exception as e:  # noqa: BLE001
         res["errors"] += 1
         log.exception("stray sweep: %s", e)

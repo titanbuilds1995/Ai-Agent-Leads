@@ -56,6 +56,8 @@ def retry(fn: Callable[[], T], *, attempts: int = 4, base: float = 1.5, max_wait
             if i == attempts - 1:
                 break
             wait = min(max_wait, base * (2 ** i)) + random.uniform(0, 0.5)
+            if re.search(r"quota exceeded|ratelimitexceeded|userratelimitexceeded", str(e), re.I):
+                wait = min(max_wait, 20.0 * (i + 1)) + random.uniform(0, 2)     # 2026-11-11: a per-minute quota is not over in 2 seconds
             log.warning("%s failed (%s: %s); retry %d/%d in %.1fs", what, type(e).__name__, e, i + 1, attempts - 1, wait)
             sleep(wait)
     raise RetryError(f"{what} failed after {attempts} attempts: {last}") from last

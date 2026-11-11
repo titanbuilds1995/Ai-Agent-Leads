@@ -425,7 +425,14 @@ class FakeStrayGmail(FakeOMGmail):
         self.inbox, self.fetched = [], []
 
     def search_refs(self, q, max_results=500):
-        return [{"id": m["id"], "thread_id": m["thread_id"]} for m in self.inbox]
+        inside = [{"id": m["id"], "thread_id": tid} for tid, ms in self.threads.items() for m in ms if "Charles@" not in m["from"]]
+        return inside + [{"id": m["id"], "thread_id": m["thread_id"]} for m in self.inbox]
+
+    def thread_messages(self, tid):
+        self.opened = getattr(self, "opened", []) + [tid]
+        if tid in getattr(self, "quota", ()):
+            raise RuntimeError("Quota exceeded for quota metric 'Total Query Cost'")
+        return super().thread_messages(tid)
 
     def message(self, mid):
         self.fetched.append(mid)
@@ -475,6 +482,28 @@ def test_broker_answer_sent_as_a_new_email_reaches_the_card(conn, cfg, tmp_path,
     again = poll_om_replies(conn, cfg, gm, asana)
     assert again["strays"]["found"] == 0 and gm.fetched == [] and len(asana.stories[gid]) == n
 
+
+
+def test_only_threads_with_new_mail_are_opened_and_a_quota_error_loses_nothing(conn, cfg, tmp_path, monkeypatch):
+    """2026-11-11: opening all ~400 OM threads every round hit Gmail's per-minute quota; threads after the cut were never read."""
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    monkeypatch.setenv("GMAIL_SENDER", "Charles@titanrealtyinvestments.com")
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeStrayGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    assert poll_om_replies(conn, cfg, gm, asana)["threads"] == 0 and not getattr(gm, "opened", [])     # nothing new: no thread opened
+    gm.threads["t1"].append({"id": "r1", "from": "adam@trustrealtyusa.com", "body": "Will send the package tomorrow.",
+                             "internal_ts": int(SAT_10AM_ET.timestamp()) + 3600, "label_ids": [], "attachments": []})
+    gm.quota = {"t1"}
+    out = poll_om_replies(conn, cfg, gm, asana)
+    assert out["errors"] == 1 and out["replies"] == 0
+    gm.quota = set()
+    out = poll_om_replies(conn, cfg, gm, asana)                                 # next round: the answer is still found
+    assert out["replies"] == 1 and asana.where[gid] == secs["In touch with the agent"]
+    gm.opened = []
+    assert poll_om_replies(conn, cfg, gm, asana)["threads"] == 0 and gm.opened == []
 
 def test_stray_street_key():
     from titan.commercial.strays import street_key

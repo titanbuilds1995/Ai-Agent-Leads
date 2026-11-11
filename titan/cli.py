@@ -744,7 +744,7 @@ def cmd_om_strays(cfg, args):
     as a NEW email instead of a reply (Christian Bennett's T-12 for 772 Cortaro Dr), put each on its card and print the list."""
     from .commercial.outreach import poll_om_replies
     from .commercial.working import wrap as working_board
-    conn = db.connect(cfg.db_path)
+    conn = _open(cfg)                    # creates tables added since the database was made
     c = build_clients(cfg, conn, need=("gmail",))
     asana = None if args.no_asana else working_board(cfg, _asana(cfg))
     if args.redo:

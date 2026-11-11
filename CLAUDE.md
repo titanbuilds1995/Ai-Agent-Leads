@@ -416,6 +416,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-10 ~8:00pm ET, RESUME HERE: **Sleep Inn DeFuniak Springs read from the Revere ZIP** (Rodrigo uploaded it in chat; card
+  1220358635284810 moved Working Deals Needs Revision → Needs Me, pinned 🧠). Ask $4.4M / 58 keys, OM T-12 July 2026 NOI $447,828 =
+  10.18% but owner-operated (no manager, no reserve, $225k payroll, $25k R&M); the previous management-company books (2019–2023) ran
+  it at a 19–24% margin. Revenue is a recovery to 2019 levels, ADR down five years running; "$400k PIP" is a placeholder (real Choice
+  list is bathrooms + all guest-room FF&E + lobby + exterior: $600–900k); OM says unencumbered but 2025 P&L has $175k interest; $225k
+  "Other Income" 2025 unexplained; VPS airport ~50 min (outside the 45-min screen). Verdict: fair at $3.9–4.1M for an OPERATOR, not an
+  8 cap for a passive 1031 owner above ~$3.5M. Needs Rodrigo: does the partner operate? Nothing sent to Dennis. The Mac's card_files
+  (unzip code from last night) will also read the ZIP and post its own 🧠 (duplicate, harmless).
 - 2026-11-10 ~6:10pm ET, RESUME HERE: **331 John Ringling Blvd, Sarasota (St Armands; Larry Starr / SVN; card 1220358917981163, now Working
   Deals → Needs Me)**: Larry answered 29 h later with a rent schedule, the OM PDF and four Everything But Water insurance policies (the
   TENANT's corporate policies, not the building's). Rodrigo dropped them on the card (Needs Revision) and asked for the analysis now. Cloud

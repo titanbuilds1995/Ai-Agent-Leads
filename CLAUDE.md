@@ -461,6 +461,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 night, RESUME HERE: Coral Shores: Rodrigo gave the plan: show the buyer now (documents will not arrive before DD),
+  buyer target price near the ask, he tries to lock it up lower and assign (figures in chat / on the artifact, not in this public repo).
+  Buyer brief rebuilt on the same private artifact link: why we believe in it, what we know today, then projections marked as
+  projections (cap at the target price on today's pace and on the manager's pace, cumulative path to 8.5%+), risks. The cap he quoted
+  did not match the numbers, so the sheet shows the two real ones. Intro email to the buyer written in chat for him to send himself.
+  Next: his go on the email / sheet; the document request to Michael is still unsent.
 - 2026-11-11 late, RESUME HERE: Coral Shores buyer brief rebuilt on Rodrigo's thesis (same private artifact link): a high-7 cap at
   a TARGET price with all eight rental units at the pace of the five rented today, and the path to 8.5 in year one (owner-side
   management, stronger bookings, docks). The target price range on it is Claude's assumption to make that true on today's income;

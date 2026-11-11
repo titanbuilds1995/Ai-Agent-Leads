@@ -417,6 +417,72 @@ def test_bounce_is_not_an_answer(conn, cfg, tmp_path):
     assert any("Bounced" in c for c in asana.stories[gid])
 
 
+
+class FakeStrayGmail(FakeOMGmail):
+    """Charles's inbox beyond the OM threads (2026-11-11, 772 Cortaro Dr: the T-12 came as a new email and the card never knew)."""
+    def __init__(self):
+        super().__init__()
+        self.inbox, self.fetched = [], []
+
+    def search_refs(self, q, max_results=500):
+        return [{"id": m["id"], "thread_id": m["thread_id"]} for m in self.inbox]
+
+    def message(self, mid):
+        self.fetched.append(mid)
+        return next(m for m in self.inbox if m["id"] == mid)
+
+
+def test_broker_answer_sent_as_a_new_email_reaches_the_card(conn, cfg, tmp_path, monkeypatch):
+    from titan.commercial.outreach import poll_om_replies, send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    monkeypatch.setenv("GMAIL_SENDER", "Charles@titanrealtyinvestments.com")
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeStrayGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    ts = int(SAT_10AM_ET.timestamp())
+    t12 = ("Trailing 12 months actuals\nGross Income $980,000\nOperating Expenses $350,000\nNet Operating Income $630,000\n").encode()
+    gm.files["s1"] = [{"filename": "T12.pdf", "mime": "application/pdf", "bytes": t12}]
+    gm.inbox = [
+        # the broker himself, new subject, new thread, with the T-12
+        {"id": "s1", "thread_id": "x1", "from": "Adam Goldstein <adam@trustrealtyusa.com>", "to": "Charles@titanrealtyinvestments.com",
+         "subject": "Financials", "body": "Here are the financials you asked for.", "internal_ts": ts + 5 * 3600, "label_ids": ["INBOX"],
+         "attachments": [{"filename": "T12.pdf"}]},
+        # a LoopNet alert that names the same street: never an answer
+        {"id": "s2", "thread_id": "x2", "from": "LoopNet <alerts@loopnet.com>", "to": "Charles@titanrealtyinvestments.com",
+         "subject": "Price change: 840 SW 81st Ave", "body": "840 SW 81st Ave price changed.", "internal_ts": ts + 6 * 3600, "label_ids": [], "attachments": []},
+        # someone else entirely, no street: ignored
+        {"id": "s3", "thread_id": "x3", "from": "Bob <bob@example.com>", "to": "Charles@titanrealtyinvestments.com",
+         "subject": "Lunch?", "body": "Free Friday?", "internal_ts": ts + 7 * 3600, "label_ids": [], "attachments": []},
+        # his assistant, from another address, naming the street, written to Charles
+        {"id": "s4", "thread_id": "x4", "from": "Jen <jen@trustrealtyusa.com>", "to": "charles@titanrealtyinvestments.com",
+         "subject": "840 SW 81st Ave rent roll", "body": "Adam asked me to send the rent roll for 840 SW 81st Ave.", "internal_ts": ts + 8 * 3600,
+         "label_ids": [], "attachments": []},
+    ]
+    import titan.commercial.documents as d
+    monkeypatch.setattr(d, "pdf_text", lambda path, max_pages=60: Path(path).read_bytes().decode())
+    out = poll_om_replies(conn, cfg, gm, asana)
+    st = out["strays"]
+    assert st["found"] == 2 and {w["subject"] for w in st["who"]} == {"Financials", "840 SW 81st Ave rent roll"}
+    th = conn.execute("SELECT * FROM commercial_threads").fetchone()
+    assert th["state"] == "BOOKS" and th["reply_count"] == 2 and th["hours_to_reply"] == 5.0
+    assert (tmp_path / "data" / "listings" / "28440860" / "T12.pdf").exists()
+    assert asana.where[gid] == secs["Books received"]
+    assert any("separate email" in c and "Financials" in c for c in asana.stories[gid])
+    # the next round fetches nothing again and posts nothing twice
+    n = len(asana.stories[gid])
+    gm.fetched.clear()
+    again = poll_om_replies(conn, cfg, gm, asana)
+    assert again["strays"]["found"] == 0 and gm.fetched == [] and len(asana.stories[gid]) == n
+
+
+def test_stray_street_key():
+    from titan.commercial.strays import street_key
+    assert street_key("772 Cortaro Dr").search("Re: T12 for 772 Cortaro Drive")
+    assert street_key("840 SW 81st Ave").search("the 840 SW 81st building")
+    assert not street_key("772 Cortaro Dr").search("1772 Cortaro")
+    assert street_key("12 A") is None
+
 # --- airport + quality screens (Rodrigo, 2026-11-09) -------------------------------------------------------------------------------
 
 def test_airport_screen_limits_the_box_to_45_minutes(cfg):

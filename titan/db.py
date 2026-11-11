@@ -180,6 +180,8 @@ CREATE TABLE IF NOT EXISTS commercial_deals (listing_id TEXT PRIMARY KEY, data T
 -- Files Rodrigo attaches to a 1031 card (titan/commercial/card_files.py): downloaded once into data/listings/<id>/ and read.
 CREATE TABLE IF NOT EXISTS commercial_card_files (attachment_gid TEXT PRIMARY KEY, listing_id TEXT, card_gid TEXT, name TEXT, path TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS commercial_kv (key TEXT PRIMARY KEY, value TEXT);
+-- Inbox messages the stray-answer sweep already looked at (titan/commercial/strays.py): matched to a thread or not, never fetched twice.
+CREATE TABLE IF NOT EXISTS commercial_stray_seen (gmail_message_id TEXT PRIMARY KEY, thread_id INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS commercial_runs (
   id INTEGER PRIMARY KEY, run_date TEXT NOT NULL, kind TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, counts TEXT,
   cost_usd REAL, notes TEXT

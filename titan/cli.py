@@ -739,6 +739,27 @@ def cmd_books_review(cfg, args):
     print(json.dumps(out, indent=2))
 
 
+def cmd_om_strays(cfg, args):
+    """Rodrigo, 2026-11-11 ("who else do we have that we are not aware of?"): look through Charles's inbox for broker answers that came
+    as a NEW email instead of a reply (Christian Bennett's T-12 for 772 Cortaro Dr), put each on its card and print the list."""
+    from .commercial.outreach import poll_om_replies
+    from .commercial.working import wrap as working_board
+    conn = db.connect(cfg.db_path)
+    c = build_clients(cfg, conn, need=("gmail",))
+    asana = None if args.no_asana else working_board(cfg, _asana(cfg))
+    if args.redo:
+        conn.execute("DELETE FROM commercial_kv WHERE key='stray_since'")
+        conn.execute("DELETE FROM commercial_stray_seen WHERE thread_id IS NULL")
+    out = poll_om_replies(conn, cfg, c["gmail"], asana)
+    conn.commit()
+    st = out.get("strays") or {}
+    print(f"Looked at {st.get('looked', 0)} inbox emails outside the OM threads; {st.get('found', 0)} were broker answers the board had missed.")
+    for w in st.get("who", []):
+        print(f"  {w['broker']:<32} listing {w['listing_id']:>10}  files {w['files']}  \"{(w.get('subject') or '')[:70]}\"  from {w.get('from')}")
+    if st.get("found"):
+        print("Each one is now on its card (📩 comment, files filed, regraded when the books are in); the 🧠 read follows at the next round.")
+
+
 def cmd_follow_ups(cfg, args):
     """Rodrigo, 2026-11-02: a "Good morning" second email, same thread, to every agent who never answered. Cards in Needs Me
     (or Approved with --approve: only when he said to send them)."""
@@ -950,6 +971,9 @@ def main(argv: list[str] | None = None) -> int:
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
+    sp = sub.add_parser("om-strays", help="find broker answers that came as a new email instead of a reply and put them on their 1031 cards")
+    sp.add_argument("--no-asana", action="store_true")
+    sp.add_argument("--redo", action="store_true", help="look again at everything since the first OM request")
     br = sub.add_parser("books-review", help="read every broker answer + the books on file for Rodrigo; the read goes on the 1031 card")
     br.add_argument("--all", action="store_true", help="redo the latest review of every answered thread")
     br.add_argument("--list", action="store_true", help="only print which threads are waiting for a read")
@@ -970,7 +994,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
     return 0
 
 

@@ -259,66 +259,88 @@ def poll_om_replies(conn, cfg: Any, gmail, asana=None, now: datetime | None = No
             log.error("OM thread %s: %s", t["gmail_thread_id"], e)
             continue
         for m in sorted(msgs, key=lambda x: x.get("internal_ts", 0)):
-            if "DRAFT" in (m.get("label_ids") or []):
-                continue
-            if _from_rodrigo(m.get("from"), cfg):
-                if not conn.execute("SELECT 1 FROM outreach WHERE kind='om_rodrigo' AND gmail_message_id=?", (m["id"],)).fetchone():
-                    got = record_rodrigo_message(conn, cfg, asana, secs, t, m, now)
-                    res["rodrigo"] += 1
-                    res["offers"] += 1 if got["price"] else 0
-                continue
-            if _is_ours(m.get("from"), cfg):
-                continue
-            if conn.execute("SELECT 1 FROM commercial_messages WHERE gmail_message_id=?", (m["id"],)).fetchone():
-                continue
-            ts = datetime.fromtimestamp(m.get("internal_ts") or 0, tz=timezone.utc)
-            body = (m.get("body") or "").strip()
-            conn.execute("INSERT OR IGNORE INTO commercial_messages (thread_id, gmail_message_id, from_addr, body, created_at) VALUES (?,?,?,?,?)",
-                         (t["id"], m["id"], (m.get("from") or "")[:200], body[:5000], iso(ts)))
-            if BOUNCE_RE.search(m.get("from") or "") or BOUNCE_RE.search(body[:400]):
-                conn.execute("UPDATE commercial_threads SET bounced=1, state='BOUNCED', updated_at=? WHERE id=?", (iso(now), t["id"]))
-                res["bounces"] += 1
-                if asana is not None and t.get("card_gid"):
-                    asana.comment(t["card_gid"], f"Bounced: {t['broker_email']} did not take the email. Call the broker or find another address.")
-                continue
-            if AUTOREPLY_RE.search(body[:400]) or AUTOREPLY_RE.search(m.get("subject") or ""):
-                continue
-            sent_at = parse_iso(t["sent_at"]) or now
-            hours = round((ts - sent_at).total_seconds() / 3600, 1)
-            first = t.get("first_reply_at") is None
-            files = file_attachments(gmail, m, doc_dir / t["listing_id"]) if m.get("attachments") else []
-            books = [f for f in files if f["kind"] in BOOK_KINDS or f["filename"].lower().endswith((".xlsx", ".xls", ".csv"))]
-            att = json.loads(t.get("attachments") or "[]") + [{**f, "message_id": m["id"], "at": iso(ts)} for f in files]
-            conn.execute("UPDATE commercial_threads SET first_reply_at=COALESCE(first_reply_at, ?), last_reply_at=?, hours_to_reply=COALESCE(hours_to_reply, ?), "
-                         "reply_count=reply_count+1, attachments=?, last_reply_text=?, state=?, updated_at=? WHERE id=?",
-                         (iso(ts), iso(ts), hours, json.dumps(att), body[:2000], "BOOKS" if (books or t.get("state") == "BOOKS") else "REPLIED", iso(now), t["id"]))
-            t["first_reply_at"] = t.get("first_reply_at") or iso(ts)
-            res["replies"] += 1
-            column = "Books received" if books else "In touch with the agent"
-            conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=? AND board_column NOT IN ('Offer out','Closed','Not a fit')",
-                         (column, t["listing_id"]))
-            note = (f"📩 {t.get('broker_name') or t['broker_email']} answered" + (f" in {hours:g} h" if first else "") + f" ({ts.strftime('%Y-%m-%d %H:%M')} UTC):\n"
-                    f"{body[:1200]}" + (f"\n\nFiles filed under data/listings/{t['listing_id']}/: " + ", ".join(f["filename"] for f in files) if files else ""))
-            verdict, regrade_err = None, None
-            if books:
-                res["books"] += 1
-                try:
-                    verdict = regrade(conn, cfg, t["listing_id"])
-                except Exception as e:  # noqa: BLE001
-                    log.exception("regrade %s failed: %s", t["listing_id"], e)
-                    regrade_err = f"{type(e).__name__}: {e}"[:200]
-            if asana is not None and not t.get("card_gid") and secs.get(column):
-                t["card_gid"] = _card_for_thread(conn, cfg, asana, project, secs[column], t)
-            if asana is not None and t.get("card_gid"):
-                asana.comment(t["card_gid"], note + (("\n\n" + verdict_text(verdict)) if verdict else "")
-                              + (f"\n\nRegrade failed ({regrade_err}); the books review retries it." if regrade_err else ""))
-                if secs.get(column):
-                    cur = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
-                    if cur and cur[0] == column:
-                        asana.move(t["card_gid"], secs[column])
+            take_message(conn, cfg, gmail, asana, secs, doc_dir, t, m, now, res)
+    # 2026-11-11 (Christian Bennett / 772 Cortaro Dr sent the T-12 and the card never knew): brokers who answer with a NEW email
+    # instead of hitting reply, or from a colleague's address, are found by one inbox sweep and handled exactly like a reply.
+    from .strays import sweep
+    try:
+        res["strays"] = sweep(conn, cfg, gmail, lambda t, m: take_message(conn, cfg, gmail, asana, secs, doc_dir, t, m, now, res, stray=True), now)
+    except Exception as e:  # noqa: BLE001
+        res["errors"] += 1
+        log.exception("stray sweep: %s", e)
     if asana is not None and secs:
         res["parked"] = park_unanswered(conn, asana, secs)
     return res
+
+
+
+def take_message(conn, cfg: Any, gmail, asana, secs: dict[str, str], doc_dir: Path, t: dict[str, Any], m: dict[str, Any],
+                 now: datetime, res: dict[str, Any], stray: bool = False) -> None:
+    """One message in (or, with stray=True, found outside) an OM thread: mirror it, file attachments, regrade, move the card."""
+    if "DRAFT" in (m.get("label_ids") or []):
+        return
+    if _from_rodrigo(m.get("from"), cfg):
+        if not conn.execute("SELECT 1 FROM outreach WHERE kind='om_rodrigo' AND gmail_message_id=?", (m["id"],)).fetchone():
+            got = record_rodrigo_message(conn, cfg, asana, secs, t, m, now)
+            res["rodrigo"] += 1
+            res["offers"] += 1 if got["price"] else 0
+        return
+    if _is_ours(m.get("from"), cfg):
+        return
+    if conn.execute("SELECT 1 FROM commercial_messages WHERE gmail_message_id=?", (m["id"],)).fetchone():
+        return
+    ts = datetime.fromtimestamp(m.get("internal_ts") or 0, tz=timezone.utc)
+    body = (m.get("body") or "").strip()
+    conn.execute("INSERT OR IGNORE INTO commercial_messages (thread_id, gmail_message_id, from_addr, body, created_at) VALUES (?,?,?,?,?)",
+                 (t["id"], m["id"], (m.get("from") or "")[:200], body[:5000], iso(ts)))
+    if BOUNCE_RE.search(m.get("from") or "") or BOUNCE_RE.search(body[:400]):
+        conn.execute("UPDATE commercial_threads SET bounced=1, state='BOUNCED', updated_at=? WHERE id=?", (iso(now), t["id"]))
+        res["bounces"] += 1
+        if asana is not None and t.get("card_gid"):
+            asana.comment(t["card_gid"], f"Bounced: {t['broker_email']} did not take the email. Call the broker or find another address.")
+        return
+    if AUTOREPLY_RE.search(body[:400]) or AUTOREPLY_RE.search(m.get("subject") or ""):
+        return
+    sent_at = parse_iso(t["sent_at"]) or now
+    hours = round((ts - sent_at).total_seconds() / 3600, 1)
+    first = t.get("first_reply_at") is None
+    files = file_attachments(gmail, m, doc_dir / t["listing_id"]) if m.get("attachments") else []
+    books = [f for f in files if f["kind"] in BOOK_KINDS or f["filename"].lower().endswith((".xlsx", ".xls", ".csv"))]
+    att = json.loads(t.get("attachments") or "[]") + [{**f, "message_id": m["id"], "at": iso(ts)} for f in files]
+    conn.execute("UPDATE commercial_threads SET first_reply_at=COALESCE(first_reply_at, ?), last_reply_at=?, hours_to_reply=COALESCE(hours_to_reply, ?), "
+                 "reply_count=reply_count+1, attachments=?, last_reply_text=?, state=?, updated_at=? WHERE id=?",
+                 (iso(ts), iso(ts), hours, json.dumps(att), body[:2000], "BOOKS" if (books or t.get("state") == "BOOKS") else "REPLIED", iso(now), t["id"]))
+    t["first_reply_at"] = t.get("first_reply_at") or iso(ts)
+    t["attachments"] = json.dumps(att)                       # two answers in one round: the second keeps the first one's files and state
+    t["state"] = "BOOKS" if (books or t.get("state") == "BOOKS") else "REPLIED"
+    res["replies"] += 1
+    column = "Books received" if t["state"] == "BOOKS" else "In touch with the agent"     # a plain note after the books never pulls the card back
+    conn.execute("UPDATE commercial_listings SET board_column=? WHERE listing_id=? AND board_column NOT IN ('Offer out','Closed','Not a fit')",
+                 (column, t["listing_id"]))
+    via = ""
+    if stray:
+        sender = (m.get("from") or "").strip()
+        via = (f"\n(Came in as a separate email, not a reply to Charles: from {sender}, subject \"{(m.get('subject') or '').strip()[:120]}\". "
+               "Charles's answers still go in the original thread.)")
+    note = (f"📩 {t.get('broker_name') or t['broker_email']} answered" + (f" in {hours:g} h" if first else "") + f" ({ts.strftime('%Y-%m-%d %H:%M')} UTC):{via}\n"
+            f"{body[:1200]}" + (f"\n\nFiles filed under data/listings/{t['listing_id']}/: " + ", ".join(f["filename"] for f in files) if files else ""))
+    verdict, regrade_err = None, None
+    if books:
+        res["books"] += 1
+        try:
+            verdict = regrade(conn, cfg, t["listing_id"])
+        except Exception as e:  # noqa: BLE001
+            log.exception("regrade %s failed: %s", t["listing_id"], e)
+            regrade_err = f"{type(e).__name__}: {e}"[:200]
+    if asana is not None and not t.get("card_gid") and secs.get(column):
+        t["card_gid"] = _card_for_thread(conn, cfg, asana, cfg.get("commercial.asana.project"), secs[column], t)
+    if asana is not None and t.get("card_gid"):
+        asana.comment(t["card_gid"], note + (("\n\n" + verdict_text(verdict)) if verdict else "")
+                      + (f"\n\nRegrade failed ({regrade_err}); the books review retries it." if regrade_err else ""))
+        if secs.get(column):
+            cur = conn.execute("SELECT board_column FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
+            if cur and cur[0] == column:
+                asana.move(t["card_gid"], secs[column])
 
 
 def park_unanswered(conn, asana, secs: dict[str, str]) -> int:

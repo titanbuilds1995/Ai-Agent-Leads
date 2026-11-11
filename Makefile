@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -118,6 +118,9 @@ commercial-sheets: ## the top listings still missing their LoopNet sheet + the p
 
 commercial-round: ## one round of the 1031 board now: send the OM requests in "Approved · send OM request", read the brokers' answers, file the books
 	$(PY) -m titan.cli approvals
+
+om-strays:        ## find broker answers that came as a NEW email (not a reply) and put them on their 1031 cards; prints who
+	$(PY) -m titan.cli om-strays $(ARGS)
 
 buyer-brief:      ## one-page PDF for the 1031 buyer and his agent: what we found, this week's plan, what we need from them → reports/commercial/
 	$(PY) -m titan.cli buyer-brief

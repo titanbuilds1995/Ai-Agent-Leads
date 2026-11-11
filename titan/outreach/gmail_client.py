@@ -171,12 +171,27 @@ class GmailClient:
         res = retry(lambda: self.svc.users().messages().list(userId="me", q=q, maxResults=max_results).execute(), what="gmail search")
         return [m["id"] for m in res.get("messages", [])]
 
+    def search_refs(self, q: str, max_results: int = 500) -> list[dict[str, str]]:
+        """Message ids AND their thread ids for a query, paged (2026-11-11: the stray-answer sweep needs the thread to skip known ones)."""
+        out: list[dict[str, str]] = []
+        token = None
+        while len(out) < max_results:
+            res = retry(lambda: self.svc.users().messages().list(userId="me", q=q, maxResults=min(500, max_results - len(out)),
+                                                                 pageToken=token).execute(), what="gmail search")
+            out += [{"id": m["id"], "thread_id": m.get("threadId")} for m in res.get("messages", [])]
+            token = res.get("nextPageToken")
+            if not token:
+                break
+        return out
+
     def message(self, message_id: str) -> dict[str, Any]:
         m = retry(lambda: self.svc.users().messages().get(userId="me", id=message_id, format="full").execute(), what="gmail message")
         headers = {h["name"].lower(): h["value"] for h in m.get("payload", {}).get("headers", [])}
-        return {"id": m["id"], "thread_id": m.get("threadId"), "from": headers.get("from", ""), "subject": headers.get("subject", ""),
-                "message_id_header": headers.get("message-id"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
-                "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", [])}
+        return {"id": m["id"], "thread_id": m.get("threadId"), "from": headers.get("from", ""), "to": headers.get("to", ""),
+                "cc": headers.get("cc", ""), "subject": headers.get("subject", ""), "message_id_header": headers.get("message-id"),
+                "date": headers.get("date"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
+                "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", []),
+                "attachments": _attachment_parts(m.get("payload", {}))}
 
 
 def _attachment_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:

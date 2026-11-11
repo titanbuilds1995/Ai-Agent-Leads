@@ -427,12 +427,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   said he attached something. Claude's read now sees what Charles already sent ("WHAT CHARLES ALREADY SENT") and must never re-ask anything the
   broker gave, answered or said he cannot provide. Checked when the read is written and again at send time (`books_review.hold_reasons`).
   Attachments Outlook names only in the part headers are now picked up (`gmail_client._attachment_parts`); OneDrive links count as doc links.
+- **Broker answers that are not a reply are found too (Rodrigo, 2026-11-11, Christian Bennett / 772 Cortaro Dr: "we got the trailing twelve
+  … but I do not see it on my board … seems like a glitch, let's fix it")**: `poll_om_replies` only opened each OM thread by its Gmail id, so a
+  broker who sent a NEW email (new subject, a forward, an assistant's address) was never seen and the card was parked in "Sent · no answer yet".
+  `titan/commercial/strays.py` (inside `poll_om_replies`, so every check-replies / approvals round): one sweep of Charles's inbox since the last
+  look; a message from a broker's own address, or one that names a listing's street ("772 Cortaro") and is written to Charles from a non-automated
+  sender (LoopNet / Crexi alerts are skipped), goes through the same handler as a reply (`outreach.take_message`): 📩 on the card marked "came in
+  as a separate email", files filed, regraded, card to Books received / In touch, 🧠 read at the next review. Every message looked at is remembered
+  (`commercial_stray_seen`), 150 per round (`commercial.strays.per_round`). `make om-strays` runs it now and prints who was missed
+  (`ARGS=--redo` looks again from the first OM request). Charles's own answers still go in the original thread. Also fixed: two answers from one
+  broker in the same round no longer wipe the first one's files / BOOKS state, and a plain note after the books no longer pulls the card back to In touch.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-11 ~11:30am ET, RESUME HERE: **772 Cortaro Dr (Christian Bennett, card 1220358581918664) sat in "Sent · no answer yet" although he sent
+  the T-12**: the engine only read replies inside its own Gmail threads. Built the inbox sweep for stray broker answers (see Decisions → Broker
+  answers that are not a reply). Not verified live: the cloud cannot read Charles's inbox, so whether Christian's email was a new thread (most
+  likely) or simply arrived after the Mac's last round is unconfirmed. **Rodrigo runs `make om-strays` on the Mac** (or waits for the next round):
+  it prints every broker answer the board had missed and puts each on its card. Watch: Christian's card gets 📩 + the T-12 filed + Books received;
+  check the list for false matches (a non-broker email naming a street). If Christian's email still is not found, look at how it arrived
+  (Spam is not searched; a link instead of a file is listed, never fetched). 365 tests.
 - 2026-11-10 ~10pm ET, RESUME HERE: **Cameron Cauley (8100 Opportunity Dr, Milton; card 1220358628718111, Needs Me) got three emails from
   Charles on his own**: two said his attachments "didn't come through" and re-asked for a T-12 he had said he can't give; the third (the fixed
   ask_books reply) asked for the books right after he asked for a call. Causes: the read never saw Charles's own earlier emails; fixed replies

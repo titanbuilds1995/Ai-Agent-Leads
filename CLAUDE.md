@@ -418,12 +418,28 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Stage `card_format` (approvals round, before `card_files`) refreshes every older card on the 1031 and Working Deals boards once
   (`commercial_kv card_format:<gid>`, 40 a round), from the database or from the old card's own text (`listing_from_card`); a name Rodrigo
   typed himself (e.g. "Craig and Larry Walsh · …") is kept, only the description is formatted. One card per listing (`already_on_board`).
+- **Charles answers a 1031 broker on his own ONCE per thread (Rodrigo, 2026-11-11, Cameron Cauley / NAI Pensacola: "we emailed him 3-4 times
+  the same thing asking him something that he already gave us and then he said to give him a call and we asked for it again")**: after Charles's
+  first reply in a thread, every further email waits for Rodrigo's "send it" (only the thanks-for-the-books and the polite pass, once each, may
+  still go). Nothing goes on its own, not even a fixed reply, when the broker asks for a call, sounds annoyed ("not understanding", "again",
+  "already sent"), or says he attached files that never reached the engine (then NEEDS YOU: check Charles's inbox; never tell him they did not
+  come through, never ask him to resend). The fixed "can you please send us the books" never goes after Charles has written or after the broker
+  said he attached something. Claude's read now sees what Charles already sent ("WHAT CHARLES ALREADY SENT") and must never re-ask anything the
+  broker gave, answered or said he cannot provide. Checked when the read is written and again at send time (`books_review.hold_reasons`).
+  Attachments Outlook names only in the part headers are now picked up (`gmail_client._attachment_parts`); OneDrive links count as doc links.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-11 ~11am ET, RESUME HERE: **Cameron Cauley (8100 Opportunity Dr, Milton; card 1220358628718111, Needs Me) got three emails from
+  Charles on his own**: two said his attachments "didn't come through" and re-asked for a T-12 he had said he can't give; the third (the fixed
+  ask_books reply) asked for the books right after he asked for a call. Causes: the read never saw Charles's own earlier emails; fixed replies
+  bypassed the call-request hold; no limit on how many times Charles answers one broker; his files never reached the engine (13 KB forward =
+  no files; cause unconfirmed, possibly Outlook naming files only in headers). Fixed (see Decisions → once per thread). **Rodrigo calls Cameron
+  (850-291-3341)** and should look in Charles's Gmail whether the OM / lease / income statement are there; if so drop them on the card.
+  Other threads where Charles already sent 2+ replies on his own were not audited yet. 363 tests.
 - 2026-11-11 ~10:30am ET, RESUME HERE: **both 1031 boards are in the new card shape, done from the cloud** (Rodrigo: "do the same thing on
   the 1031 initial sheet"). All 44 open cards on "Titan 1031 · Commercial (LoopNet)" + the 6 on Working Deals renamed and reformatted through
   the Asana connector (listing data from a scratch bootstrap of the 21 Apify datasets). The 10 unsent cards in New carried the 11-08 draft

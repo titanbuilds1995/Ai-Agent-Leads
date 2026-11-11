@@ -43,7 +43,7 @@ from .board import NEEDS_ME, STAYS_PUT, ensure_board
 from .outreach import BOOK_KINDS, regrade, verdict_text
 
 LINK_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
-DOC_HOST_RE = re.compile(r"dropbox|drive\.google|docs\.google|box\.com|sharefile|wetransfer|onedrive|sharepoint|dealroom|buildout|crexi|loopnet\.com/.*(?:document|brochure|om)|\.pdf", re.I)
+DOC_HOST_RE = re.compile(r"1drv\.ms|dropbox|drive\.google|docs\.google|box\.com|sharefile|wetransfer|onedrive|sharepoint|dealroom|buildout|crexi|loopnet\.com/.*(?:document|brochure|om)|\.pdf", re.I)
 DEAD_RE = re.compile(r"(?:just |already |recently )?(?:signed a lease|leased|under contract|sold|off (?:the )?market|no longer (?:available|for sale)|"
                      r"accepted an offer|in escrow|withdrawn)", re.I)
 DISCLAIMER_RE = re.compile(r"(?:confidentiality notice|disclaimer|this (?:e-?mail|message) (?:message )?(?:is intended|and any attachments|may contain))[\s\S]*", re.I)
@@ -90,6 +90,49 @@ def commits_us(draft: str) -> list[str]:
     """The dates / commitments in a drafted reply (signature lines ignored)."""
     body = "\n".join(ln for ln in (draft or "").splitlines() if not re.match(r"\s*(?:Charles Grant|Junior Acquisitions|Titan Realty|Office Line)", ln))
     return sorted({m.group(0).lower() for m in COMMIT_RE.finditer(body)})
+# Rodrigo, 2026-11-11 (Cameron Cauley, NAI Pensacola): "we emailed him 3-4 times the same thing asking him something that he already
+# gave us and then he said to give him a call and we asked for it again." Charles sent three replies on his own: two told Cameron his
+# attachments "didn't come through" and asked again for a T-12 he had already said he cannot give, the third (the fixed ask_books reply)
+# asked for the books right after he asked for a call. Guards: Charles answers a broker on his own ONCE per thread; every later reply,
+# any thread where the broker says he attached something we do not have, asks for a call or sounds annoyed, waits for Rodrigo.
+ATTACHED_RE = re.compile(r"\b(?:attached|attachments?|see attached|enclosed|please find|i(?:'ve| have) (?:sent|attached)|sent (?:you |them |it )?(?:over|again))\b", re.I)
+ANNOYED_RE = re.compile(r"not understanding|don'?t understand|i already|already (?:sent|gave|provided|told|answered)|as i (?:said|mentioned)|"
+                        r"again\b|continuously|keep (?:asking|not)|still not|for the (?:second|third) time|repeat(?:ing|edly)?|same (?:thing|question)", re.I)
+
+
+def charles_sent(conn, t: dict[str, Any]) -> list[str]:
+    """Charles's own replies already sent in this thread (not the first OM request), oldest first."""
+    if not (t.get("gmail_thread_id") or t.get("card_gid")):
+        return []
+    return [r[0] or "" for r in conn.execute("SELECT body FROM outreach WHERE kind='om_reply' AND status='sent' AND "
+                                             "(gmail_thread_id=? OR asana_task_id=?) ORDER BY sent_at, id",
+                                             (t.get("gmail_thread_id") or "-", t.get("card_gid") or "-")).fetchall()]
+
+
+def hold_reasons(conn, t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]], kind: str | None = None) -> list[str]:
+    """Why Charles must NOT answer this broker on his own (empty = he may). Checked when the read is written AND at send time.
+    kind: the fixed reply about to go; the thanks-for-the-books and the polite pass (each once per thread) may follow an earlier
+    reply, nothing else may."""
+    out: list[str] = []
+    if not msgs:
+        return out
+    last = _no_disclaimer(msgs[-1].get("body") or "")
+    every = "\n".join(_no_disclaimer(m.get("body") or "") for m in msgs)
+    if kind not in ("books_ack", "pass") and charles_sent(conn, t):
+        out.append("Charles already answered this broker once; every further email is yours to approve")
+    if CALL_RE.search(last):
+        out.append("the broker asked for a call")
+    if ANNOYED_RE.search(last):
+        out.append("the broker sounds frustrated with our emails")
+    try:
+        att = json.loads(t.get("attachments") or "[]")
+    except json.JSONDecodeError:
+        att = []
+    if ATTACHED_RE.search(every) and not att and not files:
+        out.append("the broker says he attached files but none reached the engine (check Charles's inbox; never ask him to resend)")
+    return out
+
+
 FORWARD_VERDICTS = ("FITS", "LEANS FIT")
 ARCHIVE_VERDICTS = ("NOT A FIT", "DOES NOT FIT")
 
@@ -130,6 +173,11 @@ Rules:
 - Charles's reply: write it ONLY when the broker is waiting on something Charles can answer without Rodrigo (thanks + what we
   still need that they have NOT already sent; read the attachments list before asking for anything). Never a price, never
   "our buyer"/"client"/"investor" (say "a partner of ours"), never promise to waive anything.
+- NEVER ask for anything the broker already sent, already answered, or said he cannot provide (e.g. "a T-12 will not be of
+  benefit, the books are mingled": do not ask for a T-12 or a substitute again). Never repeat anything in "WHAT CHARLES ALREADY
+  SENT". If the broker says he attached files and DOCUMENTS ON FILE is empty, do not mention it to him at all: next step
+  "NEEDS YOU: his files did not reach us, check Charles's inbox", reply empty.
+- When the broker asks for a call, the reply is empty and the next step is "NEEDS YOU: call <name> at <number>".
 - Charles sees ONLY this thread. Never say something did not arrive, was not received or did not come through, and never ask
   them to resend: invitations (Box, Dropbox, DocuSign) come as separate emails he cannot see, and the files may be on the card.
 - NEVER put a date, deadline or timeframe in Charles's reply (no "45 days", no closing or identification timing, no "this week",
@@ -244,6 +292,11 @@ def _files(cfg: Any, listing_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def _file_list(cfg: Any, listing_id: str) -> list[dict[str, Any]]:
+    """The files on record for a listing, without reading them (send-time check)."""
+    return list(documents.local_files(cfg.root / cfg.get("commercial.documents.dir", "data/listings") / str(listing_id)))
+
+
 def doc_links(text: str) -> list[str]:
     """Documents the broker linked instead of attaching (Dropbox, Drive, a PDF URL…). Recorded, never fetched from here."""
     return [u for u in LINK_RE.findall(text or "") if DOC_HOST_RE.search(u)][:6]
@@ -264,8 +317,13 @@ def _listing_block(L: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _prompt(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]]) -> str:
+def _prompt(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]], sent: list[str] | None = None) -> str:
     parts = [_listing_block(L), "", f"Broker: {t.get('broker_name') or ''} <{t.get('broker_email') or ''}> · answered {t.get('hours_to_reply')} h after our email.", ""]
+    if sent:
+        parts.append("WHAT CHARLES ALREADY SENT THIS BROKER after the first request (never ask any of this again, never repeat it):")
+        for i, b in enumerate(sent, 1):
+            parts.append(f"[Charles, reply {i}]\n" + b.strip()[:1500])
+        parts.append("")
     parts.append("THE CONVERSATION (broker's messages, oldest first):")
     for m in msgs:
         parts.append(f"--- {m.get('created_at')} from {m.get('from_addr')}\n{(m.get('body') or '').strip()[:3000]}")
@@ -418,7 +476,7 @@ def template_kind(conn, t: dict[str, Any], msgs: list[dict[str, Any]], files: li
         return "books_ack", {}
     if (verdict in ARCHIVE_VERDICTS or dead) and not r.get("other_deals") and not POCKET_RE.search(last) and "pass" not in done:
         return "pass", {"sold": dead}
-    if (not books_ever and not dead and verdict not in ARCHIVE_VERDICTS and not r.get("other_deals") and not POCKET_RE.search(last)
+    if (not books_ever and not dead and not charles_sent(conn, t) and not any(ATTACHED_RE.search(m.get("body") or "") for m in msgs) and verdict not in ARCHIVE_VERDICTS and not r.get("other_deals") and not POCKET_RE.search(last)
             and not NDA_RE.search(_no_disclaimer(last)) and not POF_RE.search(last) and not QUESTION_RE.search(last) and "ask_books" not in done):
         return "ask_books", {"later": bool(LATER_RE.search(last))}
     return None, {}
@@ -483,7 +541,7 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     r = None
     if llm is not None and getattr(llm, "available", False):
         try:
-            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files), SCHEMA, max_tokens=4000)
+            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files, charles_sent(conn, t)), SCHEMA, max_tokens=4000)
         except Exception as e:  # noqa: BLE001
             log.warning("books review %s: %s", t["listing_id"], e)
             r = None
@@ -505,11 +563,19 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
         # Rodrigo, 2026-11-10: "anyone that I need to touch base with needs to be in Needs Me": a broker who asks for a call is his
         r["needs_rodrigo"] = True
         r["next_step"] = "NEEDS YOU: the broker asked for a call. " + (r.get("next_step") or "")
+    holds = [] if no_reply else hold_reasons(conn, t, msgs, files, kind="books_ack")   # call / annoyed / lost files: no template either
+    kind, opts = (None, {}) if (no_reply or retry or holds) else template_kind(conn, t, msgs, files, r)
+    if not no_reply and not holds:
+        holds = hold_reasons(conn, t, msgs, files, kind=kind)                              # a second reply waits for him
+    if holds:     # Rodrigo, 2026-11-11 (Cameron): no second email, no email to someone who asked for a call / sent files we lost
+        r["needs_rodrigo"] = True
+        if not (r.get("next_step") or "").upper().startswith("NEEDS YOU"):
+            r["next_step"] = "NEEDS YOU: " + "; ".join(holds) + ". " + (r.get("next_step") or "")
+        r["red_flags"] = list(r.get("red_flags") or []) + [f"Held for you: {'; '.join(holds)}."]
     hits = commits_us(r.get("reply_draft") or "")
     if hits:      # a date or a commitment in Claude's draft: it waits for Rodrigo, whatever else the read says
         r["needs_rodrigo"] = True
         r["red_flags"] = list(r.get("red_flags") or []) + [f"Charles's draft mentions {', '.join(hits[:4])}: held for you (no dates or commitments go out on their own)."]
-    kind, opts = (None, {}) if (no_reply or retry) else template_kind(conn, t, msgs, files, r)
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
         r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
                                                            street=L.get("street"), seed=int(t.get("id") or 0)), kind
@@ -603,6 +669,11 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         go = _auto_sends({**r, "_rodrigo": bool(r.get("rodrigo_at"))}, auto)
         if go and r.get("reply_kind") not in AUTO_KINDS + ("note_send",) and commits_us(r.get("reply_draft") or ""):
             go = False                                     # belt and braces for drafts stored before the rule: only his word sends these
+        if go and r.get("reply_kind") != "note_send":      # 2026-11-11 (Cameron): re-checked at send time, drafts stored before the rule too
+            t_now = conn.execute("SELECT * FROM commercial_threads WHERE id=?", (r["thread_id"],)).fetchone()
+            if t_now is not None and hold_reasons(conn, db.row_to_dict(t_now), _messages(conn, r["thread_id"]), _file_list(cfg, r["lid"]),
+                                                kind=r.get("reply_kind")):
+                go = False
         for c in comments:                                 # his latest word wins: "send it" sends, "hold" stops
             txt = (c.get("text") or "").strip()
             if txt.startswith(BOT) or (c.get("created_at") and c["created_at"] < (r.get("created_at") or "")):

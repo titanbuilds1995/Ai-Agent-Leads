@@ -183,10 +183,23 @@ def _attachment_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """The file parts of a message (name, mime, attachment id), without downloading them."""
     out: list[dict[str, Any]] = []
 
-    def walk(p):
+    def name_of(p):
+        # Outlook sometimes leaves Gmail's filename empty and names the file only in the part headers (2026-11-11, Cameron
+        # Cauley's OM / lease / income statement never reached the engine although he attached them twice)
         if p.get("filename"):
+            return p["filename"]
+        import re
+        for h in p.get("headers", []) or []:
+            if h.get("name", "").lower() in ("content-disposition", "content-type"):
+                m = re.search(r'(?:file)?name\*?=(?:UTF-8\'\')?"?([^";]+)', h.get("value", ""), re.I)
+                if m and (p.get("body", {}) or {}).get("attachmentId"):
+                    return m.group(1).strip()
+        return ""
+
+    def walk(p):
+        if name_of(p):
             body = p.get("body", {}) or {}
-            out.append({"filename": p["filename"], "mime": p.get("mimeType"), "size": body.get("size"),
+            out.append({"filename": name_of(p), "mime": p.get("mimeType"), "size": body.get("size"),
                         "attachment_id": body.get("attachmentId"), "inline_data": body.get("data")})
         for part in p.get("parts", []) or []:
             walk(part)

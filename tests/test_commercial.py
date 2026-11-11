@@ -695,6 +695,7 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     review_pending(conn, cfg, asana, llm)
     asana.comment_raw(gid, "hold, let me look at this one")
     assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["waiting"] == 1 and len(gm.sent) == 2
+    asana.stories[gid].remove("hold, let me look at this one")         # (the fake's comments carry no time) that hold was for that email
     # 3) NEEDS YOU (an NDA): the reply waits for him; the email is forwarded to his inbox with the file attached, once
     nda = [{"filename": "CA-NDA.pdf", "mime": "application/pdf", "bytes": b"%PDF-1.4 nda"}]
     _answer(conn, cfg, asana, gm, "Please sign the NDA attached before I release the OM.", "r3", 3, files=nda)
@@ -712,15 +713,17 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     assert not getattr(gm, "archived", [])
     asana.comment_raw(gid, "ok send it")                                         # his word is still what sends a NEEDS YOU reply
     assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1 and "reviewing the NDA" in gm.sent[-1][2]
+    asana.stories[gid].remove("ok send it")                              # (the fake's comments carry no time) that go-ahead was for that email
     # 4) a pocket listing pitched in a DOES NOT FIT answer: forwarded (not archived), the deal named on the card
     _answer(conn, cfg, asana, gm, "Orlando is weak, but I have a pocket listing, an Amoco in West Palm at $3.7M.", "r4", 4)
     out = review_pending(conn, cfg, asana, llm)
     assert out["other_deals"] == 1
     read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
     assert "Other deals they pitched" in read and "Amoco" in read
-    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)                                   # Charles asks for the T-12 on his own
+    n = len(gm.sent)                    # 2026-11-11 (Cameron): Charles already answered once, so his T-12 ask waits for Rodrigo
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n
     tri = triage_inbox(conn, cfg, asana, gm)
-    assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("FW [POCKET / OTHER DEALS]")
+    assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("FW [NEEDS YOU]")
     assert "Amoco gas station, West Palm Beach" in gm.sent[-1][2]
     # 5) a flat NOT A FIT: Charles's pass note goes first, then the thread is archived in his inbox
     _answer(conn, cfg, asana, gm, "Actually the building is vacant now.", "r5", 5)
@@ -1413,3 +1416,50 @@ def test_refresh_reads_an_older_card_the_database_never_saw_and_keeps_his_own_na
     assert asana.tasks[g1]["name"] == "Adriana Montes · Hotel · Hutchinson Island · $5.0M · 8.3% cap"
     assert asana.tasks[g2]["name"] == "Craig and Larry Walsh · MEDICAL · Merritt Island"      # his own name stays, the description is formatted
     assert "<strong>THE NUMBERS</strong>" in asana.tasks[g2]["html_notes"] and "(321) 689-6258" in asana.tasks[g1]["notes"]
+
+
+def test_cameron_never_gets_the_same_ask_twice_and_a_call_request_or_lost_files_wait_for_rodrigo(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-11 (Cameron Cauley, NAI Pensacola): "we emailed him 3-4 times the same thing asking him something that he
+    already gave us and then he said to give him a call and we asked for it again!!!" Replays that thread."""
+    from titan.commercial.books_review import review_pending, send_approved_replies
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Cameron Cauley'", (iso(SAT_10AM_ET),))
+    llm = FakeTriageLLM()
+    n0 = len(gm.sent)
+    # 1) he says the OM, lease and income statement are attached, but none reached us: no email at all, NEEDS YOU
+    _answer(conn, cfg, asana, gm, "Absolutely, that is attached to include the marketing OM, the Lease Agreement and current income statement.", "r1", 1)
+    out = review_pending(conn, cfg, asana, llm)
+    assert out["needs_rodrigo"] == 1
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "none reached the engine" in read and "goes out at the next round on its own" not in read
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n0
+    assert "Can you please send us the books" not in read
+    # 2) Rodrigo says send it: one reply goes. The broker answers again: Charles's second email waits for Rodrigo, and the
+    #    prompt shows Claude what Charles already sent
+    asana.comment_raw(gid, "send it")
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1
+    asana.stories[gid].remove("send it")                                 # that go-ahead was for that one email only
+    conn.execute("UPDATE commercial_threads SET attachments=?", (json.dumps([{"filename": "OM.pdf", "kind": "OM", "message_id": "r1"}]),))
+    _answer(conn, cfg, asana, gm, "Current rent is $25,009 base. A T-12 will not be of benefit, the books are mingled.", "r2", 2)
+    prompts = []
+    class Spy(FakeTriageLLM):
+        def structured(self, purpose, system, user, schema, max_tokens=1024):
+            prompts.append(user)
+            return super().structured(purpose, system, user, schema, max_tokens)
+    review_pending(conn, cfg, asana, Spy())
+    assert "WHAT CHARLES ALREADY SENT" in prompts[-1]
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "Charles already answered this broker once" in read
+    n1 = len(gm.sent)
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n1
+    # 3) he asks for a call, annoyed: no fixed "send us the books", nothing goes out, NEEDS YOU
+    _answer(conn, cfg, asana, gm, "I'm not understanding why the attachments continuously are not coming through. Please give me a call 850-291-3341", "r3", 3)
+    review_pending(conn, cfg, asana, llm)
+    read = [c for c in asana.stories[gid] if "READ FOR YOU" in c][-1]
+    assert "the broker asked for a call" in read and "Can you please send us the books" not in read
+    assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None
+    assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n1

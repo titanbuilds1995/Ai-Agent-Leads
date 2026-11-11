@@ -455,12 +455,32 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   dropped them after talking** (NOT A FIT / DOES NOT FIT reads bucketed by `DROP_REASONS` from the read + the broker's words: gone /
   tenants (month-to-month, food trucks, class C, local credit) / owner-operator / won't hold the cap / outside the box / won't show the
   books / other). The gallery head links to it. Published with every site publish (Mac); the Mac's database holds the conversations.
+- **ALL SENDING PAUSED (Rodrigo, 2026-11-11 ~4pm ET: "pause everything right now, no more email sending out … we're sending out
+  way too many, I'm a little overwhelmed")**: `outreach.sending_paused: true` in config.yaml. `approvals.in_window` answers "closed"
+  while it is on, so every sender waits exactly as it does outside the send window: approved cards (houses), OM requests, the no-cap
+  blast queue, Charles's 1031 replies (even after his "send it"), pass emails. Cards and drafts stay where they are. Reports and
+  forwards to Rodrigo himself still go. **Turn it off only when Rodrigo says so, and before that tell him what is queued** (blast
+  queue, approved cards, drafted auto-replies all go at the normal pace the moment it is off). The one exception: the **delay note**
+  (`titan/commercial/delay_note.py`, approvals stage `delay_notes`, `commercial.delay_note`): one "sorry for the slow reply, we
+  have been analyzing a lot of properties, we are working through them and we will get back with you" in the broker's own thread, his
+  wording, no date / promise / number, to each 1031 broker who really answered before the pause and heard nothing back. Never to a
+  thread Rodrigo wrote in, a broker Charles already answered in any thread, a card on Working Deals or in Offer out / Closed / Not a
+  fit / Reviewed / Needs Revision / Good fit, a not-a-fit read, a bounce; Gmail's thread is opened before each send and anything
+  from our side after the broker's answer stops it. Once per broker (`commercial_kv delay_note:<email>`), 20 a round, logged as
+  `om_reply` variant `delay_note`, so it counts as Charles's one answer in that thread. Residential agents get nothing (Rodrigo
+  handles those himself).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-11 ~4:30pm ET, RESUME HERE: **all sending to agents and brokers is PAUSED** on Rodrigo's word (see Decisions → ALL SENDING
+  PAUSED). The Mac picks it up on its 10-min self-update; the pause commit reached the default branch ~4:10pm ET. The delay note
+  goes out from the Mac's next approvals rounds inside the window (20 a round). Not verified live: the cloud cannot see the Mac's
+  database, so how many brokers get the note is unknown until the 📤 "Sorry-for-the-delay note sent" comments appear on the 1031
+  cards (brokers from the blast with no card get it without a comment). Brokers read not-a-fit who still owe a pass get nothing while
+  paused. Do NOT unpause without Rodrigo. 376 tests.
 - 2026-11-11 ~3pm ET, RESUME HERE: **"The process" tab on the 1031 page built** (see Decisions → The investor sees the PROCESS). Checked
   against the real Nov 9 pull in a scratch DB (1,290 pulled → 616 no price → 131 out by rule: 31 price, 36 asset type, 3 small MF, 3 cap
   under floor, 3 land/business, 4 airport, 51 quality → 543 in the box); the conversation half (brokers emailed / answered / why dropped)

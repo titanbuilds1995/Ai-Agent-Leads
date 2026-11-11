@@ -411,6 +411,13 @@ commercial:
     per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
     daily_cap: 220                   # per day, separate from the residential daily_email_cap
     queue_dir: "data/commercial_queue"
+  # Rodrigo, 2026-11-11 (sending paused): one "sorry for the delay, we are working through the properties, we will get back with
+  # you" note to every broker who answered before `before` and never heard back from Charles or Rodrigo. Once per broker, never to
+  # a thread Rodrigo wrote in, a card on Working Deals / Offer out / Closed / Not a fit, or a broker read not-a-fit (delay_note.py).
+  delay_note:
+    enabled: true
+    before: "2026-11-11T21:30:00Z"        # answers that came in after the pause get nothing on their own
+    per_round: 20
   # Every broker answer + the books they sent are READ for Rodrigo (2026-11-09) and the read goes on the card (🧠 READ FOR YOU):
   # verdict against the 8 cap, numbers, red flags, next step, Charles's reply when one is due ("send it" under it sends).
   review:

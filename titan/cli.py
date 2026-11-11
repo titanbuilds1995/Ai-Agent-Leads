@@ -550,6 +550,8 @@ def cmd_approvals(cfg, args):
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
+        from .commercial.delay_note import send_delay_notes
+        stage("delay_notes", lambda: send_delay_notes(conn, cfg, asana, c["gmail"]))   # 2026-11-11: sending is paused; one "sorry for the delay" to brokers who never heard back
         stage("om_reply_sends", lambda: send_approved_replies(conn, cfg, asana, c["gmail"]))   # simple replies go on their own; NEEDS YOU waits for "send it"
         stage("om_triage", lambda: triage_inbox(conn, cfg, asana, c["gmail"]))           # forward what needs Rodrigo / pocket deals; archive not-fit threads
         from .commercial.card_notes import needs_me_takes

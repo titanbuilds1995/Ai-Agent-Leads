@@ -461,6 +461,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~3:30pm ET: Rodrigo asked what the Coral Shores reply to Michael Grant is missing. Checked against Michael's post-NDA
+  email + the insurance certificates (Drive): told him to add unit-owner sign-off / how title transfers, the nine tax bills, permits for
+  the renovations (AE zone, slab on grade, 2 prior flood claims per building: 50% rule), the 5% named-storm deductible, actual
+  association financials + reserve balance, the Unit 9 lease, FF&E, dock permits. Draft still his to send; nothing sent.
 - 2026-11-11 ~3pm ET, RESUME HERE: **"The process" tab on the 1031 page built** (see Decisions → The investor sees the PROCESS). Checked
   against the real Nov 9 pull in a scratch DB (1,290 pulled → 616 no price → 131 out by rule: 31 price, 36 asset type, 3 small MF, 3 cap
   under floor, 3 land/business, 4 airport, 51 quality → 543 in the box); the conversation half (brokers emailed / answered / why dropped)

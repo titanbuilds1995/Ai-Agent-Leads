@@ -831,7 +831,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         log.error("approved emails waiting but Gmail (Charles) is not connected")
         return res
     cap = int(cfg.get("outreach.daily_email_cap", 25))
-    sent_today = conn.execute("SELECT COUNT(*) FROM outreach WHERE channel='email' AND status='sent' AND COALESCE(kind,'')<>'om_request' AND substr(sent_at,1,10)=?",
+    sent_today = conn.execute("SELECT COUNT(*) FROM outreach WHERE channel='email' AND status='sent' AND COALESCE(kind,'') NOT LIKE 'om\\_%' ESCAPE '\\' AND substr(sent_at,1,10)=?",
                               (now_utc().strftime("%Y-%m-%d"),)).fetchone()[0]
     if jitter_s:
         time.sleep(random.randint(0, jitter_s))       # vary the send times through the day

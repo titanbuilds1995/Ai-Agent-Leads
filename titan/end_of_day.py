@@ -153,7 +153,8 @@ def _streets(conn, property_ids: str | None) -> str:
 
 def emails_sent(conn, start_s: str, end_s: str) -> list[dict[str, Any]]:
     rows = conn.execute("SELECT o.*, a.name AS agent_name FROM outreach o LEFT JOIN agents a ON a.id=o.agent_id "
-                        "WHERE o.status='sent' AND o.channel='email' AND o.sent_at>=? AND o.sent_at<? ORDER BY o.sent_at",
+                        "WHERE o.status='sent' AND o.channel='email' AND o.sent_at>=? AND o.sent_at<? "
+                        "AND COALESCE(o.kind,'') NOT LIKE 'om\\_%' ESCAPE '\\' ORDER BY o.sent_at",  # 1031 broker mail is not a residential lead
                         (start_s, end_s)).fetchall()
     return [{"agent_id": r["agent_id"], "agent": r["agent_name"] or r["to_address"], "houses": _streets(conn, r["property_ids"]),
              "kind": "first" if (r["kind"] or "first_touch") == "first_touch" else "answer", "at": r["sent_at"],
@@ -293,7 +294,7 @@ def history(conn, cfg: Any, run_date: str, today: dict[str, int], days: int = 7)
             continue
         s, e = et_day_bounds(ds)
         emailed = conn.execute("SELECT COUNT(DISTINCT COALESCE(agent_id, to_address)) FROM outreach WHERE status='sent' AND channel='email' "
-                               "AND sent_at>=? AND sent_at<?", (s, e)).fetchone()[0]
+                               "AND sent_at>=? AND sent_at<? AND COALESCE(kind,'') NOT LIKE 'om\\_%' ESCAPE '\\'", (s, e)).fetchone()[0]
         r = conn.execute("SELECT counts FROM daily_runs WHERE step=? AND run_date=? AND status='ok' ORDER BY id DESC LIMIT 1", (STEP, ds)).fetchone()
         c = json.loads(r[0]) if r and r[0] else None
         talked = (c or {}).get("talked", 0)

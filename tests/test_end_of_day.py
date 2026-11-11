@@ -145,3 +145,19 @@ def test_a_vanished_listing_is_not_read_as_mass_deletion(conn, cfg):
     a.cards.clear()
     track_board(conn, cfg, a)
     assert conn.execute("SELECT COUNT(*) FROM board_cards WHERE gone_how='deleted'").fetchone()[0] == 0
+
+
+def test_1031_broker_emails_do_not_count_toward_the_house_goal(loaded, cfg):
+    """Nov 10 end of day said "102 of 25 leads · 300 answers": every OM request and broker reply from the 1031 engine was counted
+    as a residential lead. Only house outreach counts."""
+    a = board()
+    track_board(loaded, cfg, a)
+    agent = loaded.execute("SELECT id FROM agents LIMIT 1").fetchone()[0]
+    rows = [(agent, "first_touch", "a@x.com"), (None, "om_request", "b@broker.com"), (None, "om_reply", "c@broker.com"),
+            (None, "om_rodrigo", "d@broker.com")]
+    for i, (ag, kind, to) in enumerate(rows):
+        loaded.execute("INSERT INTO outreach(agent_id,property_ids,channel,kind,status,to_address,run_date,created_at,sent_at,asana_task_id) "
+                       "VALUES(?,?,?,?,?,?,?,?,?,?)", (ag, "[]", "email", kind, "sent", to, DAY, T.format("13:00"),
+                                                       f"2026-10-29T15:0{i}:00Z", f"z{i}"))
+    d = collect(loaded, cfg, a, DAY)
+    assert d["counts"]["emailed"] == 1 and d["counts"]["answers"] == 0

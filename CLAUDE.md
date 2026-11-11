@@ -450,6 +450,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~7:30am ET, RESUME HERE: **82 Tortuga is signed** (Authentisign "Signing complete" Tue 5:34pm ET; Peter's "who signs"
+  answered by the signing itself). **Nov 10 end-of-day said "102 of 25 · 300 answers": all 1031 broker emails (om_request / om_reply /
+  om_rodrigo) were counted as house leads**; fixed in `end_of_day` (and the residential daily cap no longer counts om_reply / om_rodrigo),
+  test added. Real house count Nov 10: 0 first emails. 25 new Fresh Leads cards Nov 10 are templates (no Claude analysis). No 7am report
+  by 7:25am today (Nov 10's came 9:05am).
 - 2026-11-11 ~11:30am ET, RESUME HERE: **772 Cortaro Dr (Christian Bennett, card 1220358581918664) sat in "Sent · no answer yet" although he sent
   the T-12**: the engine only read replies inside its own Gmail threads. Built the inbox sweep for stray broker answers (see Decisions → Broker
   answers that are not a reply). Not verified live: the cloud cannot read Charles's inbox, so whether Christian's email was a new thread (most

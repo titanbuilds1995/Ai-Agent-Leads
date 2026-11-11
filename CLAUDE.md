@@ -410,12 +410,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (books → Books received). Every poll, a card still in In touch whose broker never answered (no reply, no bounce, Rodrigo silent) is sorted
   into Sent · no answer yet (`outreach.park_unanswered`). A broker who said no 8 cap / not a cap-rate sale is a DOES NOT FIT read → `closeout`
   clears it to Not a fit (pass email where owed, then off the board). Nothing he dragged himself is touched.
+- **1031 cards are readable (Rodrigo, 2026-11-11: "put the name of the agent and key things about the property as the card names …
+  give it good headlines and make things bold")**: card name = `Agent · Asset · City · $5.0M · 8.3% cap` (`asana_push.card_name`; no score,
+  no "OM request" prefix); description = `card_html`: bold headline (ASSET · address · LoopNet link), THE NUMBERS / DO WE BELIEVE IT? /
+  THE PROPERTY / WHAT WE STILL NEED / BROKER as short bold-headed lists, score in words, then the OM REQUEST block (plain To / Subject /
+  EMAIL-marker lines, "sent <date>" once it went) so `parse_om_card` and the LoopNet-link readers still work on Asana's plain rendering.
+  Stage `card_format` (approvals round, before `card_files`) refreshes every older card on the 1031 and Working Deals boards once
+  (`commercial_kv card_format:<gid>`, 40 a round), from the database or from the old card's own text (`listing_from_card`); a name Rodrigo
+  typed himself (e.g. "Craig and Larry Walsh · …") is kept, only the description is formatted. One card per listing (`already_on_board`).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-11 ~9:30am ET, RESUME HERE: **1031 cards renamed and reformatted** (see Decisions → 1031 cards are readable). The 6 open
+  Working Deals cards (Adriana Montes, Michael Grant, Larry Starr, Dennis Hopper, Brian Rowe, Craig and Larry Walsh) were updated live
+  from the cloud and render correctly; the ~60 cards on the 1031 board get it from the Mac's next approvals rounds (stage `card_format`,
+  40 per round). Watch: the first round's names on the 1031 board, and that a card dragged to "Approved · send OM request" still sends
+  (the email block is unchanged). Not touched: 🧠 READ FOR YOU / 💬 comments (still their own format). 362 tests.
 - 2026-11-11 ~7:30am ET, RESUME HERE: **Coral Shores: Rodrigo wants to pursue** ("I like the asset class, our investor could like this
   asset"). He agrees the broker's P&L projection is not serious (manager-written, 12% teaser fee, flood-only insurance, no reserves, three
   units imputed). A reply to Michael's post-NDA email is a DRAFT in Rodrigo's own Gmail (reply in that thread, Cc Michael's office address

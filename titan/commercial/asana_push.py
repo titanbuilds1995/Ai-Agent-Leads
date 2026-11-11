@@ -160,7 +160,7 @@ def card_html(L: dict[str, Any], email: str = "", extra: str = "", sent: str = "
     url = L.get("listing_url") or ""
     out = ["<body>"]
     where = ", ".join(x for x in (L.get("street"), L.get("city")) if x)
-    out.append(f"<strong>{_e(asset_label(L).upper())} · {_e(where)}</strong>" + (f" · <a href=\"{_e(url)}\">LoopNet</a>" if url else ""))
+    out.append(f"<strong>{_e(asset_label(L).upper())}{' · ' + _e(where) if where else ''}</strong>" + (f" · <a href=\"{_e(url)}\">LoopNet</a>" if url else ""))
     out.append(f"{_e(L.get('county') or '?')} County · {_e(L.get('region') or '?')}" + (f" · {_e(L['airport_name'])} airport about {L['airport_minutes']} min" if L.get("airport_code") else ""))
     out.append("")
     out.append("<strong>THE NUMBERS</strong>")
@@ -214,10 +214,11 @@ def card_html(L: dict[str, Any], email: str = "", extra: str = "", sent: str = "
     contact = " · ".join(x for x in (phone, L.get("broker_email") or "no email on LoopNet") if x)
     out.append(f"<li>{_e(contact)}</li>")
     out.append("</ul>")
-    score = f"Engine score {L.get('score', 0)} of 100"
-    if _score_parts(L):
-        score += f" · {_e(_score_parts(L))}"
-    out.append(score)
+    if L.get("score") is not None:
+        score = f"Engine score {L['score']} of 100"
+        if _score_parts(L):
+            score += f" · {_e(_score_parts(L))}"
+        out.append(score)
     if url:
         out.append(_e(url))
     if email:
@@ -320,6 +321,94 @@ def push(conn, cfg: Any, asana, ranked: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 EXTRA_RE = re.compile(r"^The email also asked about listing\(s\)[^\n]*$", re.M)
+OLD_NAME_RE = re.compile(r"^(OM request · )?\s*\d+ · [A-Z][A-Z /]+ · ")      # the engine's old name shape; anything else Rodrigo typed himself
+_NUM = r"\$?([\d,]+(?:\.\d+)?)"
+
+
+def _num(x: str | None) -> float | None:
+    try:
+        return float(x.replace(",", "")) if x and x != "n/a" else None
+    except ValueError:
+        return None
+
+
+def listing_from_card(name: str, notes: str) -> dict[str, Any]:
+    """Rebuild the listing facts from an older card's own text (a machine whose database never saw the listing, or a cloud session):
+    everything the new card shows is on the old card, line by line."""
+    L: dict[str, Any] = {}
+    m = re.match(r"^(?:OM request · )?\s*(\d+) · ([A-Z][A-Z /]+) · (.+?), ([^·]+?) · \$([\d,]+)(?: · ([\d.]+)% cap)?\s*$", name or "")
+    if m:
+        L.update(score=int(m.group(1)), asset_class=m.group(2).strip().lower(), street=m.group(3).strip(), city=m.group(4).strip(),
+                 price=_num(m.group(5)), stated_cap=_num(m.group(6)))
+    elif (m := re.search(r"· (\d[^·,]*?), ([^·]+?) ·", name or "")):          # a name Rodrigo typed himself, address kept
+        L.update(street=m.group(1).strip(), city=m.group(2).strip())
+    g = lambda rx, flags=re.M: (re.search(rx, notes or "", flags) or [None, None])[1]  # noqa: E731
+    if (a := re.search(r"^OFFER ANCHOR: " + _NUM + r"(?: \(([^)]*)\))?", notes or "", re.M)):
+        L["offer_anchor"], L["offer_anchor_basis"] = _num(a.group(1)), a.group(2)
+    if (a := re.search(r"^Asking " + _NUM + r"(?: · stated cap ([\d.]+)%)?", notes or "", re.M)):
+        L.setdefault("price", _num(a.group(1)))
+        if a.group(2):
+            L["stated_cap"] = _num(a.group(2))
+    if (a := re.search(r"^Stated NOI " + _NUM + r"(?: · back-solved cap ([\d.]+)%)?", notes or "", re.M)):
+        L["stated_noi"], L["back_solved_cap"] = _num(a.group(1)), _num(a.group(2))
+    if (a := re.search(r"^Tag: (\S+) · evidence grade (\S+)(?: \((.*)\))?", notes or "", re.M)):
+        L["tag"], L["evidence_grade"], L["evidence_note"] = a.group(1), a.group(2), a.group(3)
+    if (w := g(r"^Why: (.+)$")):
+        L["tag_reasons"] = [x.strip() for x in w.split(";") if x.strip()]
+    if (a := re.search(r"^([^\n·]+?) · (\?|[\d,]+) SF(?: · (\d+) units)? · built (\?|\d{4}) · (.+?) County \((.+?)\)$", notes or "", re.M)):
+        pt = a.group(1).split(" / ", 1)
+        L["property_type"] = pt[0].strip()
+        if len(pt) > 1:
+            L["property_subtype"] = pt[1].strip()
+        L["building_sf"] = int(_num(a.group(2)) or 0) or None if a.group(2) != "?" else None
+        L["units"] = int(a.group(3)) if a.group(3) else None
+        L["year_built"] = int(a.group(4)) if a.group(4) != "?" else None
+        L["county"], L["region"] = a.group(5), a.group(6)
+    if (a := re.search(r"^Occupancy (\?|[\d.]+)%(.*)$", notes or "", re.M)):
+        L["occupancy"] = _num(a.group(1)) if a.group(1) != "?" else None
+        rest = a.group(2)
+        L["hotel_metrics"] = "RevPAR/ADR stated" in rest
+        if "RevPAR" in rest:
+            L.setdefault("asset_class", "hotel")
+        if (t := re.search(r"· (\w+) tenant", rest)) and t.group(1) != "?":
+            L["tenancy"] = t.group(1)
+        if (t := re.search(r"· lease (\S+)", rest)) and t.group(1) != "?":
+            L["lease_type"] = t.group(1)
+        if (t := re.search(r"· ([\d.]+) yrs left", rest)):
+            L["remaining_term_years"] = _num(t.group(1))
+    if (a := re.search(r"^(?:On market (\?|\d+) days|Seen by us for (\d+) days[^·]*) · (\d+) price cut\(s\)(?: · signals: (.+))?$", notes or "", re.M)):
+        dom = a.group(1) or a.group(2)
+        L["days_on_market"] = int(dom) if dom and dom != "?" else None
+        L["dom_basis"] = bool(a.group(2))
+        L["price_cuts"] = int(a.group(3))
+        if a.group(4):
+            L["motivation"] = [x.strip() for x in a.group(4).split(",")]
+    if (a := re.search(r"^Airport: (.+?) \((\w+)\) about (\d+) min", notes or "", re.M)):
+        L["airport_name"], L["airport_code"], L["airport_minutes"] = a.group(1), a.group(2), int(a.group(3))
+    if (a := re.search(r"^Quality: (\S+)(?: · (.+))?$", notes or "", re.M)):
+        L["quality"] = a.group(1)
+        if a.group(2):
+            L["quality_reasons"] = [x.strip() for x in a.group(2).split(";")]
+    if (d := g(r"^Docs missing: (.+)$")):
+        L["docs_missing"] = [x.strip() for x in d.split(",")]
+    if (d := g(r"^Gated: (.+)$")):
+        L["docs_gated"] = [x.strip() for x in d.split(",")]
+    if (d := g(r"^Score parts: (\{.*\})$")):
+        try:
+            L["parts"] = json.loads(d)
+        except json.JSONDecodeError:
+            pass
+    if (a := re.search(r"^Broker: (.+?)(?: · (\(\d{3}\) [\d-]+|\+?[\d ()-]{7,}))? · (\S+@\S+|no email) · ?(.*)$", notes or "", re.M)):
+        L["broker_name"] = a.group(1).strip()
+        L["broker_phone_raw"] = a.group(2) or ""
+        L["broker_email"] = a.group(3) if "@" in a.group(3) else None
+        L["brokerage"] = a.group(4).strip() or None
+    if (u := re.search(r"^https?://\S*loopnet\.com/Listing/\S+$", notes or "", re.M)):
+        L["listing_url"] = u.group(0)
+        lid = LISTING_URL_RE.search(u.group(0))
+        if lid:
+            L["listing_id"] = lid.group(1)
+    return L
 FORMAT_VERSION = "2"      # bump to re-render every card once more
 
 
@@ -366,6 +455,8 @@ def refresh_cards(conn, cfg: Any, asana, limit: int = 40) -> dict[str, int]:
                 m = LISTING_URL_RE.search(notes)
                 L = listing_for(conn, m.group(1)) if m else {}
                 if not L:
+                    L = listing_from_card(t.get("name") or full.get("name") or "", notes)   # a card this database never stored
+                if not L.get("listing_id") or not (L.get("broker_name") or L.get("city")):
                     n["skipped"] += 1
                     _mark(conn, key)
                     continue
@@ -376,11 +467,14 @@ def refresh_cards(conn, cfg: Any, asana, limit: int = 40) -> dict[str, int]:
                                     (L["listing_id"],)).fetchone()
                 sent_when = (sent[0] or "")[:10] if sent else ""
                 html = card_html(L, email=email, extra=extra, sent=sent_when)
+                old_name = t.get("name") or full.get("name") or ""
+                new_name = card_name(L) if OLD_NAME_RE.match(old_name) else old_name     # a name Rodrigo typed himself stays
                 fn = getattr(asana, "update_card", None)
                 if fn:
-                    fn(gid, card_name(L), html)
+                    fn(gid, new_name, html)
                 else:
-                    asana.rename(gid, card_name(L))
+                    if new_name != old_name:
+                        asana.rename(gid, new_name)
                     asana.update_html_notes(gid, html)
                 _mark(conn, key)
                 n["updated"] += 1

@@ -1379,3 +1379,32 @@ def test_refresh_cards_renames_and_formats_older_cards_once(conn, cfg):
     assert "The email also asked about listing(s) 77, 78." in t["notes"]
     assert asana.where[gid] == secs["Needs Me"]
     assert refresh_cards(conn, cfg, asana)["updated"] == 0           # once per card
+
+
+def test_refresh_reads_an_older_card_the_database_never_saw_and_keeps_his_own_names(conn, cfg):
+    from titan.commercial.asana_push import listing_from_card, refresh_cards
+    from titan.commercial.board import ensure_board
+    cfg.raw["commercial"]["asana"]["project"] = "proj-1031"
+    cfg.raw["commercial"]["asana"]["working_project"] = None
+    notes = ("OFFER ANCHOR: $4,999,999 (stated NOI; asking already clears the target cap)\nAsking $4,999,999 · stated cap 8.34%\n"
+             "Stated NOI $416,774 · back-solved cap 8.34%\nTag: SUSPECT · evidence grade C (cap/NOI figure in the listing text only, no backup)\n"
+             "Why: implied expenses 19% of gross on a non-NNN asset; NOI stated but no lease type\n"
+             "Hospitality / Multiple Types · 5808 SF · built ? · St. Lucie County (Treasure Coast)\nOccupancy 3.0% · RevPAR/ADR stated\n"
+             "On market 167 days · 0 price cut(s) · signals: value-add\nAirport: no coordinates on the listing\nQuality: pass · premium language: fully renovated\n"
+             "Docs missing: T-12, rent roll, OM, lease abstract\nGated: Offering Memorandum\n"
+             'Score parts: {"cap": 12.0, "dom_and_cuts": 8.4}\n'
+             "Broker: Adriana Montes MBA · (321) 689-6258 · adriana@floridadreamsrealty.com · VORO Real Estate\n"
+             "https://www.loopnet.com/Listing/2502-Tamarind-Dr-Hutchinson-Island-FL/40665350/\n\n"
+             "Tagged 1031-buyer · drag this card to \"Approved · send OM request\" and Charles emails the broker at the next round.")
+    old = "OM request · 48 · HOTEL · 2502 Tamarind Dr, Hutchinson Island · $4,999,999 · 8.34% cap"
+    L = listing_from_card(old, notes)
+    assert L["listing_id"] == "40665350" and L["broker_name"] == "Adriana Montes MBA" and L["stated_noi"] == 416_774 and L["units"] is None
+    assert L["county"] == "St. Lucie" and L["docs_gated"] == ["Offering Memorandum"] and L["hotel_metrics"] and L["asset_class"] == "hotel"
+    asana = Fake1031Asana()
+    secs = ensure_board(asana, "proj-1031")
+    g1 = asana.create_task("proj-1031", secs["Needs Me"], old, notes)["gid"]
+    g2 = asana.create_task("proj-1031", secs["Needs Me"], "Craig and Larry Walsh · MEDICAL · Merritt Island", notes.replace("40665350", "39839045"))["gid"]
+    assert refresh_cards(conn, cfg, asana)["updated"] == 2
+    assert asana.tasks[g1]["name"] == "Adriana Montes · Hotel · Hutchinson Island · $5.0M · 8.3% cap"
+    assert asana.tasks[g2]["name"] == "Craig and Larry Walsh · MEDICAL · Merritt Island"      # his own name stays, the description is formatted
+    assert "<strong>THE NUMBERS</strong>" in asana.tasks[g2]["html_notes"] and "(321) 689-6258" in asana.tasks[g1]["notes"]

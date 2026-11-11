@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 late, RESUME HERE: Coral Shores buyer brief rebuilt on Rodrigo's thesis (same private artifact link): a high-7 cap at
+  a TARGET price with all eight rental units at the pace of the five rented today, and the path to 8.5 in year one (owner-side
+  management, stronger bookings, docks). The target price range on it is Claude's assumption to make that true on today's income;
+  **Rodrigo has not confirmed the price** and it sits well under the ask (numbers in chat / on the artifact, not here). Storm history
+  and repeat-guest claims are worded as reported / requested, not verified. Document request to Michael still not sent.
 - 2026-11-11 evening, RESUME HERE: Coral Shores: Rodrigo set his underwriting at **15% management and a 2% reserve** (units just
   renovated) and asked for a buyer version of the brief with nothing that identifies the property. Built as a second private Claude
   artifact (link in chat; numbers stay off this public repo): what rents today, value at an 8 cap as income is added (units, then docks

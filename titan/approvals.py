@@ -767,7 +767,19 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
     return n
 
 
-def in_window(cfg: Any, now: datetime | None = None) -> bool:
+def sending_paused(cfg: Any) -> bool:
+    """Rodrigo, 2026-11-11: "pause everything right now, no more email sending out". One switch (`outreach.sending_paused`)
+    stops every email to an agent or broker: approved cards, OM requests, the blast queue, Charles's replies, pass emails.
+    Reports and forwards to Rodrigo himself still go. Cards stay where they are and go out when it is switched off."""
+    try:
+        return bool(cfg.get("outreach.sending_paused", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def in_window(cfg: Any, now: datetime | None = None, even_if_paused: bool = False) -> bool:
+    if not even_if_paused and sending_paused(cfg):
+        return False                             # every sender already treats "outside the window" as "wait"
     w = _cfg(cfg).get("send_window", {})
     tz = ZoneInfo(w.get("timezone", "America/New_York"))
     t = (now or now_utc()).astimezone(tz)

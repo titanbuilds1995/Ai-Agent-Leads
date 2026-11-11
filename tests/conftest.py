@@ -16,7 +16,9 @@ FIXTURES = ROOT / "tests" / "fixtures"
 
 @pytest.fixture
 def cfg():
-    return config_mod.load(ROOT / "config.yaml", env_path=FIXTURES / "nonexistent.env", force=True)
+    c = config_mod.load(ROOT / "config.yaml", env_path=FIXTURES / "nonexistent.env", force=True)
+    c["outreach"]["sending_paused"] = False     # the pause switch has its own tests; everything else tests the engine running
+    return c
 
 
 @pytest.fixture

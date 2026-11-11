@@ -26,6 +26,7 @@ def _board_with_an_answer(conn, cfg, tmp_path, text="Here is some info, give me 
     conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
     _answer(conn, cfg, asana, gm, text, "r1", 1)
     cfg["commercial"]["delay_note"]["before"] = "9999"
+    cfg["commercial"]["delay_note"]["enabled"] = True
     return asana, secs, gid, gm
 
 
@@ -85,3 +86,19 @@ def test_no_delay_note_where_rodrigo_or_charles_already_wrote_or_it_is_not_a_fit
     assert len(gm.sent) == n
     cfg["commercial"]["delay_note"]["enabled"] = True
     assert send_delay_notes(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 1     # the same broker, nothing in the way: it goes
+
+
+def test_delay_note_off_means_nothing_at_all_goes_to_a_broker(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-11 evening: "have Charles stop all of the email conversations and the threads"."""
+    from titan.commercial.delay_note import send_delay_notes
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid, gm = _board_with_an_answer(conn, cfg, tmp_path)
+    cfg["commercial"]["delay_note"]["enabled"] = False
+    n = len(gm.sent)
+    assert send_delay_notes(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n
+
+
+def test_shipped_config_sends_nothing_to_agents_or_brokers():
+    from titan.config import load
+    cfg = load(force=True)
+    assert cfg.get("outreach.sending_paused") is True and cfg.get("commercial.delay_note.enabled") is False

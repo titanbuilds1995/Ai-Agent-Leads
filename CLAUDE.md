@@ -475,6 +475,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 evening, RESUME HERE: **Charles is fully silent** (Rodrigo: "have Charles stop all of the email conversations and the
+  threads that he has going on right now"). `commercial.delay_note.enabled: false` on top of `outreach.sending_paused: true`: nothing
+  goes to any agent or broker, not even the sorry-for-the-delay note (the "one exception" in Decisions → ALL SENDING PAUSED is OFF).
+  Delay notes the Mac sent before it pulled this are out and cannot be recalled; how many is only visible on the Mac / the 📤 comments.
+  The engine still reads incoming mail, mirrors it on the cards and drafts; drafts wait. Mail to Rodrigo (reports, forwards) still goes.
+  Do NOT turn either switch back on without Rodrigo. 378 tests.
 - 2026-11-11 ~4:30pm ET, RESUME HERE: **all sending to agents and brokers is PAUSED** on Rodrigo's word (see Decisions → ALL SENDING
   PAUSED). The Mac picks it up on its 10-min self-update; the pause commit reached the default branch ~4:10pm ET. The delay note
   goes out from the Mac's next approvals rounds inside the window (20 a round). Not verified live: the cloud cannot see the Mac's

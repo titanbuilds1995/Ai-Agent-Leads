@@ -164,8 +164,8 @@ outreach:
   max_auto_questions: 2            # after this many back-and-forths, stop and bring the lead to Rodrigo
   channel: "EMAIL_FIRST"           # SMS_FIRST | EMAIL_FIRST | BOTH. Email until Twilio A2P is approved (Rodrigo, 2026-10-23)
   # Rodrigo, 2026-11-11: "pause everything right now, no more email sending out". true = nothing goes to any agent or broker
-  # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only the one-time
-  # "sorry for the delay" note (titan/commercial/delay_note.py) and mail to Rodrigo himself still go. Turn off only when he says.
+  # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only mail to Rodrigo
+  # himself still goes (the "sorry for the delay" note was switched off the same evening, see commercial.delay_note). Turn off only when he says.
   sending_paused: true
   daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
   max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
@@ -414,8 +414,10 @@ commercial:
   # Rodrigo, 2026-11-11 (sending paused): one "sorry for the delay, we are working through the properties, we will get back with
   # you" note to every broker who answered before `before` and never heard back from Charles or Rodrigo. Once per broker, never to
   # a thread Rodrigo wrote in, a card on Working Deals / Offer out / Closed / Not a fit, or a broker read not-a-fit (delay_note.py).
+  # Rodrigo, 2026-11-11 evening: "have Charles stop all of the email conversations and the threads" -> OFF. Nothing at all goes to a
+  # broker or agent now. Brokers who already got the note are remembered (commercial_kv), so turning it back on never repeats one.
   delay_note:
-    enabled: true
+    enabled: false
     before: "2026-11-11T21:30:00Z"        # answers that came in after the pause get nothing on their own
     per_round: 20
   # Every broker answer + the books they sent are READ for Rodrigo (2026-11-09) and the read goes on the card (🧠 READ FOR YOU):

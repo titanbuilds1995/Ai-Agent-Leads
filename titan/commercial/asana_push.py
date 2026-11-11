@@ -223,7 +223,8 @@ def card_html(L: dict[str, Any], email: str = "", extra: str = "", sent: str = "
         out.append(_e(url))
     if email:
         out.append("<hr/>")
-        out.append(f"<strong>OM REQUEST</strong> · " + (f"sent {_e(sent)}" if sent else "what Charles sends when you drag the card to \"Approved · send OM request\""))
+        out.append("<strong>OM REQUEST</strong> · " + ("already sent" if sent == "yes" else f"sent {_e(sent)}" if sent
+                                                       else "what Charles sends when you drag the card to \"Approved · send OM request\""))
         out.append(_e(email))
     if extra and extra.strip():
         out.append("<hr/>")
@@ -461,7 +462,11 @@ def refresh_cards(conn, cfg: Any, asana, limit: int = 40) -> dict[str, int]:
                     _mark(conn, key)
                     continue
                 om = parse_om_card(notes)
-                email = f"To: {om['to']}\nSubject: {om['subject']}\n{START}\n{om['body']}\n{END}" if om else ""
+                col = next(((m_.get("section") or {}).get("name") for m_ in (t.get("memberships") or []) if m_.get("section")), None)
+                if om and (col or "").strip().lower() == "new":
+                    email = email_block(cfg, L)      # never sent: today's wording (principal voice, no proof of funds), not the 11-08 draft
+                else:
+                    email = f"To: {om['to']}\nSubject: {om['subject']}\n{START}\n{om['body']}\n{END}" if om else ""
                 extra = "\n".join(EXTRA_RE.findall(notes))
                 sent = conn.execute("SELECT sent_at FROM commercial_threads WHERE listing_id=? AND sent_at IS NOT NULL ORDER BY sent_at LIMIT 1",
                                     (L["listing_id"],)).fetchone()

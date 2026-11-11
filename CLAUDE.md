@@ -424,6 +424,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~10:30am ET, RESUME HERE: **both 1031 boards are in the new card shape, done from the cloud** (Rodrigo: "do the same thing on
+  the 1031 initial sheet"). All 44 open cards on "Titan 1031 · Commercial (LoopNet)" + the 6 on Working Deals renamed and reformatted through
+  the Asana connector (listing data from a scratch bootstrap of the 21 Apify datasets). The 10 unsent cards in New carried the 11-08 draft
+  ("working with a 1031 exchange buyer … happy to sign a confidentiality agreement"): replaced with today's OM-request wording, same in the
+  engine (`refresh_cards`: a card in New gets `email_block` fresh). The Mac's `card_format` stage re-renders the same 50 once more (same
+  result, harmless) and marks them. Completed Not-a-fit cards untouched. 363 tests.
 - 2026-11-11 ~9:30am ET, RESUME HERE: **1031 cards renamed and reformatted** (see Decisions → 1031 cards are readable). The 6 open
   Working Deals cards (Adriana Montes, Michael Grant, Larry Starr, Dennis Hopper, Brian Rowe, Craig and Larry Walsh) were updated live
   from the cloud and render correctly; the ~60 cards on the 1031 board get it from the Mac's next approvals rounds (stage `card_format`,

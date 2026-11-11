@@ -1404,7 +1404,12 @@ def test_refresh_reads_an_older_card_the_database_never_saw_and_keeps_his_own_na
     secs = ensure_board(asana, "proj-1031")
     g1 = asana.create_task("proj-1031", secs["Needs Me"], old, notes)["gid"]
     g2 = asana.create_task("proj-1031", secs["Needs Me"], "Craig and Larry Walsh · MEDICAL · Merritt Island", notes.replace("40665350", "39839045"))["gid"]
-    assert refresh_cards(conn, cfg, asana)["updated"] == 2
+    stale = ("To: adriana@floridadreamsrealty.com\nSubject: x on LoopNet\n=== EMAIL (what will be sent) ===\nHey Adriana,\n\nWe are working with a 1031 exchange buyer.\n"
+             "=== END EMAIL ===")
+    g3 = asana.create_task("proj-1031", secs["New"], old, notes.replace("40665350", "40665351") + "\n\n" + stale)["gid"]
+    asana.tasks[g3]["memberships"] = [{"section": {"gid": secs["New"], "name": "New"}}]
+    assert refresh_cards(conn, cfg, asana)["updated"] == 3
+    assert "partner of ours" in asana.tasks[g3]["notes"] and "1031 exchange buyer" not in asana.tasks[g3]["notes"]   # unsent: today's wording
     assert asana.tasks[g1]["name"] == "Adriana Montes · Hotel · Hutchinson Island · $5.0M · 8.3% cap"
     assert asana.tasks[g2]["name"] == "Craig and Larry Walsh · MEDICAL · Merritt Island"      # his own name stays, the description is formatted
     assert "<strong>THE NUMBERS</strong>" in asana.tasks[g2]["html_notes"] and "(321) 689-6258" in asana.tasks[g1]["notes"]

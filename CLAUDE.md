@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~4:45pm ET, RESUME HERE: Coral Shores: Rodrigo likes the deal and asked for a visual rundown he can show his investor.
+  Built a private investor brief as a Claude artifact (link given in chat; numbers stay off this public repo): what we hold vs what is
+  outstanding (15 / 22), Jan-Jun income per unit, 8-cap price in three cases at a 20% manager, upside, risks. No asking price, broker
+  or LoopNet link on it. Told him the dues go away with one owner but the bills they pay stay. Next: he sends the document request to
+  Michael (final text in chat), then rebuild the numbers when the documents land and update the brief.
 - 2026-11-11 ~4pm ET: Coral Shores: Rodrigo asked for the price that holds a true 8 cap with a 20% manager. Worked from the
   Drive package (projection, Olivieri sheet, Bayside / Manatee reports) and given in chat only (numbers stay off this public repo).
   Found: much of the Olivieri revenue is "Cash" (no platform record), so the email now asks for the deposits behind it.

@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~4pm ET, RESUME HERE: **331 John Ringling Blvd, Sarasota (Larry Starr, card 1220358917981163, Working Deals → Needs Me)**:
+  Rodrigo asked what price makes it a true 8 cap; answered in chat from the reads on the card (three cases: both leases signed NNN /
+  landlord carries tax + insurance / only the first tenant in place; numbers are on the card, not here). Lease type and whether Space 2
+  is signed decide it. Rodrigo emails Larry himself (his comment: stop all communication). The engine misread that comment as a note and
+  drafted a "we are stopping communication" email on the card: do NOT send it; gap = `card_notes` should treat "stop communication" as a hold.
 - 2026-11-11 ~3pm ET, RESUME HERE: **"The process" tab on the 1031 page built** (see Decisions → The investor sees the PROCESS). Checked
   against the real Nov 9 pull in a scratch DB (1,290 pulled → 616 no price → 131 out by rule: 31 price, 36 asset type, 3 small MF, 3 cap
   under floor, 3 land/business, 4 airport, 51 quality → 543 in the box); the conversation half (brokers emailed / answered / why dropped)

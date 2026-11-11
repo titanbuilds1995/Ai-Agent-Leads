@@ -753,11 +753,19 @@ def cmd_om_strays(cfg, args):
     out = poll_om_replies(conn, cfg, c["gmail"], asana)
     conn.commit()
     st = out.get("strays") or {}
+    if asana is not None and (st.get("found") or out.get("replies")):     # Rodrigo, 2026-11-11: "why did it not analyze it?" → read them now
+        from .commercial.books_review import review_pending
+        c2 = build_clients(cfg, conn, need=("llm",))
+        out["books_review"] = review_pending(conn, cfg, asana, c2["llm"])
+        conn.commit()
     print(f"Looked at {st.get('looked', 0)} inbox emails outside the OM threads; {st.get('found', 0)} were broker answers the board had missed.")
     for w in st.get("who", []):
         print(f"  {w['broker']:<32} listing {w['listing_id']:>10}  files {w['files']}  \"{(w.get('subject') or '')[:70]}\"  from {w.get('from')}")
     if st.get("found"):
-        print("Each one is now on its card (📩 comment, files filed, regraded when the books are in); the 🧠 read follows at the next round.")
+        print("Each one is now on its card (📩 comment, files filed, regraded when the books are in).")
+    br = out.get("books_review") or {}
+    if br:
+        print(f"Read for you: {br.get('reviewed', br)} card(s) got a 🧠 READ FOR YOU.")
 
 
 def cmd_follow_ups(cfg, args):

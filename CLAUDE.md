@@ -450,6 +450,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~noon ET, RESUME HERE: **Rodrigo uploaded the OM for 1525 International Pkwy #2071, Lake Mary (Park Place at
+  Heathrow, office condo, Matthew McKeever / Colliers)** and asked if it works at an 8 cap. Read in chat only (no card on either 1031
+  board, nothing sent). Short version: no price in the OM ("call for pricing"), it is far under the $3.5M box floor, the OM's own
+  expense lines don't add up to its NOI, taxes are clearly pre-sale, one unnamed tenant with ~3 years left. Numbers stay in chat (public repo).
 - 2026-11-11 ~7:30am ET, RESUME HERE: **82 Tortuga is signed** (Authentisign "Signing complete" Tue 5:34pm ET; Peter's "who signs"
   answered by the signing itself). **Nov 10 end-of-day said "102 of 25 · 300 answers": all 1031 broker emails (om_request / om_reply /
   om_rodrigo) were counted as house leads**; fixed in `end_of_day` (and the residential daily cap no longer counts om_reply / om_rodrigo),

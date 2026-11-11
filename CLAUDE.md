@@ -433,7 +433,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-11-11 ~11am ET, RESUME HERE: **Cameron Cauley (8100 Opportunity Dr, Milton; card 1220358628718111, Needs Me) got three emails from
+- 2026-11-10 ~10pm ET, RESUME HERE: **Cameron Cauley (8100 Opportunity Dr, Milton; card 1220358628718111, Needs Me) got three emails from
   Charles on his own**: two said his attachments "didn't come through" and re-asked for a T-12 he had said he can't give; the third (the fixed
   ask_books reply) asked for the books right after he asked for a call. Causes: the read never saw Charles's own earlier emails; fixed replies
   bypassed the call-request hold; no limit on how many times Charles answers one broker; his files never reached the engine (13 KB forward =

@@ -416,6 +416,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~7:30am ET, RESUME HERE: **Coral Shores: Rodrigo wants to pursue** ("I like the asset class, our investor could like this
+  asset"). He agrees the broker's P&L projection is not serious (manager-written, 12% teaser fee, flood-only insurance, no reserves, three
+  units imputed). A reply to Michael's post-NDA email is a DRAFT in Rodrigo's own Gmail (reply in that thread, Cc Michael's office address
+  + Charles@): thanks, we like the asset, the six missing items (wind/liability premiums, association budget / reserve study / assessments,
+  2024 storm claims, Aug–Oct 2026 + H2 2025 bookings per unit and the three never-rented units, condo docs / rental rules, why the April
+  contract fell through), one candid line on owner-side underwriting, no number, no dates. He sends it himself. Note on the card. Next:
+  when the documents land (they will come to rodrigo@ as Drive links again), read them in the cloud through the Drive connector and
+  update the 8-cap range on the card; then a DEAL SHEET comment with his offer / ceiling when he decides.
 - 2026-11-10 ~5:55pm ET, RESUME HERE: **Sleep Inn DeFuniak Springs (17834 State Hwy 285 S, Dennis Hopper / DSH; card 1220358635284810,
   Working Deals → Needs Revision)**: Rodrigo got the Revere CRE "Tier 1 Private files" and dropped them on the card as ONE ZIP (13 MB).
   Nobody could read it: the cloud cannot download Asana files or reach platform.reverecre.com, and `card_files` skipped `.zip`. Built:

@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~5pm ET, RESUME HERE: **331 John Ringling LOI cut to one page** (Rodrigo: "too complicated … that's what the actual
+  contract is for"): PDF on Titan letterhead sent in chat (not in the repo). Kept: price, deposit, due diligence, closing, as-is,
+  brokers, non-binding. Removed: assignment clause, seller-documents list, closing conditions, title / proration lines. He gave a
+  buyer-side agent (Disruptive Real Estate); I named her as Buyer's broker, unconfirmed. His rule for future LOIs: one page, simple.
+  The earlier Claude Doc is the long version and is stale. Nothing sent to Larry.
 - 2026-11-11 ~4:30pm ET, RESUME HERE: **331 John Ringling Blvd: LOI drafted for Rodrigo** as a Claude Doc
   (https://claude.ai/artifact/NpgKUmBjQECMw5P9u6RMCd; price and resale numbers are in the doc / chat, not here). Buyer = Titan and/or
   assigns; deposit / 30-day DD / 30-day close copied from the Byronessa offer as placeholders (he has not confirmed them); closing is

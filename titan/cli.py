@@ -719,6 +719,14 @@ def cmd_buyer_brief(cfg, args):
     out = cfg.path("reports") / "commercial" / f"buyer_brief_{today_et()}.pdf"
     print(build(conn, cfg, out))
 
+def cmd_commercial_site(cfg, args):
+    """Republish the 1031 page's data (deals.json → Blob) from this database now, without a pull (Rodrigo, 2026-11-11: the
+    process tab needs the Mac's conversations on the site)."""
+    from .commercial.site import publish
+    conn = _open(cfg)
+    out = publish(conn, cfg, today_et())
+    print(f"deals: {out.get('deals')} · uploaded: {out.get('uploaded')} · {out.get('url') or out.get('skipped') or out.get('error') or ''}")
+
 def cmd_books_review(cfg, args):
     """Rodrigo, 2026-11-09: read every broker answer + the books on file and put the read on the 1031 card. Runs on every
     round on its own; this runs it now (and --all redoes the latest review of every answered thread)."""
@@ -971,6 +979,7 @@ def main(argv: list[str] | None = None) -> int:
     cm.add_argument("--print-sample", action="store_true")
     cm.add_argument("--from-raw", nargs="*", default=None, help="score saved actor JSON files instead of pulling (raw/*.json)")
     cm.add_argument("--retry-details", action="store_true", help="with --from-raw: still try the detail sheets still missing (spends Apify credit)")
+    sub.add_parser("commercial-site", help="republish the 1031 page's data (deals.json) from this database, no pull")
     sub.add_parser("buyer-brief", help="one-page PDF for the 1031 buyer: numbers found, this week's plan, what we need from them")
     cb = sub.add_parser("commercial-blast", help="the no-cap question to every in-box broker without a cap rate: --build writes the queue, --list shows who is waiting")
     cb.add_argument("--build", action="store_true", help="rebuild data/commercial_queue/<today>.json from the stored listings")
@@ -1002,7 +1011,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
     return 0
 
 

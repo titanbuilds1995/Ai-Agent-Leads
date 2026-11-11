@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -121,6 +121,9 @@ commercial-round: ## one round of the 1031 board now: send the OM requests in "A
 
 om-strays:        ## find broker answers that came as a NEW email (not a reply) and put them on their 1031 cards; prints who
 	$(PY) -m titan.cli om-strays $(ARGS)
+
+site-1031:        ## republish the 1031 page's data from this Mac's database (no Apify spend): the process tab, deals, columns
+	$(PY) -m titan.cli commercial-site
 
 buyer-brief:      ## one-page PDF for the 1031 buyer and his agent: what we found, this week's plan, what we need from them → reports/commercial/
 	$(PY) -m titan.cli buyer-brief

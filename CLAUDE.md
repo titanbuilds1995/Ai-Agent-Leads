@@ -450,6 +450,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~1pm ET, RESUME HERE: **3956 W Colonial Dr, Orlando = Baymont by Wyndham Orlando Downtown (80 rooms, 1985; Rav Singh,
+  KW Commercial; LoopNet 38119858)**. Rodrigo uploaded what the broker sent: three STR reports (Dec 2024, Dec 2025, Aug 2026),
+  occupancy / rate only, no P&L. No card on either 1031 board (the broker's answer came as a new email to Charles@; the cloud can't
+  read it). Read in chat: the listing's stated cap can't be squared with the STR revenue; ask for the T-12 P&L, tax bill, insurance,
+  franchise term / PIP. Numbers stay in chat (public repo).
 - 2026-11-11 ~noon ET, RESUME HERE: **Rodrigo uploaded the OM for 1525 International Pkwy #2071, Lake Mary (Park Place at
   Heathrow, office condo, Matthew McKeever / Colliers)** and asked if it works at an 8 cap. Read in chat only (no card on either 1031
   board, nothing sent). Short version: no price in the OM ("call for pricing"), it is far under the $3.5M box floor, the OM's own

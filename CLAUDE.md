@@ -461,6 +461,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~4pm ET: Coral Shores: Rodrigo asked for the price that holds a true 8 cap with a 20% manager. Worked from the
+  Drive package (projection, Olivieri sheet, Bayside / Manatee reports) and given in chat only (numbers stay off this public repo).
+  Found: much of the Olivieri revenue is "Cash" (no platform record), so the email now asks for the deposits behind it.
 - 2026-11-11 ~3:30pm ET: Rodrigo asked what the Coral Shores reply to Michael Grant is missing. Checked against Michael's post-NDA
   email + the insurance certificates (Drive): told him to add unit-owner sign-off / how title transfers, the nine tax bills, permits for
   the renovations (AE zone, slab on grade, 2 prior flood claims per building: 50% rule), the 5% named-storm deductible, actual

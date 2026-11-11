@@ -444,12 +444,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   date alone, and the unread ones are picked up next round. `util.retry` waits 20 / 40 / 60 s on a quota error instead of 2–6 s. A Gmail client
   without `search_refs` (tests) still opens every thread. The residential reply check (`replies/inbox.py`) still opens every thread: same change
   is worth making there if the quota errors continue.
+- **The investor sees the PROCESS, not just the properties (Rodrigo, 2026-11-11: "sell him on the whole process … how many properties I
+  scouted through so he didn't have to … what properties I skipped … tenants that were not reliable or grade C, food trucks, month-to-month
+  … 40 minutes or closer to the nearest airport … owner operators … the process of elimination")**: `titan/commercial/process.py` builds a
+  `process` block into deals.json (`site.build_deals`), counts and reasons only (never a price, address or broker), so it stays in the
+  investor view. Tab **"The process"** on the 1031 page (`#process`, both views): headline "We went through N listings so you didn't have
+  to", tiles, **What we looked for** (criteria written from `commercial.buyer_box`; `commercial.process.criteria` = his own wording,
+  `commercial.process.note` = one paragraph), **The process of elimination** (one row per box rule from `box_note`, how many it took out,
+  what was left), **Then we talked to the brokers** (book requests, answered, within an hour, median hours, books, offers) and **Why we
+  dropped them after talking** (NOT A FIT / DOES NOT FIT reads bucketed by `DROP_REASONS` from the read + the broker's words: gone /
+  tenants (month-to-month, food trucks, class C, local credit) / owner-operator / won't hold the cap / outside the box / won't show the
+  books / other). The gallery head links to it. Published with every site publish (Mac); the Mac's database holds the conversations.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-11 ~3pm ET, RESUME HERE: **"The process" tab on the 1031 page built** (see Decisions → The investor sees the PROCESS). Checked
+  against the real Nov 9 pull in a scratch DB (1,290 pulled → 616 no price → 131 out by rule: 31 price, 36 asset type, 3 small MF, 3 cap
+  under floor, 3 land/business, 4 airport, 51 quality → 543 in the box); the conversation half (brokers emailed / answered / why dropped)
+  fills from the Mac's database on its next site publish (needs BLOB_READ_WRITE_TOKEN on the Mac; the cloud cannot publish). Vercel
+  serves the new tab once the default branch is deployed. Rodrigo said "12 cap" in passing; the box and every screen say 8 cap, so the
+  page says 8; `commercial.process.criteria` / `note` take his own wording. Not built: the process in the deals EMAIL. 372 tests.
 - 2026-11-11 ~7:30am ET, RESUME HERE: **82 Tortuga is signed** (Authentisign "Signing complete" Tue 5:34pm ET; Peter's "who signs"
   answered by the signing itself). **Nov 10 end-of-day said "102 of 25 · 300 answers": all 1031 broker emails (om_request / om_reply /
   om_rodrigo) were counted as house leads**; fixed in `end_of_day` (and the residential daily cap no longer counts om_reply / om_rodrigo),

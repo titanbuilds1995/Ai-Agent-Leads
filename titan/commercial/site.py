@@ -12,6 +12,7 @@ from .. import db
 from ..dashboard_sync import upload
 from ..util import iso, log, pretty_phone
 from .board import COLUMNS
+from .process import build_process
 from .why import photo_url, why_fits
 
 BLOB_PATH = "titan/deals.json"
@@ -79,7 +80,10 @@ def build_deals(conn, cfg: Any, run_date: str | None = None) -> dict[str, Any]:
                                     "om_request": clock.get(L["listing_id"]), "deal": deal, "listing_url": L.get("listing_url"), "asking": L.get("price")}
     counts = {c: sum(1 for d in deals if d["board_column"] == c) for c in COLUMNS}
     return {"generated_at": iso(), "run_date": run_date, "columns": COLUMNS, "investor_columns": investor_cols, "buyer_box": cfg.get("commercial.buyer_box", {}),
-            "counts": counts, "deals": deals, "private": private}
+            "counts": counts, "deals": deals, "private": private,
+            # Rodrigo, 2026-11-11: the investor sees the PROCESS (what we looked for, the funnel of elimination, the conversations),
+            # counts and reasons only, so it stays in the investor view (titan/commercial/process.py).
+            "process": build_process(conn, cfg)}
 
 
 def publish(conn, cfg: Any, run_date: str | None = None, session=None) -> dict[str, Any]:

@@ -1558,3 +1558,38 @@ def test_cameron_never_gets_the_same_ask_twice_and_a_call_request_or_lost_files_
     assert "the broker asked for a call" in read and "Can you please send us the books" not in read
     assert conn.execute("SELECT reply_kind FROM commercial_reviews ORDER BY id DESC").fetchone()[0] is None
     assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n1
+
+
+def test_process_block_tells_the_investor_how_we_got_here(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-11: the investor sees the process of elimination (counts + reasons, never a price or a broker)."""
+    from titan.commercial.process import classify_drop
+    from titan.commercial.site import build_deals
+    cfg.root = tmp_path
+    out = run(conn, cfg, apify=None, raw_rows=ROWS, push_asana=False, email=False, run_date="2026-11-07", today=TODAY)
+    now = "2026-11-09T15:00:00+00:00"
+    conn.execute("INSERT INTO commercial_threads (listing_id, broker_email, gmail_thread_id, sent_at, first_reply_at, hours_to_reply, reply_count, "
+                 "last_reply_text, state, created_at, updated_at) VALUES ('28440860','adam@trustrealtyusa.com','t1',?,?,0.5,1,"
+                 "'The tenants are all month to month and the food truck lot is cash. Not an 8 cap at our price.','REPLIED',?,?)", (now, now, now, now))
+    conn.execute("INSERT INTO commercial_threads (listing_id, broker_email, gmail_thread_id, sent_at, created_at, updated_at) VALUES ('x2','b@x.com','t2',?,?,?)", (now, now, now))
+    conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, verdict, text, created_at) VALUES (1,'28440860','NOT A FIT','🧠 READ FOR YOU · NOT A FIT\nRed flags:\n• month-to-month tenants',?)", (now,))
+    snap = build_deals(conn, cfg, "2026-11-07")
+    P = snap["process"]
+    f = P["funnel"]
+    assert f["total"] == conn.execute("SELECT COUNT(*) FROM commercial_listings").fetchone()[0] and f["in_box"] == out["counts"]["in_box"]
+    assert f["steps"][0]["remaining"] == f["total"] and f["steps"][-1]["remaining"] == f["in_box"]
+    assert f["total"] - f["undisclosed"] - sum(s["removed"] for s in f["steps"]) + f["undisclosed"] == f["in_box"]   # every listing lands in exactly one step
+    assert [c["title"] for c in P["criteria"]][0] == "The box" and any("airport" in c["title"] for c in P["criteria"])
+    t = P["talks"]
+    assert t["emailed"] == 2 and t["brokers"] == 2 and t["answered"] == 1 and t["within_hour"] == 1 and t["dropped"] == 1
+    assert t["drop_reasons"][0]["key"] == "tenants"
+    blob = json.dumps(P)
+    assert "adam@" not in blob and "$" not in blob.replace("$3.5M", "").replace("$8M", "")   # no broker, no listing price
+    # the buckets Rodrigo named
+    assert classify_drop("He runs the car wash himself, owner operated, business included") == "owner_operator"
+    assert classify_drop("Seller is firm on price and it will not get to an eight cap") == "cap"
+    assert classify_drop("Property went under contract last week") == "gone"
+    assert classify_drop("They will only share the T-12 after an accepted offer") == "books"
+    assert classify_drop("Thanks, call me") == "other"
+    cfg.raw["commercial"]["process"] = {"criteria": [{"title": "Mine", "text": "my words"}], "note": "hello"}
+    P2 = build_deals(conn, cfg, "2026-11-07")["process"]
+    assert P2["criteria"] == [{"title": "Mine", "text": "my words"}] and P2["note"] == "hello"

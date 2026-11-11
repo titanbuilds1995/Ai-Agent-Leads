@@ -34,3 +34,26 @@
 .deal-sheet { grid-column:1 / -1 } .deal-sheet h4 { margin:14px 0 4px; font-size:14px; color:var(--gold-ink) }
 .nums { width:100%; border-collapse:collapse; font-size:14px } .nums td { padding:6px 0; border-top:1px solid var(--line) } .nums td.num { text-align:right; font-variant-numeric:tabular-nums }
 .offer { grid-column:1 / -1; border-color:var(--navy) } .offer h3 { color:var(--navy) }
+
+/* the process (2026-11-11): the work behind the cards, for the investor */
+.process .phead { margin-bottom:26px } .process .phead h2 { font-size:34px; max-width:820px; line-height:1.1 }
+.process .lede { max-width:760px; color:var(--muted); margin-top:10px; font-size:15px; line-height:1.55 }
+.ptiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:18px }
+.ptiles.small { margin-top:12px } .ptiles.small .ptile .n { font-size:26px }
+.ptile { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px }
+.ptile .n { font-family:var(--serif); font-size:34px; line-height:1; color:var(--ink) } .ptile.gold .n { color:var(--gold-ink) }
+.ptile .l { margin-top:6px; font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint) }
+.pgrid { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:22px } @media (max-width:860px) { .pgrid { grid-template-columns:1fr } }
+.pcol { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:18px 20px; min-width:0 } .pcol h3 { font-size:21px; margin-bottom:6px } .pcol h4 { margin:16px 0 6px; font-size:14px; color:var(--gold-ink) }
+.crit { display:grid; gap:10px; margin-top:8px } .crit .c { border-left:3px solid var(--gold); padding:4px 0 4px 12px } .crit .c b { display:block; font-size:14.5px } .crit .c p { margin:2px 0 0; color:var(--muted); font-size:13.5px; line-height:1.5 }
+.funnel, .reasons { display:grid; gap:7px; margin-top:12px }
+.funnel .row, .reasons .row { display:grid; grid-template-columns:minmax(0,1.4fr) 56px minmax(0,1fr) 62px; align-items:center; gap:10px; font-size:13.5px }
+.reasons .row { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) 40px }
+.funnel .row.head, .funnel .row.foot { grid-template-columns:minmax(0,1.4fr) 56px minmax(0,1fr) 62px; border-top:1px solid var(--line); padding-top:7px }
+.funnel .row.head .rem { grid-column:4 } .funnel .row.head .cnt { grid-column:2 / 4 }
+.funnel .row.zero { color:var(--faint) } .funnel .cnt { font-family:var(--mono); font-size:12px; color:var(--bad); text-align:right } .funnel .row.zero .cnt { color:var(--faint) } .funnel .row.foot .cnt { color:var(--muted) }
+.funnel .rem, .reasons .rem { font-variant-numeric:tabular-nums; text-align:right; font-family:var(--serif); font-size:16px }
+.bar { height:10px; background:var(--sunk); border-radius:999px; overflow:hidden } .bar i { display:block; height:100%; background:var(--navy); border-radius:999px }
+.bar.gold i { background:var(--gold) } .bar.bad i { background:var(--bad) }
+.where-stand { display:flex; flex-wrap:wrap; gap:6px } .pfoot { margin-top:18px; font-size:12.5px }
+@media (max-width:520px) { .funnel .row, .funnel .row.head, .funnel .row.foot { grid-template-columns:minmax(0,1fr) 48px 50px } .funnel .bar { display:none } .process .phead h2 { font-size:26px } }

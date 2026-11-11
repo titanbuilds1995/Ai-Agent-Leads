@@ -448,3 +448,10 @@ commercial:
   site:
     url: ""                          # e.g. https://titan-dashboard.vercel.app (the email links point here; blank = LoopNet links)
     investor_columns: ["Good fit", "In touch with the agent", "Books received", "Offer out"]
+  # Rodrigo, 2026-11-11: the investor is shown the PROCESS, not just the properties ("how many properties I scouted through so he
+  # didn't have to, and what I skipped"): tab "The process" on the 1031 page, in both views (titan/commercial/process.py). The
+  # criteria are written from buyer_box; put your own wording here as a list of {title, text} to replace it. `note` is one
+  # paragraph in your words at the top of the page (blank = none).
+  process:
+    note: ""
+    criteria: []

@@ -33,6 +33,10 @@ function renderCols() {
   const nav = $("#cols"); nav.innerHTML = "";
   const all = document.createElement("button"); all.textContent = `All (${DATA.deals.length})`; all.className = COL === "all" ? "active" : ""; all.onclick = () => { COL = "all"; location.hash = ""; renderGallery(); renderCols(); };
   nav.appendChild(all);
+  if (DATA.process) {
+    const pr = document.createElement("button"); pr.textContent = "The process"; pr.className = COL === "process" ? "active" : "";
+    pr.onclick = () => { COL = "process"; location.hash = "process"; renderCols(); }; nav.appendChild(pr);
+  }
   for (const c of cols()) {
     const b = document.createElement("button"); b.textContent = `${c} (${counts[c] || 0})`; b.className = COL === c ? "active" : "";
     b.onclick = () => { COL = c; location.hash = ""; renderGallery(); renderCols(); }; nav.appendChild(b);
@@ -58,6 +62,7 @@ function card(d) {
 function renderGallery() {
   $("#detail").hidden = true; $("#gallery").hidden = false;
   const bb = DATA.buyer_box || {};
+  if (COL === "process") COL = "all";
   let deals = DATA.deals.filter(d => COL === "all" || d.board_column === COL);
   const sortBy = $("#sort") ? $("#sort").value : "score";
   const asset = $("#asset") ? $("#asset").value : "";
@@ -69,7 +74,7 @@ function renderGallery() {
   const assets = [...new Set(DATA.deals.map(d => d.asset_class).filter(Boolean))].sort();
   $("#gallery").innerHTML = `<div class="deals-head"><div><div class="eyebrow">${esc(DATA.view === "private" ? "Private · every column" : "For the 1031 buyer")}</div>
       <h2>${esc(COL === "all" ? "Commercial deals in Florida" : COL)}</h2>
-      <p class="muted">${money(bb.price_min)} to ${money(bb.price_max)} · stated cap ${bb.cap_min}% and up · existing, cash-flowing property · all of Florida. Click a card for the property.</p></div>
+      <p class="muted">${money(bb.price_min)} to ${money(bb.price_max)} · stated cap ${bb.cap_min}% and up · existing, cash-flowing property · all of Florida. Click a card for the property.${DATA.process && DATA.process.funnel ? ` <a href="#process">How we got from ${Number(DATA.process.funnel.total).toLocaleString("en-US")} listings to these →</a>` : ""}</p></div>
       <div class="filters"><select id="asset"><option value="">every asset type</option>${assets.map(a => `<option ${a === asset ? "selected" : ""}>${esc(a)}</option>`).join("")}</select>
       <select id="sort"><option value="score" ${sortBy === "score" ? "selected" : ""}>best first</option><option value="cap" ${sortBy === "cap" ? "selected" : ""}>highest cap</option><option value="price" ${sortBy === "price" ? "selected" : ""}>lowest price</option></select></div></div>
     ${deals.length ? `<div class="deals">${deals.map(card).join("")}</div>` : `<div class="empty">Nothing in this column yet.</div>`}`;
@@ -135,10 +140,65 @@ function renderDetail(id) {
   window.scrollTo(0, 0);
 }
 
+// The process (Rodrigo, 2026-11-11): what we looked for, the funnel of elimination and the broker conversations, so the investor
+// sees the work behind the cards, not just the cards. Counts and reasons only; the same block in both views.
+function bar(n, max, cls) { const w = max ? Math.max(1.5, 100 * n / max) : 0; return `<div class="bar ${cls || ""}"><i style="width:${w}%"></i></div>`; }
+function num(n) { return Number(n || 0).toLocaleString("en-US"); }
+function renderProcess() {
+  const P = DATA.process; if (!P) { renderGallery(); return; }
+  COL = "process"; renderCols();
+  const f = P.funnel || { steps: [], total: 0, in_box: 0 }, t = P.talks || {};
+  const removed = f.steps.filter(s => s.removed > 0);
+  const steps = f.steps.filter(s => s.key !== "pulled" && s.key !== "in_box");
+  const tile = (n, l, cls) => `<div class="ptile ${cls || ""}"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`;
+  const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "—";
+  const dropMax = Math.max(1, ...(t.drop_reasons || []).map(r => r.count));
+  const workCols = (DATA.view === "private" ? DATA.columns : DATA.investor_columns).filter(c => (t.columns || {})[c]);
+  $("#gallery").hidden = true; $("#detail").hidden = false;
+  $("#detail").innerHTML = `<button class="back" id="back">← all deals</button>
+    <section class="process">
+      <div class="phead"><div class="eyebrow" style="color:var(--gold-ink)">How we got here</div>
+        <h2>We went through ${num(f.total)} listings so you didn't have to.</h2>
+        <p class="lede">Every commercial listing for sale in Florida in your price range was pulled, screened against your criteria, and the brokers
+        behind the ones that fit were asked for the real numbers. What is on this site is what survived.${P.note ? " " + esc(P.note) : ""}</p>
+        <div class="ptiles">${tile(num(f.total), "listings scouted")}${tile(num(f.in_box), "fit the box on paper", "gold")}
+          ${t.brokers ? tile(num(t.brokers), "brokers we wrote to") : ""}${t.answered ? tile(num(t.answered), "brokers who answered") : ""}
+          ${t.dropped ? tile(num(t.dropped), "dropped after talking") : ""}${tile(num(t.still_working || 0), "still being worked", "gold")}</div></div>
+
+      <div class="pgrid">
+        <div class="pcol"><h3>What we looked for</h3>
+          <div class="crit">${(P.criteria || []).map(c => `<div class="c"><b>${esc(c.title)}</b><p>${esc(c.text)}</p></div>`).join("")}</div></div>
+        <div class="pcol"><h3>The process of elimination</h3>
+          <p class="muted">From every listing pulled to the ones that fit the box. Each line is one rule and how many it took out.</p>
+          <div class="funnel">
+            <div class="row head"><span class="lab">${esc(f.steps[0] ? f.steps[0].label : "Listings pulled")}</span><span class="cnt"></span><span class="rem">${num(f.total)}</span></div>
+            ${steps.map(s => `<div class="row ${s.removed ? "" : "zero"}"><span class="lab">${esc(s.label)}</span><span class="cnt">${s.removed ? "−" + num(s.removed) : "—"}</span>
+                ${bar(s.remaining, f.total, "rem")}<span class="rem">${num(s.remaining)}</span></div>`).join("")}
+            <div class="row foot"><span class="lab">In the box</span><span class="cnt">${pct(f.in_box, f.total)} of all</span>${bar(f.in_box, f.total, "gold")}<span class="rem"><b>${num(f.in_box)}</b></span></div>
+          </div></div>
+      </div>
+
+      ${t.emailed ? `<div class="pgrid">
+        <div class="pcol"><h3>Then we talked to the brokers</h3>
+          <p class="muted">A fit on paper is not a fit. Every broker behind an in-box listing was asked for the trailing twelve, the rent roll and the real cap rate. Who answers, and how fast, tells you who is serious.</p>
+          <div class="ptiles small">${tile(num(t.emailed), "book requests sent")}${tile(num(t.answered), "answered · " + pct(t.answered, t.emailed))}
+            ${t.within_hour ? tile(num(t.within_hour), "answered within an hour") : ""}${t.median_hours != null ? tile(t.median_hours + " h", "median time to answer") : ""}
+            ${t.books_received ? tile(num(t.books_received), "sent us their books", "gold") : ""}${t.offers_out ? tile(num(t.offers_out), "offers out", "gold") : ""}</div></div>
+        <div class="pcol"><h3>Why we dropped them after talking</h3>
+          <p class="muted">${t.dropped ? `${num(t.dropped)} of the ${num(t.read)} conversations read so far ended here.` : "Nothing dropped yet."}</p>
+          <div class="reasons">${(t.drop_reasons || []).map(r => `<div class="row"><span class="lab">${esc(r.label)}</span>${bar(r.count, dropMax, "bad")}<span class="rem">${num(r.count)}</span></div>`).join("")}</div>
+          ${workCols.length ? `<h4>Where the rest stand</h4><div class="where-stand">${workCols.map(c => `<span class="pill">${esc(c)} · ${num(t.columns[c])}</span>`).join(" ")}</div>` : ""}</div>
+      </div>` : ""}
+      <p class="muted pfoot">Counts come from the engine's own database at the time this page was published${DATA.generated_at ? " (" + esc(new Date(DATA.generated_at).toLocaleDateString()) + ")" : ""}. No property is shown here that we did not screen ourselves.</p>
+    </section>`;
+  $("#back").onclick = () => { location.hash = ""; };
+  window.scrollTo(0, 0);
+}
+
 function route() {
   if (!DATA) return;
   const id = location.hash.replace("#", "");
-  if (id) renderDetail(id); else renderGallery();
+  if (id === "process") renderProcess(); else if (id) renderDetail(id); else renderGallery();
 }
 window.addEventListener("hashchange", route);
 $("#loginform").onsubmit = async ev => {

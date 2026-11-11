@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 evening, RESUME HERE: Coral Shores: Rodrigo set his underwriting at **15% management and a 2% reserve** (units just
+  renovated) and asked for a buyer version of the brief with nothing that identifies the property. Built as a second private Claude
+  artifact (link in chat; numbers stay off this public repo): what rents today, value at an 8 cap as income is added (units, then docks
+  and guest services), the extra income streams, verified vs outstanding, risks. No name, address, city, broker, asking price or our
+  price on it. He still has not sent Michael the document request; no investor price chosen yet.
 - 2026-11-11 ~4:45pm ET, RESUME HERE: Coral Shores: Rodrigo likes the deal and asked for a visual rundown he can show his investor.
   Built a private investor brief as a Claude artifact (link given in chat; numbers stay off this public repo): what we hold vs what is
   outstanding (15 / 22), Jan-Jun income per unit, 8-cap price in three cases at a 20% manager, upside, risks. No asking price, broker

@@ -540,6 +540,8 @@ def cmd_approvals(cfg, args):
         from .commercial.working import wrap as working_board
         email_asana, asana = asana, working_board(cfg, asana)   # 2026-11-10: the 1031 board + Working Deals seen as one board
         stage("commercial_bootstrap", lambda: bootstrap(conn, cfg, c["apify"]))   # once: load the cloud's pull from Apify, build the blast queue
+        from .commercial.asana_push import refresh_cards
+        stage("card_format", lambda: refresh_cards(conn, cfg, asana))   # 2026-11-11: older cards get the agent-first name + formatted description, once
         from .commercial.card_files import pull_card_files
         stage("card_files", lambda: pull_card_files(conn, cfg, asana, c["llm"]))   # files he drops on a 1031 card are read FIRST (before notes)
         from .commercial.card_notes import handle_notes

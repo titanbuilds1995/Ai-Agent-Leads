@@ -228,10 +228,12 @@ def test_asana_cards_top_tier_and_needs_om_once(conn, cfg, tmp_path):
     assert res["cards"] == len(specs) >= 2 and len(asana.tagged) == res["cards"]
     new = [t for g, t in asana.tasks.items() if asana.where[g] == asana.ensure_section("proj-1031", "New")]
     assert len(new) == len(specs)                                   # every card lands in New; Rodrigo sorts them by dragging
-    top = [t for t in new if not t["name"].startswith("OM request")]
-    om = [t for t in new if t["name"].startswith("OM request")]
-    assert len(top) == 1 and "OFFER ANCHOR: $4,500,000" in top[0]["notes"] and "Broker: Jane Roe" in top[0]["notes"]
-    assert om and "=== EMAIL (what will be sent) ===" in om[0]["notes"] and "Titan Realty Investments" in om[0]["notes"]
+    om = [t for t in new if "=== EMAIL (what will be sent) ===" in t["notes"]]
+    top = [t for t in new if t not in om]
+    assert len(top) == 1 and "Offer anchor $4,500,000" in top[0]["notes"] and "Jane Roe" in top[0]["notes"]
+    assert top[0]["name"] == "Jane Roe · NNN · Lakeland · $4.5M · 8.4% cap"       # agent first, key facts, no score (Rodrigo, 2026-11-11)
+    assert "<strong>THE NUMBERS</strong>" in top[0]["html_notes"] and "OM request" not in top[0]["name"]
+    assert om and "Titan Realty Investments" in om[0]["notes"] and "https://www.loopnet.com/Listing/" in om[0]["notes"]
     assert push(conn, cfg, asana, ranked)["cards"] == 0            # idempotent
     conn.execute("UPDATE commercial_listings SET asana_task_id=NULL, asana_om_task_id=NULL")   # another machine's DB: the board itself says no
     assert push(conn, cfg, asana, ranked)["cards"] == 0
@@ -1344,3 +1346,36 @@ def test_in_touch_holds_only_brokers_who_answered(conn, cfg, tmp_path):
                              "internal_ts": SAT_10AM_ET.timestamp() + 3 * 3600, "label_ids": [], "attachments": []})
     out = poll_om_replies(conn, cfg, gm, asana, now=SAT_10AM_ET)
     assert out["replies"] == 1 and out["parked"] == 0 and asana.where[gid] == secs[IN_TOUCH]
+
+
+def test_refresh_cards_renames_and_formats_older_cards_once(conn, cfg):
+    """Rodrigo, 2026-11-11: agent-first names and a readable description on every card already on the boards; the email block and
+    the "also asked" line survive, a card is touched once, nothing moves."""
+    from titan.commercial.asana_push import card_name, card_notes, refresh_cards
+    from titan.commercial.board import ensure_board
+    from titan.commercial.run import store
+    L = {**clean_listing(listing_id="4242", listing_url="https://www.loopnet.com/Listing/2502-Tamarind-Dr/4242/", broker_name="Adriana Montes MBA",
+                         asset_class="hotel", property_type="Hospitality", city="Hutchinson Island", price=4_999_999, stated_cap=8.34, stated_noi=416_774,
+                         tenancy=None, lease_type=None, remaining_term_years=None, occupancy=3.0),
+         **scoring.score(clean_listing(listing_id="4242", asset_class="hotel", price=4_999_999, stated_cap=8.34, stated_noi=416_774), cfg), "region": "Treasure Coast"}
+    store(conn, L, "2026-11-09")
+    asana = Fake1031Asana()
+    secs = ensure_board(asana, "proj-1031")
+    cfg.raw["commercial"]["asana"]["project"] = "proj-1031"
+    cfg.raw["commercial"]["asana"]["working_project"] = None
+    old = card_notes(cfg, L, with_email=True) + "\n\nThe email also asked about listing(s) 77, 78."
+    gid = asana.create_task("proj-1031", secs["Needs Me"], "OM request · 48 · HOTEL · 2502 Tamarind Dr, Hutchinson Island · $4,999,999 · 8.34% cap", old)["gid"]
+    conn.execute("INSERT INTO commercial_threads (listing_id, card_gid, broker_email, sent_at, state, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                 ("4242", gid, "jane@roe.com", "2026-11-09T16:41:00", "SENT", "2026-11-09T16:41:00", "2026-11-09T16:41:00"))
+    out = refresh_cards(conn, cfg, asana)
+    t = asana.tasks[gid]
+    assert out["updated"] == 1
+    assert t["name"] == card_name(L) == "Adriana Montes · Hotel · Hutchinson Island · $5.0M · 8.3% cap"
+    assert "<strong>THE NUMBERS</strong>" in t["html_notes"] and "<strong>BROKER</strong>" in t["html_notes"]
+    assert "OM REQUEST</strong> · sent 2026-11-09" in t["html_notes"]
+    from titan.commercial.outreach import parse_om_card
+    pc = parse_om_card(t["notes"])
+    assert pc and pc["to"] == "jane@roe.com" and pc["listing_id"] == "4242" and "Titan Realty Investments" in pc["body"]
+    assert "The email also asked about listing(s) 77, 78." in t["notes"]
+    assert asana.where[gid] == secs["Needs Me"]
+    assert refresh_cards(conn, cfg, asana)["updated"] == 0           # once per card

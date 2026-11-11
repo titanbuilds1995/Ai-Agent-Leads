@@ -58,6 +58,13 @@ class Asana:
         it to plain `notes` too, with the text and line breaks kept, so parse_card() keeps working on the result."""
         self._req("PUT", f"/tasks/{task}", json={"data": {"html_notes": html_notes}})
 
+    def rename(self, task: str, name: str) -> None:
+        self._req("PUT", f"/tasks/{task}", json={"data": {"name": name}})
+
+    def update_card(self, task: str, name: str, html_notes: str) -> None:
+        """Name + formatted description in one call (the 1031 cards, 2026-11-11)."""
+        self._req("PUT", f"/tasks/{task}", json={"data": {"name": name, "html_notes": html_notes}})
+
     def delete_story(self, story: str) -> None:
         """Remove one of the engine's own comments (Rodrigo, 2026-11-02: old bot comments are noise). Only the author can."""
         self._req("DELETE", f"/stories/{story}")

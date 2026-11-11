@@ -350,22 +350,17 @@ def park_unanswered(conn, asana, secs: dict[str, str]) -> int:
 
 def _card_for_thread(conn, cfg: Any, asana, project: str, section: str, t: dict[str, Any]) -> str | None:
     """A blast email got a real answer: now the listing earns its card (no card was made when the email went out)."""
-    from .asana_push import card_name, card_notes
-    row = conn.execute("SELECT data FROM commercial_listings WHERE listing_id=?", (t["listing_id"],)).fetchone()
-    try:
-        L = json.loads(row[0]) if row and row[0] else {}
-    except json.JSONDecodeError:
-        L = {}
+    from .asana_push import create_card, listing_for
+    L = listing_for(conn, t["listing_id"])
     if not L:
         return None
-    L.setdefault("listing_id", t["listing_id"])
     try:
         ids = json.loads(t.get("listing_ids") or "[]")
     except json.JSONDecodeError:
         ids = []
-    extra = f"\n\nThe email also asked about listing(s) {', '.join(i for i in ids if i != t['listing_id'])}." if len(ids) > 1 else ""
+    extra = f"The email also asked about listing(s) {', '.join(i for i in ids if i != t['listing_id'])}." if len(ids) > 1 else ""
     try:
-        made = asana.create_task(project, section, "OM request · " + card_name(L), card_notes(cfg, L, with_email=False) + extra)
+        made = create_card(asana, project, section, cfg, L, with_email=False, extra=extra)
     except Exception as e:  # noqa: BLE001
         log.error("card for thread %s failed: %s", t.get("id"), e)
         return None

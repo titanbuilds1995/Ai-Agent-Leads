@@ -21,11 +21,18 @@ class FakeAsana:
         self.where[gid], self.stories[gid] = section, []
         return {"gid": gid}
 
+    def create_task_html(self, project, section, name, html_notes):
+        gid = self.create_task(project, section, name, "")["gid"]
+        self.update_html_notes(gid, html_notes)
+        return {"gid": gid}
+
     def update_notes(self, task, notes): self.tasks[task]["notes"] = notes
     def update_html_notes(self, task, html):            # Asana renders html_notes to plain notes: tags off, text and lines kept
         import html as h, re
         self.tasks[task]["html_notes"] = html
-        self.tasks[task]["notes"] = h.unescape(re.sub(r"<hr/>", "-" * 40, re.sub(r"</?(?!hr)[a-z]+/?>", "", html))).strip()
+        self.tasks[task]["notes"] = h.unescape(re.sub(r"<hr/>", "-" * 40, re.sub(r"</?(?!hr)[a-z]+(?: [^>]*)?/?>", "", html))).strip()
+    def rename(self, task, name): self.tasks[task]["name"] = name
+    def update_card(self, task, name, html): self.rename(task, name); self.update_html_notes(task, html)
     def delete_story(self, gid): self.deleted = getattr(self, "deleted", []) + [gid]
     def attach(self, task, path, name=None): self.attachments.append((task, name, path.exists()))
     def section_tasks(self, section): return [dict(t) for g, t in self.tasks.items() if self.where[g] == section]

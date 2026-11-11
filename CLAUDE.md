@@ -461,6 +461,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 ~4:30pm ET, RESUME HERE: **331 John Ringling Blvd: LOI drafted for Rodrigo** as a Claude Doc
+  (https://claude.ai/artifact/NpgKUmBjQECMw5P9u6RMCd; price and resale numbers are in the doc / chat, not here). Buyer = Titan and/or
+  assigns; deposit / 30-day DD / 30-day close copied from the Byronessa offer as placeholders (he has not confirmed them); closing is
+  conditioned on both leases signed, NNN and estoppels. Nothing sent: he sends it to Larry himself. Next: when he sends it, a DEAL SHEET
+  comment on card 1220358917981163 and the card to Offer out.
 - 2026-11-11 ~4pm ET, RESUME HERE: **331 John Ringling Blvd, Sarasota (Larry Starr, card 1220358917981163, Working Deals → Needs Me)**:
   Rodrigo asked what price makes it a true 8 cap; answered in chat from the reads on the card (three cases: both leases signed NNN /
   landlord carries tax + insurance / only the first tenant in place; numbers are on the card, not here). Lease type and whether Space 2

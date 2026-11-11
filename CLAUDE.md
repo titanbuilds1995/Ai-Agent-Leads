@@ -461,6 +461,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-11 night: Coral Shores buyer brief edited at Rodrigo's word (same private artifact): the earlier failed contract is no
+  longer mentioned (he was told it will surface in DD and to answer straight if asked), the price is shown as negotiable and the
+  buy-in cap as a range on today's income. Told him the top of that range means a price under his own lock-up target.
 - 2026-11-11 night, RESUME HERE: Coral Shores: Rodrigo gave the plan: show the buyer now (documents will not arrive before DD),
   buyer target price near the ask, he tries to lock it up lower and assign (figures in chat / on the artifact, not in this public repo).
   Buyer brief rebuilt on the same private artifact link: why we believe in it, what we know today, then projections marked as

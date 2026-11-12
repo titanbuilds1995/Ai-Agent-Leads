@@ -490,7 +490,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 383 pass.
+- 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.
   NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
   (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).
   Sending is still paused and Charles still silent; this only changes what gets drafted. Open for Rodrigo: should the reader also

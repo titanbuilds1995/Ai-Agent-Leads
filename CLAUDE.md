@@ -475,6 +475,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~7:30am ET: morning check only, no code change. Report arrived 7:00am; sending still paused (0 sent Nov 11). Flags posted on
+  Claude Updates: FRESH_DEAL ARVs run 1.4–1.7x the ask (11 fresh deals look inflated), Opendoor / beycome / big brokerages on the HOT
+  list, stale leads (Milton under contract, Aldo bounced), 34 new Fresh Leads cards are templates (no Claude analysis, 3rd day).
 - 2026-11-11 evening, RESUME HERE: **Charles is fully silent** (Rodrigo: "have Charles stop all of the email conversations and the
   threads that he has going on right now"). `commercial.delay_note.enabled: false` on top of `outreach.sending_paused: true`: nothing
   goes to any agent or broker, not even the sorry-for-the-delay note (the "one exception" in Decisions → ALL SENDING PAUSED is OFF).

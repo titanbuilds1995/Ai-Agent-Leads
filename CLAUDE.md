@@ -16,6 +16,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   to merge the PR). Work left on a side branch is invisible to the next session.
 - Keep replies short and plain. Rodrigo is not a developer; give him exact commands to paste.
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
+- **Two agents on anything that answers a person (Rodrigo, 2026-11-12: "I want this to be saved for any agent that we build, also
+  for our MLS deals for single family homes").** Every agent we build that writes to an agent, broker, seller or anyone outside,
+  on any pipeline (single-family / MLS houses, 1031 commercial, whatever comes next), works as a pair: one writes, a SECOND reader
+  that did not write it reads the whole thread plus the draft and pushes back on the logic before it reaches a card or goes out.
+  Use `titan/second_read.py` (`second_read.run(llm, cfg, case, draft, rewrite)`), don't build a new one; show its "⚖️ Second read"
+  line where Rodrigo sees the draft; what it did not clear never goes on its own. Details: Decisions → Two agents on every answer.
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -490,6 +496,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~9:30am ET: the two-agent rule is now a standing rule for every agent on every pipeline (Rules for every session).
+  House (MLS single-family) replies already run through it; first emails and follow-ups still do not (question open with Rodrigo).
 - 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.
   NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
   (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).

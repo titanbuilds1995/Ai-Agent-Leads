@@ -520,6 +520,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~4pm ET: Rodrigo saw no change on the board: the Mac's redraw only started at 3:43pm ET (40 cards a round, newest first,
+  so the old Nov 2 cards at the top of Fresh Leads come last). First redrawn cards showed the comps notes as raw code and a
+  "(template…)" hypothesis: fixed (`comp_note_lines`), VERSION bumped so every card is redrawn once more.
 - 2026-11-12 ~11am ET, RESUME HERE: **daily Fresh Leads clean-up built** (see Decisions → Fresh Leads is cleaned every morning).
   Runs on the Mac every morning from tomorrow (5:30am run-daily); `make clean-board` on the Mac runs it now. Not verified live: the cloud
   cannot reach realtor.com, so the first real run is the test (watch for "Board clean-up" comments on cards moved to Skip, and the run

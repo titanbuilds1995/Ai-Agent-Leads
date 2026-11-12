@@ -46,3 +46,11 @@ def test_older_cards_are_reformatted_once_keeping_his_edits(loaded, cfg, tmp_pat
     assert t["name"] != "Old name · 1 Main St, Miami"
     again = house_card.refresh_cards(loaded, cfg, asana, limit=500)
     assert again["formatted"] == 0
+
+
+def test_comp_notes_read_in_plain_words():
+    notes = '{"grade": {"grade": "B", "why": ["$/sf spread is wide (26%)"]}, "basis": "median $/sf of the 5 renovated sales", "dropped": ["162 × wrong size"], "flags": ["waterfront"]}'
+    lines = house_card.comp_note_lines(notes)
+    assert lines == ["ARV from the median $/sf of the 5 renovated sales", "$/sf spread is wide (26%)", "Watch: waterfront", "Ruled out: 162 wrong size"]
+    html = house_card.card_html([{"comp_grade": "B", "comp_notes": notes}], {"name": "X"}, {"hypothesis": "(template: no Claude analysis)"}, "")
+    assert "{" not in html.split("DO WE BELIEVE IT?")[1].split("THE HOUSE")[0] and "WHY THIS HOUSE" not in html

@@ -22,7 +22,7 @@ START, END = "-----EMAIL-----", "-----END EMAIL-----"   # same markers approvals
 
 log = logging.getLogger(__name__)
 
-VERSION = "2026-11-12"
+VERSION = "2026-11-12b"   # bump = every card is redrawn once more
 FOOTER = "Comment to change it · drag to Approved to send (business hours) · or edit the text between the EMAIL lines yourself."
 
 TYPE_LABEL = [
@@ -123,17 +123,40 @@ def _numbers(p: dict[str, Any]) -> list[str]:
     return out
 
 
+def comp_note_lines(notes: Any) -> list[str]:
+    """valuations.comp_notes (the comps engine's JSON dict) in plain words: what the ARV rests on and what was ruled out."""
+    if isinstance(notes, str):
+        try:
+            notes = json.loads(notes) if notes.strip() else {}
+        except ValueError:
+            return [x for x in re.split(r"\s*[;\n]\s*", notes) if x]
+    if isinstance(notes, list):
+        return [str(x) for x in notes if x]
+    if not isinstance(notes, dict):
+        return []
+    out = []
+    if notes.get("basis"):
+        out.append("ARV from the " + str(notes["basis"]))
+    g = notes.get("grade")
+    for why in (g.get("why") if isinstance(g, dict) else None) or []:
+        out.append(str(why))
+    for r in notes.get("reasons") or []:
+        out.append(str(r))
+    if notes.get("discount_pct"):
+        out.append(f"ARV cut {notes['discount_pct']:g}% for the layout / condition above")
+    if notes.get("flags"):
+        out.append("Watch: " + ", ".join(str(f).replace("_", " ") for f in notes["flags"]))
+    if notes.get("dropped"):
+        out.append("Ruled out: " + ", ".join(str(d).replace(" × ", " ") for d in notes["dropped"]))
+    for n in notes.get("notes") or []:
+        out.append(str(n))
+    return out
+
+
 def _believe(p: dict[str, Any]) -> list[str]:
     g = (p.get("comp_grade") or "").upper()
     out = [f"<li>Comps grade <strong>{_e(g)}</strong> · {_e(GRADE_MEANING.get(g, ''))}</li>" if g else "<li>Comps grade: not graded yet</li>"]
-    notes = p.get("comp_notes")
-    if isinstance(notes, str) and notes.strip():
-        try:
-            parsed = json.loads(notes)
-            notes = parsed if isinstance(parsed, list) else [str(parsed)]
-        except ValueError:
-            notes = [x for x in re.split(r"\s*[;\n]\s*", notes) if x]
-    for n in (notes or [])[:4]:
+    for n in comp_note_lines(p.get("comp_notes"))[:5]:
         out.append(f"<li>{_e(n)}</li>")
     return out
 
@@ -163,7 +186,7 @@ def _house(p: dict[str, Any]) -> list[str]:
 def _why(analysis: dict[str, Any] | None) -> list[str]:
     a = analysis or {}
     out = []
-    if a.get("hypothesis"):
+    if a.get("hypothesis") and not str(a["hypothesis"]).startswith("(template"):
         out.append(f"<li><strong>Hypothesis:</strong> {_e(a['hypothesis'])}</li>")
     if a.get("rehab_level"):
         out.append(f"<li><strong>Likely rehab:</strong> level {_e(a['rehab_level'])} of 5</li>")

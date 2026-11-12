@@ -555,7 +555,7 @@ def cmd_approvals(cfg, args):
         alert_gmail_down(cfg, asana, int(out["send"]["waiting"]))
     stage("feedback", lambda: sync_feedback(conn, cfg, asana, c["llm"], c["gmail"]))
     from .house_card import refresh_cards as refresh_house_cards
-    stage("house_card_format", lambda: refresh_house_cards(conn, cfg, asana))   # 2026-11-12: older house cards in the 1031 layout, once each
+    stage("house_card_format", lambda: refresh_house_cards(conn, cfg, asana, limit=int(cfg.get("outreach.asana.house_cards_per_round", 400))))   # 2026-11-12: older house cards in the 1031 layout, once each, all in one round (Rodrigo: do the older cards too)
     if c["llm"] is not None and getattr(c["llm"], "available", False):   # Rodrigo, 2026-10-27: waiting cards that still ask how much
         from .approvals import rewrite_pending                             # work a photographed listing needs get rewritten, 15 a tick
         stage("photo_rule_rewrites", lambda: rewrite_pending(conn, cfg, asana, c["llm"], violating_only=True, limit=15))

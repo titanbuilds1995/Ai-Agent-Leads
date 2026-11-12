@@ -504,7 +504,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (comps grade A–D + notes) / THE HOUSE / WHY THIS HOUSE (the engine's read) / AGENT, then FIRST EMAIL (plain To / Subject / EMAIL
   markers / "(outreach #N)", so parse_card and the sender work as before). Rewrites redraw the whole card (`rerender`); answered
   leads show the same sections under WHERE WE STAND (`lead_card_html` with props). Approvals stage `house_card_format` refreshes
-  older cards once each, 40 a round (`card_format` table): waiting cards keep the text on the card (his hand edits), sent cards show
+  older cards once each, all in one round (`card_format` table): waiting cards keep the text on the card (his hand edits), sent cards show
   what went out, cards in conversation are only renamed (lead_board draws their description).
 - **Fresh Leads is cleaned every morning (Rodrigo, 2026-11-12: "cleaning our board daily for leads that already went under contract
   or are no longer available that are on fresh leads")**: `titan/board_clean.py`, run-daily step `board_clean` (after ingest, 5:30am
@@ -520,6 +520,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~4:05pm ET: Rodrigo wants the older cards redrawn too, now: the house-card redraw does every card in ONE round (limit
+  `outreach.asana.house_cards_per_round`, 400) instead of 40 a round. Next approvals round on the Mac (or `make approvals-now`) does all.
 - 2026-11-12 ~4pm ET: Rodrigo saw no change on the board: the Mac's redraw only started at 3:43pm ET (40 cards a round, newest first,
   so the old Nov 2 cards at the top of Fresh Leads come last). First redrawn cards showed the comps notes as raw code and a
   "(template…)" hypothesis: fixed (`comp_note_lines`), VERSION bumped so every card is redrawn once more.

@@ -514,10 +514,96 @@ def format_review(r: dict[str, Any], books_note: str | None = None, auto_reply: 
             head = "Charles's reply (goes out at the next round on its own; comment 'hold' here to stop it):"
         else:
             head = "Charles's reply (not sent; comment 'send it' on this card and it goes at the next round):"
-        out += ["", head, "", r["reply_draft"].strip()]
+        from ..second_read import line as second_line
+        out += ([""] + [second_line(r["_second"])] if r.get("_second") else []) + ["", head, "", r["reply_draft"].strip()]
     if books_note:
         out += ["", books_note]
     return "\n".join(out)
+
+
+REPLY_FIX_SYSTEM = """You are Charles Grant, junior acquisitions agent at Titan Realty Investments. You drafted a reply to a commercial
+broker about a listing we are screening for a 1031 exchange we are placing with a partner of ours. A second reader checked your
+draft against the whole conversation and found logic problems. Write the reply again so every one of them is fixed.
+
+Rules (Rodrigo's, all hard):
+- Answer what the broker actually said. Never ask for anything he already sent, already answered or said he cannot provide, and
+  never repeat anything we already sent him.
+- Never say something did not arrive or was not received, never ask him to resend.
+- Never a price. Never "our buyer", "our client" or "our investor" (say "a partner of ours").
+- No date, deadline or timeframe, and no commitment (proof of funds, signing an NDA / CA / LOI / contract, a deposit, "we will
+  send", "we can provide").
+- 30 to 80 words, plain and direct. Start "Hey <first name>," on its own line. End with these lines, each on its own line:
+  Charles Grant / Junior Acquisitions Agent / Titan Realty Investments / Office Line: +1 (561) 405 7379
+- If the problems mean no email should go from Charles at all (the broker asked for a call, needs a decision from Rodrigo), return
+  an empty reply."""
+REPLY_FIX_SCHEMA = {"type": "object", "properties": {"reply": {"type": "string"}}, "required": ["reply"], "additionalProperties": False}
+
+
+def reader_case(conn, L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]],
+                r: dict[str, Any] | None = None, instruction: str | None = None, fixed_text: bool = False) -> dict[str, Any]:
+    """What the second reader gets for a 1031 broker thread: every email both ways in order, what is on file, our read."""
+    from ..replies.clean import clean_reply
+    thread = [{"from": "broker", "when": m.get("created_at") or "", "text": clean_reply(_no_disclaimer(m.get("body") or ""))[:3000]} for m in msgs]
+    if t.get("gmail_thread_id") or t.get("card_gid"):
+        who = {"om_request": "Charles (our first email, the request for the books)", "om_reply": "Charles", "om_rodrigo": "Rodrigo (principal, wrote himself)"}
+        for row in conn.execute("SELECT kind, body, sent_at FROM outreach WHERE status='sent' AND kind IN ('om_request','om_reply','om_rodrigo') "
+                                "AND (gmail_thread_id=? OR asana_task_id=?) ORDER BY sent_at, id",
+                                (t.get("gmail_thread_id") or "-", t.get("card_gid") or "-")).fetchall():
+            thread.append({"from": who.get(row[0], "Charles"), "when": row[2] or "", "text": (row[1] or "")[:2500]})
+    thread.sort(key=lambda m: m["when"])
+    try:
+        att = json.loads(t.get("attachments") or "[]")
+    except json.JSONDecodeError:
+        att = []
+    case = {"who": f"commercial broker {t.get('broker_name') or ''} <{t.get('broker_email') or ''}>",
+            "what_we_want": "the real trailing numbers (T-12, rent roll, OM) to check an 8 percent cap or better; Charles never states a "
+                            "price, a date or a commitment, Rodrigo decides those",
+            "listing": _listing_block(L), "thread": thread,
+            "documents_we_have_from_them": sorted({str(f.get("filename") or f.get("name") or "") for f in list(att) + list(files)} - {""}),
+            "documents_they_linked_not_opened": [u for m in msgs for u in doc_links(m.get("body") or "")]}
+    if r:
+        case["our_read_of_their_answer"] = {k: r.get(k) for k in ("verdict", "what_they_said", "next_step", "needs_rodrigo")}
+    if instruction:
+        case["rodrigo_instruction"] = instruction
+    if fixed_text:
+        case["fixed_text"] = ("This draft is one of Rodrigo's fixed replies; the words cannot be changed. Judge only whether THIS fixed "
+                              "reply is the right thing to send to THIS broker now. SEND or HOLD, never FIX.")
+    return case
+
+
+def second_read_reply(conn, cfg: Any, llm, L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]],
+                      r: dict[str, Any]) -> None:
+    """Two agents (Rodrigo, 2026-11-12): the reply about to go on the card (Claude's draft or a fixed reply) is read against the
+    whole thread by the second reader. A draft it objects to is rewritten and read again; whatever is still in doubt, and any
+    fixed reply that does not fit, waits for Rodrigo. Sets r['_second'] and may change r['reply_draft'] / needs_rodrigo."""
+    from .. import second_read
+    draft = (r.get("reply_draft") or "").strip()
+    if not draft or not second_read.enabled(cfg):
+        return
+    fixed = bool(r.get("reply_kind"))
+    case = reader_case(conn, L, t, msgs, files, r, fixed_text=fixed)
+    state = {"draft": draft}
+
+    def rewrite(pushback: list[str]) -> str | None:
+        user = json.dumps({**case, "your_draft": state["draft"], "second_reader_pushback": pushback}, ensure_ascii=False, default=str)
+        out = llm.structured("commercial_reply_rewrite", REPLY_FIX_SYSTEM, user, REPLY_FIX_SCHEMA, max_tokens=1200)
+        new = ((out or {}).get("reply") or "").strip()
+        if new and "Charles Grant" in new and not commits_us(new):
+            state["draft"] = new
+            return new
+        return None
+
+    final, review = second_read.run(llm, cfg, case, draft, None if fixed else rewrite)
+    if review is None:
+        return
+    r["_second"] = review
+    r["reply_draft"] = final
+    if review.get("verdict") == "FIX" and fixed:
+        review["verdict"] = "HOLD"
+    if not second_read.passed(review):
+        r["needs_rodrigo"] = True
+        r["reply_kind"] = None       # a fixed reply the second reader stopped is no longer one that goes on its own
+        r["red_flags"] = list(r.get("red_flags") or []) + ["Held for you: the second reader did not clear Charles's reply (see below)."]
 
 
 def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict[str, str] | None = None, no_reply: bool = False,
@@ -579,6 +665,13 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     if kind:     # Rodrigo's own words beat the drafted reply for these three cases (2026-11-10)
         r["reply_draft"], r["reply_kind"] = template_reply(kind, _first_name(t.get("broker_name"), t.get("broker_email")), cfg, **opts,
                                                            street=L.get("street"), seed=int(t.get("id") or 0)), kind
+    try:
+        second_read_reply(conn, cfg, llm, L, t, msgs, files, r)
+    except Exception as e:  # noqa: BLE001 — a failed second read holds the reply, never the round
+        log.warning("second read %s: %s", t.get("listing_id"), e)
+        if (r.get("reply_draft") or "").strip():
+            r["_second"] = {"verdict": None}
+            r["needs_rodrigo"], r["reply_kind"] = True, None
     text = format_review(r, books_note, auto_reply=bool(cfg.get("commercial.review.auto_reply", False)))
     body = "\n".join((m.get("body") or "") for m in msgs)
     dead = r["verdict"] == "NOT A FIT" or bool(DEAD_RE.search((msgs[-1].get("body") or "") if msgs else ""))

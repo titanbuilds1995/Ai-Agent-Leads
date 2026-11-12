@@ -80,7 +80,8 @@ def _strip_send(text: str) -> str:
     return (text[:m.start()] if m else text).strip().rstrip(",.;")
 
 
-def write_email(cfg: Any, llm, t: dict[str, Any], listing: dict[str, Any], msgs: list[dict[str, Any]], note: str) -> str | None:
+def write_email(cfg: Any, llm, t: dict[str, Any], listing: dict[str, Any], msgs: list[dict[str, Any]], note: str,
+                pushback: list[str] | None = None, previous: str | None = None) -> str | None:
     """Charles's email from Rodrigo's note. A dictation is used as written when Claude is unreachable; anything else waits."""
     from ..replies.clean import clean_reply
     from .books_review import _first_name
@@ -90,7 +91,10 @@ def write_email(cfg: Any, llm, t: dict[str, Any], listing: dict[str, Any], msgs:
         convo = "\n".join(f"--- {m.get('created_at')} broker:\n{clean_reply(m.get('body') or '')[:1500]}" for m in msgs[-3:])
         user = (f"Property: {listing.get('street') or ''}, {listing.get('city') or ''}. Broker: {t.get('broker_name') or ''} "
                 f"<{t.get('broker_email') or ''}> (first name: {first}).\n\nThe broker's latest messages:\n{convo or '(none yet)'}\n\n"
-                f"Rodrigo's note:\n{note}\n\nWrite the email now.")
+                f"Rodrigo's note:\n{note}\n\n"
+                + (f"Your previous draft:\n{previous or ''}\n\nA second reader checked it against the whole conversation and found these "
+                   f"logic problems. Fix them and still say what Rodrigo asked:\n- " + "\n- ".join(pushback) + "\n\n" if pushback else "")
+                + "Write the email now.")
         try:
             out = llm.structured("commercial_note_reply", SYSTEM, user, SCHEMA, max_tokens=2000)
         except Exception as e:  # noqa: BLE001
@@ -259,6 +263,29 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
             continue
         go = send_after_rewrite(notes)
         kind = "note_send" if go else "note"
+        # two agents (Rodrigo, 2026-11-12): the second reader checks it against the whole thread. His own words are read, never
+        # rewritten; his "send it" stands, the objection is shown on the card.
+        from .. import second_read
+        from .books_review import _files, reader_case
+        second = None
+        try:
+            L, msgs = _listing(conn, t["listing_id"]), _messages(conn, t["id"])
+            own_words = bool(GREETING_RE.search(_strip_send(note).split("\n", 1)[0] or ""))
+            latest = {"email": email}
+
+            def again(pushback: list[str]) -> str | None:
+                new = write_email(cfg, llm, t, L, msgs, note, pushback=pushback, previous=latest["email"])
+                if new and not (BANNED_RE.search(new) and not BANNED_RE.search(note)):
+                    latest["email"] = new
+                    return new
+                return None
+            email, second = second_read.run(llm, cfg, reader_case(conn, L, t, msgs, _files(cfg, t["listing_id"]), instruction=_strip_send(note)),
+                                            email, None if own_words else again)
+        except Exception as e:  # noqa: BLE001
+            log.warning("second read of note reply %s: %s", t.get("listing_id"), e)
+        second_txt = second_read.line(second)
+        if second_txt and go and not second_read.passed(second):
+            second_txt += " It still goes because you said send it; comment 'hold' to stop it."
         last = conn.execute("SELECT verdict FROM commercial_reviews WHERE thread_id=? ORDER BY id DESC LIMIT 1", (t["id"],)).fetchone()
         text = "✍️ From your note" + (" (goes out at the next round)" if go else " (not sent: drag the card to \"Approved · send OM request\" or comment 'send it')")
         conn.execute("INSERT INTO commercial_reviews (thread_id, listing_id, gmail_message_id, verdict, needs_rodrigo, text, source, reply_draft, "
@@ -266,7 +293,7 @@ def handle_notes(conn, cfg: Any, asana, llm=None, now=None) -> dict[str, Any]:
                      (t["id"], t["listing_id"], t.get("gmail_message_id"), last[0] if last else None, 0, text, "note", email, kind, iso(now),
                       iso(now), iso(now), iso(now)))
         conn.execute("UPDATE commercial_threads SET notes_seen_at=? WHERE id=?", (max(c.get("created_at") or "" for c in new), t["id"]))
-        asana.comment(t["card_gid"], f"{text}:\n\n{email}")
+        asana.comment(t["card_gid"], f"{text}:\n\n{email}" + (f"\n\n{second_txt}" if second_txt else ""))
         res["drafted"] += 1
         done_revising(t["card_gid"])
     return res

@@ -589,11 +589,27 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         if where == a["approved"]:
             answers.hold(conn, cfg, asana, card["outreach_id"], gid)     # never send what he is still changing
         draft_card = {**card, "body": ans["body"], "subject": card["subject"] if card["subject"].lower().startswith("re:") else answers.answer_subject(row, props)}
-        out, problems = revise(conn, cfg, llm, draft_card, [instruction] if instruction != text else feedback, props, is_reply=True)
+        fb = [instruction] if instruction != text else feedback
+        out, problems = revise(conn, cfg, llm, draft_card, fb, props, is_reply=True)
         body = out["body"] if out and not problems else None
+        second = None
+        if body:      # two agents (Rodrigo, 2026-11-12): the second reader checks the rewrite against the whole thread
+            from . import second_read
+            from .replies.writer import reader_case
+            latest = {"body": body}
+
+            def again(pushback: list[str]) -> str | None:
+                o, pr = revise(conn, cfg, llm, {**draft_card, "body": latest["body"]}, fb + [
+                    "A second reader checked this draft against the whole conversation. Fix these logic problems and keep Rodrigo's change: "
+                    + " | ".join(pushback)], props, is_reply=True)
+                if o and not pr:
+                    latest["body"] = o["body"]
+                    return o["body"]
+                return None
+            body, second = second_read.run(llm, cfg, reader_case(conn, row, agent, props, instruction=instruction), body, again)
     else:
-        from .replies.writer import write_answer
-        body, problems = write_answer(conn, cfg, llm, row, agent, props, instruction=instruction)
+        from .replies.writer import write_checked
+        body, problems, second = write_checked(conn, cfg, llm, row, agent, props, instruction=instruction)
     if not body:
         _held_once(asana, comments, gid, f"{FAILED_PREFIX} ({', '.join(problems)}). I'll retry on the next round; you can also write the "
                                          "email in a comment (\"Answer with: …\") or edit the EMAIL lines on the card yourself.")
@@ -613,8 +629,21 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
     asana.comment(gid, ("Revised based on your comment: the NEXT EMAIL on this card (picture attached). " if ans else
                         "Wrote Charles's answer from your comment: it is the NEXT EMAIL on this card (picture attached). ")
                   + ("You said send it: it is in Approved and goes out at the next send round." if go else
-                     "Moved to Needs Me: drag this card to Approved to send it, or comment more changes."))
+                     "Moved to Needs Me: drag this card to Approved to send it, or comment more changes.")
+                  + _second_line(second, go))
     n["revised"] += 1
+
+
+def _second_line(second: dict[str, Any] | None, go: bool) -> str:
+    """The second reader's verdict on an answer written from Rodrigo's comment. His "send it" stands (it is his email); an
+    objection is shown so he can pull the card out of Approved."""
+    from . import second_read
+    txt = second_read.line(second)
+    if not txt:
+        return ""
+    if go and not second_read.passed(second):
+        txt += " It still sends because you said send it; drag the card out of Approved to stop it."
+    return "\n\n" + txt
 
 
 def _squash_text(text: str) -> str:

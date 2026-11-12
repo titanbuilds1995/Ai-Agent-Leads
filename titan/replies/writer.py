@@ -44,6 +44,9 @@ Rules (Rodrigo's, all hard):
 - End with the signature block from the input, unchanged.
 - If rodrigo_instruction is present, it is Rodrigo's instruction for THIS reply (what to ask or say, what to change): follow it
   exactly; it may ask several things and overrides the one-question rule. Never add a price or number he did not state.
+- If second_reader_pushback is present, a second reader checked your previous draft (previous_draft) against the whole thread and
+  found these logic problems. Fix every one of them in this version (drop what they already answered, answer what they actually
+  asked, ask the question that moves it forward); keep everything else and every rule above.
 
 === VOICE PROTOCOL ===
 {voice}
@@ -99,7 +102,8 @@ def waiting_threads(conn) -> list[dict[str, Any]]:
 
 
 def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any], props: list[dict[str, Any]],
-                 cls: str | None = None, instruction: str | None = None) -> tuple[str | None, list[str]]:
+                 cls: str | None = None, instruction: str | None = None, pushback: list[str] | None = None,
+                 previous: str | None = None) -> tuple[str | None, list[str]]:
     """Charles's next email to this agent from the whole thread (and Rodrigo's instruction when he gave one).
     (body, problems): body is None when Claude is unreachable or the text failed the checks twice."""
     from ..learning import learned_block
@@ -117,7 +121,9 @@ def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any]
                                                              "year_built", "property_type", "remarks", "photos_count")} for p in props],
                        "signature_block": signature(cfg), "may_ask_how_much_work": may_ask_how_much_work(props),
                        "rodrigo_notes_on_this_lead": lead_notes(conn, row["agent_id"]),
-                       **({"rodrigo_instruction": instruction} if instruction else {})}, ensure_ascii=False, default=str)
+                       **({"rodrigo_instruction": instruction} if instruction else {}),
+                       **({"second_reader_pushback": pushback, "previous_draft": previous or ""} if pushback else {})},
+                      ensure_ascii=False, default=str)
     body, problems = None, ["no answer from Claude"]
     for _ in range(2):
         out = llm.structured("draft_reply", system, user, REPLY_SCHEMA, max_tokens=900)
@@ -130,6 +136,42 @@ def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any]
         if not problems:
             return body, []
     return None, problems
+
+
+def reader_case(conn, row: dict[str, Any], agent: dict[str, Any], props: list[dict[str, Any]], cls: str | None = None,
+                instruction: str | None = None) -> dict[str, Any]:
+    """What the second reader gets for a house lead: the whole conversation, the listing facts, Rodrigo's notes and instruction."""
+    from ..card_chat import lead_notes
+    case = {"who": f"listing agent {agent.get('name') or ''} ({agent.get('brokerage') or 'brokerage unknown'}), residential listing",
+            "house_rules": "The reply must not contain a price, range or offer (Rodrigo decides numbers per house); a holding answer "
+                           "with one question is correct when they ask for an offer. With 4+ listing photos we never ask how much work it needs.",
+            "their_last_message_class": cls, "thread": _thread_text(conn, row["agent_id"]),
+            "properties": [{k: p.get(k) for k in ("street", "city", "list_price", "days_on_market", "price_cuts", "beds", "baths", "sqft",
+                                                  "year_built", "property_type", "remarks", "photos_count")} for p in props],
+            "rodrigo_notes_on_this_lead": lead_notes(conn, row["agent_id"])}
+    if instruction:
+        case["rodrigo_instruction"] = instruction
+    return case
+
+
+def write_checked(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any], props: list[dict[str, Any]],
+                  cls: str | None = None, instruction: str | None = None) -> tuple[str | None, list[str], dict[str, Any] | None]:
+    """Two agents (Rodrigo, 2026-11-12): Charles writes, the second reader reads the whole thread and the draft and pushes back on
+    the logic, Charles rewrites, it is read again. (body, problems, review); review as in `second_read.run` (None = switched off)."""
+    from .. import second_read
+    body, problems = write_answer(conn, cfg, llm, row, agent, props, cls=cls, instruction=instruction)
+    if not body:
+        return None, problems, None
+    state = {"draft": body}
+
+    def rewrite(pushback: list[str]) -> str | None:
+        new, _ = write_answer(conn, cfg, llm, row, agent, props, cls=cls, instruction=instruction, pushback=pushback, previous=state["draft"])
+        if new:
+            state["draft"] = new
+        return new
+
+    body, review = second_read.run(llm, cfg, reader_case(conn, row, agent, props, cls, instruction), body, rewrite)
+    return body, [], review
 
 
 def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, Any]:
@@ -154,7 +196,7 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
             pids = json.loads(row["property_ids"] or "[]")
             props = [db.row_to_dict(r) for r in conn.execute(
                 f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
-            body, problems = write_answer(conn, cfg, llm, row, agent, props, cls=msg.get("classification"))
+            body, problems, second = write_checked(conn, cfg, llm, row, agent, props, cls=msg.get("classification"))
             if not body:
                 log.warning("answer for agent %s not written: %s", w["agent_id"], problems)
                 n["failed"] += 1
@@ -162,6 +204,12 @@ def draft_reply_cards(conn, cfg: Any, asana, llm, limit: int = 5) -> dict[str, A
             needs_number = msg.get("classification") in ("ASK_FOR_OFFER", "COUNTER_WITH_NUMBER")
             note = ("They asked for a number: this is a holding answer only. Comment \"offer N\" here when you decide." if needs_number
                     else "Charles's draft from the conversation so far.")
+            from .. import second_read
+            note = (note + " " + second_read.line(second)).strip()
+            if second is not None:
+                n["second_read"] = n.get("second_read", 0) + 1
+                if not second_read.passed(second):
+                    n["second_read_objects"] = n.get("second_read_objects", 0) + 1
             gid = set_answer(conn, cfg, asana, row["id"], body, note=note)
             if gid:
                 conn.execute("UPDATE messages SET reply_card=?, reply_draft=? WHERE id=?", (gid, body, msg["id"]))

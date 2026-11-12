@@ -469,12 +469,32 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   from our side after the broker's answer stops it. Once per broker (`commercial_kv delay_note:<email>`), 20 a round, logged as
   `om_reply` variant `delay_note`, so it counts as Charles's one answer in that thread. Residential agents get nothing (Rodrigo
   handles those himself).
+- **Two agents on every answer (Rodrigo, 2026-11-12: "I want another agent to look at it and read the thread and test the logic …
+  one answers, one reads the whole thing and reads the email we have and pushes back on the actual logic")**: `titan/second_read.py`,
+  config `outreach.second_read` (`enabled`, `max_rounds` 2). Every answer Charles drafts is read by a SECOND Claude call (purpose
+  `second_read`, paid API, one extra call per draft) that gets the whole conversation both ways, the property / listing facts, what is
+  on file, Rodrigo's instruction, and the draft. It judges LOGIC only (does it answer what they said, re-ask what they gave / answered /
+  refused, contradict us, assume a fact nobody stated, is an email the right move now); wording stays with the validators. Verdicts
+  SEND · FIX (the writer gets the pushback, rewrites, it is read again) · HOLD (Rodrigo's move). Where: house replies
+  (`replies.writer.write_checked`, used by `draft_reply_cards` and by answers written or rewritten from his lead-card comment), 1031
+  broker replies (`books_review.second_read_reply`: Claude's draft is rewritten by `commercial_reply_rewrite`; a FIXED reply
+  (books_ack / ask_books / pass) cannot be rewritten, so the reader only says whether it fits this thread), and emails written from his
+  note on a 1031 card (`card_notes`). The card shows one "⚖️ Second read: …" line (agrees / agrees after N rewrites + what it pushed
+  back on / still objects / says HOLD / not done). **Nothing the reader did not clear goes on its own**: 1031 reply → NEEDS YOU, waits
+  for "send it" (a stopped fixed reply loses its auto kind); reader unreachable = not cleared. **His own "send it" still sends** (his
+  email, his call): the objection is shown and he can pull it. His dictated words are read, never rewritten. Not covered: first emails
+  and the "Good morning" follow-up (no conversation to check), the fixed delay note.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 383 pass.
+  NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
+  (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).
+  Sending is still paused and Charles still silent; this only changes what gets drafted. Open for Rodrigo: should the reader also
+  check first emails and follow-ups, and should it be able to stop an email he himself said "send it" on (today it only warns).
 - 2026-11-12 ~7:30am ET: morning check only, no code change. Report arrived 7:00am; sending still paused (0 sent Nov 11). Flags posted on
   Claude Updates: FRESH_DEAL ARVs run 1.4–1.7x the ask (11 fresh deals look inflated), Opendoor / beycome / big brokerages on the HOT
   list, stale leads (Milton under contract, Aldo bounced), 34 new Fresh Leads cards are templates (no Claude analysis, 3rd day).

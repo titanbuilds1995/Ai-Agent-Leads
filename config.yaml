@@ -167,6 +167,12 @@ outreach:
   # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only mail to Rodrigo
   # himself still goes (the "sorry for the delay" note was switched off the same evening, see commercial.delay_note). Turn off only when he says.
   sending_paused: true
+  # Two agents on every answer (Rodrigo, 2026-11-12): Charles writes, a SECOND Claude call reads the whole thread + the draft and
+  # pushes back on the logic (re-asking what they gave, not answering what they asked, wrong email for the moment). The writer
+  # rewrites up to max_rounds times; what the reader still doubts is shown on the card and never goes out on its own.
+  second_read:
+    enabled: true
+    max_rounds: 2
   daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
   max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
   daily_sms_cap: 25

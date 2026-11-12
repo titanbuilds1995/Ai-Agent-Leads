@@ -18,6 +18,7 @@ FIXTURES = ROOT / "tests" / "fixtures"
 def cfg():
     c = config_mod.load(ROOT / "config.yaml", env_path=FIXTURES / "nonexistent.env", force=True)
     c["outreach"]["sending_paused"] = False     # the pause switch has its own tests; everything else tests the engine running
+    c["outreach"]["second_read"]["enabled"] = False   # the second reader has its own tests (tests/test_second_read.py)
     return c
 
 

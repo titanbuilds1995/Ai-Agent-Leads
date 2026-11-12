@@ -167,6 +167,13 @@ outreach:
   # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only mail to Rodrigo
   # himself still goes (the "sorry for the delay" note was switched off the same evening, see commercial.delay_note). Turn off only when he says.
   sending_paused: true
+  # Daily Fresh Leads clean-up (Rodrigo, 2026-11-12): every morning each house on a Fresh Leads card is looked up on realtor.com
+  # (HomeHarvest, free, Mac only); pending / under contract / sold / off market -> card to Skip, email never sent (board_clean.py).
+  board_clean:
+    enabled: true
+    max_checks: 300          # realtor.com lookups per run (one address each)
+    pause_seconds: 1.0       # between lookups
+    stop_after_errors: 5     # realtor.com blocking us: stop, change nothing
   # Two agents on every answer (Rodrigo, 2026-11-12): Charles writes, a SECOND Claude call reads the whole thread + the draft and
   # pushes back on the logic (re-asking what they gave, not answering what they asked, wrong email for the moment). The writer
   # rewrites up to max_rounds times; what the reader still doubts is shown on the card and never goes out on its own.

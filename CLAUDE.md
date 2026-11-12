@@ -506,12 +506,24 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   leads show the same sections under WHERE WE STAND (`lead_card_html` with props). Approvals stage `house_card_format` refreshes
   older cards once each, 40 a round (`card_format` table): waiting cards keep the text on the card (his hand edits), sent cards show
   what went out, cards in conversation are only renamed (lead_board draws their description).
+- **Fresh Leads is cleaned every morning (Rodrigo, 2026-11-12: "cleaning our board daily for leads that already went under contract
+  or are no longer available that are on fresh leads")**: `titan/board_clean.py`, run-daily step `board_clean` (after ingest, 5:30am
+  on the Mac; by hand `make clean-board`, `make clean-board-list` prints only). Every house on a Fresh Leads card is looked up on
+  realtor.com (HomeHarvest single-address search, free, Mac only; the cloud is blocked). All houses on the card pending / contingent /
+  under contract / sold / withdrawn / expired → card to Skip with one "Board clean-up" comment, its email `skipped` (never sends),
+  the house EXCLUDED (no new email). One of two houses gone → card stays, one comment. A failed or unclear lookup changes nothing.
+  These moves are not his votes (`learning.OFF_MARKET`, left out of the trust ladder). Config `outreach.board_clean`. Only Fresh
+  Leads; Needs Me / Sent / Answered are not touched.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~11am ET, RESUME HERE: **daily Fresh Leads clean-up built** (see Decisions → Fresh Leads is cleaned every morning).
+  Runs on the Mac every morning from tomorrow (5:30am run-daily); `make clean-board` on the Mac runs it now. Not verified live: the cloud
+  cannot reach realtor.com, so the first real run is the test (watch for "Board clean-up" comments on cards moved to Skip, and the run
+  summary line; "every realtor.com lookup failed" means HomeHarvest is blocked on the Mac too). 394 tests.
 - 2026-11-12 ~10am ET, RESUME HERE: **guard against "the signed document is attached" when nothing is** (see Decisions → Nothing
   "attached" that isn't). Eric Cederman's thread is not fixed by this (the email is out); Rodrigo should send Eric the signed document
   himself or correct it. If a real document must go, Rodrigo sends it; Charles's email never mentions it. 389 tests.

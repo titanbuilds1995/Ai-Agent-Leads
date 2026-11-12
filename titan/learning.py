@@ -25,6 +25,7 @@ from .asana import BOT
 from .util import iso, log, now_utc, parse_iso
 
 APPROVED_AS_IS, APPROVED_EDITED, SKIPPED, AUTO = "approved_as_is", "approved_edited", "skipped", "auto"
+OFF_MARKET = "off_market"   # board_clean moved it: the house sold / went pending; not a vote on the email
 CONTROL_PREFIX = "⚙ Autopilot"
 REVISED_PREFIX = f"{BOT} Revised based on your comment"
 AUTO_COMMENT = "Autopilot:"
@@ -139,8 +140,8 @@ def scan_board(conn, cfg: Any, asana) -> dict[str, int]:
 def rate(conn, kind: str, window: int) -> dict[str, Any]:
     """Share of Rodrigo's last `window` decisions on this kind of card that were 'approved as written'.
     Autopilot sends are not votes; skips and edits count against."""
-    rows = conn.execute("SELECT decision FROM card_decisions WHERE kind=? AND decision != ? ORDER BY decided_at DESC, id DESC LIMIT ?",
-                        (kind, AUTO, window)).fetchall()
+    rows = conn.execute("SELECT decision FROM card_decisions WHERE kind=? AND decision NOT IN (?, ?) ORDER BY decided_at DESC, id DESC LIMIT ?",
+                        (kind, AUTO, OFF_MARKET, window)).fetchall()
     d = [r[0] for r in rows]
     as_is = d.count(APPROVED_AS_IS)
     return {"decided": len(d), "as_is": as_is, "edited": d.count(APPROVED_EDITED), "skipped": d.count(SKIPPED),

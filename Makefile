@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -80,6 +80,12 @@ follow-ups:       ## Good morning follow-up (same thread) to every agent who nev
 
 books-review:     ## read every broker answer + the books on file for Rodrigo now (runs on every round on its own); make books-review ARGS=--all redoes them
 	$(PY) -m titan.cli books-review $(ARGS)
+
+clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / off market move to Skip (runs every morning too)
+	$(PY) -m titan.cli clean-board
+
+clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
+	$(PY) -m titan.cli clean-board --list
 
 comps-loop:       ## comp-quality loop now: back-test the comp rules on real sales, tune, re-value the board, Claude review
 	$(PY) -m titan.cli comps-loop

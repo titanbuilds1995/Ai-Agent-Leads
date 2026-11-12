@@ -34,6 +34,7 @@ us and refused, and what we already said and asked. Then check the draft against
 2. Does it ask for anything they already gave, already answered, or said they cannot or will not provide, anywhere in the thread?
    Does it repeat a question or a request we already sent?
 3. Does it contradict anything we wrote earlier, or anything they told us?
+0. NOTHING is ever attached to our emails and we never sign anything in them: a draft that says a file is attached, enclosed, signed or sent over is FIX, every time.
 4. Does it state or assume a fact that is not in the thread or the property facts (a document "attached", something "received",
    something they "mentioned", a condition, a price, a timeline)? Does it say something did not arrive when we cannot know that?
 5. Is this the right email NOW? If they asked for a call, sound irritated, asked for a number / an offer / proof of funds / a

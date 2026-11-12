@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
@@ -115,6 +116,13 @@ class GmailClient:
 
     def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None,
              cc: list[str] | None = None, html: str | None = None, attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        # Rodrigo, 2026-11-12 (Eric Cederman): an email to an outside address that says a file is attached or signed, with
+        # nothing attached, never leaves. No override: not "send it", not autopilot, not a fixed reply.
+        if not _own_domain(to, self.sender):
+            from ..claims import UnbackedClaim, unbacked_claims
+            bad = unbacked_claims(body, attachments)
+            if bad:
+                raise UnbackedClaim(bad)
         message = self._mime(to, subject, body, in_reply_to, cc=cc, html=html, attachments=attachments)
         if thread_id:
             message["threadId"] = thread_id
@@ -192,6 +200,13 @@ class GmailClient:
                 "date": headers.get("date"), "internal_ts": int(m.get("internalDate", 0)) // 1000,
                 "body": _plain_body(m.get("payload", {})), "label_ids": m.get("labelIds", []),
                 "attachments": _attachment_parts(m.get("payload", {}))}
+
+
+def _own_domain(to: str, sender: str) -> bool:
+    """Every recipient is on our own domain (reports and forwards to Rodrigo)."""
+    dom = (sender or "").rpartition("@")[2].lower()
+    addrs = re.findall(r"[\w.+-]+@([\w.-]+)", to or "")
+    return bool(dom) and bool(addrs) and all(a.lower() == dom for a in addrs)
 
 
 def _attachment_parts(payload: dict[str, Any]) -> list[dict[str, Any]]:

@@ -178,6 +178,7 @@ Rules:
   SENT". If the broker says he attached files and DOCUMENTS ON FILE is empty, do not mention it to him at all: next step
   "NEEDS YOU: his files did not reach us, check Charles's inbox", reply empty.
 - When the broker asks for a call, the reply is empty and the next step is "NEEDS YOU: call <name> at <number>".
+- NOTHING IS EVER ATTACHED to Charles's emails and Charles never signs anything (Rodrigo, 2026-11-12, Eric Cederman). Never write "attached", "enclosed", "please find", "signed copy", "I've signed", "sent it over": the email is stopped at send if it does. If a signed document has to go, the email does not mention it; Rodrigo sends the file himself.
 - Charles sees ONLY this thread. Never say something did not arrive, was not received or did not come through, and never ask
   them to resend: invitations (Box, Dropbox, DocuSign) come as separate emails he cannot see, and the files may be on the card.
 - NEVER put a date, deadline or timeframe in Charles's reply (no "45 days", no closing or identification timing, no "this week",
@@ -757,6 +758,15 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1
             log.warning("comments for %s: %s", r["card_gid"], e)
+            continue
+        from ..claims import STOP_PREFIX, stop_message, unbacked_claims
+        bad = unbacked_claims(r.get("reply_draft") or "")
+        if bad:      # 2026-11-12 (Eric Cederman): it says something is attached / signed and nothing is. Never sent, even on "send it"
+            res["waiting"] += 1
+            res["stopped"] = res.get("stopped", 0) + 1
+            if not any(STOP_PREFIX in (c.get("text") or "") and (not c.get("created_at") or c["created_at"] >= (r.get("created_at") or ""))
+                       for c in comments):         # told once per draft, not every round
+                asana.comment(r["card_gid"], stop_message(bad))
             continue
         # simple replies and Rodrigo's three fixed replies go on their own; NEEDS YOU, and any thread he is writing in himself, wait for him
         go = _auto_sends({**r, "_rodrigo": bool(r.get("rodrigo_at"))}, auto)

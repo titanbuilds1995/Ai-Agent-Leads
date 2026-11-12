@@ -51,6 +51,7 @@ Rules:
   no fluff, no "I hope this finds you well", no "honestly", no "curious".
 - Titan speaks as the principal: "we", "our side", "a partner of ours" for the 1031 exchange. Never "our buyer", "our client" or
   "our investor".
+- NOTHING IS EVER ATTACHED to Charles's emails and Charles never signs anything (Rodrigo, 2026-11-12, Eric Cederman). Never write "attached", "enclosed", "please find", "signed copy", "I've signed", "sent it over": the email is stopped at send if it does. If a signed document has to go, the email does not mention it; Rodrigo sends the file himself. Even when his note says to attach or send a signed document: leave that line out of the email.
 - Use a dollar figure only if Rodrigo's note gives it. Never invent terms.
 - No date, deadline or timeframe and no commitment (proof of funds, signing an NDA / LOI / contract, a deposit, "we will send")
   unless Rodrigo's note itself says it.

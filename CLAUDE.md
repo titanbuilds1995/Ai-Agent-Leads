@@ -484,12 +484,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   for "send it" (a stopped fixed reply loses its auto kind); reader unreachable = not cleared. **His own "send it" still sends** (his
   email, his call): the objection is shown and he can pull it. His dictated words are read, never rewritten. Not covered: first emails
   and the "Good morning" follow-up (no conversation to check), the fixed delay note.
+- **Nothing "attached" that isn't (Rodrigo, 2026-11-12, Eric Cederman: "we told them we would attach a signed document and we did
+  not")**: Charles never attaches or signs anything. `titan/claims.py` `unbacked_claims()` finds "attached", "enclosed", "please
+  find", "signed NDA / CA / copy", "I've signed", "sent it over" in our own words (quoted history and signature ignored). It is
+  checked inside `GmailClient.send` for every email to an outside address with no file on it and raises `UnbackedClaim`: **nothing
+  overrides it, not his "send it", not autopilot, not a fixed reply**. The house approvals send and the 1031 reply send check first:
+  the card gets one "STOPPED, not sent" comment (house card → Needs Me), never retried as is. Every writer prompt (house replies,
+  1031 reads, card notes) and the second reader say the same. Mail to our own domain (forwards with the real files) is not checked.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~10am ET, RESUME HERE: **guard against "the signed document is attached" when nothing is** (see Decisions → Nothing
+  "attached" that isn't). Eric Cederman's thread is not fixed by this (the email is out); Rodrigo should send Eric the signed document
+  himself or correct it. If a real document must go, Rodrigo sends it; Charles's email never mentions it. 386 tests.
 - 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.
   NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
   (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).

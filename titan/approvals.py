@@ -907,6 +907,14 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             asana.comment(t["gid"], "Not sent: this agent asked not to be contacted.")
             asana.move(t["gid"], a["skip"])
             continue
+        from .claims import stop_message, unbacked_claims
+        bad = unbacked_claims(card["body"])
+        if bad:       # 2026-11-12 (Eric Cederman): says a file is attached / signed and nothing is. Never sent; back to him
+            asana.comment(t["gid"], stop_message(bad))
+            asana.move(t["gid"], nm)
+            res.setdefault("stopped", 0)
+            res["stopped"] += 1
+            continue
         try:
             if card.get("reply_to"):      # an answer: same Gmail thread as the email it answers
                 ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"), **({"cc": card["cc"]} if card.get("cc") else {}))

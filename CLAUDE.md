@@ -490,6 +490,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~1:30pm ET, RESUME HERE: **Not-a-fit audit (Rodrigo: "make sure we did not miss anyone that said they could be
+  negotiable")**. All 152 cards in Not a fit (1031 board + Working Deals, completed ones included) read from the brokers' own words;
+  read-only, nothing moved, nothing sent. About 15 were dismissed although the broker named a lower price, said negotiable / "some
+  room", or stated a cap at or near 8 (list given to Rodrigo in chat; numbers stay off this public repo). Strongest: Tyler Sluman
+  (Sarasota), Nathan Eissler (Alachua), Eric Edwards (Naples), Jack Davis (Jacksonville hotel), Steve McGregor (Orlando), Curt Ware
+  (Siesta Key), Bill Mills (Vero Beach). Waiting on Rodrigo: which ones to reopen into Needs Me and whether to write them. Engine
+  gaps seen, NOT fixed: (1) `closeout` cleared cards whose read was CAN'T TELL YET / LEANS FIT / NEEDS YOU and rules-only reads;
+  (2) no negotiability check (a broker saying "negotiable / room / can be bought for X / make an offer" should be NEEDS YOU, never a
+  pass); (3) the sold / under-contract pass wording ("congrats on getting it done") went to ~10 brokers whose property is not sold;
+  (4) brokers promised an answer "within 24 hours" were cleared with none; (5) four brokers say the office line rings dead.
 - 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.
   NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
   (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).

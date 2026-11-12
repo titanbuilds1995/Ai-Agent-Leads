@@ -273,10 +273,16 @@ def lead_card_html(st: dict[str, Any] | None, notes: str, sent_when: str = "", a
             out.append(_e(answer["note"]))
         out += [f"To: {_e(answer['to'])}", f"Subject: {_e(answer['subject'])}", "-----EMAIL-----", _e(answer["body"]), "-----END EMAIL-----"]
     meta = parts["meta"]
-    if not meta and props and agent is not None:
-        from .approvals import listing_meta
-        meta = listing_meta(props[0], agent)
-    if meta:
+    if props and agent:        # Rodrigo, 2026-11-12: the same organized layout as the 1031 cards (numbers / comps / house / agent)
+        from .house_card import facts_html
+        analysis = None
+        if not (st or answer):     # still only the first email: the engine's read stays useful; in conversation it is dropped
+            try:
+                analysis = json.loads((row or {}).get("analysis") or "{}") or None
+            except ValueError:
+                analysis = None
+        out += (["<hr/>"] if len(out) > 1 else []) + facts_html(props, agent, analysis)
+    elif meta:
         out += ["<hr/>", "<strong>Listing</strong>", _e(re.sub(r"^Listing: ", "", meta))]
     if answer:
         first = _first_email_text(row, parts)
@@ -396,7 +402,9 @@ def lead_board(conn, cfg: Any, asana) -> dict[str, int]:
                     # the card's own text wins (he may have edited the EMAIL lines); the database copy is the fallback
                     answer = {"to": pc["to"] or row.get("to_address") or agent_row.get("email"), "subject": pc["subject"] if pc["subject"].lower().startswith("re:") else answer_subject(row, props),
                               "body": pc["body"] if _squash(pc["body"]) != _squash(row.get("body") or "") else ans["body"], "note": ans.get("note") or ""}
-                html = lead_card_html(st, notes, _when(row["sent_at"]) if row and row["sent_at"] else "", answer, row)
+                from .house_card import load as load_house
+                _, h_agent, h_props = load_house(conn, row["id"]) if row else (None, {}, [])
+                html = lead_card_html(st, notes, _when(row["sent_at"]) if row and row["sent_at"] else "", answer, row, h_agent, h_props)
                 if _squash(html) != _squash(notes):
                     html_fn(t["gid"], html)
                     n["updated"] += 1

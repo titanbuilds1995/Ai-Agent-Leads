@@ -16,6 +16,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   to merge the PR). Work left on a side branch is invisible to the next session.
 - Keep replies short and plain. Rodrigo is not a developer; give him exact commands to paste.
 - Run `make test` before pushing. Never send a real email or text without Rodrigo's explicit go-ahead.
+- **Two agents on anything that answers a person (Rodrigo, 2026-11-12: "I want this to be saved for any agent that we build, also
+  for our MLS deals for single family homes").** Every agent we build that writes to an agent, broker, seller or anyone outside,
+  on any pipeline (single-family / MLS houses, 1031 commercial, whatever comes next), works as a pair: one writes, a SECOND reader
+  that did not write it reads the whole thread plus the draft and pushes back on the logic before it reaches a card or goes out.
+  Use `titan/second_read.py` (`second_read.run(llm, cfg, case, draft, rewrite)`), don't build a new one; show its "⚖️ Second read"
+  line where Rodrigo sees the draft; what it did not clear never goes on its own. Details: Decisions → Two agents on every answer.
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -491,6 +497,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   overrides it, not his "send it", not autopilot, not a fixed reply**. The house approvals send and the 1031 reply send check first:
   the card gets one "STOPPED, not sent" comment (house card → Needs Me), never retried as is. Every writer prompt (house replies,
   1031 reads, card notes) and the second reader say the same. Mail to our own domain (forwards with the real files) is not checked.
+- **House cards look like the 1031 cards (Rodrigo, 2026-11-12: "add the same design that we have for the loopnet commercial properties
+  into our MLS deals for single family homes so it's that organized")**: `titan/house_card.py`. Card name = `Agent · 3bd House · City ·
+  $300k · 92 days · 2 cuts` (+ "⚡ fresh deal"); description = bold headline (HOUSE · street, city · Listing link), then THE NUMBERS
+  (internal, never sent: asking, $/sf, ARV + basis or "looks too high", repairs, internal MAO and % of asking) / DO WE BELIEVE IT?
+  (comps grade A–D + notes) / THE HOUSE / WHY THIS HOUSE (the engine's read) / AGENT, then FIRST EMAIL (plain To / Subject / EMAIL
+  markers / "(outreach #N)", so parse_card and the sender work as before). Rewrites redraw the whole card (`rerender`); answered
+  leads show the same sections under WHERE WE STAND (`lead_card_html` with props). Approvals stage `house_card_format` refreshes
+  older cards once each, 40 a round (`card_format` table): waiting cards keep the text on the card (his hand edits), sent cards show
+  what went out, cards in conversation are only renamed (lead_board draws their description).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -499,7 +514,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-11-12 ~10am ET, RESUME HERE: **guard against "the signed document is attached" when nothing is** (see Decisions → Nothing
   "attached" that isn't). Eric Cederman's thread is not fixed by this (the email is out); Rodrigo should send Eric the signed document
-  himself or correct it. If a real document must go, Rodrigo sends it; Charles's email never mentions it. 386 tests.
+  himself or correct it. If a real document must go, Rodrigo sends it; Charles's email never mentions it. 389 tests.
+- 2026-11-12 ~10am ET, RESUME HERE: **house cards in the 1031 layout** (see Decisions → House cards look like the 1031 cards). New
+  cards get it at once; the ~100+ older cards on the Email Approvals board are redrawn by the Mac's approvals rounds, 40 a round
+  (about an hour for all). Tested on the fake Asana only: watch the first redrawn cards (bold sections show, and a card dragged to
+  Approved still sends; sending is paused anyway). Not done: the 1031-style website gallery / photo email for houses. 380 tests.
+- 2026-11-12 ~9:30am ET: the two-agent rule is now a standing rule for every agent on every pipeline (Rules for every session).
+  House (MLS single-family) replies already run through it; first emails and follow-ups still do not (question open with Rodrigo).
 - 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.
   NOT verified against the live API (no Anthropic key in the cloud): watch the first "⚖️ Second read" lines on the Mac's next drafts
   (1031 🧠 reads and house NEXT EMAIL comments); if every one says "not done", the `second_read` call is failing (check `logs/`).

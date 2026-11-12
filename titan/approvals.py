@@ -168,8 +168,12 @@ def post_card(conn, cfg: Any, asana: Asana, agent: dict[str, Any], props: list[d
     p = props[0]
     lane = p.get("lane") or ""
     meta = listing_meta(p, agent, d.get("analysis"))
-    name = f"{agent.get('name') or 'Agent'} · {p.get('street')}, {p.get('city')}" + (" ⚡ fresh deal" if lane == "FRESH_DEAL" else "")
-    task = asana.create_task(a["project"], a["to_review"], name, card_notes(agent["email"], d["subject"], d["body"], outreach_id, meta))
+    if hasattr(asana, "create_task_html"):    # Rodrigo, 2026-11-12: the house cards in the 1031 cards' layout
+        from .house_card import create
+        task = create(asana, a["project"], a["to_review"], agent, props, d.get("analysis"), agent["email"], d["subject"], d["body"], outreach_id)
+    else:
+        name = f"{agent.get('name') or 'Agent'} · {p.get('street')}, {p.get('city')}" + (" ⚡ fresh deal" if lane == "FRESH_DEAL" else "")
+        task = asana.create_task(a["project"], a["to_review"], name, card_notes(agent["email"], d["subject"], d["body"], outreach_id, meta))
     _attach_picture(cfg, asana, task["gid"], agent["email"], d["subject"], d["body"], outreach_id)
     conn.execute("UPDATE outreach SET asana_task_id=?, draft_body=COALESCE(draft_body, body) WHERE id=?", (task["gid"], outreach_id))
     return task["gid"]
@@ -761,10 +765,14 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
                 n["moved_to_revision"] += 1
             n["revise_failed"] += 1
             continue
-        notes = (t["notes"] or "")
-        notes = re.sub(r"^Subject:.*$", f"Subject: {out['subject']}", notes, count=1, flags=re.M)
-        notes = re.sub(re.escape(START) + r"\n.*?\n" + re.escape(END), lambda _m: f"{START}\n{out['body']}\n{END}", notes, count=1, flags=re.S)
-        asana.update_notes(t["gid"], notes)
+        from .house_card import rerender
+        status = (conn.execute("SELECT status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone() or [None])[0]
+        if card.get("reply_to") or status == "sent" or not hasattr(asana, "update_html_notes") or not rerender(
+                conn, asana, t["gid"], card["outreach_id"], card["to"], out["subject"], out["body"], card.get("cc")):
+            notes = (t["notes"] or "")
+            notes = re.sub(r"^Subject:.*$", f"Subject: {out['subject']}", notes, count=1, flags=re.M)
+            notes = re.sub(re.escape(START) + r"\n.*?\n" + re.escape(END), lambda _m: f"{START}\n{out['body']}\n{END}", notes, count=1, flags=re.S)
+            asana.update_notes(t["gid"], notes)
         rev = sum(1 for c in comments if (c.get("text") or "").startswith(f"{BOT} Revised")) + 1
         _attach_picture(cfg, asana, t["gid"], card["to"], out["subject"], out["body"], card["outreach_id"], rev)
         if card.get("reply_to"):      # an answer card: its text lives with the message it answers, not on the first email
@@ -1026,8 +1034,11 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
             continue
         conn.execute("UPDATE outreach SET subject=?, body=?, draft_body=?, variant=?, analysis=? WHERE id=?",
                      (d["subject"], d["body"], d["body"], d["variant"], json.dumps(d.get("analysis") or {}), row["id"]))
-        asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
-                                                             listing_meta(props[0], agent, d.get("analysis"))))
+        from .house_card import rerender
+        if not (hasattr(asana, "update_html_notes") and rerender(conn, asana, row["asana_task_id"], row["id"], row["to_address"],
+                                                                 d["subject"], d["body"])):
+            asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
+                                                                 listing_meta(props[0], agent, d.get("analysis"))))
         _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
         if violating_only and not photo_bad:
             asana.comment(row["asana_task_id"], "Rewritten to be direct (Rodrigo, 2026-10-28): straight to the question, no \"doesn't scare "

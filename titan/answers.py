@@ -56,14 +56,8 @@ def answer_subject(row: dict[str, Any], props: list[dict[str, Any]]) -> str:
 
 
 def lead_of(conn, outreach_id: int) -> tuple[dict[str, Any] | None, dict[str, Any], list[dict[str, Any]]]:
-    row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (outreach_id,)).fetchone())
-    if not row:
-        return None, {}, []
-    agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row["agent_id"],)).fetchone()) or {}
-    pids = json.loads(row.get("property_ids") or "[]")
-    props = [db.row_to_dict(r) for r in conn.execute(
-        f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(pids)) or 'NULL'})", pids).fetchall()]
-    return row, agent, props
+    from .house_card import load      # properties with their valuation, so the card shows the numbers (2026-11-12)
+    return load(conn, outreach_id)
 
 
 def _warm_aware(cfg: Any, asana):

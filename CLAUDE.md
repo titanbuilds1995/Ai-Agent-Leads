@@ -490,12 +490,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   for "send it" (a stopped fixed reply loses its auto kind); reader unreachable = not cleared. **His own "send it" still sends** (his
   email, his call): the objection is shown and he can pull it. His dictated words are read, never rewritten. Not covered: first emails
   and the "Good morning" follow-up (no conversation to check), the fixed delay note.
+- **House cards look like the 1031 cards (Rodrigo, 2026-11-12: "add the same design that we have for the loopnet commercial properties
+  into our MLS deals for single family homes so it's that organized")**: `titan/house_card.py`. Card name = `Agent · 3bd House · City ·
+  $300k · 92 days · 2 cuts` (+ "⚡ fresh deal"); description = bold headline (HOUSE · street, city · Listing link), then THE NUMBERS
+  (internal, never sent: asking, $/sf, ARV + basis or "looks too high", repairs, internal MAO and % of asking) / DO WE BELIEVE IT?
+  (comps grade A–D + notes) / THE HOUSE / WHY THIS HOUSE (the engine's read) / AGENT, then FIRST EMAIL (plain To / Subject / EMAIL
+  markers / "(outreach #N)", so parse_card and the sender work as before). Rewrites redraw the whole card (`rerender`); answered
+  leads show the same sections under WHERE WE STAND (`lead_card_html` with props). Approvals stage `house_card_format` refreshes
+  older cards once each, 40 a round (`card_format` table): waiting cards keep the text on the card (his hand edits), sent cards show
+  what went out, cards in conversation are only renamed (lead_board draws their description).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~10am ET, RESUME HERE: **house cards in the 1031 layout** (see Decisions → House cards look like the 1031 cards). New
+  cards get it at once; the ~100+ older cards on the Email Approvals board are redrawn by the Mac's approvals rounds, 40 a round
+  (about an hour for all). Tested on the fake Asana only: watch the first redrawn cards (bold sections show, and a card dragged to
+  Approved still sends; sending is paused anyway). Not done: the 1031-style website gallery / photo email for houses. 380 tests.
 - 2026-11-12 ~9:30am ET: the two-agent rule is now a standing rule for every agent on every pipeline (Rules for every session).
   House (MLS single-family) replies already run through it; first emails and follow-ups still do not (question open with Rodrigo).
 - 2026-11-12 ~9am ET, RESUME HERE: **second reader built** (see Decisions → Two agents on every answer). 5 new tests, 377 pass.

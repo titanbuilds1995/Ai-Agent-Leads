@@ -121,7 +121,7 @@ def _run_daily(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn)
     summary: dict[str, Any] = {"date": today_et(), "missing": c["missing"]}
-    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "enrich", "outreach"]
+    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "learn", "enrich", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
         if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
@@ -164,6 +164,16 @@ def _run_daily(cfg, args):
         except Exception as e:  # noqa: BLE001 — the loop improves numbers; it must never stop the run
             log.exception("comps loop failed: %s", e)
             summary["comps"] = {"error": str(e)}
+    if "learn" in steps and not fixture:
+        # the daily learning loop (Rodrigo, 2026-11-12): his skips / edits / approvals, the answers and the offers → order + playbook
+        from .learn_loop import run as learn_loop
+        try:
+            out = learn_loop(conn, cfg, c["llm"], asana=None if args.offline else _asana(cfg))
+            summary["learn"] = {k: out.get(k) for k in ("skipped", "emails_studied", "weights", "rules_added", "rules_active", "proposals_posted",
+                                                        "applied", "claude") if out.get(k) not in (None, [], "")}
+        except Exception as e:  # noqa: BLE001 — the loop improves the engine; it must never stop the run
+            log.exception("learn loop failed: %s", e)
+            summary["learn"] = {"error": str(e)}
     if "enrich" in steps:
         if args.offline:
             summary["enrich"] = {"skipped": "offline"}
@@ -515,6 +525,33 @@ def cmd_comps_loop(cfg, args):
         print(f"  Claude · {r['street']}: {r['note'][:200]}")
     print()
     print("\n".join(summary_lines(conn, cfg)))
+
+
+def cmd_learn_loop(cfg, args):
+    """The daily learning loop by hand: what Rodrigo skipped / changed / approved, which emails got answers, the offers →
+    the outreach order and the writer's playbook. --no-claude measures only; --list prints the last result."""
+    from .learn_loop import active_rules, load_prefs, run, summary_lines
+    conn = _open(cfg)
+    if not args.list:
+        c = build_clients(cfg, conn, need=("llm",))
+        out = run(conn, cfg, c["llm"], asana=None if args.no_asana else _asana(cfg), use_claude=not args.no_claude, force=True)
+        conn.commit()
+        if out.get("skipped"):
+            print(out["skipped"])
+        for d in out.get("rules_dropped") or []:
+            print(f"rule not adopted: {d['rule']}  ({d['why']})")
+    print("\n".join(summary_lines(conn, cfg)) or "The loop has not run yet.")
+    rules = active_rules(conn)
+    print(f"\nPlaybook ({len(rules)} rule(s) in every writer prompt):")
+    for r in rules:
+        print(f"  {r['id']}. [{r['applies_to']}] {r['rule']}  (since {r['created_at'][:10]})")
+    p = load_prefs(cfg)
+    w = sorted((p.get("weights") or {}).items(), key=lambda kv: -kv[1])
+    print(f"\nOutreach order ({len(w)} learned weight(s); + goes first, - goes last):")
+    for k, v in (w if len(w) <= 16 else w[:8] + [("...", 0)] + w[-8:]):
+        print(f"  {v:+.2f}  {k}" if k != "..." else "  ...")
+    if p.get("blocked"):
+        print("\nNo first emails for (you approved): " + ", ".join(p["blocked"]))
 
 
 def cmd_approvals(cfg, args):
@@ -939,7 +976,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init-db")
     rd = sub.add_parser("run-daily")
-    rd.add_argument("--steps", default=None, help="comma list of ingest,board_clean,score,value,comps,enrich,outreach")
+    rd.add_argument("--steps", default=None, help="comma list of ingest,board_clean,score,value,comps,learn,enrich,outreach")
     rd.add_argument("--fixture", default=None, help="JSON listings fixture instead of live scrape")
     rd.add_argument("--comps-fixture", default=None)
     rd.add_argument("--offline", action="store_true", help="skip network enrichment")
@@ -985,6 +1022,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     cb_ = sub.add_parser("clean-board", help="Fresh Leads clean-up: houses under contract / sold / off market go to Skip")
     cb_.add_argument("--list", action="store_true", help="only print what would move")
+    ll_ = sub.add_parser("learn-loop", help="daily learning loop by hand: his decisions, the answers, the offers -> outreach order + writer playbook")
+    ll_.add_argument("--no-claude", action="store_true", help="measure and re-weight only; no written review")
+    ll_.add_argument("--no-asana", action="store_true", help="post no proposal cards, read no approvals")
+    ll_.add_argument("--list", action="store_true", help="print the last result, the playbook and the weights; run nothing")
     cl_ = sub.add_parser("comps-loop", help="daily comp-quality loop by hand: back-test on real sales, tune, re-value the board, Claude review")
     cl_.add_argument("--no-tune", action="store_true", help="measure only; keep today's settings")
     cl_.add_argument("--no-claude", action="store_true", help="skip Claude's review of the comp sets (no API spend)")
@@ -1040,7 +1081,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
     return 0
 
 

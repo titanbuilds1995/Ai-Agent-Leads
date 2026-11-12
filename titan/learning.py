@@ -247,7 +247,13 @@ def knowledge_text(cfg: Any) -> str:
 def learned_block(cfg: Any) -> str:
     """The knowledge base wrapped for a drafting prompt (first touch and revise)."""
     k = knowledge_text(cfg)
-    return f"\n=== WHAT RODRIGO HAS TAUGHT US ===\n{k}\n=== END ===\n" if k else ""
+    out = f"\n=== WHAT RODRIGO HAS TAUGHT US ===\n{k}\n=== END ===\n" if k else ""
+    try:
+        from .learn_loop import playbook_text
+        pb = playbook_text(cfg)          # rules the daily learning loop wrote from our own results (checked by a second reader)
+    except Exception:  # noqa: BLE001
+        pb = ""
+    return out + (f"\n=== PLAYBOOK FROM OUR OWN RESULTS ===\n{pb}\n=== END ===\n" if pb else "")
 
 
 # ---------- stage 2: autopilot for first emails ----------

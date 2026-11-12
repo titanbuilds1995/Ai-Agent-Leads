@@ -130,6 +130,13 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     except Exception:  # noqa: BLE001
         pass
     try:
+        from .learn_loop import summary_lines as learn_lines
+        ll = learn_lines(conn, cfg, run_date)
+        if ll:
+            lines += ["## What the engine learned (daily loop)", ""] + [f"- {x}" for x in ll] + [""]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from .learning import ladder_lines
         lines += ["## Trust ladder (how close Charles is to working on his own)", ""] + ladder_lines(conn, cfg) + [""]
     except Exception:  # noqa: BLE001

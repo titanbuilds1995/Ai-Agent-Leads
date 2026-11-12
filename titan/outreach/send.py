@@ -46,7 +46,13 @@ def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
         "ORDER BY CASE v.rating WHEN 'HOT' THEN 0 ELSE 1 END, "
         "CASE v.lane WHEN 'FRESH_DEAL' THEN 0 WHEN 'SITTING' THEN 1 ELSE 2 END, "    # fresh deals expire first; sitting = ideal
         "(p.price_cuts > 0 OR p.back_on_market) DESC, s.score DESC, v.spread_pct ASC").fetchall()
-    return [db.row_to_dict(r) for r in rows]
+    out = [db.row_to_dict(r) for r in rows]
+    try:
+        from ..learn_loop import apply_to_candidates      # the daily learning loop: what he works and what gets answers goes first
+        out = apply_to_candidates(conn, cfg, out)
+    except Exception as e:  # noqa: BLE001 — a learned preference must never stop outreach
+        log.warning("learned order not applied: %s", e)
+    return out
 
 
 def plan(conn, cfg: Any, run_date: str, now=None) -> dict[str, list[dict[str, Any]]]:

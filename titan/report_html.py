@@ -290,6 +290,16 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
         body = "".join(f'<div style="font-size:13.5px;color:{INK};padding:6px 0;border-bottom:1px solid {LINE}">{e(x)}</div>' for x in cl)
         rows.append(section("Comps", panel(body), "How good the numbers are"))
 
+    # the daily learning loop: what it measured, learned and changed
+    try:
+        from .learn_loop import summary_lines as learn_lines
+        ll = learn_lines(conn, cfg, run_date)
+    except Exception:  # noqa: BLE001
+        ll = []
+    if ll:
+        body = "".join(f'<div style="font-size:13.5px;color:{INK};padding:6px 0;border-bottom:1px solid {LINE}">{e(x)}</div>' for x in ll)
+        rows.append(section("What the engine learned", panel(body), "From what you approved, changed and skipped, the answers and the offers"))
+
     # trust ladder
     try:
         stages = ladder(conn, cfg)

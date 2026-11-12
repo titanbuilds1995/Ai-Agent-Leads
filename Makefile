@@ -87,6 +87,12 @@ clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / of
 clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
 	$(PY) -m titan.cli clean-board --list
 
+learn-loop:       ## daily learning loop now: your skips / edits / approvals, the answers, the offers -> outreach order + the writer's playbook
+	$(PY) -m titan.cli learn-loop $(ARGS)
+
+learn-check:      ## print what the loop learned so far (scorecard, playbook, weights); runs nothing
+	$(PY) -m titan.cli learn-loop --list
+
 comps-loop:       ## comp-quality loop now: back-test the comp rules on real sales, tune, re-value the board, Claude review
 	$(PY) -m titan.cli comps-loop
 

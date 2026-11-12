@@ -200,6 +200,18 @@ CREATE TABLE IF NOT EXISTS board_cards (
 CREATE TABLE IF NOT EXISTS follow_ups (
   outreach_id INTEGER PRIMARY KEY, card_gid TEXT, body TEXT, created_at TEXT NOT NULL
 );
+-- The daily learning loop (titan/learn_loop.py, 2026-11-12): one scorecard a day, the rules it wrote for the writer, what it asked Rodrigo.
+CREATE TABLE IF NOT EXISTS learn_runs (
+  id INTEGER PRIMARY KEY, run_date TEXT UNIQUE NOT NULL, metrics TEXT, changes TEXT, summary TEXT, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playbook_rules (
+  id INTEGER PRIMARY KEY, rule TEXT NOT NULL, applies_to TEXT, evidence TEXT, source_run TEXT, created_at TEXT NOT NULL,
+  retired_at TEXT, retired_why TEXT
+);
+CREATE TABLE IF NOT EXISTS learn_proposals (
+  id INTEGER PRIMARY KEY, key TEXT UNIQUE NOT NULL, kind TEXT, title TEXT, body TEXT, payload TEXT, status TEXT, card_gid TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS price_decisions (
   id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
 );

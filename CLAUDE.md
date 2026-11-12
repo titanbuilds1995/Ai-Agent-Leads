@@ -514,12 +514,39 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the house EXCLUDED (no new email). One of two houses gone → card stays, one comment. A failed or unclear lookup changes nothing.
   These moves are not his votes (`learning.OFF_MARKET`, left out of the trust ladder). Config `outreach.board_clean`. Only Fresh
   Leads; Needs Me / Sent / Answered are not touched.
+- **Daily learning loop for the house pipeline (Rodrigo, 2026-11-12: "run a daily loop on how we can make our MLS system better …
+  from what we skipped to what we're sending offers to, the type of messages … constantly learn … improve on its own")**:
+  `titan/learn_loop.py`, run-daily step `learn` (after comps, before outreach; 5:30am on the Mac), by hand `make learn-loop`,
+  `make learn-check` prints what it knows. Every day it joins each first email to its house and to what happened (approved as
+  written / changed / skipped / deleted, answered and how, offered on) and measures skip rate + reply rate per segment (lane, county,
+  city, price band, type, days on market, price cut, photos, comps grade, ARV vs ask, brokerage, agent's listing count, writer, length).
+  **On its own (bounded):** (1) `data/learned_prefs.json` (gitignored) re-orders outreach INSIDE each rating + lane tier toward what he
+  works and what gets answers (`apply_to_candidates` in `candidate_rows`; never excludes, never changes HOT/WARM; a segment needs 8
+  decisions, a weight moves 0.1 a day, max 0.5); (2) the **playbook** (`reports/knowledge/playbook.md`, table `playbook_rules`, max 12):
+  Claude reads the week and writes up to 3 short rules for the writer, a SECOND Claude call checks each against the settled decisions
+  (`NON_NEGOTIABLES`), only cleared rules are kept (reader unreachable = none); `rule_problem` rejects anything about money, dates,
+  attachments or sending before any model sees it; the playbook goes into every writer prompt after his own comments (`learned_block`),
+  which always win. **His call (never on its own):** proposals, one card each on Claude Updates → Needs Rodrigo ("🧠 Daily learning · …"),
+  max 2 a day, never the same twice (`learn_proposals`): "stop drafting first emails for <segment>?" when he skipped 80%+ of 8+ cards
+  (dragging that card to Approved applies it the next morning: `prefs.blocked`, card to Done), offers running 10%+ off the engine's
+  range (a question only; a Claude session changes the range if he says yes), and Claude's own (notes). One scorecard a day
+  (`learn_runs`: as-written %, skip %, reply %, offers) with the week-ago trend; morning report section "What the engine learned";
+  detail in `reports/learning/loop_<date>.json`. Two paid API calls a day, only once there are 10 decisions or 10 judged emails. It
+  never sends, never touches a price, a cap, the pause or the trust-ladder gates. Config `learning_loop:`. To undo a block: remove the
+  segment from `blocked` in `data/learned_prefs.json` on the Mac.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~5:30pm ET, RESUME HERE: **daily learning loop built** (see Decisions → Daily learning loop). First run on the Mac is
+  tomorrow's 5:30am run-daily (`make learn-loop` on the Mac runs it now). Tested on fixtures only (6 tests, 400 total): the cloud has
+  no database, so the first real run is the test. Watch tomorrow's report section "What the engine learned": the scorecard line must
+  show real counts (0 decisions = the join outreach → card_decisions is not matching on the Mac), "What it sees" must be Claude's
+  words (missing = the `learn_review` call failed, check `logs/`), and at most 2 "🧠 Daily learning" cards in Needs Rodrigo. With
+  sending and new listings both paused the loop has little fresh data: it learns mostly from the decisions already on file.
+  Not covered yet: the 1031 board, call outcomes (no Aircall), offers' final outcome beyond the status Rodrigo logs.
 - 2026-11-12 ~4:35pm ET: the Mac redrew ~100 old Fresh Leads cards at 4:26pm ET. Four oldest (outreach #5 Saidelys, #6 Eddy name,
   #10 Adrienne, #24 Eugene; the cards hand-edited in the cloud on Oct 26) were skipped by the Mac, likely because their DB status is
   not pending: redrawn by hand from the cloud from each card's own text (no ARV/MAO, the cloud has no DB); email blocks unchanged.

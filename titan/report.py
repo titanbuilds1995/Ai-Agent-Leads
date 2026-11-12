@@ -130,6 +130,13 @@ def build_report(conn, cfg: Any, run_date: str | None = None) -> str:
     except Exception:  # noqa: BLE001
         pass
     try:
+        from .backup_lane import summary_lines as backup_lines
+        bl = backup_lines(conn, cfg)
+        if bl:
+            lines += ["## Backup lane (pending houses we want if the deal falls through)", ""] + [f"- {x}" for x in bl] + [""]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from .learn_loop import summary_lines as learn_lines
         ll = learn_lines(conn, cfg, run_date)
         if ll:

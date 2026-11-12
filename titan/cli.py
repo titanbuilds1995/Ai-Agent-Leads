@@ -121,7 +121,7 @@ def _run_daily(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn)
     summary: dict[str, Any] = {"date": today_et(), "missing": c["missing"]}
-    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "learn", "enrich", "outreach"]
+    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "learn", "enrich", "backup", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
         if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
@@ -179,6 +179,16 @@ def _run_daily(cfg, args):
             summary["enrich"] = {"skipped": "offline"}
         else:
             summary["enrich"] = Enricher(cfg, conn).run()
+    if "backup" in steps and not args.offline and not fixture:
+        # the backup lane (Rodrigo, 2026-11-12): houses that fit and are under contract → backup email, check-ins, back-on-market watch
+        from .backup_lane import run as backup_lane
+        try:
+            out = backup_lane(conn, cfg, _asana(cfg), c["llm"])
+            (out.get("emails") or {}).pop("list", None)
+            summary["backup"] = out
+        except Exception as e:  # noqa: BLE001 — the lane must never stop the run
+            log.exception("backup lane failed: %s", e)
+            summary["backup"] = {"error": str(e)}
     if "outreach" in steps:
         summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"], asana=_asana(cfg))
     if "commercial" in steps or (not args.steps and cfg.get("commercial.schedule") == "daily" and cfg.get("commercial.enabled")):
@@ -525,6 +535,28 @@ def cmd_comps_loop(cfg, args):
         print(f"  Claude · {r['street']}: {r['note'][:200]}")
     print()
     print("\n".join(summary_lines(conn, cfg)))
+
+
+def cmd_backup_lane(cfg, args):
+    """The backup lane by hand: find houses that fit and are under contract, write the backup emails (cards in Fresh Leads),
+    draft the check-ins, watch for sold / back on the market. --list prints what it would do and changes nothing."""
+    from .backup_lane import run, summary_lines
+    conn = _open(cfg)
+    c = build_clients(cfg, conn, need=("llm",))
+    out = run(conn, cfg, _asana(cfg), c["llm"], dry_run=args.list)
+    conn.commit()
+    if out.get("skipped"):
+        print(out["skipped"])
+        return
+    if not out.get("lookups"):
+        print("No realtor.com lookups here (HomeHarvest only runs on the Mac): working from what the database already knows.")
+    e = out.get("emails") or {}
+    for x in e.get("list") or []:
+        print(f"  ready: {x['street']}, {x['city']} · {x['agent']} · pending since about {x['pending_since']} ({x['source']})")
+    for x in (out.get("watch") or {}).get("back_on_market") or []:
+        print(f"  BACK ON THE MARKET: {x['street']}, {x['city']} · call {x['agent']} {x['phone'] or ''}")
+    print(f"lane: {out.get('lane')} · found: {out.get('found')} · emails: { {k: v for k, v in e.items() if k != 'list'} } · check-ins: {out.get('check_ins')}")
+    print("\n".join(summary_lines(conn, cfg)) + ("\n(--list: nothing changed)" if args.list else ""))
 
 
 def cmd_learn_loop(cfg, args):
@@ -976,7 +1008,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init-db")
     rd = sub.add_parser("run-daily")
-    rd.add_argument("--steps", default=None, help="comma list of ingest,board_clean,score,value,comps,learn,enrich,outreach")
+    rd.add_argument("--steps", default=None, help="comma list of ingest,board_clean,score,value,comps,learn,enrich,backup,outreach")
     rd.add_argument("--fixture", default=None, help="JSON listings fixture instead of live scrape")
     rd.add_argument("--comps-fixture", default=None)
     rd.add_argument("--offline", action="store_true", help="skip network enrichment")
@@ -1022,6 +1054,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     cb_ = sub.add_parser("clean-board", help="Fresh Leads clean-up: houses under contract / sold / off market go to Skip")
     cb_.add_argument("--list", action="store_true", help="only print what would move")
+    bl_ = sub.add_parser("backup-lane", help="pending houses that fit: backup email cards, check-ins, back-on-market watch")
+    bl_.add_argument("--list", action="store_true", help="print what it would do; change nothing")
     ll_ = sub.add_parser("learn-loop", help="daily learning loop by hand: his decisions, the answers, the offers -> outreach order + writer playbook")
     ll_.add_argument("--no-claude", action="store_true", help="measure and re-weight only; no written review")
     ll_.add_argument("--no-asana", action="store_true", help="post no proposal cards, read no approvals")
@@ -1081,7 +1115,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
     return 0
 
 

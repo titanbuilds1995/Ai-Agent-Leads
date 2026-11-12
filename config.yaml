@@ -212,6 +212,20 @@ outreach:
     send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   # Second touch (Rodrigo, 2026-11-02): a "Good morning" follow-up in the same thread to every agent who never answered the
   # first email. `titan.cli follow-ups` puts each one on the lead's own card as NEXT EMAIL, in Needs Me (--approve: Approved when he said send).
+  # THE BACKUP LANE (Rodrigo, 2026-11-12: "properties that match our criteria and are pending … email the agents and tell them that
+  # if anything falls through we are interested and have a follow up sequence … those are the hottest leads"; titan/backup_lane.py,
+  # run-daily step "backup", `make backup-lane`). Every email is a card he approves; nothing here sends on its own.
+  backup_lane:
+    enabled: true
+    ratings: ["HOT", "WARM"]       # "match our criteria" = the engine rated the house HOT or WARM before it went pending
+    min_pending_days: 7            # write the backup email once it has been pending this long (the other buyers have gone quiet)
+    max_cards_per_day: 10
+    follow_up_days: 10             # a check-in in the same thread this often while it stays pending and the agent is silent
+    max_follow_ups: 3
+    recheck_days: 2                # look each house in the lane up again this often (sold → stop; back on the market → 🔥 Needs Me)
+    lookups_per_day: 150           # realtor.com single-address lookups a morning (free, Mac only), rechecks first
+    lookup_every_days: 7           # a HOT / WARM house we never emailed is looked up again after this many days
+    pause_seconds: 1.0
   follow_up:
     after_days: 3                  # first email at least this old before a follow-up is drafted
     max_per_run: 25

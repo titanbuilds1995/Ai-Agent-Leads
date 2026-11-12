@@ -87,6 +87,12 @@ clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / of
 clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
 	$(PY) -m titan.cli clean-board --list
 
+backup-lane:      ## pending houses that fit our criteria: write the backup emails (Fresh Leads), draft check-ins, watch for back-on-market
+	$(PY) -m titan.cli backup-lane
+
+backup-list:      ## only print which pending houses are in the backup lane and who is ready for an email (changes nothing)
+	$(PY) -m titan.cli backup-lane --list
+
 learn-loop:       ## daily learning loop now: your skips / edits / approvals, the answers, the offers -> outreach order + the writer's playbook
 	$(PY) -m titan.cli learn-loop $(ARGS)
 

@@ -500,6 +500,11 @@ def digest(conn, ev: list[dict[str, Any]], stats: dict[str, Any], m: dict[str, A
     by_status = dict(conn.execute("SELECT status, COUNT(*) FROM offers GROUP BY status").fetchall())
     L.append(f"FUNNEL TO CONTRACT (all time): {sum(e['sent'] for e in ev)} first emails sent, {sum(e['replied'] for e in ev)} agents answered, "
              f"{sum(e['positive'] for e in ev)} open, {m['offers']} offers; offers by status: {by_status or 'none'}.")
+    try:
+        lane = dict(conn.execute("SELECT state, COUNT(*) FROM backup_leads GROUP BY state").fetchall())
+        L.append(f"BACKUP LANE (houses that fit and are under contract with someone else; we ask to be the first call): {lane or 'empty so far'}.")
+    except Exception:  # noqa: BLE001
+        pass
     if previous:
         L.append(f"A WEEK AGO: as written {previous.get('as_written_pct')}%, skipped {previous.get('skip_pct')}%, answered {previous.get('reply_pct')}%.")
     base = stats["base"]

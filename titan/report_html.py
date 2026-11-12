@@ -290,6 +290,16 @@ def build_html(conn, cfg: Any, run_date: str | None = None) -> str:
         body = "".join(f'<div style="font-size:13.5px;color:{INK};padding:6px 0;border-bottom:1px solid {LINE}">{e(x)}</div>' for x in cl)
         rows.append(section("Comps", panel(body), "How good the numbers are"))
 
+    # the backup lane: pending houses we want if the deal falls through
+    try:
+        from .backup_lane import summary_lines as backup_lines
+        bl = backup_lines(conn, cfg)
+    except Exception:  # noqa: BLE001
+        bl = []
+    if bl:
+        body = "".join(f'<div style="font-size:13.5px;color:{INK};padding:6px 0;border-bottom:1px solid {LINE}">{e(x)}</div>' for x in bl)
+        rows.append(section("Backup lane", panel(body), "Pending houses we want if the deal falls through"))
+
     # the daily learning loop: what it measured, learned and changed
     try:
         from .learn_loop import summary_lines as learn_lines

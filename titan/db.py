@@ -212,6 +212,12 @@ CREATE TABLE IF NOT EXISTS learn_proposals (
   id INTEGER PRIMARY KEY, key TEXT UNIQUE NOT NULL, kind TEXT, title TEXT, body TEXT, payload TEXT, status TEXT, card_gid TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
+-- The backup lane (titan/backup_lane.py, 2026-11-12): houses that fit and are under contract; the backup email, the check-ins, the watch.
+CREATE TABLE IF NOT EXISTS backup_leads (
+  property_id INTEGER PRIMARY KEY, agent_id INTEGER, state TEXT NOT NULL, source TEXT, pending_since TEXT, outreach_id INTEGER,
+  follow_ups INTEGER DEFAULT 0, last_touch_at TEXT, last_check_at TEXT, last_status TEXT, note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS status_checks (property_id INTEGER PRIMARY KEY, status TEXT, checked_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS price_decisions (
   id INTEGER PRIMARY KEY, property_id INTEGER, price INTEGER, internal_low INTEGER, internal_high INTEGER, decided_at TEXT NOT NULL
 );

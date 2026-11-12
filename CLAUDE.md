@@ -534,12 +534,38 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   detail in `reports/learning/loop_<date>.json`. Two paid API calls a day, only once there are 10 decisions or 10 judged emails. It
   never sends, never touches a price, a cap, the pause or the trust-ladder gates. Config `learning_loop:`. To undo a block: remove the
   segment from `blocked` in `data/learned_prefs.json` on the Mac.
+- **The backup lane: pending houses (Rodrigo, 2026-11-12: "the goal here is to get things under contract … properties that match
+  our criteria and are pending, maybe pending for a while, we should email the agents and tell them that if anything falls through we
+  are interested and have a follow up sequence with those agents. Those are the hottest leads. When others have stopped reaching out
+  and they are ripe")**: `titan/backup_lane.py`, run-daily step `backup` (after enrich, before outreach), `make backup-lane`,
+  `make backup-list` (prints only), config `outreach.backup_lane`, table `backup_leads`. FIND: houses the engine rated HOT / WARM that
+  are under contract: marked pending by the board clean-up or a feed, the agent told us in a reply ("under contract", not "sold"), or
+  found by a realtor.com lookup of the HOT / WARM houses we never emailed (150 lookups a morning, Mac only, table `status_checks`; a
+  house found sold / pulled is EXCLUDED on the way). A house in the lane has `lead_status` BACKUP (never gets the normal first email).
+  EMAIL after it has been pending 7 days (`min_pending_days`; we only know the day WE first saw it pending): Charles, intro, "I saw your
+  listing on X is under contract", if anything changes we would like a look, one easy question; never a price, never a guess about the
+  other deal (`validate_backup`); outreach kind `backup_touch`, variant `backup:*` (autopilot never moves it), a card "⏳ PENDING ·
+  backup · …" in Fresh Leads, max 10 a day, one per agent. SEQUENCE after it is sent: every 10 days while still pending and the agent
+  silent, a "Good morning" check-in as the NEXT EMAIL on the same card in Needs Me, up to 3. WATCH every 2 days: sold → sequence stops
+  (unsent card to Skip); **back on the market → 🔥 comment with the agent's phone, card to Needs Me, lead NEEDS_CALL** (a house never
+  emailed goes back into the normal lane with back_on_market set); the agent answers → the normal reply engine has it. Every email in
+  the lane is second-read (`second_read.run`); a HOLD never reaches the board. The learning loop's goal is now contracts, and it sees
+  the lane's counts. Not built: pulling ALL pending listings county-wide (new listings are still paused; today the lane only knows houses
+  already in the database), the real pending date, texting in the sequence.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-12 ~6:30pm ET, RESUME HERE: **backup lane for pending houses built** (see Decisions → The backup lane) on top of the
+  learning loop below. First run on the Mac: tomorrow's 5:30am run-daily (`make backup-list` shows what it would do, `make backup-lane`
+  runs it now). Tested on fixtures only (7 tests, 407 total); never run against realtor.com or the real board. Watch tomorrow: the report
+  section "Backup lane", how many of the ~11k stored houses come back pending (150 lookups a day, HOT first), and that no "⏳ PENDING"
+  card appears before a house has been in the lane 7 days (so the first backup cards land around Nov 20, except houses whose agent
+  already told us "under contract" a week ago: those can card tomorrow). Sending is still paused, so approved backup emails wait too.
+  Open for Rodrigo: 7 days pending / check-in every 10 days x3 are my defaults; pulling all pending listings (not only houses we already
+  have) needs new listings switched back on for that pull.
 - 2026-11-12 ~5:30pm ET, RESUME HERE: **daily learning loop built** (see Decisions → Daily learning loop). First run on the Mac is
   tomorrow's 5:30am run-daily (`make learn-loop` on the Mac runs it now). Tested on fixtures only (6 tests, 400 total): the cloud has
   no database, so the first real run is the test. Watch tomorrow's report section "What the engine learned": the scorecard line must

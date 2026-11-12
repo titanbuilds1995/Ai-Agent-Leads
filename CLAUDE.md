@@ -520,6 +520,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-12 ~4:35pm ET: the Mac redrew ~100 old Fresh Leads cards at 4:26pm ET. Four oldest (outreach #5 Saidelys, #6 Eddy name,
+  #10 Adrienne, #24 Eugene; the cards hand-edited in the cloud on Oct 26) were skipped by the Mac, likely because their DB status is
+  not pending: redrawn by hand from the cloud from each card's own text (no ARV/MAO, the cloud has no DB); email blocks unchanged.
+  Rodrigo was working the board at the same time (moved Eddy/Saidelys/Eugene to Approved; sending is paused, nothing goes).
 - 2026-11-12 ~4:05pm ET: Rodrigo wants the older cards redrawn too, now: the house-card redraw does every card in ONE round (limit
   `outreach.asana.house_cards_per_round`, 400) instead of 40 a round. Next approvals round on the Mac (or `make approvals-now`) does all.
 - 2026-11-12 ~4pm ET: Rodrigo saw no change on the board: the Mac's redraw only started at 3:43pm ET (40 cards a round, newest first,

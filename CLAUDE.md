@@ -558,6 +558,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-13 ~7:20am ET: morning check only. **No 7am report** (Mac quiet since ~5:46pm Nov 12). Gap seen: Martin Hoffman's comment
+  ended "just ask that and send it" but the rewrite landed in Needs Me, not Approved (rewrite + send rule; sending is paused anyway).
+  Chevelle Young (Warm Leads, Needs Revision) comps ask unanswered, waits on the Mac. Cards posted on Claude Updates.
 - 2026-11-12 ~6:30pm ET, RESUME HERE: **backup lane for pending houses built** (see Decisions → The backup lane) on top of the
   learning loop below. First run on the Mac: tomorrow's 5:30am run-daily (`make backup-list` shows what it would do, `make backup-lane`
   runs it now). Tested on fixtures only (7 tests, 407 total); never run against realtor.com or the real board. Watch tomorrow: the report

@@ -572,6 +572,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14 pm: Rodrigo asked where Albert Hernandez's gas stations land (Shell Palm City $3.6M, Amoco WPB $3.7-4.5M, Mobil business package). Read the flyers; pinned 💬 WHERE WE LAND on the Working Deals card 1220364651796832. Verdict: Shell only one with room (true 8 cap ≈ $3.5M if real), Amoco ≈ $2.0M on its own projected numbers, Mobil not real estate. NOTE: Charles sent Albert the PASS on Nov 11 before Rodrigo's dictated replies (unsent, sending paused); told Rodrigo to call Albert himself. No code changed.
 - 2026-11-14 afternoon: BOTH jobs running live on the Mac in Chrome (`titan tortuga`: 848 houses pulled, now owners / Sunbiz; `titan fb`: restarted from 32 contacts / 30 deals). Next: he sends summary.md + the top FB buyers, then pick who to call for Tortuga; skip trace still his call.
 - 2026-11-14: one-word launcher `scripts/titan.sh` (alias titan): `titan fb`, `titan tortuga`, `titan status`; saved job prompts in docs/prompts/start/. He kept pasting prompts into plain bash.
 - 2026-11-14: `make buyers-status` added (how far the Tortuga LLC run and the Facebook run got; the cloud cannot see the Mac).

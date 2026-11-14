@@ -558,6 +558,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14, first Facebook run done on the Mac (Claude in Chrome, read-only): 5 SoFla/FL groups, 193 posts →
+  `reports/buyers/fb_investors.csv` (32 contacts) + `fb_deals.csv` (30 tri-county deals). Wholesalers ask ~60–80% of their
+  stated ARV (Broward avg 68%, Miami-Dade 72%, Palm Beach 75%). Few real end buyers post (Nick Flixzz: PBC/Broward/St Lucie;
+  Dror Dorenbaum deals@dna-investors.com statewide). Facebook hides post dates and many post links: last_seen = read date,
+  links fall back to the group. `reports/buyers/` added to .gitignore (it was not ignored). Next run: the other FL groups.
 - 2026-11-14, RESUME HERE: Rodrigo wants BOTH (1) investor phones/emails from the FB/IG groups, kept running: prompt saved at
   `docs/prompts/facebook_investor_contacts.md` (Mac, Claude in Chrome, read-only; tri-county, any deal, tagged for reuse:
   reports/buyers/fb_investors.csv + fb_deals.csv), and

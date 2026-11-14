@@ -572,6 +572,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14 evening: Rodrigo's partner likes Shell stations with food stores → Shell Palm City is the target, Amoco the backup. Built (1) an
+  internal deal sheet artifact (claude.ai artifact Qm77QSAoXMMNsqPpvSUXKs; candidate address 1155 SW Martin Downs Blvd, UNCONFIRMED:
+  Albert withholds addresses until NDA + co-brokerage; the cloud is blocked from pa.martin.fl.us, check on the Mac), (2) two WHITE-LABELED
+  one-page PDFs for the partner at ASKING (Shell $3.6M, Amoco $4.5M; Rodrigo: "we can't increase from asking, we can always send in a lower
+  offer"), Albert's facts only, Titan branding, no broker / address / commentary. Generator lived in the session scratchpad only. DEAL SHEET
+  comment on the Working Deals card: ceiling $3.5M. Next: Rodrigo calls Albert (reverse Charles's Nov 11 pass, NDA only, get the books).
 - 2026-11-14 pm: Rodrigo asked where Albert Hernandez's gas stations land (Shell Palm City $3.6M, Amoco WPB $3.7-4.5M, Mobil business package). Read the flyers; pinned 💬 WHERE WE LAND on the Working Deals card 1220364651796832. Verdict: Shell only one with room (true 8 cap ≈ $3.5M if real), Amoco ≈ $2.0M on its own projected numbers, Mobil not real estate. NOTE: Charles sent Albert the PASS on Nov 11 before Rodrigo's dictated replies (unsent, sending paused); told Rodrigo to call Albert himself. No code changed.
 - 2026-11-14 afternoon: BOTH jobs running live on the Mac in Chrome (`titan tortuga`: 848 houses pulled, now owners / Sunbiz; `titan fb`: restarted from 32 contacts / 30 deals). Next: he sends summary.md + the top FB buyers, then pick who to call for Tortuga; skip trace still his call.
 - 2026-11-14: one-word launcher `scripts/titan.sh` (alias titan): `titan fb`, `titan tortuga`, `titan status`; saved job prompts in docs/prompts/start/. He kept pasting prompts into plain bash.

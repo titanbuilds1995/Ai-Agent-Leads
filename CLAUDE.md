@@ -559,7 +559,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 
 ## Current status
 - 2026-11-14, RESUME HERE: Rodrigo wants BOTH (1) investor phones/emails from the FB/IG groups, kept running: prompt saved at
-  `docs/prompts/facebook_investor_contacts.md` (Mac, Claude in Chrome, read-only, appends to reports/buyers/fb_investors.csv), and
+  `docs/prompts/facebook_investor_contacts.md` (Mac, Claude in Chrome, read-only; tri-county, any deal, tagged for reuse:
+  reports/buyers/fb_investors.csv + fb_deals.csv), and
   (2) a deed-record cash buyer / flipper search for West Palm: WAIT for Rodrigo's instructions on how to run it before building.
   PBC appraiser, clerk and Sunbiz are blocked from the cloud (Mac only); emails need a paid skip trace (ask first).
 - 2026-11-14: Rodrigo asked to pull other investors' emails from the Instagram/Facebook groups he is in (cash buyer list for Tortuga).

@@ -558,6 +558,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14 ~7:25am ET: morning check only. Report on time. Board clean-up and backup lane run live (≈30 Fresh Leads cards to Skip
+  Nov 13–14 with "Board clean-up" comments; 51 pending houses watched). **Claude unreachable on the Mac** (learning review skipped, new
+  cards are templates): Needs Rodrigo card asks for `make doctor`. Hot list frozen since Nov 12 (ingest paused), learning loop is ranking
+  "ARV over 1.5x" up (the inflated segment): worth capping. Sending still paused.
 - 2026-11-14, RESUME HERE: Rodrigo wants to sell **82 Tortuga Rd** (contract $245k) to cash buyers through Facebook groups and asked to
   analyze the best cash-deal posts there. The cloud cannot see Facebook (groups need his login; Apify refused this session's token).
   Built a playbook + ready-to-paste post (artifact https://claude.ai/artifact/P1qSWmaoqrrU4jXvSuurVt: post at $269,900, ARV $400–420k,

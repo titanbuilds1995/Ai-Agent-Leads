@@ -22,6 +22,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   that did not write it reads the whole thread plus the draft and pushes back on the logic before it reaches a card or goes out.
   Use `titan/second_read.py` (`second_read.run(llm, cfg, case, draft, rewrite)`), don't build a new one; show its "⚖️ Second read"
   line where Rodrigo sees the draft; what it did not clear never goes on its own. Details: Decisions → Two agents on every answer.
+- **Always hand him the FIRST prompt for the Mac (Rodrigo, 2026-11-14: "always give me the first prompt that I need on my mac to
+  tell it what I am talking about").** Whenever work has to run on his Mac, end the reply with one ready-to-paste opening prompt for
+  Claude Code on the Mac: who he is / the repo, the deal or task in plain words, `git pull` first, the exact make targets and docs to
+  follow, the rules that matter (read-only, nothing sent, nothing paid), and what to show him at the end. He should never have to
+  explain the context himself.
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -552,17 +557,27 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the lane is second-read (`second_read.run`); a HOLD never reaches the board. The learning loop's goal is now contracts, and it sees
   the lane's counts. Not built: pulling ALL pending listings county-wide (new listings are still paused; today the lane only knows houses
   already in the database), the real pending date, texting in the sequence.
+- **Cash buyers around a deal (Rodrigo, 2026-11-14, 82 Tortuga Rd: "everyone buying cash in the area … look up the llc … website,
+  emails or phone numbers … the agents that work with these investors … the actual owner of the llc and anyone affiliated")**:
+  `titan/buyers/` + `docs/prompts/cash_buyers_llc.md`, all on the Mac (the cloud reaches none of these sites). (1) `make buyers-area
+  ADDR="…"` (free HomeHarvest): every sale / listing within 1.5 mi, 24 months, with the listing agent's contact. (2) Claude in
+  Chrome fills owner / buyer / seller (Property Appraiser + off-MLS LLC buys), cash (no mortgage at the Clerk), buyer's agent
+  (Redfin "Bought with"), each LLC on Sunbiz (officers, registered agent, related LLCs by officer name), website / phone / email
+  the company publishes, and the people (`people.csv`, business-published contact only, source link each). (3) `make buyers-build`
+  ranks cash_buyers.csv / llc_people.csv / investor_agents.csv + summary.md in `reports/buyers/<street>/` (gitignored). No paid
+  skip trace unless Rodrigo says so.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
-- 2026-11-14, first Facebook run done on the Mac (Claude in Chrome, read-only): 5 SoFla/FL groups, 193 posts →
-  `reports/buyers/fb_investors.csv` (32 contacts) + `fb_deals.csv` (30 tri-county deals). Wholesalers ask ~60–80% of their
-  stated ARV (Broward avg 68%, Miami-Dade 72%, Palm Beach 75%). Few real end buyers post (Nick Flixzz: PBC/Broward/St Lucie;
-  Dror Dorenbaum deals@dna-investors.com statewide). Facebook hides post dates and many post links: last_seen = read date,
-  links fall back to the group. `reports/buyers/` added to .gitignore (it was not ignored). Next run: the other FL groups.
+- 2026-11-14: rule added: every Mac step comes with a ready-to-paste opening prompt (Rules for every session). Gave the
+  one for the Tortuga cash-buyer run.
+- 2026-11-14, RESUME HERE: **cash-buyer LLC system built** (Decisions → Cash buyers around a deal), tested on fixtures only (2
+  tests). First real run is on the Mac: `make buyers-area`, then the Chrome prompt, then `make buyers-build PRICE=269900`. Open
+  for Rodrigo: a paid skip trace for the owners' personal cells / emails (top 25 LLC people, he decides). Supersedes the "WAIT for
+  instructions" line below.
 - 2026-11-14, RESUME HERE: Rodrigo wants BOTH (1) investor phones/emails from the FB/IG groups, kept running: prompt saved at
   `docs/prompts/facebook_investor_contacts.md` (Mac, Claude in Chrome, read-only; tri-county, any deal, tagged for reuse:
   reports/buyers/fb_investors.csv + fb_deals.csv), and

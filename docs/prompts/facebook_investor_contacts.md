@@ -31,7 +31,7 @@ I'm logged into that covers Palm Beach, Broward or Miami-Dade.
 - Normal reading pace (a few seconds between pages, stop at 200 posts per run).
   Meta does not allow automated scraping, so a slow pace keeps the account safe.
 - If Facebook shows a warning, a captcha or "you're going too fast", stop and tell Rodrigo.
-- `reports/` is gitignored: these lists never go to GitHub.
+- `reports/buyers/` is gitignored: these lists never go to GitHub.
 
 ## Using it for a deal
 "From reports/buyers/fb_investors.csv, give me the buyers for <deal>": filter by county / city, type and price

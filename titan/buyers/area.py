@@ -78,15 +78,19 @@ def pull(address: str, radius: float = 1.5, months: int = 24, out_dir: Path | st
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "area_sales.csv"
     kept = {r["address"].upper(): r for r in read_csv(path)}
+    print(f"Finding {address} on realtor.com…", flush=True)
     here = _subject_point(address, scrape)
+    print("  found it" if here else "  not found (distances will be blank, the pull still works)", flush=True)
     rows: dict[str, dict[str, Any]] = {}
     for lt, extra in (("sold", {"past_days": int(timedelta(days=30 * months).days)}), ("pending", {}), ("for_sale", {})):
+        print(f"Pulling {lt.replace('_', ' ')} homes within {radius} miles… (can take a few minutes)", flush=True)
         try:
             items = scrape(address, listing_type=lt, radius=radius, return_type="raw", property_type=TYPES,
                            limit=3000, extra_property_data=False, **extra) or []
         except Exception as e:  # noqa: BLE001
             log.error("buyers: %s pull around %s failed: %s", lt, address, e)
             continue
+        print(f"  {len(items)} found", flush=True)
         for it in items:
             l = realtor.map_item(it) if isinstance(it, dict) else None
             if not l:

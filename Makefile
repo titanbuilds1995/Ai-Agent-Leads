@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -152,6 +152,9 @@ RADIUS ?= 1.5
 MONTHS ?= 24
 buyers-area:      ## free: every sale / listing around a deal + listing agents → reports/buyers/<street>/area_sales.csv (ADDR="..." RADIUS=1.5 MONTHS=24). Next: docs/prompts/cash_buyers_llc.md in Chrome
 	$(PY) -m titan.buyers area "$(ADDR)" --radius $(RADIUS) --months $(MONTHS)
+
+buyers-status:    ## how far the buyer jobs got (Tortuga LLC run + Facebook groups run)
+	$(PY) -m titan.buyers status x
 
 buyers-build:     ## rank the cash buyers (LLCs), the people behind them and their agents from what the Chrome step filled in (ADDR="..." PRICE=269900)
 	$(PY) -m titan.buyers build "$(ADDR)" $(if $(PRICE),--price $(PRICE),)

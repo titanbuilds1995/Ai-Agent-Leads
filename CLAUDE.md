@@ -572,6 +572,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14: `make buyers-status` added (how far the Tortuga LLC run and the Facebook run got; the cloud cannot see the Mac).
 - 2026-11-14: rule added: every Mac step comes with a ready-to-paste opening prompt (Rules for every session). Gave the
   one for the Tortuga cash-buyer run.
 - 2026-11-14, RESUME HERE: **cash-buyer LLC system built** (Decisions → Cash buyers around a deal), tested on fixtures only (2

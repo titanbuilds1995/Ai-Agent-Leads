@@ -558,6 +558,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14, RESUME HERE: Rodrigo wants to sell **82 Tortuga Rd** (contract $245k) to cash buyers through Facebook groups and asked to
+  analyze the best cash-deal posts there. The cloud cannot see Facebook (groups need his login; Apify refused this session's token).
+  Built a playbook + ready-to-paste post (artifact https://claude.ai/artifact/P1qSWmaoqrrU4jXvSuurVt: post at $269,900, ARV $400–420k,
+  3 comps, flow post → DM → one showing → highest and best → assignment). Next: the real group analysis from his Mac with Claude in
+  Chrome (prompt given in chat), then tune the post. Watch: inspection likely ends ~Nov 20; confirm "and/or assigns" is in the PSA.
 - 2026-11-13 ~7:20am ET: morning check only. **No 7am report** (Mac quiet since ~5:46pm Nov 12). Gap seen: Martin Hoffman's comment
   ended "just ask that and send it" but the rewrite landed in Needs Me, not Approved (rewrite + send rule; sending is paused anyway).
   Chevelle Young (Warm Leads, Needs Revision) comps ask unanswered, waits on the Mac. Cards posted on Claude Updates.

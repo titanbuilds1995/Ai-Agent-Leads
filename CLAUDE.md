@@ -552,12 +552,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the lane is second-read (`second_read.run`); a HOLD never reaches the board. The learning loop's goal is now contracts, and it sees
   the lane's counts. Not built: pulling ALL pending listings county-wide (new listings are still paused; today the lane only knows houses
   already in the database), the real pending date, texting in the sequence.
+- **Cash buyers around a deal (Rodrigo, 2026-11-14, 82 Tortuga Rd: "everyone buying cash in the area … look up the llc … website,
+  emails or phone numbers … the agents that work with these investors … the actual owner of the llc and anyone affiliated")**:
+  `titan/buyers/` + `docs/prompts/cash_buyers_llc.md`, all on the Mac (the cloud reaches none of these sites). (1) `make buyers-area
+  ADDR="…"` (free HomeHarvest): every sale / listing within 1.5 mi, 24 months, with the listing agent's contact. (2) Claude in
+  Chrome fills owner / buyer / seller (Property Appraiser + off-MLS LLC buys), cash (no mortgage at the Clerk), buyer's agent
+  (Redfin "Bought with"), each LLC on Sunbiz (officers, registered agent, related LLCs by officer name), website / phone / email
+  the company publishes, and the people (`people.csv`, business-published contact only, source link each). (3) `make buyers-build`
+  ranks cash_buyers.csv / llc_people.csv / investor_agents.csv + summary.md in `reports/buyers/<street>/` (gitignored). No paid
+  skip trace unless Rodrigo says so.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-14, RESUME HERE: **cash-buyer LLC system built** (Decisions → Cash buyers around a deal), tested on fixtures only (2
+  tests). First real run is on the Mac: `make buyers-area`, then the Chrome prompt, then `make buyers-build PRICE=269900`. Open
+  for Rodrigo: a paid skip trace for the owners' personal cells / emails (top 25 LLC people, he decides). Supersedes the "WAIT for
+  instructions" line below.
 - 2026-11-14, RESUME HERE: Rodrigo wants BOTH (1) investor phones/emails from the FB/IG groups, kept running: prompt saved at
   `docs/prompts/facebook_investor_contacts.md` (Mac, Claude in Chrome, read-only; tri-county, any deal, tagged for reuse:
   reports/buyers/fb_investors.csv + fb_deals.csv), and

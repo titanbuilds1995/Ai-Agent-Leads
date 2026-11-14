@@ -573,6 +573,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 
 ## Current status
 - 2026-11-14 evening: Rodrigo: engine stays as is (no buyer_box changes). Ran the buyer's self-managed 8% method on Kostas / Alexander Oaks (Plant City); pinned on its Working Deals card. Next: Rodrigo's LOI; CA sharing OK before the buyer sees the OM.
+- 2026-11-14 evening: Kostas true-cap price ladder pinned on the card (buy 8.2/8.1, sell 8.0/7.9/7.8, numbers on Asana only).
 - 2026-11-14: read the 1031 buyer's own comparison sheet (his upload, not in the repo). He underwrites a normalized "true 8 cap" (tax reset, insurance, 4% reserve, 12% manager), works sub-8 stated caps by offering at 8%, wants motivation (DOM, cuts, seller carry), newer buildings, hotels first, NNN as the hands-off option. Proposed buyer_box changes are waiting on Rodrigo; nothing changed.
 - 2026-11-14 afternoon: BOTH jobs running live on the Mac in Chrome (`titan tortuga`: 848 houses pulled, now owners / Sunbiz; `titan fb`: restarted from 32 contacts / 30 deals). Next: he sends summary.md + the top FB buyers, then pick who to call for Tortuga; skip trace still his call.
 - 2026-11-14: one-word launcher `scripts/titan.sh` (alias titan): `titan fb`, `titan tortuga`, `titan status`; saved job prompts in docs/prompts/start/. He kept pasting prompts into plain bash.

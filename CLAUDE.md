@@ -22,6 +22,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   that did not write it reads the whole thread plus the draft and pushes back on the logic before it reaches a card or goes out.
   Use `titan/second_read.py` (`second_read.run(llm, cfg, case, draft, rewrite)`), don't build a new one; show its "⚖️ Second read"
   line where Rodrigo sees the draft; what it did not clear never goes on its own. Details: Decisions → Two agents on every answer.
+- **Always hand him the FIRST prompt for the Mac (Rodrigo, 2026-11-14: "always give me the first prompt that I need on my mac to
+  tell it what I am talking about").** Whenever work has to run on his Mac, end the reply with one ready-to-paste opening prompt for
+  Claude Code on the Mac: who he is / the repo, the deal or task in plain words, `git pull` first, the exact make targets and docs to
+  follow, the rules that matter (read-only, nothing sent, nothing paid), and what to show him at the end. He should never have to
+  explain the context himself.
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -567,6 +572,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14: rule added: every Mac step comes with a ready-to-paste opening prompt (Rules for every session). Gave the
+  one for the Tortuga cash-buyer run.
 - 2026-11-14, RESUME HERE: **cash-buyer LLC system built** (Decisions → Cash buyers around a deal), tested on fixtures only (2
   tests). First real run is on the Mac: `make buyers-area`, then the Chrome prompt, then `make buyers-build PRICE=269900`. Open
   for Rodrigo: a paid skip trace for the owners' personal cells / emails (top 25 LLC people, he decides). Supersedes the "WAIT for

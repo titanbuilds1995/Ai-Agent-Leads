@@ -558,6 +558,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-14: Rodrigo asked to pull other investors' emails from the Instagram/Facebook groups he is in (cash buyer list for Tortuga).
+  The cloud cannot see them. Gave him a read-only Claude-in-Chrome prompt for the Mac (only contact info posted publicly for deals,
+  human pace, CSV in reports/buyers/, no DMs); suggested deed-record cash buyers in 33461 as the stronger free source. Nothing built.
 - 2026-11-14 ~7:25am ET: morning check only. Report on time. Board clean-up and backup lane run live (≈30 Fresh Leads cards to Skip
   Nov 13–14 with "Board clean-up" comments; 51 pending houses watched). **Claude unreachable on the Mac** (learning review skipped, new
   cards are templates): Needs Rodrigo card asks for `make doctor`. Hot list frozen since Nov 12 (ingest paused), learning loop is ranking

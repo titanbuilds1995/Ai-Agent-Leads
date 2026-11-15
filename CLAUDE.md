@@ -572,6 +572,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-15 ~00:15 ET, final partner flyers: page 1 = Titan sheet (hero photo, asking price, Albert's income/expense table, notes), page 2 =
+  Albert's own photo page copied as-is with "ALHPR 11 P" / "ALH 115" whited out and the 1155 blurred. Sent to Rodrigo as PDFs (scratchpad
+  only, not in repo). He will email them to the partner himself.
 - 2026-11-15: the Shell's ADDRESS IS CONFIRMED from the flyer's own photo (storefront reads "1155"): 1155 SW Martin Downs Blvd, Palm City
   34990. Partner PDFs re-made with photos (Street View captures, no broker branding; the "1155" is blurred). Noted on the Working Deals card.
 - 2026-11-14 evening: Rodrigo's partner likes Shell stations with food stores → Shell Palm City is the target, Amoco the backup. Built (1) an

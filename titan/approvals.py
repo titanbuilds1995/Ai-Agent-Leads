@@ -923,11 +923,24 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             res.setdefault("stopped", 0)
             res["stopped"] += 1
             continue
+        from .contact_guard import ContactHold, already_warned, confirmed_after_hold, warning
+        try:
+            cmts_now = asana.comments(t["gid"]) if card.get("reply_to") else []
+        except Exception:  # noqa: BLE001
+            cmts_now = []
+        ok_anyway = {"confirmed": True} if confirmed_after_hold(cmts_now, BOT) else {}
         try:
             if card.get("reply_to"):      # an answer: same Gmail thread as the email it answers
-                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"), **({"cc": card["cc"]} if card.get("cc") else {}))
+                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"),
+                                 **({"cc": card["cc"]} if card.get("cc") else {}), **ok_anyway)
             else:
                 ids = gmail.send(card["to"], card["subject"], card["body"], **({"cc": card["cc"]} if card.get("cc") else {}))
+        except ContactHold as h:  # 2026-11-15 (Walter): they already acknowledged us / we already wrote today. Bold, his OK only
+            if not already_warned(cmts_now, BOT):
+                asana.comment(t["gid"], warning(h.reason))
+            asana.move(t["gid"], nm)
+            res["held_contact"] = res.get("held_contact", 0) + 1
+            continue
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1
             asana.comment(t["gid"], f"Send failed, will retry next round: {str(e)[:200]}")

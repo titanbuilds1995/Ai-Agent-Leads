@@ -34,6 +34,7 @@ SEND_RE = re.compile(
 # follow-up phrases, NOTHING but filler words is left. Any other word ("to Lisa", "minus the last line", "scrap that",
 # "via text", "wrong agent") means it is not a plain go-ahead, so the card is held. Never default to send.
 _GO_AHEAD = [
+    r"(?:yes,? )?send (?:it |this )?anyway",   # 2026-11-15: his OK after a contact-guard hold (contact_guard.CONFIRM_RE)
     r"send (?:it|this|him|her|them)(?: the email| the emails?| out)?(?: now| asap| as is| as written| please)*",
     r"send(?:ing)? the email", r"go ahead(?: and send(?: it)?)?", r"(?:approve and )?send(?= *[.!]* *$)", r"i approve(?: this| it)?(?: email)?", r"approved?",
     r"(?:this is |it'?s |that'?s )?(?:a )?(?:really |very |super )?good email", r"(?:this |it )?looks? (?:really )?(?:good|great)",

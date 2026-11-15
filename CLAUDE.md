@@ -27,6 +27,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Claude Code on the Mac: who he is / the repo, the deal or task in plain words, `git pull` first, the exact make targets and docs to
   follow, the rules that matter (read-only, nothing sent, nothing paid), and what to show him at the end. He should never have to
   explain the context himself.
+- **Don't bombard anyone (Rodrigo, 2026-11-15, after Walter got three emails in an hour: "we sent out way too many emails to this
+  guy … if they already said excellent or absolutely … we don't email them again. Even if I say so, make it bold and have me approve
+  it … for any communication").** Before ANY email to someone outside our domain (engine or a cloud session using the Gmail
+  connector), read the thread first. If their last message only acknowledges ours ("Excellent", "Absolutely", "Got it", "Thanks",
+  "Will review"), or we already wrote them in the last 24 hours and they have not answered since, DO NOT SEND, even when Rodrigo
+  asked for it: tell him in **bold** that this person already answered / was already emailed today, say why another email may not
+  be the right move, and send only after he says so again knowing that. Get the facts right BEFORE the first send (verify the price,
+  the numbers) and put everything in ONE email; never a stream of corrections. Engine: `titan/contact_guard.py` (Decisions).
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -566,12 +574,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the company publishes, and the people (`people.csv`, business-published contact only, source link each). (3) `make buyers-build`
   ranks cash_buyers.csv / llc_people.csv / investor_agents.csv + summary.md in `reports/buyers/<street>/` (gitignored). No paid
   skip trace unless Rodrigo says so.
+- **Contact guard: no email to someone who is done hearing from us (Rodrigo, 2026-11-15, Walter)**: `titan/contact_guard.py`, checked
+  inside `GmailClient.send` for every email into an existing thread with an outside address: the thread is read; their last message is
+  a short acknowledgement (`is_ack`: excellent / absolutely / thanks / got it / sounds good / will review…, ≤30 words, no question) or
+  we wrote them in the last 24 h with no answer since → `ContactHold`, nothing sent. House cards: one bold "**HOLD, not sent: …**"
+  comment, card to Needs Me. 1031 replies: the same comment, the draft waits. Only his "send anyway" written AFTER the warning
+  (`confirmed_after_hold`; a newer warning needs a new OK) sends it (`send(..., confirmed=True)`); "send anyway" on a house card moves
+  it to Approved (comment_router). Fresh first emails (no thread) are not checked. Other senders (pass emails, delay notes) just wait.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-15 ~11:30am ET: **contact guard built** (Rules for every session + Decisions → Contact guard), after the three emails to
+  Walter in an hour. Engine holds any email into a thread whose person already acknowledged us or got an email from us in the last
+  24 h, with a bold warning; only "send anyway" after it sends. 5 tests, all pass. Not live-tested (the Mac picks it up on its
+  10-min update; sending is still paused anyway).
 - 2026-11-15 ~11am ET: **331 John Ringling Blvd (St. Armands, Sarasota; Larry Starr, SVN) sent to Walter** on Rodrigo's word, from
   rodrigo@ in the "Alexander Oaks deal sheet" thread (cc Cat, Taylor): 2-page flyer (rent roll, 3% bumps, NNN, roof = landlord) + both
   executed leases + rent schedule. No price or cap in it (ask/LOI never shown to the investor); OM not attached (its disclaimer bars

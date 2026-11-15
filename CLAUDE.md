@@ -572,6 +572,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-15 ~11am ET: **331 John Ringling Blvd (St. Armands, Sarasota; Larry Starr, SVN) sent to Walter** on Rodrigo's word, from
+  rodrigo@ in the "Alexander Oaks deal sheet" thread (cc Cat, Taylor): 2-page flyer (rent roll, 3% bumps, NNN, roof = landlord) + both
+  executed leases + rent schedule. No price or cap in it (ask/LOI never shown to the investor); OM not attached (its disclaimer bars
+  third parties). Flyer copy in reports/commercial/ (gitignored). Next: Walter's answer; Larry still owes the seller's reply to the LOI.
 - 2026-11-15 ~7:20am ET: morning check only. No 7am report yet (Mac is up: 5:30am clean-up moved 5 cards to Skip, EOD sent 9pm Sat;
   last Sunday's report came 11:21am). Needs Rodrigo card posted. Sending still paused; no new comments or agent replies.
 - 2026-11-14 afternoon: BOTH jobs running live on the Mac in Chrome (`titan tortuga`: 848 houses pulled, now owners / Sunbiz; `titan fb`: restarted from 32 contacts / 30 deals). Next: he sends summary.md + the top FB buyers, then pick who to call for Tortuga; skip trace still his call.

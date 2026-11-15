@@ -572,6 +572,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-15: reviewed all 162 1031 "Not a fit" cards (Asana Claude Updates → Needs Rodrigo, "Review of every Not a fit card"). 7 worth reopening, 5 still in Not a fit with no pass sent. Gap found, NOT fixed (his call): `closeout.clear_not_fit` sends the pass even when the broker pitched other deals (Albert's gas stations, Adam Docktor). Unpausing sending auto-passes every card left in Not a fit.
 - 2026-11-14 afternoon: BOTH jobs running live on the Mac in Chrome (`titan tortuga`: 848 houses pulled, now owners / Sunbiz; `titan fb`: restarted from 32 contacts / 30 deals). Next: he sends summary.md + the top FB buyers, then pick who to call for Tortuga; skip trace still his call.
 - 2026-11-14: one-word launcher `scripts/titan.sh` (alias titan): `titan fb`, `titan tortuga`, `titan status`; saved job prompts in docs/prompts/start/. He kept pasting prompts into plain bash.
 - 2026-11-14: `make buyers-status` added (how far the Tortuga LLC run and the Facebook run got; the cloud cannot see the Mac).

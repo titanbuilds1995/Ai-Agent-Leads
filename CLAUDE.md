@@ -572,6 +572,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-15: the Shell's ADDRESS IS CONFIRMED from the flyer's own photo (storefront reads "1155"): 1155 SW Martin Downs Blvd, Palm City
+  34990. Partner PDFs re-made with photos (Street View captures, no broker branding; the "1155" is blurred). Noted on the Working Deals card.
 - 2026-11-14 evening: Rodrigo's partner likes Shell stations with food stores → Shell Palm City is the target, Amoco the backup. Built (1) an
   internal deal sheet artifact (claude.ai artifact Qm77QSAoXMMNsqPpvSUXKs; candidate address 1155 SW Martin Downs Blvd, UNCONFIRMED:
   Albert withholds addresses until NDA + co-brokerage; the cloud is blocked from pa.martin.fl.us, check on the Mac), (2) two WHITE-LABELED

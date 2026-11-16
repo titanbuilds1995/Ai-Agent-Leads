@@ -1002,6 +1002,39 @@ def cmd_doctor(cfg, args):
         sys.exit(1)
 
 
+def cmd_deliverability(cfg, args):
+    """Why mail from this domain lands in spam: the mailbox's sends / blasts / bounces, SPF-DKIM-DMARC, and a list cleaner."""
+    from .deliverability import blast_report, dns_report, format_report, verify_file
+    if args.verify:
+        from .enrich import default_mx, default_rcpt
+        dom = (cfg.secret("GMAIL_SENDER") or "x@titanrealtyinvestments.com").split("@")[-1]
+        r = verify_file(args.verify, mx=None if args.no_smtp else default_mx,
+                        rcpt=None if args.no_smtp else default_rcpt(helo_domain=dom, mail_from=f"verify@{dom}"))
+        c = r["counts"]
+        print(f"{r['total']} addresses read -> clean {c['clean']} · dead {c['dead']} · unknown {c['unknown']}")
+        for k, f in r["files"].items():
+            print(f"  {k:8} {f}")
+        print("Send only to the clean file. Dead addresses are what got the domain filed as spam.")
+        return
+    dns = None
+    if not args.no_dns:
+        dom = (cfg.secret("GMAIL_SENDER") or cfg.get("operator.sender_email") or "x@titanrealtyinvestments.com").split("@")[-1]
+        dns = dns_report(dom)
+    rep = None
+    if not args.no_mailbox:
+        c = _clients(cfg, _open(cfg), need=("gmail",))
+        if c.get("gmail") is None:
+            print("Gmail (Charles) is not connected here; mailbox history skipped. DNS below." if dns else "Gmail is not connected here.")
+        else:
+            rep = blast_report(c["gmail"], days=args.days)
+    if rep:
+        print(format_report(rep, dns))
+    elif dns:
+        print(format_report({"days": args.days, "sent": 0, "bounces": [], "bounce_pct": 0.0, "busiest_day": None, "blasts": [], "dead_addresses": [],
+                             "verdict": ["(mailbox not read)"]}, dns))
+    print("\nRules for any send from any of our mailboxes: docs/DELIVERABILITY.md")
+
+
 def cmd_gmail_auth(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("gmail",), interactive=True)
@@ -1049,6 +1082,12 @@ def main(argv: list[str] | None = None) -> int:
     wh.add_argument("--host", default="0.0.0.0")
     wh.add_argument("--port", type=int, default=8080)
     sub.add_parser("gmail-auth")
+    dv = sub.add_parser("deliverability", help="why our mail lands in spam: sends / blasts / bounces of the mailbox + SPF, DKIM, DMARC; --verify FILE cleans a list")
+    dv.add_argument("--days", type=int, default=30)
+    dv.add_argument("--no-dns", action="store_true")
+    dv.add_argument("--no-mailbox", action="store_true")
+    dv.add_argument("--verify", default=None, help="a CSV / text file of addresses: writes .clean.csv / .dead.csv / .unknown.csv next to it")
+    dv.add_argument("--no-smtp", action="store_true", help="with --verify: syntax, duplicates and known-dead domains only (no network)")
     sub.add_parser("gmail-test", help="make one test draft in the outreach mailbox (sends nothing)")
     dl = sub.add_parser("dashboard", help="open the dashboard from this machine (no hosting needed)")
     dl.add_argument("--port", type=int, default=8765)
@@ -1137,7 +1176,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

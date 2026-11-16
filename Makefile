@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -107,6 +107,12 @@ comps-check:      ## measure comp accuracy only (no tuning, no Claude, nothing p
 
 score-test:       ## score 3 stored listings through Claude Code (your plan, no API spend)
 	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli score-test
+
+deliverability:   ## why our mail lands in spam: this mailbox's sends / blasts / bounces + SPF, DKIM, DMARC of the domain (ARGS=--days 60)
+	$(PY) -m titan.cli deliverability $(ARGS)
+
+verify-list:      ## clean a list of addresses BEFORE anyone sends to it: FILE=path.csv -> path.clean.csv / .dead.csv / .unknown.csv (free MX + SMTP checks)
+	$(PY) -m titan.cli deliverability --verify "$(FILE)" --no-dns --no-mailbox
 
 doctor:           ## check every credential + setting the live run needs; prints pass/fail and the fix for each
 	$(PY) -m titan.cli doctor

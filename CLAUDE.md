@@ -35,6 +35,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   asked for it: tell him in **bold** that this person already answered / was already emailed today, say why another email may not
   be the right move, and send only after he says so again knowing that. Get the facts right BEFORE the first send (verify the price,
   the numbers) and put everything in ONE email; never a stream of corrections. Engine: `titan/contact_guard.py` (Decisions).
+- **No bulk-looking email from any of our mailboxes (Rodrigo, 2026-11-16: "a lot of emails that I've sent out to multiple people have
+  gone to spam").** Flyers (HTML, pictures), "Reply STOP" / unsubscribe lines, prices or "opportunity" in the subject, the same text to many
+  strangers, unverified lists: never, from rodrigo@, Charles@, a script or a cloud session. The domain's reputation is shared. Plain text,
+  one person, verified address (`make verify-list FILE=…`). `GmailClient.send` refuses bulk-looking mail (`BulkContent`, no override).
+  Rules and the why: `docs/DELIVERABILITY.md`.
 - **Cost rule (Rodrigo, 2026-10-24): always use what is free or already paid for before spending money.** Check free /
   already-subscribed options (his Claude Code plan, free scrapers, existing connectors) before any paid API or service,
   and never switch on a paid fallback without asking.
@@ -588,12 +593,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   comment, card to Needs Me. 1031 replies: the same comment, the draft waits. Only his "send anyway" written AFTER the warning
   (`confirmed_after_hold`; a newer warning needs a new OK) sends it (`send(..., confirmed=True)`); "send anyway" on a house card moves
   it to Approved (comment_router). Fresh first emails (no thread) are not checked. Other senders (pass emails, delay notes) just wait.
+- **Deliverability (Rodrigo, 2026-11-16: his emails to many people went to spam; `titan/deliverability.py`, `docs/DELIVERABILITY.md`)**: the
+  cause was ~65 identical 140–430 KB HTML flyers sent from rodrigo@ on Nov 4 / 6 / 9 (a script through smtp.gmail.com, then forwards by
+  hand) to a scraped owner list: ~15% hard bounces (dead aol / bellsouth / cox / yahoo addresses), "Reply STOP", a `List-Unsubscribe`
+  header, a price in the subject. DKIM for the domain passed; content, bounces and repetition did it, and Charles@ shares the domain's
+  reputation. Built: (1) `bulk_markers` inside `GmailClient.send`: an email to an outside address that reads as bulk (flyer HTML / big
+  picture / STOP-unsubscribe lines / ad subject / list headers / capitals) raises `BulkContent`, nothing overrides it; the approvals send
+  posts "STOPPED, not sent" and moves the card to Needs Me. (2) Bounce circuit breaker (`bounce_breaker`, config `outreach.deliverability`:
+  7 days, >5% bounces on 20+ sends): approvals stop sending, ONE "⛔ Sending stopped · too many bounces" card a day in Needs Rodrigo
+  (`commercial_kv deliverability_breaker:<date>`). (3) `make deliverability` (Mac): the mailbox's sends per day, blasts (same subject to 5+
+  people in a day), bounces with the dead addresses, verdict in plain words, plus SPF / DKIM / DMARC with the fix for each (the cloud
+  cannot resolve DNS). (4) `make verify-list FILE=list.csv`: clean / dead / unknown split (syntax, duplicates, role mailboxes, dead domains,
+  MX, SMTP RCPT through `enrich.default_mx/default_rcpt`) before anyone sends to a list. Not done: DNS of the domain not checked yet
+  (needs the Mac); Google Postmaster Tools not set up (his Google Admin).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-16 ~1pm ET, RESUME HERE: **spam diagnosis + deliverability guards built** (Decisions → Deliverability). Cause found in rodrigo@'s
+  own headers (flyer blasts Nov 4/6/9, ~15% bounces, scraped list). Rodrigo runs `make deliverability` on the Mac once to see the DNS
+  (SPF / DKIM / DMARC) and Charles's mailbox numbers; sets up Google Postmaster Tools. 6 new tests, 428 total, all pass. Open: whether
+  "Rodrigo at XR Holding" is a second mailbox on another domain (only rodrigo@titanrealtyinvestments.com was readable from here).
 - 2026-11-16 ~10am ET, RESUME HERE: **sending back on 8am–6pm** + **follow-up sequence built** (Decisions → Follow-up SEQUENCE). First real
   run: Rodrigo runs `make follow-ups` on the Mac now; after that run-daily does it every morning. Tested on fixtures (8 tests, all pass);
   never run on the real board. Watch: how many come back "can't tell" (realtor.com lookups), how many the second reader holds in Needs Me,

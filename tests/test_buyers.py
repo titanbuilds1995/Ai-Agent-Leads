@@ -67,3 +67,22 @@ def test_kind():
     assert build.kind("Mary Jones") == "PERSON" and build.kind("Bank of America NA") == "SKIP"
     assert build.kind("Smith Family Trust") == "TRUST"
     assert build.norm("Sunshine Flips, L.L.C.") == build.norm("SUNSHINE FLIPS LLC")
+
+
+def test_contacts_export(tmp_path):
+    from openpyxl import load_workbook
+    from titan.buyers import contacts
+    area.write_csv(tmp_path / "fb_investors.csv", [{"name": "Joe Flip", "phone": "561-555-0101", "company": "JF Homes"}],
+                   ["name", "company", "phone"])
+    d = tmp_path / "82_tortuga_rd"
+    d.mkdir()
+    area.write_csv(d / "area_sales.csv", [{"address": "10 Palm Way", "buyer_name": "Sunshine Flips LLC", "listing_agent": "Ana",
+                                            "listing_agent_phone": "561-555-0102"}, {"address": "12 Palm Way"}], area.COLS)
+    area.write_csv(d / "people.csv", [{"name": "Maria Lopez", "llc_name": "Sunshine Flips LLC", "phone": "561-555-0100"}],
+                   build.PEOPLE_COLS)
+    path, counts = contacts.export(tmp_path)
+    c = dict(counts)
+    assert c["Facebook investors"] == 1 and c["82 Tortuga Rd people"] == 1 and c["82 Tortuga Rd owners"] == 1
+    assert c["82 Tortuga Rd agents"] == 1
+    wb = load_workbook(path)
+    assert wb["Facebook investors"]["C2"].value == "561-555-0101"

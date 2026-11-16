@@ -36,7 +36,7 @@ def status(root: Path) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(prog="titan.buyers")
-    ap.add_argument("step", choices=["area", "build", "status"])
+    ap.add_argument("step", choices=["area", "build", "status", "contacts"])
     ap.add_argument("address")
     ap.add_argument("--radius", type=float, default=1.5)
     ap.add_argument("--months", type=int, default=24)
@@ -45,6 +45,16 @@ def main() -> None:
     a = ap.parse_args()
     if a.step == "status":
         status(Path(a.out))
+        return
+    if a.step == "contacts":
+        from . import contacts
+        path, counts = contacts.export(a.out)
+        for n, c in counts:
+            print(f"  {n}: {c}")
+        print(f"\nOpened {path}")
+        import subprocess, sys
+        if sys.platform == "darwin":
+            subprocess.run(["open", str(path)])
         return
     if a.step == "area":
         p = area.pull(a.address, a.radius, a.months, a.out)

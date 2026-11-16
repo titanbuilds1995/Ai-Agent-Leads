@@ -227,15 +227,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   reads it like the lead columns (`titan/warm_leads.py`): comments handled, WHERE WE STAND kept, moves stay on the warm board
   (Needs Me ↔ Waiting on the agent; Offer out when an offer is logged and never pulled back out; Closed). Reply cards and
   sending stay on the approvals board. Moving answered leads onto it automatically is NOT built (he moves them himself).
-- **Second touch = "Good morning" follow-up (Rodrigo, 2026-11-02: "send a good morning email to all of the agents that never
-  responded back to us")**: `titan/follow_up.py`, `titan.cli follow-ups` / `make follow-ups`. For every first email sent 3+ days ago
-  (`outreach.follow_up.after_days`) whose agent never really answered (bounces / auto-replies don't count), nothing sent since, not
-  bounced, not do-not-contact, no answer card already waiting, not parked by Rodrigo ("too fresh, wait 45 days" in lead_notes): one
-  reply card "Follow-up · Agent · street" in Needs Me, same Gmail thread (`(reply to outreach #N)`), opens "Good morning <name>," then
-  one line that we emailed about the house and one easy question; 25–60 words, no price, `validate_follow_up`. Claude writes it
-  (paid API like other card work), template fallback. One follow-up per first email (`follow_ups` table). `--approve` puts them
-  straight into Approved, only when Rodrigo said in words to send them; `--list` prints who would get one. Not run on its own yet
-  (no cron / tick); Rodrigo asks for it, or say when he wants it automatic.
+- **Follow-up SEQUENCE to every silent agent (Rodrigo, 2026-11-02, extended 2026-11-16: "anybody that doesn't answer should be
+  getting emails from us. 3 to 4 consecutive emails within a time frame of like 15 days … if they're still active … stress test the
+  email … then send it")**: `titan/follow_up.py`, `make follow-ups`, run-daily step `follow_ups` (5:30am, before outreach). Day 0 first
+  email; step 1 three days later ("Good morning <name>, Charles with Titan … I emailed you <the other day / last week / a few weeks ago>
+  about X", one easy question); step 2 five days after step 1 (a new question the photos can't show, e.g. lived in or vacant, never a
+  second ask for a call); step 3 six days after step 2 (the last note, door left open, "anything else you have listed in <city>").
+  Config `outreach.follow_up` (`after_days` 3, `sequence_gaps` [5, 6], `max_steps` 3, `auto_send: true`, `max_per_run` 120); table
+  `follow_up_steps` (old single follow-ups count as step 1). Before each step the house is looked up on realtor.com (Mac,
+  `board_clean.homeharvest_lookup`): active → written; pending → backup lane, sequence stops; sold / pulled → EXCLUDED, stops, one comment;
+  can't tell → waits for the next run. Every step goes through `second_read.run` against the emails already sent; only SEND goes to
+  Approved (auto_send), anything else / reader unreachable → Needs Me. Stops for good on a real answer or anything else we send them.
+  Same lead card (NEXT EMAIL), same Gmail thread, 25–60 words, no price. `ARGS=--dry-run` prints the emails, `--no-check` skips lookups.
 - **Needs Revision holds only commented cards (Rodrigo, 2026-11-02: "if it doesn't have a comment, it needs to get out of Needs
   Revision … clean Needs Revision into only things that I sent out fresh")**: a card dragged there with no comment goes straight
   back to Needs Me at the next round, text untouched, with a one-line comment (`back_to_needs_me` in `sync_feedback`); no prompt,
@@ -474,7 +477,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   dropped them after talking** (NOT A FIT / DOES NOT FIT reads bucketed by `DROP_REASONS` from the read + the broker's words: gone /
   tenants (month-to-month, food trucks, class C, local credit) / owner-operator / won't hold the cap / outside the box / won't show the
   books / other). The gallery head links to it. Published with every site publish (Mac); the Mac's database holds the conversations.
-- **ALL SENDING PAUSED (Rodrigo, 2026-11-11 ~4pm ET: "pause everything right now, no more email sending out … we're sending out
+- **Sending back ON (Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m.")**:
+  `sending_paused: false`, send window 08:00–18:00 every day, `daily_email_cap` 120 (for the follow-up sequence). The 1031 no-cap blast
+  queue stays held on its own switch `commercial.outreach.blast_paused: true` until he says. Twilio campaign is ready but not in use
+  (he said not to worry about it yet). The paragraph below is history.
+- **(history) ALL SENDING PAUSED (Rodrigo, 2026-11-11 ~4pm ET: "pause everything right now, no more email sending out … we're sending out
   way too many, I'm a little overwhelmed")**: `outreach.sending_paused: true` in config.yaml. `approvals.in_window` answers "closed"
   while it is on, so every sender waits exactly as it does outside the send window: approved cards (houses), OM requests, the no-cap
   blast queue, Charles's 1031 replies (even after his "send it"), pass emails. Cards and drafts stay where they are. Reports and
@@ -587,6 +594,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-16 ~10am ET, RESUME HERE: **sending back on 8am–6pm** + **follow-up sequence built** (Decisions → Follow-up SEQUENCE). First real
+  run: Rodrigo runs `make follow-ups` on the Mac now; after that run-daily does it every morning. Tested on fixtures (8 tests, all pass);
+  never run on the real board. Watch: how many come back "can't tell" (realtor.com lookups), how many the second reader holds in Needs Me,
+  and the 120/day cap (oldest first; the rest go tomorrow). 1031 blast still held. Contacts workbook now has a "Tortuga investor agents" tab.
 - 2026-11-16: Rodrigo asked to see every contact from the Facebook run + the owners around Tortuga. The lists live only on
   the Mac (gitignored), so built `titan contacts` / `make buyers-contacts`: one workbook reports/buyers/ALL_CONTACTS.xlsx (FB investors,
   FB deals, Tortuga people / LLCs / owners / agents), opens it and emails it to REPORT_TO from Charles@ (`make buyers-contacts-email`;

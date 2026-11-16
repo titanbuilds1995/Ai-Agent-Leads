@@ -166,7 +166,9 @@ outreach:
   # Rodrigo, 2026-11-11: "pause everything right now, no more email sending out". true = nothing goes to any agent or broker
   # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only mail to Rodrigo
   # himself still goes (the "sorry for the delay" note was switched off the same evening, see commercial.delay_note). Turn off only when he says.
-  sending_paused: true
+  # Back on 2026-11-16 (Rodrigo: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m."). The 1031 no-cap blast queue
+  # stays held on its own switch (commercial.outreach.blast_paused) until he says.
+  sending_paused: false
   # Daily Fresh Leads clean-up (Rodrigo, 2026-11-12): every morning each house on a Fresh Leads card is looked up on realtor.com
   # (HomeHarvest, free, Mac only); pending / under contract / sold / off market -> card to Skip, email never sent (board_clean.py).
   board_clean:
@@ -180,7 +182,7 @@ outreach:
   second_read:
     enabled: true
     max_rounds: 2
-  daily_email_cap: 30              # Rodrigo: at least 25 a day (2026-10-24)
+  daily_email_cap: 120             # Rodrigo: at least 25 a day (2026-10-24); 120 on 2026-11-16 for the follow-up sequence to every silent agent
   max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
   daily_sms_cap: 25
   agent_cooldown_days: 7
@@ -209,7 +211,7 @@ outreach:
       offer_out: "1219996806307425"
       closed: "1219997042127935"
     per_tick: 5                     # emails per 20-minute round (Rodrigo, 2026-11-02: approved cards sat too long at 2)
-    send_window: {start: "08:30", end: "17:30", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
+    send_window: {start: "08:00", end: "18:00", timezone: "America/New_York", days: [0, 1, 2, 3, 4, 5, 6]}
   # Second touch (Rodrigo, 2026-11-02): a "Good morning" follow-up in the same thread to every agent who never answered the
   # first email. `titan.cli follow-ups` puts each one on the lead's own card as NEXT EMAIL, in Needs Me (--approve: Approved when he said send).
   # THE BACKUP LANE (Rodrigo, 2026-11-12: "properties that match our criteria and are pending … email the agents and tell them that
@@ -227,8 +229,11 @@ outreach:
     lookup_every_days: 7           # a HOT / WARM house we never emailed is looked up again after this many days
     pause_seconds: 1.0
   follow_up:
-    after_days: 3                  # first email at least this old before a follow-up is drafted
-    max_per_run: 25
+    after_days: 3                  # step 1: first email at least this old
+    sequence_gaps: [5, 6]          # step 2 five days after step 1 went, step 3 six days after step 2: four emails in ~15 days (Rodrigo, 2026-11-16)
+    max_steps: 3
+    auto_send: true                # Rodrigo, 2026-11-16 "then send it": cleared follow-ups go straight to Approved (run-daily step follow_ups)
+    max_per_run: 120
   email_min_confidence: "medium"   # high | medium | low — minimum enrichment confidence to email
   handoff_email_wait_business_days: 2
   terms:
@@ -466,6 +471,7 @@ commercial:
   outreach:
     per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
     daily_cap: 220                   # per day, separate from the residential daily_email_cap
+    blast_paused: true               # 2026-11-16: house sending back on, the no-cap blast queue still held until Rodrigo says
     queue_dir: "data/commercial_queue"
   # Rodrigo, 2026-11-11 (sending paused): one "sorry for the delay, we are working through the properties, we will get back with
   # you" note to every broker who answered before `before` and never heard back from Charles or Rodrigo. Once per broker, never to

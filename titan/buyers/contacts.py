@@ -1,7 +1,8 @@
 """Every contact both buyer jobs found, in ONE workbook (Rodrigo, 2026-11-16: "I need to see all of the contact info from
 everyone we got on the facebook pages and the owners around tortuga"). `make buyers-contacts` / `titan contacts`.
 
-Tabs: Facebook investors, Facebook deals, then per deal folder: People behind the LLCs, LLCs, Owners (buyer / seller of
+Tabs: Facebook investors, Facebook deals, then per deal folder: People behind the LLCs, Investor agents (agents who brought an
+investor buyer, listed an investor's flip or sold to an LLC near the deal: the ones with buyers), LLCs, Owners (buyer / seller of
 every house around the deal with mailing address), Agents (listing + buyer's agents with phone / email). Reads only."""
 from __future__ import annotations
 
@@ -55,6 +56,10 @@ def sheets(root: Path) -> list[tuple[str, list[str], list[dict[str, Any]]]]:
         tag = d.name.replace("_", " ").title()[:14]
         people = read_csv(d / "llc_people.csv") or read_csv(d / "people.csv")
         out.append((f"{tag} people", _cols(people, ["name", "llc_name", "role", "phone", "email"]), people))
+        inv = read_csv(d / "investor_agents.csv")    # agents who actually worked with investors near the deal (build.rank_agents)
+        out.append((f"{tag} investor agents", _cols(inv, ["rank", "agent", "phone", "email", "office", "represented_investor_buyer",
+                                                          "listed_investor_flip", "sold_to_investor", "listed_renovated_flip",
+                                                          "investors", "addresses"]), inv))
         llcs = read_csv(d / "cash_buyers.csv") or read_csv(d / "llcs.csv")
         out.append((f"{tag} LLCs", _cols(llcs, []), llcs))
         area = read_csv(d / "area_sales.csv")

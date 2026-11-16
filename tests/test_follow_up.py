@@ -101,3 +101,87 @@ def test_needs_revision_without_a_comment_goes_straight_back_to_needs_me(loaded,
     asana.move(gid, asana.ensure_section(None, "Needs Revision")); asana.stories[gid].append("mention the pool")
     sync_feedback(loaded, cfg, asana, None)
     assert asana.where[gid] == asana.ensure_section(None, "Needs Revision")
+
+
+def _age_sends(loaded, days):
+    loaded.execute("UPDATE outreach SET sent_at=? WHERE status='sent' AND kind!='first_touch'",
+                   (iso(datetime.now(timezone.utc) - timedelta(days=days)),))
+
+
+def test_sequence_three_steps_spaced_then_stops(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-11-16: 3 to 4 emails inside ~15 days to anybody who doesn't answer, then stop."""
+    asana, s = _sent(loaded, cfg, tmp_path, monkeypatch, days_ago=20)
+    oid = loaded.execute("SELECT id FROM outreach WHERE status='sent' ORDER BY id LIMIT 1").fetchone()[0]
+    bodies = []
+    for step in (1, 2, 3):
+        due = {c["outreach"]["id"]: c["step"] for c in candidates(loaded, cfg, asana)}
+        assert due.get(oid) == step
+        out = post_follow_ups(loaded, cfg, asana, None, approve=True)
+        assert out["by_step"].get(step)
+        card = next(c["card"] for c in out["cards"] if parse_card(asana.tasks[c["card"]]["notes"])["outreach_id"] == oid)
+        assert asana.where[card] == s["approved"]
+        gm = FakeGmail()
+        send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET)
+        bodies.append(next(b for _, _, b, *_ in gm.sent if True))
+        assert oid not in {c["outreach"]["id"] for c in candidates(loaded, cfg, asana)}   # not again the same day
+        _age_sends(loaded, 7)
+    assert oid not in {c["outreach"]["id"] for c in candidates(loaded, cfg, asana)}       # three follow-ups, then done
+    assert len(set(bodies)) == 3 and "last note" in bodies[2]
+    assert "a few weeks ago" in bodies[0] and not any("last week" in b for b in bodies)   # first email was 20 days ago
+
+
+def test_sequence_stops_on_answer_and_for_houses_no_longer_for_sale(loaded, cfg, tmp_path, monkeypatch):
+    asana, s = _sent(loaded, cfg, tmp_path, monkeypatch, days_ago=10)
+    rows = loaded.execute("SELECT id, agent_id, property_ids FROM outreach WHERE status='sent' ORDER BY id").fetchall()
+    assert len(rows) >= 2
+    import json as _j
+    pend, gone = rows[0], rows[1]
+    states = {}
+    for pid in _j.loads(pend["property_ids"]):
+        states[pid] = "pending"
+    for pid in _j.loads(gone["property_ids"]):
+        states[pid] = "sold"
+    out = post_follow_ups(loaded, cfg, asana, None, approve=True, lookup=lambda p: states.get(p["id"], "active"))
+    assert out["pending"] == 1 and out["gone"] == 1
+    assert loaded.execute("SELECT COUNT(*) FROM backup_leads").fetchone()[0] >= 1
+    sold_pid = _j.loads(gone["property_ids"])[0]
+    assert loaded.execute("SELECT lead_status FROM properties WHERE id=?", (sold_pid,)).fetchone()[0] == "EXCLUDED"
+    ids = {c["outreach"]["id"] for c in candidates(loaded, cfg, asana)}
+    assert pend["id"] not in ids and gone["id"] not in ids
+
+
+def test_unclear_status_sends_nothing(loaded, cfg, tmp_path, monkeypatch):
+    asana, s = _sent(loaded, cfg, tmp_path, monkeypatch, days_ago=10)
+    out = post_follow_ups(loaded, cfg, asana, None, approve=True, lookup=lambda p: None)
+    assert out["posted"] == 0 and out["unknown"] >= 2
+
+
+def test_second_reader_hold_keeps_it_in_needs_me(loaded, cfg, tmp_path, monkeypatch):
+    asana, s = _sent(loaded, cfg, tmp_path, monkeypatch, days_ago=5)
+    cfg.raw["outreach"].setdefault("second_read", {})["enabled"] = True
+    sig = signature(cfg)
+
+    class LLM:
+        available = True
+        def structured(self, purpose, *a, **k):
+            if purpose == "second_read":
+                return {"verdict": "HOLD", "problems": ["x"], "fix": "", "why": "test hold"}
+            return {"body": "Good morning Ann,\n\nCharles with Titan Realty Investments. I emailed you the other day about your listing "
+                            "and wanted to check back.\n\nIs the seller still open to a conversation on it?\n\n" + sig}
+    out = post_follow_ups(loaded, cfg, asana, LLM(), approve=True, limit=1)
+    assert out["posted"] == 1 and out["needs_me"] == 1 and asana.where[out["cards"][0]["card"]] == asana.ensure_section(None, "Needs Me")
+
+
+def test_step_templates_pass_the_rules(cfg):
+    from titan.follow_up import SEQ_TEMPLATES
+    props = [{"street": "671 SW 10th St", "city": "Florida City", "photos_count": 19}]
+    for step in (1, 2, 3):
+        body, src = write_follow_up(None, cfg, {"name": "Veronica Zavaleta"}, props, "first", step=step, sent_at=iso())
+        assert src == "template" and validate_follow_up(body, props) == [], (step, body, validate_follow_up(body, props))
+    assert SEQ_TEMPLATES[3][0].count("?") == 1
+
+
+def test_blast_held_on_its_own_switch(conn, cfg):
+    from titan.commercial.blast import send_queue
+    cfg.raw.setdefault("commercial", {}).setdefault("outreach", {})["blast_paused"] = True
+    assert send_queue(conn, cfg, FakeGmail(), room=10)["sent"] == 0

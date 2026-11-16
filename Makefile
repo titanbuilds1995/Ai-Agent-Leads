@@ -75,8 +75,8 @@ claude-check:     ## is the background jobs' Claude login working? (tests the to
 approvals-now:    ## run one approvals round now (rewrites commented cards, sends approved ones in the window)
 	$(PY) -m titan.cli approvals
 
-follow-ups:       ## Good morning follow-up (same thread) to every agent who never answered: cards in Needs Me
-	$(PY) -m titan.cli follow-ups
+follow-ups:       ## follow-up sequence (3 emails over ~15 days, same thread) to every silent agent whose house is still for sale; ARGS=--dry-run to preview
+	$(PY) -m titan.cli follow-ups $(ARGS)
 
 books-review:     ## read every broker answer + the books on file for Rodrigo now (runs on every round on its own); make books-review ARGS=--all redoes them
 	$(PY) -m titan.cli books-review $(ARGS)

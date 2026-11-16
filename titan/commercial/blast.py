@@ -102,7 +102,7 @@ def send_queue(conn, cfg: Any, gmail, room: int, now: datetime | None = None) ->
     res: dict[str, Any] = {"sent": 0, "errors": 0, "waiting": 0}
     todo = pending(conn, cfg)
     res["waiting"] = len(todo)
-    if gmail is None or room <= 0:
+    if gmail is None or room <= 0 or cfg.get("commercial.outreach.blast_paused", False):
         return res
     run_date = now.astimezone(timezone.utc).strftime("%Y-%m-%d")
     for e in todo[:room]:

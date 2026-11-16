@@ -98,7 +98,11 @@ def test_delay_note_off_means_nothing_at_all_goes_to_a_broker(conn, cfg, tmp_pat
     assert send_delay_notes(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n
 
 
-def test_shipped_config_sends_nothing_to_agents_or_brokers():
+def test_shipped_config_back_on_with_the_blast_held():
+    """Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m." The no-cap blast stays held."""
     from titan.config import load
     cfg = load(force=True)
-    assert cfg.get("outreach.sending_paused") is True and cfg.get("commercial.delay_note.enabled") is False
+    assert cfg.get("outreach.sending_paused") is False and cfg.get("commercial.delay_note.enabled") is False
+    assert cfg.get("commercial.outreach.blast_paused") is True
+    w = cfg.get("outreach.asana.send_window")
+    assert (w["start"], w["end"]) == ("08:00", "18:00")

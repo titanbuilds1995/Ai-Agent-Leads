@@ -121,7 +121,7 @@ def _run_daily(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn)
     summary: dict[str, Any] = {"date": today_et(), "missing": c["missing"]}
-    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "learn", "enrich", "backup", "outreach"]
+    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "score", "value", "comps", "learn", "enrich", "backup", "follow_ups", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
         if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
@@ -189,6 +189,18 @@ def _run_daily(cfg, args):
         except Exception as e:  # noqa: BLE001 — the lane must never stop the run
             log.exception("backup lane failed: %s", e)
             summary["backup"] = {"error": str(e)}
+    if "follow_ups" in steps and not args.offline and not fixture and cfg.get("outreach.follow_up.auto_send"):
+        # the follow-up sequence (Rodrigo, 2026-11-16): the next due follow-up to every silent agent whose house is still for sale
+        from .board_clean import homeharvest_lookup
+        from .follow_up import post_follow_ups
+        try:
+            out = post_follow_ups(conn, cfg, _asana(cfg), c["llm"], limit=int(cfg.get("outreach.follow_up.max_per_run", 25)),
+                                  approve=True, lookup=homeharvest_lookup(cfg))
+            out.pop("cards", None)
+            summary["follow_ups"] = out
+        except Exception as e:  # noqa: BLE001 — never stops the run
+            log.exception("follow-ups failed: %s", e)
+            summary["follow_ups"] = {"error": str(e)}
     if "outreach" in steps:
         summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"], asana=_asana(cfg))
     if "commercial" in steps or (not args.steps and cfg.get("commercial.schedule") == "daily" and cfg.get("commercial.enabled")):
@@ -886,9 +898,17 @@ def cmd_follow_ups(cfg, args):
             print(f"#{c['outreach']['id']:<4} {c['agent'].get('name'):<32} {c['agent'].get('email'):<40} sent {(c['outreach'].get('sent_at') or '')[:10]}")
         return
     c = build_clients(cfg, conn, need=("llm",))
+    lookup = None
+    if not args.no_check:
+        from .board_clean import homeharvest_lookup
+        lookup = homeharvest_lookup(cfg)
+    approve = args.approve or bool(cfg.get("outreach.follow_up.auto_send", False))
     out = post_follow_ups(conn, cfg, asana, c["llm"], after_days=args.days, limit=args.limit or int(cfg.get("outreach.follow_up.max_per_run", 25)),
-                          approve=args.approve)
-    print(json.dumps(out, indent=2, default=str))
+                          approve=approve, lookup=lookup, dry_run=args.dry_run)
+    if args.dry_run:
+        for x in out.pop("cards"):
+            print(f"\n--- step {x['step']} · {x['agent']} · second read {'OK' if x['cleared'] else 'NOT cleared'}: {x.get('why') or ''}\n{x['body']}")
+    print(json.dumps({k: v for k, v in out.items() if k != "cards"}, indent=2, default=str))
 
 
 def cmd_claude_login(cfg, args):
@@ -1105,6 +1125,8 @@ def main(argv: list[str] | None = None) -> int:
     fu.add_argument("--limit", type=int, default=None)
     fu.add_argument("--list", action="store_true", help="only print who would get one")
     fu.add_argument("--approve", action="store_true", help="put the cards straight into Approved (only when Rodrigo said to send them)")
+    fu.add_argument("--dry-run", action="store_true", help="check the houses and write + second-read the emails, print them, change nothing")
+    fu.add_argument("--no-check", action="store_true", help="skip the realtor.com status lookup (cloud / testing)")
     cl = sub.add_parser("claude-login", help="log the background jobs (cron) in to Claude: setup-token -> .env -> test")
     cl.add_argument("--test-only", action="store_true", help="only test the token already in .env")
     sub.add_parser("score-test", help="score 3 stored listings with the configured provider (Claude Code plan by default)")

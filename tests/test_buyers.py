@@ -86,3 +86,16 @@ def test_contacts_export(tmp_path):
     assert c["82 Tortuga Rd agents"] == 1
     wb = load_workbook(path)
     assert wb["Facebook investors"]["C2"].value == "561-555-0101"
+
+
+def test_contacts_email(tmp_path):
+    from titan.buyers import contacts
+    area.write_csv(tmp_path / "fb_investors.csv", [{"name": "Joe"}], ["name"])
+    path, counts = contacts.export(tmp_path)
+    sent = []
+
+    class G:
+        def send(self, to, subject, body, **kw):
+            sent.append((to, subject, kw["attachments"][0]["filename"]))
+    contacts.email(path, counts, G(), "me@example.com")
+    assert sent and sent[0][0] == "me@example.com" and sent[0][2] == "ALL_CONTACTS.xlsx"

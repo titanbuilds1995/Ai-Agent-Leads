@@ -42,6 +42,7 @@ def main() -> None:
     ap.add_argument("--months", type=int, default=24)
     ap.add_argument("--price", type=float, default=None, help="the deal's price, to flag buyers who buy in that range")
     ap.add_argument("--out", default="reports/buyers")
+    ap.add_argument("--email", action="store_true", help="contacts: also email the spreadsheet to REPORT_TO (Rodrigo only)")
     a = ap.parse_args()
     if a.step == "status":
         status(Path(a.out))
@@ -51,8 +52,19 @@ def main() -> None:
         path, counts = contacts.export(a.out)
         for n, c in counts:
             print(f"  {n}: {c}")
-        print(f"\nOpened {path}")
+        if a.email:
+            from .. import config, db
+            from ..cli import build_clients
+            cfg = config.load()
+            to = cfg.secret("REPORT_TO")
+            gmail = build_clients(cfg, db.connect(cfg.db_path), need=("gmail",))["gmail"]
+            if not (gmail and to):
+                print("Couldn't email it: Gmail or REPORT_TO isn't set up on this computer (run `make gmail-test`).")
+            else:
+                contacts.email(path, counts, gmail, to)
+                print(f"\nEmailed {path.name} to {to}")
         import subprocess, sys
+        print(f"\nSaved {path}")
         if sys.platform == "darwin":
             subprocess.run(["open", str(path)])
         return

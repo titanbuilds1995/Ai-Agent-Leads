@@ -86,3 +86,13 @@ def export(root: Path | str = "reports/buyers", path: Path | str | None = None) 
         counts.append((name, len(rows)))
     wb.save(path)
     return path, counts
+
+
+def email(path: Path, counts: list[tuple[str, int]], gmail: Any, to: str) -> None:
+    """Send the workbook to Rodrigo himself (REPORT_TO). Never to anyone else."""
+    lines = [f"- {n}: {c}" for n, c in counts]
+    body = ("Rodrigo,\n\nAll the buyer contacts found so far are in the attached spreadsheet, one tab per list:\n\n"
+            + "\n".join(lines) + "\n\nNothing was sent to any of them.\n\nCharles")
+    gmail.send(to, f"Buyer contacts: Facebook groups + around Tortuga ({sum(c for _, c in counts)} rows)", body,
+               attachments=[{"filename": path.name, "bytes": Path(path).read_bytes(),
+                             "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}])

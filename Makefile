@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -155,6 +155,9 @@ buyers-area:      ## free: every sale / listing around a deal + listing agents â
 
 buyers-contacts:  ## every contact from the Facebook run + the owners / LLC people / agents around Tortuga in ONE spreadsheet (reports/buyers/ALL_CONTACTS.xlsx), opens it
 	$(PY) -m titan.buyers contacts x
+
+buyers-contacts-email: ## same spreadsheet, also emailed to you (REPORT_TO) from Charles@
+	$(PY) -m titan.buyers contacts x --email
 
 buyers-status:    ## how far the buyer jobs got (Tortuga LLC run + Facebook groups run)
 	$(PY) -m titan.buyers status x

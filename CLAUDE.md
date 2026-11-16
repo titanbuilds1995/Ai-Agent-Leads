@@ -589,7 +589,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-11-16: Rodrigo asked to see every contact from the Facebook run + the owners around Tortuga. The lists live only on
   the Mac (gitignored), so built `titan contacts` / `make buyers-contacts`: one workbook reports/buyers/ALL_CONTACTS.xlsx (FB investors,
-  FB deals, Tortuga people / LLCs / owners / agents), opens it. Read only. Tested on fixtures.
+  FB deals, Tortuga people / LLCs / owners / agents), opens it and emails it to REPORT_TO from Charles@ (`make buyers-contacts-email`;
+  `titan contacts` = emails). Only to Rodrigo, never to a contact. Tested on fixtures.
 - 2026-11-16 ~7:25am ET: morning check only. **No 7am report** and no board activity since Nov 15 morning (Mac asleep; EOD Sun did
   arrive). Walter asked Sun 11:13am "flood zone … is this east of I-75?" about 331 John Ringling: unanswered; Needs Rodrigo card with
   facts (west of I-75, Lido Key, likely FEMA AE, flood policy in Larry's package) and a one-line answer for him to send if he wants.

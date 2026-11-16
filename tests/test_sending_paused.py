@@ -98,11 +98,32 @@ def test_delay_note_off_means_nothing_at_all_goes_to_a_broker(conn, cfg, tmp_pat
     assert send_delay_notes(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n
 
 
+def test_commercial_pause_stops_every_email_to_a_broker_but_not_the_houses(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-16: "I don't want us to be sending any new emails for agents for the commercial property right now"."""
+    from titan.approvals import commercial_paused
+    from titan.commercial.books_review import send_approved_replies
+    from titan.commercial.closeout import clear_not_fit
+    from titan.commercial.delay_note import send_delay_notes
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid, gm = _board_with_an_answer(conn, cfg, tmp_path)
+    cfg["commercial"]["outreach"]["paused"] = True
+    assert commercial_paused(cfg)
+    assert in_window(cfg, WED_NOON_ET) and not in_window(cfg, WED_NOON_ET, commercial=True)   # houses go, brokers wait
+    n = len(gm.sent)
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert send_delay_notes(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0
+    assert len(gm.sent) == n                                         # no request, no reply, no pass, no delay note
+
+
 def test_shipped_config_back_on_with_the_blast_held():
     """Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m." The no-cap blast stays held."""
     from titan.config import load
     cfg = load(force=True)
     assert cfg.get("outreach.sending_paused") is False and cfg.get("commercial.delay_note.enabled") is False
     assert cfg.get("commercial.outreach.blast_paused") is True
+    assert cfg.get("commercial.outreach.paused") is True            # 2026-11-16: no new emails to 1031 brokers until he says
     w = cfg.get("outreach.asana.send_window")
     assert (w["start"], w["end"]) == ("08:00", "18:00")

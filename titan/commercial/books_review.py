@@ -790,7 +790,7 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
             res["waiting"] += 1
             continue
         from ..approvals import in_window
-        if not in_window(cfg, now):                        # brokers hear from Charles inside the send window only (8:30-5:30 ET)
+        if not in_window(cfg, now, commercial=True):       # brokers hear from Charles inside the send window only, never while commercial sending is paused
             res["waiting"] += 1
             res["reason"] = "outside the send window"
             continue

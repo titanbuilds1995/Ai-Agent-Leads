@@ -76,7 +76,7 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
     where = columns_by_card(asana, secs)
     per_round = int(cfg.get("commercial.review.pass_per_round", 10))
     from ..approvals import in_window
-    in_win = in_window(cfg, now)
+    in_win = in_window(cfg, now, commercial=True)
     threads = [db.row_to_dict(r) for r in conn.execute("SELECT * FROM commercial_threads WHERE card_gid IS NOT NULL").fetchall()]
     by_card: dict[str, list[dict[str, Any]]] = {}
     for t in threads:

@@ -814,9 +814,22 @@ def sending_paused(cfg: Any) -> bool:
         return False
 
 
-def in_window(cfg: Any, now: datetime | None = None, even_if_paused: bool = False) -> bool:
+def commercial_paused(cfg: Any) -> bool:
+    """Rodrigo, 2026-11-16: "I don't want us to be sending any new emails for agents for the commercial property right now".
+    One switch (`commercial.outreach.paused`) stops every email to a 1031 broker: OM requests, the no-cap blast queue, Charles's
+    replies (even after "send it"), pass emails, delay notes. House emails are not affected; forwards and reports to Rodrigo still go.
+    Drafts and cards stay where they are and go out at the normal pace once it is switched off."""
+    try:
+        return bool(cfg.get("commercial.outreach.paused", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def in_window(cfg: Any, now: datetime | None = None, even_if_paused: bool = False, commercial: bool = False) -> bool:
     if not even_if_paused and sending_paused(cfg):
         return False                             # every sender already treats "outside the window" as "wait"
+    if commercial and commercial_paused(cfg):
+        return False                             # 1031 brokers hear nothing while the commercial switch is on
     w = _cfg(cfg).get("send_window", {})
     tz = ZoneInfo(w.get("timezone", "America/New_York"))
     t = (now or now_utc()).astimezone(tz)

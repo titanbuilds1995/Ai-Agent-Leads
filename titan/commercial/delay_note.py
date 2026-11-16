@@ -145,7 +145,7 @@ def send_delay_notes(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
     if gmail is None:
         res["reason"] = "Gmail not connected"
         return res
-    if not in_window(cfg, now, even_if_paused=True):
+    if not in_window(cfg, now, even_if_paused=True, commercial=True):
         res["reason"] = "outside the send window"
         return res
     where: dict[str, str] = {}

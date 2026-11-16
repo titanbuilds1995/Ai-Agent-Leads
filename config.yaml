@@ -469,6 +469,10 @@ commercial:
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
   outreach:
+    # Rodrigo, 2026-11-16: "I don't want us to be sending any new emails for agents for the commercial property right now".
+    # true = nothing goes to any 1031 broker: OM requests, the blast queue, Charles's replies (even after "send it"), pass emails,
+    # delay notes. House emails keep going; forwards / reports to Rodrigo still go. Cards and drafts wait. Turn off only when he says.
+    paused: true
     per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
     daily_cap: 220                   # per day, separate from the residential daily_email_cap
     blast_paused: true               # 2026-11-16: house sending back on, the no-cap blast queue still held until Rodrigo says

@@ -477,6 +477,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   dropped them after talking** (NOT A FIT / DOES NOT FIT reads bucketed by `DROP_REASONS` from the read + the broker's words: gone /
   tenants (month-to-month, food trucks, class C, local credit) / owner-operator / won't hold the cap / outside the box / won't show the
   books / other). The gallery head links to it. Published with every site publish (Mac); the Mac's database holds the conversations.
+- **Commercial (1031) sending PAUSED (Rodrigo, 2026-11-16 ~11am ET: "I don't want us to be sending any new emails for agents for the
+  commercial property right now")**: `commercial.outreach.paused: true` in config.yaml. `approvals.in_window(cfg, now, commercial=True)`
+  answers "closed" for every 1031 sender: OM requests (send column), the no-cap blast queue, Charles's broker replies (even after his
+  "send it"; the draft and the card wait), pass emails, delay notes. House emails are untouched (`outreach.sending_paused` stays false);
+  forwards / reads / reports to Rodrigo still go. **Turn it off only when Rodrigo says so**, and tell him first what is waiting
+  (Approved · send OM request cards, "send it" replies, pass emails all go at the normal pace the moment it is off).
 - **Sending back ON (Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m.")**:
   `sending_paused: false`, send window 08:00–18:00 every day, `daily_email_cap` 120 (for the follow-up sequence). The 1031 no-cap blast
   queue stays held on its own switch `commercial.outreach.blast_paused: true` until he says. Twilio campaign is ready but not in use
@@ -594,6 +600,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-16 ~11am ET, RESUME HERE: **1031 / commercial emails to brokers PAUSED** on Rodrigo's word (Decisions → Commercial (1031)
+  sending PAUSED): new switch `commercial.outreach.paused: true`, checked by every commercial sender through `in_window(commercial=True)`.
+  Houses keep sending 8am–6pm, follow-up sequence unaffected. The Mac picks the config up on its 10-min update. Tested (1 new test,
+  suite passes; 3 pre-existing failures are cloud-only: no Mac keychain / Gmail token). Next: the follow-up sequence's first real run.
 - 2026-11-16 ~10am ET, RESUME HERE: **sending back on 8am–6pm** + **follow-up sequence built** (Decisions → Follow-up SEQUENCE). First real
   run: Rodrigo runs `make follow-ups` on the Mac now; after that run-daily does it every morning. Tested on fixtures (8 tests, all pass);
   never run on the real board. Watch: how many come back "can't tell" (realtor.com lookups), how many the second reader holds in Needs Me,

@@ -67,8 +67,8 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
     res["queue_waiting"] = len(pending(conn, cfg))
     if not cards and not res["queue_waiting"]:
         return res
-    if not in_window(cfg, now):
-        res["reason"] = "outside the send window"
+    if not in_window(cfg, now, commercial=True):
+        res["reason"] = "outside the send window (or commercial sending paused)"
         return res
     if gmail is None:
         res["reason"] = "Gmail not connected"

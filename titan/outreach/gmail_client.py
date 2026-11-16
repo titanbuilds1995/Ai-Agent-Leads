@@ -137,6 +137,13 @@ class GmailClient:
             bad = unbacked_claims(body, attachments)
             if bad:
                 raise UnbackedClaim(bad)
+            # Rodrigo, 2026-11-16 (his flyer blasts went to spam): an email to an outside address that reads as bulk marketing
+            # (designed HTML, a picture, "Reply STOP", unsubscribe lines, an ad subject) never leaves this mailbox. The domain's
+            # reputation is shared by every mailbox on it; Charles sends plain, personal text only. No override.
+            from ..deliverability import BulkContent, bulk_markers
+            marks = bulk_markers(subject, body, html=html, attachments=attachments)
+            if marks:
+                raise BulkContent(marks)
         message = self._mime(to, subject, body, in_reply_to, cc=cc, html=html, attachments=attachments)
         if thread_id:
             message["threadId"] = thread_id

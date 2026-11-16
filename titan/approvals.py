@@ -827,6 +827,24 @@ def in_window(cfg: Any, now: datetime | None = None, even_if_paused: bool = Fals
     return start <= (t.hour, t.minute) < end
 
 
+def _breaker_card(conn, cfg: Any, asana: Asana, reason: str, now: datetime | None = None) -> None:
+    """One Needs Rodrigo card a day while the bounce breaker holds the sends (titan/deliverability.py)."""
+    day = (now or now_utc()).strftime("%Y-%m-%d")
+    key = f"deliverability_breaker:{day}"
+    if conn.execute("SELECT 1 FROM commercial_kv WHERE key=?", (key,)).fetchone():
+        return
+    a = _cfg(cfg)
+    try:
+        if a.get("updates_project") and a.get("needs_rodrigo"):
+            asana.create_task(a["updates_project"], a["needs_rodrigo"], "⛔ Sending stopped · too many bounces",
+                              reason.replace("**", "") + "\n\nWhat to do: `make deliverability` on the Mac lists the dead addresses and checks SPF / DKIM / DMARC. "
+                              "Approved cards stay in Approved and go out on their own once the rate is back under the limit.")
+        with db.tx(conn):
+            conn.execute("INSERT OR REPLACE INTO commercial_kv(key,value) VALUES(?,?)", (key, reason))
+    except Exception as e:  # noqa: BLE001
+        log.warning("deliverability breaker card: %s", e)
+
+
 def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = None, jitter_s: int = 0, llm=None) -> dict[str, Any]:
     """Send at most `per_tick` approved emails, only inside the send window and under the daily cap.
     A card in Approved that has new feedback (or a test request) is NOT sent: it goes back to To Review and the
@@ -879,6 +897,13 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         res["errors"] += 1
         log.error("approved emails waiting but Gmail (Charles) is not connected")
         return res
+    # Rodrigo, 2026-11-16 (his blasts went to spam): too many bounces in the last week = the domain is at risk; stop, tell him once a day
+    from .deliverability import bounce_breaker
+    stop = bounce_breaker(gmail, cfg, now)
+    if stop:
+        _breaker_card(conn, cfg, asana, stop, now)
+        res["breaker"] = stop
+        return res
     cap = int(cfg.get("outreach.daily_email_cap", 25))
     sent_today = conn.execute("SELECT COUNT(*) FROM outreach WHERE channel='email' AND status='sent' AND COALESCE(kind,'') NOT LIKE 'om\\_%' ESCAPE '\\' AND substr(sent_at,1,10)=?",
                               (now_utc().strftime("%Y-%m-%d"),)).fetchone()[0]
@@ -924,6 +949,7 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
             res["stopped"] += 1
             continue
         from .contact_guard import ContactHold, already_warned, confirmed_after_hold, warning
+        from .deliverability import BulkContent
         try:
             cmts_now = asana.comments(t["gid"]) if card.get("reply_to") else []
         except Exception:  # noqa: BLE001
@@ -940,6 +966,12 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
                 asana.comment(t["gid"], warning(h.reason))
             asana.move(t["gid"], nm)
             res["held_contact"] = res.get("held_contact", 0) + 1
+            continue
+        except BulkContent as b:  # 2026-11-16: reads as bulk marketing (flyer / STOP line / ad subject). Never sent; back to him to rewrite
+            asana.comment(t["gid"], "**STOPPED, not sent: this email reads as bulk marketing and would get the domain filed as spam** "
+                                    f"({'; '.join(b.reasons)}). Rewrite it as a plain personal email and approve again.")
+            asana.move(t["gid"], nm)
+            res["stopped"] = res.get("stopped", 0) + 1
             continue
         except Exception as e:  # noqa: BLE001
             res["errors"] += 1

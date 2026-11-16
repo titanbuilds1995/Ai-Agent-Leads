@@ -182,6 +182,14 @@ outreach:
   second_read:
     enabled: true
     max_rounds: 2
+  # Deliverability (Rodrigo, 2026-11-16: his flyer blasts from rodrigo@ went to spam; the domain's reputation is shared with Charles@).
+  # Circuit breaker: when more than max_bounce_pct of the last window_days of sends bounced (and at least min_sends went out), approvals
+  # stop sending and post ONE Needs Rodrigo card a day. GmailClient.send also refuses anything that reads as bulk marketing (titan/deliverability.py).
+  deliverability:
+    breaker: true
+    window_days: 7
+    max_bounce_pct: 5
+    min_sends: 20
   daily_email_cap: 120             # Rodrigo: at least 25 a day (2026-10-24); 120 on 2026-11-16 for the follow-up sequence to every silent agent
   max_properties_per_email: 2      # more listings in one email reads like mass mail (protocol §8)
   daily_sms_cap: 25

@@ -269,12 +269,25 @@ def plain_summary(conn, summary: dict[str, Any], top: int = 10) -> str:
     return "\n".join(out)
 
 
+def cmd_house_files(cfg, args):
+    """Read the files on the house lead cards now (every card with --all); prints what was filed and read."""
+    from .house_files import pull_card_files
+    conn = _open(cfg)
+    c = build_clients(cfg, conn, need=("llm",))
+    asana = _asana(cfg)
+    if asana is None:
+        print("Asana is not configured (ASANA_TOKEN).")
+        return
+    res = pull_card_files(conn, cfg, asana, c["llm"], since="" if getattr(args, "all", False) else None)
+    print(json.dumps(res, indent=2))
+
+
 def cmd_check_replies(cfg, args):
     from .replies.inbox import check_replies
     conn = _open(cfg)
     c = build_clients(cfg, conn, need=("llm", "gmail", "twilio"))
-    res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"])
     asana = _asana(cfg)
+    res = check_replies(conn, cfg, c["gmail"], c["llm"], c["twilio"], asana=asana)
     if asana is not None:   # every reply shows up on the agent's Asana card (conversations mirror)
         from .end_of_day import track_board
         res["board_watch"] = track_board(conn, cfg, asana)      # where every card sits: how the evening report sees deletes
@@ -634,6 +647,8 @@ def cmd_approvals(cfg, args):
     if c["gmail"] is None and (out.get("send") or {}).get("waiting"):
         from .health import alert_gmail_down
         alert_gmail_down(cfg, asana, int(out["send"]["waiting"]))
+    from .house_files import pull_card_files as pull_house_files
+    stage("house_files", lambda: pull_house_files(conn, cfg, asana, c["llm"]))   # 2026-11-16: files he drops on a lead card are read BEFORE his comments
     stage("feedback", lambda: sync_feedback(conn, cfg, asana, c["llm"], c["gmail"]))
     from .house_card import refresh_cards as refresh_house_cards
     stage("house_card_format", lambda: refresh_house_cards(conn, cfg, asana, limit=int(cfg.get("outreach.asana.house_cards_per_round", 400))))   # 2026-11-12: older house cards in the 1031 layout, once each, all in one round (Rodrigo: do the older cards too)
@@ -1034,6 +1049,8 @@ def main(argv: list[str] | None = None) -> int:
     rd.add_argument("--offline", action="store_true", help="skip network enrichment")
     rd.add_argument("--force", action="store_true", help="re-score everything")
     sub.add_parser("check-replies")
+    hf = sub.add_parser("house-files", help="read the files attached to house lead cards (lien / title searches, inspections)")
+    hf.add_argument("--all", action="store_true", help="look at every card, not only the ones changed since the last look")
     sub.add_parser("catch-up", help="run what the Mac slept through today: the daily run, then the morning report")
     rp = sub.add_parser("report")
     rp.add_argument("--no-email", action="store_true")
@@ -1136,7 +1153,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
-    {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
+    {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "house-files": cmd_house_files, "report": cmd_report, "status": cmd_status,
      "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays}[args.cmd](cfg, args)
     return 0
 

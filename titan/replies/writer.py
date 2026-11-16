@@ -110,6 +110,7 @@ def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any]
     from ..learning import learned_block
     from ..outreach.compose import format_paragraphs, may_ask_how_much_work, signature, voice_text
     from ..card_chat import lead_notes
+    from ..house_files import files_for
     from ..util import inspection_phrase
     if llm is None or not getattr(llm, "available", False):
         return None, ["Claude not available"]
@@ -122,6 +123,7 @@ def write_answer(conn, cfg: Any, llm, row: dict[str, Any], agent: dict[str, Any]
                                                              "year_built", "property_type", "remarks", "photos_count")} for p in props],
                        "signature_block": signature(cfg), "may_ask_how_much_work": may_ask_how_much_work(props),
                        "rodrigo_notes_on_this_lead": lead_notes(conn, row["agent_id"]),
+                       "files_on_this_lead": files_for(conn, row["agent_id"], 4000),   # 2026-11-16: never say a file did not arrive when it is here
                        **({"rodrigo_instruction": instruction} if instruction else {}),
                        **({"second_reader_pushback": pushback, "previous_draft": previous or ""} if pushback else {})},
                       ensure_ascii=False, default=str)
@@ -150,6 +152,10 @@ def reader_case(conn, row: dict[str, Any], agent: dict[str, Any], props: list[di
             "properties": [{k: p.get(k) for k in ("street", "city", "list_price", "days_on_market", "price_cuts", "beds", "baths", "sqft",
                                                   "year_built", "property_type", "remarks", "photos_count")} for p in props],
             "rodrigo_notes_on_this_lead": lead_notes(conn, row["agent_id"])}
+    from ..house_files import files_for
+    files = files_for(conn, row["agent_id"], 3000)
+    if files:
+        case["files_on_this_lead"] = files      # a draft that claims a file never came, or asks for one we hold, is a FIX
     if instruction:
         case["rodrigo_instruction"] = instruction
     return case

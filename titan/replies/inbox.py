@@ -215,7 +215,7 @@ def is_ours(from_addr: str | None, cfg: Any) -> bool:
 
 # --- the 15-minute job -----------------------------------------------------------------------------
 
-def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=None, now: datetime | None = None) -> dict[str, Any]:
+def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=None, now: datetime | None = None, asana=None) -> dict[str, Any]:
     run_id = db.start_run(conn, "check_replies", today_et())
     counts = {"threads_checked": 0, "new_replies": 0, "errors": 0, "sms_flushed": 0, "handoff_timeouts": 0, "healed_bounces": heal_bounces(conn),
               "healed_misreads": heal_misreads(conn)}
@@ -243,6 +243,11 @@ def check_replies(conn, cfg: Any, gmail=None, llm: LLM | None = None, twilio=Non
                     handle_inbound(conn, cfg, db.row_to_dict(t), m.get("body", ""), m["id"], "email", llm, gmail, twilio, now,
                                    in_reply_to=m.get("message_id_header"))
                     counts["new_replies"] += 1
+                    try:    # 2026-11-16 (Celia Ruiz): the files on the agent's email are filed and read, not just the words
+                        from ..house_files import file_gmail_attachments
+                        counts["files"] = counts.get("files", 0) + len(file_gmail_attachments(conn, cfg, gmail, m["id"], db.row_to_dict(t), asana, llm, now))
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("attachments on %s: %s", m["id"], e)
                 except Exception as e:  # noqa: BLE001
                     counts["errors"] += 1
                     counts.setdefault("first_error", f"handle_inbound {m['id']}: {str(e)[:200]}")

@@ -180,7 +180,15 @@ CREATE TABLE IF NOT EXISTS commercial_deals (listing_id TEXT PRIMARY KEY, data T
 -- Files Rodrigo attaches to a 1031 card (titan/commercial/card_files.py): downloaded once into data/listings/<id>/ and read.
 CREATE TABLE IF NOT EXISTS commercial_card_files (attachment_gid TEXT PRIMARY KEY, listing_id TEXT, card_gid TEXT, name TEXT, path TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS commercial_kv (key TEXT PRIMARY KEY, value TEXT);
-CREATE TABLE IF NOT EXISTS card_format (gid TEXT PRIMARY KEY, version TEXT, at TEXT);   -- house cards in the 1031 layout (house_card.refresh_cards)
+CREATE TABLE IF NOT EXISTS card_format (gid TEXT PRIMARY KEY, version TEXT, at TEXT);
+-- Files on a HOUSE lead (titan/house_files.py): what the agent attached to an email, or what Rodrigo dropped on the lead card,
+-- downloaded once into data/houses/<outreach_id>/ and read; the text goes into every card answer / reply prompt for that agent.
+CREATE TABLE IF NOT EXISTS house_files (
+  id INTEGER PRIMARY KEY, ext_id TEXT UNIQUE NOT NULL, source TEXT NOT NULL, agent_id INTEGER, outreach_id INTEGER, card_gid TEXT,
+  name TEXT, path TEXT, text TEXT, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_house_files_agent ON house_files(agent_id);
+CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT);   -- small engine bookmarks (house_files_seen, ...)   -- house cards in the 1031 layout (house_card.refresh_cards)
 -- Inbox messages the stray-answer sweep already looked at (titan/commercial/strays.py): matched to a thread or not, never fetched twice.
 CREATE TABLE IF NOT EXISTS commercial_stray_seen (gmail_message_id TEXT PRIMARY KEY, thread_id INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS commercial_runs (

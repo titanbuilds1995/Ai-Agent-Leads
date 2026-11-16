@@ -58,6 +58,11 @@ MONEY_RE = re.compile(r"(?<![\w#])\$?\s?(\d{1,3}(?:[,\s]\d{3})+|\d+(?:\.\d+)?)\s
 SIGNATURE_LINE_RE = re.compile(r"^(?=.{0,60}$).*\b(licen[sc]e|lic\.?|mls|phone|cell|mobile|office|fax|direct|[pomcf]:)\s*#?.*$", re.I | re.M)
 RENT_AFTER_RE = re.compile(r"^\s*(/\s*mo|a month|per month|monthly|each month|/\s*month|in rent)", re.I)
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+ZIP_RE = re.compile(r"\b(?:FL|Florida|[A-Z]{2}),?\s+\d{5}(?:-\d{4})?\b")
+PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)")
+ADDRESS_RE = re.compile(r"\b\d{1,5}\s+(?:[NSEW]\.?\s+|(?:North|South|East|West)\s+)?(?:[A-Za-z0-9]+\s+){0,4}"
+                        r"(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ter|Terr|Terrace|Ln|Lane|Ct|Court|Way|Pl|Place|Cir|Circle|"
+                        r"Hwy|Highway|Pkwy|Parkway|Trail|Trl)\b\.?(?:,?\s*(?:Suite|Ste\.?|Unit|Apt\.?|#)\s*\w+)?|\b(?:Suite|Ste\.?|Unit|Apt\.?)\s*#?\s*\d+\w?\b", re.I)
 COUNTER_CONTEXT_RE = re.compile(r"\b(at|for|around|about|take|accept|consider|entertain|looking for|wants?|needs?|minimum|lowest|bottom|floor|no less than|not (less|below)|under|above|north of|"
                                 r"offer|counter|number|price|range|close(r)? to|would (do|go|take|sell)|get it done|gets? it done|beat|has? (an|a cash|another) offer|in hand|asking|firm)\b", re.I)
 
@@ -68,6 +73,11 @@ def parse_money(text: str, list_price: int | None = None) -> int | None:
     text = SIGNATURE_LINE_RE.sub("", text)      # license numbers, phones, MLS ids in a signature are not prices (Richard's BK3659026)
     # links and bracketed images are never prices (Cheryl's "testimonialtree.com/?uid=495059" became a $495,059 counter)
     text = re.sub(r"<[^>\s]*>|\[[^\]]*\]|https?://\S+|www\.\S+|\b\S+\.(com|net|org|io)\S*", " ", text)
+    # phones and street addresses in a signature are not prices either (2026-11-16, Celia Ruiz: "(305)965-1882" and
+    # "1200 E Las Olas Blvd, Suite 103" under "the seller is open to reviewing an offer" read as a counter at $1,200)
+    text = PHONE_RE.sub(" ", text)
+    text = ADDRESS_RE.sub(" ", text)
+    text = ZIP_RE.sub(" ", text)           # "Fort Lauderdale, FL 33301" is a ZIP, not $33,301
     for m in MONEY_RE.finditer(text):
         num, suffix = m.group(1), (m.group(2) or "").lower()
         # ignore things like phone numbers, dates, percentages, times, bedroom counts

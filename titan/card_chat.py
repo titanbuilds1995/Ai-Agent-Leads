@@ -90,8 +90,10 @@ def context(conn, card: dict[str, Any], notes: str, comments: list[dict[str, Any
         "WHERE t.agent_id=? ORDER BY m.created_at, m.id", (o.get("agent_id"),)).fetchall()][-12:]
     talk = [{"who": "engine/Claude" if (c.get("text") or "").startswith(BOT) else "Rodrigo", "text": (c.get("text") or "")[:800]}
             for c in comments[-20:]]
+    from .house_files import files_for
     return {"card_text": (notes or "")[:4000], "email_status": o.get("status"), "agent": agent, "properties": props,
             "conversation_with_agent": thread, "earlier_notes_from_rodrigo": lead_notes(conn, o.get("agent_id")),
+            "files_on_this_lead": files_for(conn, o.get("agent_id")),      # 2026-11-16: what the agent attached / he dropped on the card
             "comment_thread_on_this_card": talk}
 
 

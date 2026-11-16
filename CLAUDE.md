@@ -588,12 +588,33 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   comment, card to Needs Me. 1031 replies: the same comment, the draft waits. Only his "send anyway" written AFTER the warning
   (`confirmed_after_hold`; a newer warning needs a new OK) sends it (`send(..., confirmed=True)`); "send anyway" on a house card moves
   it to Approved (comment_router). Fresh first emails (no thread) are not checked. Other senders (pass emails, delay notes) just wait.
+- **Files on a house lead are read (Rodrigo, 2026-11-16, Celia Ruiz / 5341 NW 180th Ter: "she deff did attach these two files, why are we
+  not able to read the attachments")**: until then only the 1031 pipeline read files; the house pipeline read email TEXT and never looked at a
+  card's attachments, so his question about the lien + title search was answered without them. `titan/house_files.py`: (1) an agent's email
+  attachment (PDF / sheet / Word / text / screenshot / ZIP) is filed with the reply (`file_gmail_attachments` inside `check_replies`) under
+  `data/houses/o<outreach_id>/`; (2) a file he drops on a lead card (Email Approvals + Warm Leads) is downloaded once (approvals stage
+  `house_files`, BEFORE his comments are read; `make house-files`, `ARGS=--all` for every card); (3) the text (every PDF page; a scanned page
+  is typed out by Claude, 20 pages a file, paid API) is kept in `house_files` and goes into every card answer (`card_chat`), every drafted
+  reply (`replies.writer`) and the second reader's case as `files_on_this_lead`, so Charles never says a file did not arrive; (4) one
+  "🧠 READ FOR YOU" per drop on the lead card (what the files are, who signs, what stays with the house, what must happen before closing,
+  the money, what it means for our number, red flags, questions Charles can ask). Internal, nothing drafted or sent to the agent. The
+  engine's own `email_*.png` pictures are never read. Also fixed: a phone, street address or ZIP in an agent's signature no longer reads as a
+  counter-offer ("gave a number"; `PHONE_RE` / `ADDRESS_RE` / `ZIP_RE` in the classifier).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-16 ~2:30pm ET, RESUME HERE: **house leads now read attachments** (Decisions → Files on a house lead are read). Built after Celia Ruiz
+  (5341 NW 180th Ter, Miami Gardens) sent a lien search + title search twice and the engine answered without them. The full read is PINNED on
+  her card (Needs Me): title vested in Julio AND Rosa Piloto (divorced, both sign), SPS-serviced $65k mortgage + BofA HELOC up to $37k (payoffs
+  unknown), $59,780 of recorded Miami-Dade code liens that need the violations CURED before release, an open 2011 Unsafe Structures order
+  (demolish 4 structures, legalize the CBS house + rear addition), a $1.2k judgment, a $500k contract that died at title in the spring. Screening
+  range from the card's own numbers: $170k–$245k as-is, $230k–$280k if the seller clears the liens; comps must be re-run on the LEGAL square
+  footage before any number goes out. Her holding reply (NEXT EMAIL) is still on the card for Rodrigo to send. Tested on fixtures (3 tests) and
+  the engine's PDF reader on her two real files; the Mac picks the code up on its next update, then `make house-files ARGS=--all` reads the
+  files already on cards (hers included) and posts the 🧠 read there too.
 - 2026-11-16 ~10am ET, RESUME HERE: **sending back on 8am–6pm** + **follow-up sequence built** (Decisions → Follow-up SEQUENCE). First real
   run: Rodrigo runs `make follow-ups` on the Mac now; after that run-daily does it every morning. Tested on fixtures (8 tests, all pass);
   never run on the real board. Watch: how many come back "can't tell" (realtor.com lookups), how many the second reader holds in Needs Me,

@@ -87,6 +87,9 @@ clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / of
 clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
 	$(PY) -m titan.cli clean-board --list
 
+house-files:      ## read the files on house lead cards now (lien / title searches he dropped on a card); ARGS=--all for every card
+	$(PY) -m titan.cli house-files $(ARGS)
+
 backup-lane:      ## pending houses that fit our criteria: write the backup emails (Fresh Leads), draft check-ins, watch for back-on-market
 	$(PY) -m titan.cli backup-lane
 

@@ -4,6 +4,7 @@
 #   titan fb        start / restart the Facebook investor job
 #   titan tortuga   start / continue the Tortuga cash buyer job
 #   titan status    how far both jobs got
+#   titan contacts  every contact found so far, in one spreadsheet, emailed to you
 cd ~/Ai-Agent-Leads || exit 1
 if ! git pull --no-edit -q 2>/dev/null; then
   stuck=$(git diff --name-only --diff-filter=U)
@@ -22,6 +23,7 @@ done
 case "$1" in
   "")      exec "$CLAUDE" ;;
   status)  make buyers-status ;;
+  contacts) make buyers-contacts-email ;;
   *)       f="docs/prompts/start/$1.txt"
            [ -f "$f" ] || { echo "No job called '$1'. Jobs: $(ls docs/prompts/start | sed 's/\.txt//' | tr '\n' ' ')"; exit 1; }
            start=$(date +%s)

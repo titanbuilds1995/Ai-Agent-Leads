@@ -115,7 +115,21 @@ class GmailClient:
         return {"draft_id": draft["id"], "message_id": draft["message"]["id"], "thread_id": draft["message"].get("threadId")}
 
     def send(self, to: str, subject: str, body: str, thread_id: str | None = None, in_reply_to: str | None = None,
-             cc: list[str] | None = None, html: str | None = None, attachments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+             cc: list[str] | None = None, html: str | None = None, attachments: list[dict[str, Any]] | None = None,
+             confirmed: bool = False) -> dict[str, Any]:
+        # Rodrigo, 2026-11-15 (Walter got three emails in an hour): into a conversation with someone outside our domain, read the
+        # thread first. They already acknowledged us, or we already wrote them in the last 24 hours with no answer since: HOLD.
+        # Only Rodrigo's "send anyway" written after the bold warning (confirmed=True) gets past it.
+        if thread_id and not confirmed and not _own_domain(to, self.sender):
+            from ..contact_guard import ContactHold, hold_reason
+            try:
+                msgs = self.thread_messages(thread_id)
+            except Exception as e:  # noqa: BLE001 — a thread we cannot open is checked by the not-found fallback below
+                log.warning("contact guard: could not read thread %s: %s", thread_id, e)
+                msgs = []
+            reason = hold_reason(msgs, self.sender.rpartition("@")[2])
+            if reason:
+                raise ContactHold(reason)
         # Rodrigo, 2026-11-12 (Eric Cederman): an email to an outside address that says a file is attached or signed, with
         # nothing attached, never leaves. No override: not "send it", not autopilot, not a fixed reply.
         if not _own_domain(to, self.sender):

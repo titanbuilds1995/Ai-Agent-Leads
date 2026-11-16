@@ -781,7 +781,8 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
             txt = (c.get("text") or "").strip()
             if txt.startswith(BOT) or (c.get("created_at") and c["created_at"] < (r.get("created_at") or "")):
                 continue      # the engine's own comments, and anything he wrote before this review, are not a go-ahead
-            if SEND_RE.search(txt):
+            from ..contact_guard import CONFIRM_RE
+            if SEND_RE.search(txt) or CONFIRM_RE.search(txt):
                 go = True
             elif HOLD_RE.search(txt):
                 go = False
@@ -802,8 +803,17 @@ def send_approved_replies(conn, cfg: Any, asana, gmail, now=None) -> dict[str, A
         ts = iso(now)
         if not _claim(conn, "reply_sent_at", r["id"], ts):
             continue                        # another round (check-replies vs approvals) took this one: never email a broker twice
+        from ..contact_guard import ContactHold, already_warned, confirmed_after_hold, warning
         try:
-            sent = gmail.send(r["broker_email"], subject, r["reply_draft"], thread_id=r.get("gmail_thread_id"))
+            sent = gmail.send(r["broker_email"], subject, r["reply_draft"], thread_id=r.get("gmail_thread_id"),
+                              **({"confirmed": True} if confirmed_after_hold(comments, BOT) else {}))
+        except ContactHold as h:   # 2026-11-15 (Walter): they already acknowledged / we already wrote today. Bold, his OK only
+            conn.execute("UPDATE commercial_reviews SET reply_sent_at=NULL WHERE id=?", (r["id"],))
+            res["waiting"] += 1
+            res["held_contact"] = res.get("held_contact", 0) + 1
+            if not already_warned(comments, BOT):
+                asana.comment(r["card_gid"], warning(h.reason))
+            continue
         except Exception as e:  # noqa: BLE001
             conn.execute("UPDATE commercial_reviews SET reply_sent_at=NULL WHERE id=?", (r["id"],))
             res["errors"] += 1

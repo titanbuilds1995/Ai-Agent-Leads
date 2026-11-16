@@ -53,6 +53,14 @@ repairs:
   land_per_acre: 2500
   min_repair_budget: 10000
 
+cure:
+  # Legal square footage math (titan/cure.py, 2026-11-16): what it costs to make a house legal when Rodrigo or the files say part of
+  # it must come down or be permitted after the fact. Used only when a house has a cure record; his own figures override these rates.
+  demo_per_sf: 15          # demolition of ordered structures, $/sf, incl. permit + haul-off
+  min_demo: 5000
+  legalize_per_sf: 25      # after-the-fact permits, engineer/architect, inspections, county fees, $/sf of what stays
+  min_legalize: 10000
+
 valuation:
   comps_source: "homeharvest"   # sold comps: homeharvest (free) or apify (Zillow sold actor)
   comp_radius_miles: 0.5

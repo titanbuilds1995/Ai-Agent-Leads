@@ -188,7 +188,13 @@ CREATE TABLE IF NOT EXISTS house_files (
   name TEXT, path TEXT, text TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_house_files_agent ON house_files(agent_id);
-CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT);   -- small engine bookmarks (house_files_seen, ...)   -- house cards in the 1031 layout (house_card.refresh_cards)
+CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT);
+-- Legal square footage + the cost to get there, per house (titan/cure.py, 2026-11-16): the valuation runs on legal sf and
+-- takes demolition / permits / the liens we would carry off the MAO. sources = which field came from Rodrigo vs the files read.
+CREATE TABLE IF NOT EXISTS property_cure (
+  property_id INTEGER PRIMARY KEY REFERENCES properties(id), legal_sqft INTEGER, demo_sqft INTEGER, legalize_sqft INTEGER,
+  demo_cost INTEGER, permit_cost INTEGER, liens_total INTEGER, liens_paid_by TEXT, repairs INTEGER, note TEXT, sources TEXT, updated_at TEXT
+);   -- small engine bookmarks (house_files_seen, ...)   -- house cards in the 1031 layout (house_card.refresh_cards)
 -- Inbox messages the stray-answer sweep already looked at (titan/commercial/strays.py): matched to a thread or not, never fetched twice.
 CREATE TABLE IF NOT EXISTS commercial_stray_seen (gmail_message_id TEXT PRIMARY KEY, thread_id INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS commercial_runs (

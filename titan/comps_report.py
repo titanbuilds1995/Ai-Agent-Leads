@@ -153,8 +153,12 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
         period = f"last {cfg.get('valuation.comp_months', 6)} months, stored"
     land = p.get("property_type") == "land"
     from . import comps_engine as ce
+    from . import cure as cure_mod
     from .valuation import review_exclusions
     review = latest_review(conn, property_id)
+    cure = cure_mod.get(conn, property_id)
+    p = cure_mod.subject(p, cure)                  # 2026-11-16: the snapshot sizes the house by its LEGAL sf when one is known
+    cc = cure_mod.costs(cure, cfg)
     sel = select_for(p, candidates, cfg, exclude=review_exclusions(conn, property_id))
     comps, area = sel["comps"], sel["area"]
     for c in comps:
@@ -168,8 +172,12 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     suspect = (v.get("arv_method") or "").endswith("_suspect")
     tier = v.get("repair_tier") or repair_tier(p.get("remarks") or "", cfg["repairs"].get("default_tier", "moderate"))
     repairs = 0 if land else int(v.get("repair_cost") or repair_cost(p, tier, cfg) or 0)
-    est = ce.arv(p, comps, sel["params"])
+    if cure and cure.get("repairs") is not None:
+        repairs, tier = int(cure["repairs"]), ("none, per Rodrigo" if int(cure["repairs"]) == 0 else "set by Rodrigo")
+    est = ce.arv(p, comps, sel["params"], apply_layout=not p.get("legal_sf"))
     arv, arv_basis = est["arv"], est["basis"]
+    if p.get("legal_sf") and arv:
+        arv_basis += f", on the legal {p['sqft']:,} sf only"
     g = ce.grade(p, sel)
     comp_check = [ce.grade_line(g)]
     if sel["product"]:
@@ -189,10 +197,10 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
         ratios[pct] = lookup(path, p.get("county"), p.get("zip"), p.get("property_type"), arv or 0, pct, p.get("city")) if arv else None
     mid = ratios["median"] or (buy_ratio(p, arv, cfg) if arv else None)
     numbers: dict[str, Any] = {"arv": arv, "arv_basis": arv_basis, "repairs": repairs, "repair_tier": "none (land)" if land else tier,
-                               "fee": fee, "land": land}
+                               "fee": fee, "land": land, "cure": cc if (cc["total"] or cc["lines"]) else None}
     lp = int(p.get("list_price") or 0)
     if arv and mid:
-        flipper = max(int(round(arv * mid["ratio"] - repairs, -3)), 0)   # what an investor pays for it as is (same formula as the engine)
+        flipper = max(int(round(arv * mid["ratio"] - repairs - cc["total"], -3)), 0)   # an investor pays: ARV × ratio − repairs − cure (demo, permits, liens on us)
         ours = max(flipper - fee, 0)
         numbers.update(flipper=flipper, ratio=mid["ratio"], ratio_source=mid.get("source") or "", ratio_n=mid.get("sample_size"),
                        ours=ours, list_price=lp, gap=lp - ours if lp else None, gap_pct=round((lp - ours) / lp * 100) if lp else None)
@@ -200,7 +208,7 @@ def build(conn, cfg: Any, property_id: int, comps_fn: Callable[[dict[str, Any]],
     for label, pct in (("Conservative", "p25"), ("Typical", "median"), ("Aggressive", "p75")):
         r = ratios.get(pct)
         if arv and r:
-            screen.append((f"{label} ({r['ratio']:.0%})", max(int(round(arv * r["ratio"] - repairs - fee, -3)), 0)))
+            screen.append((f"{label} ({r['ratio']:.0%})", max(int(round(arv * r["ratio"] - repairs - cc["total"] - fee, -3)), 0)))
     msgs = [db.row_to_dict(r) for r in conn.execute(
         "SELECT m.direction, m.body, m.created_at, m.classification, t.property_ids FROM messages m JOIN threads t ON t.id=m.thread_id "
         "WHERE t.agent_id=? ORDER BY m.created_at", (p.get("agent_id"),)).fetchall()] if p.get("agent_id") and _has_threads(conn) else []
@@ -386,10 +394,17 @@ def number_rows(s: dict[str, Any]) -> list[list[str]]:
     rows = [[label, f"{money(n['arv'])} ({n['arv_basis']})" if n.get("arv") else "not enough sales"]]
     if not n.get("land"):
         rows.append(["Repairs (estimate)", f"{money(n['repairs'])} ({n['repair_tier']} tier)"])
+    cc = n.get("cure") or {}
+    if cc.get("demo"):
+        rows.append(["Demolition (what must come down)", money(cc["demo"])])
+    if cc.get("permits"):
+        rows.append(["Permits / legalizing what stays", money(cc["permits"])])
+    if cc.get("liens"):
+        rows.append(["Recorded liens and fines", f"{money(cc['liens'])} ({'seller pays at closing, not in our number' if not cc.get('liens_on_us') else 'on us as-is, in our number'})"])
     if n.get("flipper") is not None:
         src = n.get("ratio_source") or ""
         rows += [["An investor pays (as is)", f"{money(n['flipper'])} ({'value' if n.get('land') else 'ARV'} × {n['ratio']:.0%}"
-                                              f"{'' if n.get('land') else ' minus repairs'}; ratio: {src or 'engine'})"],
+                                              f"{'' if n.get('land') else ' minus repairs' + (' minus the cost to make it legal' if cc.get('total') else '')}; ratio: {src or 'engine'})"],
                  ["Our assignment fee", money(n["fee"])],
                  ["Where we need to be", money(n["ours"])],
                  ["Asking", money(n["list_price"])],

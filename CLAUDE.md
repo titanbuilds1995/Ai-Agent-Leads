@@ -600,12 +600,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the money, what it means for our number, red flags, questions Charles can ask). Internal, nothing drafted or sent to the agent. The
   engine's own `email_*.png` pictures are never read. Also fixed: a phone, street address or ZIP in an agent's signature no longer reads as a
   counter-offer ("gave a number"; `PHONE_RE` / `ADDRESS_RE` / `ZIP_RE` in the classifier).
+- **Legal square footage first, then every cost to get there (Rodrigo, 2026-11-16, Celia Ruiz: "500 sq ft have to be demolished, so we can
+  not count that as part of the living sq ft when we sell, we can only count what can be legalized. We need the ARV of what can be legalized
+  and minus all of the cost to get us there")**: `titan/cure.py`, table `property_cure`, config `cure:`. One record per house: legal_sqft,
+  demo_sqft, legalize_sqft, demo_cost, permit_cost, liens_total, liens_paid_by (seller / buyer), repairs override, note. The valuation
+  (`value_property(cure=…)`, `run_valuation`, the NUMBERS snapshot, THE NUMBERS on the card) sizes the comps and the $/sf exit by the LEGAL sf
+  (no second "unpermitted" haircut), and MAO = ARV on legal sf × investor ratio − repairs − demolition − permits − the liens WE would carry −
+  fee (`arv_method` ends `_legal_sf`; costs default from `cure.demo_per_sf` 15 / `legalize_per_sf` 25 with minimums; his figures win).
+  Where it comes from: his comment on the card ("legal sf 1564, demolish 500 sf, legalize 532 sf, no rehab, seller pays the liens, permits
+  30k"; `parse_comment` → `classify` adds `cure` + `numbers` → `approvals.apply_cure` re-values, posts one "📐 Legal-sf math noted …
+  ARV · internal MAO (was …)" and the snapshot follows), or the 🧠 read of the files on the lead (`house_files` asks Claude for
+  liens_total / demo_sqft / legalize_sqft / legal_sqft; stored as source `files`, never over a field Rodrigo set). Internal only; it never
+  changes what Charles quotes.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-16 ~3:30pm ET, RESUME HERE: **legal-sf valuation built** (Decisions → Legal square footage first). For Celia's house Rodrigo's
+  inputs are: inside is done (no rehab), about 500 sf of back structures to demolish, the CBS rear addition (~532 sf) to legalize, legal
+  living sf 1,564, seller to pay all monetary fines/liens. Once the branch is merged, he comments that on her card and the engine re-values
+  and posts the snapshot; my hand math today: ceiling about $340k–$355k with the seller paying the liens, open at $305k, both owners sign,
+  seller pays or ESCROWS the liens at closing (the county releases a code lien only after the violation is cured). Tested on fixtures (5 tests).
 - 2026-11-16 ~2:30pm ET, RESUME HERE: **house leads now read attachments** (Decisions → Files on a house lead are read). Built after Celia Ruiz
   (5341 NW 180th Ter, Miami Gardens) sent a lien search + title search twice and the engine answered without them. The full read is PINNED on
   her card (Needs Me): title vested in Julio AND Rosa Piloto (divorced, both sign), SPS-serviced $65k mortgage + BofA HELOC up to $37k (payoffs

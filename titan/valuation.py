@@ -133,20 +133,28 @@ def compute_mao(arv: int, repairs: int, cfg: Any, ratio: float | None = None) ->
 
 
 def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict[str, Any]]] | None,
-                   exclude: Iterable[str] = ()) -> dict[str, Any]:
+                   exclude: Iterable[str] = (), cure: dict[str, Any] | None = None) -> dict[str, Any]:
     """ARV from the comp engine (titan/comps_engine.py: same product only, no waterfront / new-build pollution, $/sf
     outliers out, similarity-ranked, renovated sales set the exit, layout flags discount it), then the market buy ratio,
     repairs and the fee. `exclude` = comp keys ruled out on review (Claude / Rodrigo)."""
     from . import comps_engine as ce
+    from . import cure as cure_mod
     v = cfg["valuation"]
     tier = repair_tier(p.get("remarks") or "", cfg["repairs"].get("default_tier", "moderate"))
+    p = cure_mod.subject(p, cure)            # 2026-11-16: value what a buyer can legally sell, not the square footage that must come down
+    legal = bool(p.get("legal_sf"))
     repairs = repair_cost(p, tier, cfg)
+    if cure and cure.get("repairs") is not None:
+        repairs = int(cure["repairs"])        # his call ("no rehab, the inside is done"); the tier stays a real tier key
+    cc = cure_mod.costs(cure, cfg)
     candidates = comps_fn(p) if comps_fn else []
     prm = ce.params(cfg, ce.product(p))
     sel = ce.select(p, candidates, prm, exclude=exclude, months=v.get("comp_months"))
     comps = sel["comps"]
     method = "comps" if sel["tier"] == "strict" and sel["radius"] <= prm["radius_miles"] else "comps_wide"
-    est = ce.arv(p, comps, prm)
+    est = ce.arv(p, comps, prm, apply_layout=not legal)     # the illegal sf is already out: no second "unpermitted" haircut
+    if legal:
+        est["reasons"].append(f"valued on the legal {p['sqft']:,} sf only (Rodrigo / the files): what can be sold once permitted")
     arv, ppsf = est["arv"], est["ppsf"]
     if arv is None or len(comps) < v["min_comps"]:
         zpsf = None
@@ -170,7 +178,9 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
     if lp0 and arv > lp0 * float(v.get("max_arv_to_list", 1.75)) and method != "list_price":
         method = f"{method}_suspect"      # a resale value this far above the ask is almost always bad comps or bad sqft, not a deal
     br = buy_ratio(p, arv, cfg)
-    mao = compute_mao(arv, repairs, cfg, br["ratio"])
+    mao = compute_mao(arv, repairs + cc["total"], cfg, br["ratio"])     # demolition + permits + the liens we would carry come off too
+    if legal and method != "list_price" and not method.endswith("_suspect"):
+        method += "_legal_sf"
     lp = int(p.get("list_price") or 0)
     spread = round((lp - mao) / lp * 100, 1) if lp else None
     offer = int(round(mao * (1 - cfg["formula"].get("offer_below_mao_pct", 0) / 100), -2))
@@ -180,7 +190,7 @@ def value_property(p: dict[str, Any], cfg: Any, comps_fn: Callable[[dict[str, An
     notes = {"grade": g, "basis": est["basis"], "reasons": est["reasons"], "discount_pct": est["discount_pct"],
              "dropped": ce.drop_summary(sel["dropped"]), "notes": sel["notes"], "product": sel["product"],
              "flags": sorted(k for k, on in sel["flags"].items() if on), "tier": sel["tier"], "radius": sel["radius"],
-             "excluded": len(list(exclude))}
+             "excluded": len(list(exclude)), **({"cure": {k: cc[k] for k in ("demo", "permits", "liens_on_us", "liens", "total", "lines")}} if cc["total"] or cc["lines"] else {})}
     return {"arv": arv, "arv_method": method, "comp_count": len(comps), "ppsf": ppsf, "repair_tier": tier, "repair_cost": repairs,
             "mao": mao, "buy_ratio": br["ratio"], "buy_ratio_source": br["source"], "list_price": lp, "spread_pct": spread, "offer_price": max(offer, 0),
             "comp_grade": g["grade"], "comp_notes": notes,
@@ -223,7 +233,8 @@ def run_valuation(conn, cfg: Any, comps_fn: Callable[[dict[str, Any]], list[dict
     for r in rows:
         p = db.row_to_dict(r)
         try:
-            res = value_property(p, cfg, comps_fn, exclude=review_exclusions(conn, p["id"]))
+            from .cure import get as cure_of
+            res = value_property(p, cfg, comps_fn, exclude=review_exclusions(conn, p["id"]), cure=cure_of(conn, p["id"]))
         except Exception as e:  # noqa: BLE001
             errors += 1
             log.exception("valuation failed for %s: %s", p["address_key"], e)

@@ -304,6 +304,45 @@ def _comps_fn(cfg: Any, conn, cache: dict[str, Any]):
     return cache["fn"]
 
 
+def apply_cure(conn, cfg: Any, asana: Asana, gid: str, card: dict[str, Any], feedback: list[str], comps_fn) -> int:
+    """His legal-sf / demolition / permits / rehab / who-pays-the-liens words → the house's cure record → the valuation re-run on the
+    legal square footage with those costs taken off → one comment with the new ARV and MAO (the NUMBERS snapshot follows). 1 when done."""
+    from . import comment_router as cr
+    from . import cure
+    fields = cure.parse_comment(" ".join(feedback))
+    if not fields:
+        return 0
+    props = cr.card_props(conn, card["outreach_id"])
+    subjects = cr.pick_subjects(props, " ".join(feedback)) or props[:1]
+    done = 0
+    for p in subjects:
+        before = db.row_to_dict(conn.execute("SELECT arv, mao FROM valuations WHERE property_id=?", (p["id"],)).fetchone()) or {}
+        rec = cure.set_cure(conn, p["id"], fields, source="rodrigo")
+        res = cure.revalue(conn, cfg, p["id"], comps_fn)
+        lines = cure.costs(rec, cfg)["lines"]
+        if res:
+            how = (f"ARV {_money(res['arv'])}" + (f" (was {_money(before['arv'])})" if before.get("arv") and before["arv"] != res["arv"] else "")
+                   + f" · internal MAO {_money(res['mao'])}" + (f" (was {_money(before['mao'])})" if before.get("mao") and before["mao"] != res["mao"] else ""))
+        else:
+            how = "the house has no valuation yet; the next value run uses this"
+        asana.comment(gid, f"📐 Legal-sf math noted for {p['street']}: " + "; ".join(lines) + f". {how}. Internal only; your call on the offer."
+                      + (" Fresh comps were not pulled on this machine: same comps, legal size." if comps_fn is None else ""))
+        try:      # a waiting first-email card is redrawn so THE NUMBERS show it; a lead in conversation is redrawn by the lead board
+            st = conn.execute("SELECT status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()
+            if st and st[0] == "pending_approval" and not card.get("reply_to") and hasattr(asana, "update_html_notes"):
+                from .house_card import rerender
+                rerender(conn, asana, gid, card["outreach_id"], card["to"], card["subject"], card["body"], card.get("cc"))
+        except Exception as e:  # noqa: BLE001
+            log.debug("rerender after cure: %s", e)
+        done += 1
+    conn.commit()
+    return done
+
+
+def _money(v) -> str:
+    return f"${v:,.0f}" if v is not None else "n/a"
+
+
 def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, card: dict[str, Any], feedback: list[str],
                   n: dict[str, int], nr: str, comps_cache: dict[str, Any], llm=None):
     """Do what the comment asks (titan/comment_router.py). True = handled, no rewrite. A list = the agent's listings,
@@ -314,6 +353,8 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
     nm = needs_me_section(cfg, asana)
     if "call" in want:
         n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
+    if "cure" in want:
+        n["cure"] = n.get("cure", 0) + apply_cure(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
     if "numbers" in want:
         try:
             posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
@@ -475,6 +516,8 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
     question = card_chat.is_question(feedback)
     if "call" in want:
         n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
+    if "cure" in want:
+        n["cure"] = n.get("cure", 0) + apply_cure(conn, cfg, asana, gid, card, feedback, _comps_fn(cfg, conn, comps_cache))
     if "numbers" in want:
         try:
             posted = cr.numbers_snapshot(conn, cfg, asana, gid, card, feedback, _comps_fn(cfg, conn, comps_cache),

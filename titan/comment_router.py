@@ -121,6 +121,9 @@ def classify(feedback: list[str]) -> set[str]:
     out: set[str] = set()
     if NUMBERS_RE.search(text):
         out.add("numbers")
+    from .cure import parse_comment
+    if parse_comment(text):            # 2026-11-16: "legal sf 1564, demolish 500 sf, no rehab, seller pays the liens" → re-value + snapshot
+        out |= {"cure", "numbers"}
     if _positive(CALL_RE, text):
         out.add("call")
     if CHECK_RE.search(text):

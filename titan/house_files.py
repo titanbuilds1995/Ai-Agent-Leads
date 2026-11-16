@@ -53,10 +53,18 @@ WHAT IT MEANS FOR OUR NUMBER (what to subtract, what to ask the agent, the one o
 figure, Rodrigo sets it);
 RED FLAGS (anything that kills or delays the deal: unsafe-structure orders, demolition orders, unpermitted square footage the
 value leans on, a prior contract that fell through, lis pendens, probate).
-Also return next_questions: up to 5 short questions Charles could ask the agent, each about something the files do not answer."""
+Also return next_questions: up to 5 short questions Charles could ask the agent, each about something the files do not answer.
+Also return cure, the legal-square-footage math the valuation needs, ONLY from facts in the files (0 or omit when the files do not say):
+liens_total = every recorded code-enforcement lien / fine / judgment / unpaid utility that follows the house, in dollars;
+demo_sqft = square feet of structures a recorded order says must be demolished; legalize_sqft = square feet that stays but needs
+after-the-fact permits; legal_sqft = the living square footage a buyer can legally sell once that is done (the appraiser's living
+area minus what must come down), and note = one line on where those numbers come from."""
+CURE_SCHEMA = {"type": "object", "properties": {"liens_total": {"type": "number"}, "demo_sqft": {"type": "number"}, "legalize_sqft": {"type": "number"},
+                                                "legal_sqft": {"type": "number"}, "note": {"type": "string"}},
+               "required": ["liens_total", "demo_sqft", "legalize_sqft", "legal_sqft", "note"], "additionalProperties": False}
 READ_SCHEMA = {"type": "object", "properties": {"read": {"type": "string"}, "next_questions": {"type": "array", "items": {"type": "string"}},
-                                                "total_recorded": {"type": "number"}},
-               "required": ["read", "next_questions"], "additionalProperties": False}
+                                                "cure": CURE_SCHEMA},
+               "required": ["read", "next_questions", "cure"], "additionalProperties": False}
 
 
 def folder_for(cfg: Any, outreach_id: int | None, agent_id: int | None = None) -> Path:
@@ -199,9 +207,33 @@ def read_for_rodrigo(conn, cfg: Any, asana, llm, outreach: dict[str, Any], new_n
         return False
     qs = [q for q in (out.get("next_questions") or []) if q.strip()][:5]
     tail = ("\n\nQUESTIONS THE FILES DON'T ANSWER (Charles can ask; comment the one you want)\n" + "\n".join(f"- {q}" for q in qs)) if qs else ""
+    tail += _apply_cure_from_files(conn, cfg, outreach, out.get("cure") or {})
     asana.comment(gid, f"{READ_PREFIX} · {', '.join(new_names)}\n\n{out['read'].strip()}{tail}\n\n"
                        "Internal read, nothing sent. Ask anything about these files in a comment here; the answer uses them.")
     return True
+
+
+def _apply_cure_from_files(conn, cfg: Any, outreach: dict[str, Any], c: dict[str, Any]) -> str:
+    """The liens / demolition / legal-sf figures the read found → the house's cure record (Rodrigo's own values are never
+    overwritten) → the valuation re-run on the legal square footage. Returns the lines for the card, "" when the files gave nothing."""
+    from . import cure
+    fields = {k: int(c[k]) for k in ("liens_total", "demo_sqft", "legalize_sqft", "legal_sqft") if c.get(k)}
+    if not fields:
+        return ""
+    if c.get("note"):
+        fields["note"] = str(c["note"])[:300]
+    pids = json.loads(outreach.get("property_ids") or "[]")
+    lines = []
+    for pid in pids[:1]:
+        rec = cure.set_cure(conn, pid, fields, source="files")
+        res = cure.revalue(conn, cfg, pid)
+        lines = cure.costs(rec, cfg)["lines"]
+        if res:
+            lines.append(f"ARV {res['arv']:,} · internal MAO {res['mao']:,} with the above taken off (same comps, legal size)")
+    if not lines:
+        return ""
+    return ("\n\nLEGAL-SF MATH (from the files; comment your own figures to override, e.g. \"legal sf 1564, demolish 500 sf, no rehab, "
+            "seller pays the liens\")\n" + "\n".join(f"- {l}" for l in lines))
 
 
 def file_gmail_attachments(conn, cfg: Any, gmail, message_id: str, thread: dict[str, Any], asana=None, llm=None, now=None) -> list[str]:

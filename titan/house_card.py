@@ -111,12 +111,22 @@ def _numbers(p: dict[str, Any]) -> list[str]:
     if arv and method.endswith("_suspect"):
         out.append(f"<li>ARV {_e(_money(arv))} · <strong>looks too high, don't trust it</strong> (bad comps or bad square footage)</li>")
     elif arv:
-        basis = f"{p['comp_count']} sales" if p.get("comp_count") else method.replace("_", " ") or "estimate"
+        basis = f"{p['comp_count']} sales" if p.get("comp_count") else method.replace("_legal_sf", "").replace("_", " ") or "estimate"
+        if method.endswith("_legal_sf"):
+            basis += " · on the LEGAL square footage only"
         out.append(f"<li><strong>ARV {_e(_money(arv))}</strong> · {_e(basis)}</li>")
     else:
         out.append("<li>ARV: not valued yet</li>")
     if p.get("repair_cost"):
         out.append(f"<li>Repairs about {_e(_money(p['repair_cost']))}" + (f" · {_e(p['repair_tier'])}" if p.get("repair_tier") else "") + "</li>")
+    elif method.endswith("_legal_sf"):
+        out.append("<li>Repairs: none (Rodrigo)</li>")
+    try:                                   # 2026-11-16: the cost to make the house legal (titan/cure.py), when known
+        cc = (json.loads(p.get("comp_notes") or "{}") or {}).get("cure") or {}
+    except Exception:  # noqa: BLE001
+        cc = {}
+    for line in cc.get("lines") or []:
+        out.append(f"<li>{_e(line)}</li>")
     if mao:
         pct = f" · {mao / lp:.0%} of asking" if lp else ""
         out.append(f"<li><strong>Internal MAO {_e(_money(mao))}</strong>{pct}</li>")

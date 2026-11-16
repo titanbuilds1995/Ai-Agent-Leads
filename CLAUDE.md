@@ -587,6 +587,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-16 ~7:25am ET: morning check only. **No 7am report** and no board activity since Nov 15 morning (Mac asleep; EOD Sun did
+  arrive). Walter asked Sun 11:13am "flood zone … is this east of I-75?" about 331 John Ringling: unanswered; Needs Rodrigo card with
+  facts (west of I-75, Lido Key, likely FEMA AE, flood policy in Larry's package) and a one-line answer for him to send if he wants.
 - 2026-11-15 ~11:30am ET: **contact guard built** (Rules for every session + Decisions → Contact guard), after the three emails to
   Walter in an hour. Engine holds any email into a thread whose person already acknowledged us or got an email from us in the last
   24 h, with a bold warning; only "send anyway" after it sends. 5 tests, all pass. Not live-tested (the Mac picks it up on its

@@ -443,6 +443,7 @@ def test_broker_answer_sent_as_a_new_email_reaches_the_card(conn, cfg, tmp_path,
     from titan.commercial.outreach import poll_om_replies, send_om_requests
     from tests.test_approvals import SAT_10AM_ET
     monkeypatch.setenv("GMAIL_SENDER", "Charles@titanrealtyinvestments.com")
+    cfg.secrets["GMAIL_SENDER"] = "Charles@titanrealtyinvestments.com"   # cfg was loaded before the env var; the Mac has no GMAIL_SENDER in its process env
     asana, secs, gid = _om_board(conn, cfg, tmp_path)
     gm = FakeStrayGmail()
     send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
@@ -489,6 +490,7 @@ def test_only_threads_with_new_mail_are_opened_and_a_quota_error_loses_nothing(c
     from titan.commercial.outreach import poll_om_replies, send_om_requests
     from tests.test_approvals import SAT_10AM_ET
     monkeypatch.setenv("GMAIL_SENDER", "Charles@titanrealtyinvestments.com")
+    cfg.secrets["GMAIL_SENDER"] = "Charles@titanrealtyinvestments.com"   # cfg was loaded before the env var; the Mac has no GMAIL_SENDER in its process env
     asana, secs, gid = _om_board(conn, cfg, tmp_path)
     gm = FakeStrayGmail()
     send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)

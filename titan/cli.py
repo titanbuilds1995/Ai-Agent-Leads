@@ -1022,7 +1022,7 @@ def cmd_deliverability(cfg, args):
         dns = dns_report(dom)
     rep = None
     if not args.no_mailbox:
-        c = _clients(cfg, _open(cfg), need=("gmail",))
+        c = build_clients(cfg, _open(cfg), need=("gmail",))
         if c.get("gmail") is None:
             print("Gmail (Charles) is not connected here; mailbox history skipped. DNS below." if dns else "Gmail is not connected here.")
         else:

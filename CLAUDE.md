@@ -612,6 +612,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-16 evening (Mac), RESUME HERE: **`make deliverability` ran for real.** Verdict: Charles@ sent 763 emails to outside addresses in
+  30 days, 10 bounced (1.3%, fine); the one flag is **304 emails on 2026-11-10 from one mailbox** (the 1031 OM blast day; Google treats
+  100+ new recipients a day as bulk). DNS all OK: SPF, DKIM (selector google), DMARC p=quarantine. Nothing to add in DNS. 5 dead
+  addresses found (two are typos ending in "." : dror2invest@yahoo.com. and yavilesrealtor@gmail.com.). Fixed on the way: `cmd_deliverability`
+  called a helper that did not exist (`_clients` → `build_clients`); two tests depended on the Mac's environment (GMAIL_SENDER not in the
+  process env, live data/comps_tuning.json) and are now pinned in the fixtures. 428 tests pass. **Known slowness:** the mailbox scan opens
+  every sent message (format=full) and hit Gmail's per-minute quota, so the command took ~1h50m; a lighter read (metadata format, or the
+  `mailer-daemon` search only) is worth building before it runs again. Next for Rodrigo: Google Postmaster Tools (steps given in chat).
 - 2026-11-16 ~1pm ET, RESUME HERE: **spam diagnosis + deliverability guards built** (Decisions → Deliverability). Cause found in rodrigo@'s
   own headers (flyer blasts Nov 4/6/9, ~15% bounces, scraped list). Rodrigo runs `make deliverability` on the Mac once to see the DNS
   (SPF / DKIM / DMARC) and Charles's mailbox numbers; sets up Google Postmaster Tools. 6 new tests, 428 total, all pass. Open: whether

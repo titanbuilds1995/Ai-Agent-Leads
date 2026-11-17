@@ -612,6 +612,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 ~7:25am ET: morning check only. **No 7am report** (Mac likely asleep; Mon EOD arrived: 8 of 25, sending back on).
+  EOD email went out twice (00:28 / 00:29Z): overlapping runs, worth a once-per-day claim. Walter's flood question still open.
 - 2026-11-16 ~1pm ET, RESUME HERE: **spam diagnosis + deliverability guards built** (Decisions → Deliverability). Cause found in rodrigo@'s
   own headers (flyer blasts Nov 4/6/9, ~15% bounces, scraped list). Rodrigo runs `make deliverability` on the Mac once to see the DNS
   (SPF / DKIM / DMARC) and Charles's mailbox numbers; sets up Google Postmaster Tools. 6 new tests, 428 total, all pass. Open: whether

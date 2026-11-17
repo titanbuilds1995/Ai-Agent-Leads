@@ -618,6 +618,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17, RESUME HERE: **Celia Ruiz countered** (5341 NW 180th Ter): "only serious offers", our $305k + seller-pays-liens was $130k under
+  ask and against her listing (buyer assumes liens); area closed high $500s to mid $600s. Her comps CONFIRM our legal-sf ARV ($577k–$632k).
+  My $305k was low: the 71% ZIP ratio includes rehab this turnkey house does not need; cost stack gives ~$315k with us taking the liens.
+  Recommended one email (Rodrigo sends himself, draft in chat, pinned read on her card): $375k seller pays liens OR $315k we take them;
+  walk-away $390k / $330k. Risk: if the 532 sf rear addition cannot be legalized, both drop ~$100k. Nothing sent by Claude.
 - 2026-11-16 ~3:30pm ET, RESUME HERE: **legal-sf valuation built** (Decisions → Legal square footage first). For Celia's house Rodrigo's
   inputs are: inside is done (no rehab), about 500 sf of back structures to demolish, the CBS rear addition (~532 sf) to legalize, legal
   living sf 1,564, seller to pay all monetary fines/liens. Once the branch is merged, he comments that on her card and the engine re-values

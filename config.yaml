@@ -167,7 +167,7 @@ outreach:
   # (approved cards, OM requests, the blast queue, Charles's replies, pass emails all wait where they are). Only mail to Rodrigo
   # himself still goes (the "sorry for the delay" note was switched off the same evening, see commercial.delay_note). Turn off only when he says.
   # Back on 2026-11-16 (Rodrigo: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m."). The 1031 no-cap blast queue
-  # stays held on its own switch (commercial.outreach.blast_paused) until he says.
+  # was held on its own switch (commercial.outreach.blast_paused) until 2026-11-17, when he said to start it.
   sending_paused: false
   # Daily Fresh Leads clean-up (Rodrigo, 2026-11-12): every morning each house on a Fresh Leads card is looked up on realtor.com
   # (HomeHarvest, free, Mac only); pending / under contract / sold / off market -> card to Skip, email never sent (board_clean.py).
@@ -477,9 +477,9 @@ commercial:
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
   outreach:
-    per_round: 8                     # commercial emails per round (cards + queue); Rodrigo 2026-11-09: "space it out between the next couple of days"
-    daily_cap: 220                   # per day, separate from the residential daily_email_cap
-    blast_paused: true               # 2026-11-16: house sending back on, the no-cap blast queue still held until Rodrigo says
+    per_round: 3                     # commercial emails per 20-min round (cards + queue). Rodrigo 2026-11-17: "slow it down ... from high to medium,
+    daily_cap: 60                    # so if I get calls I can answer them" (was 8 / 220). Per day, separate from the residential daily_email_cap
+    blast_paused: false              # 2026-11-17: Rodrigo: "start it so all those messages can be sent out" (held 11-11 to 11-17)
     queue_dir: "data/commercial_queue"
   # Rodrigo, 2026-11-11 (sending paused): one "sorry for the delay, we are working through the properties, we will get back with
   # you" note to every broker who answered before `before` and never heard back from Charles or Rodrigo. Once per broker, never to

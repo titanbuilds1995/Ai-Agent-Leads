@@ -653,6 +653,8 @@ def cmd_approvals(cfg, args):
         from .commercial.card_notes import handle_notes
         stage("om_notes", lambda: handle_notes(conn, cfg, asana, c["llm"]))   # his notes on 1031 cards → Charles's next email (before the drag is read)
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
+        from .commercial.follow_up import send_follow_ups
+        stage("om_follow_ups", lambda: send_follow_ups(conn, cfg, asana, c["gmail"]))   # 2026-11-17: one follow-up to every broker who never answered the first email
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo

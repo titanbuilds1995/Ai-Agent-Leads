@@ -481,6 +481,14 @@ commercial:
     daily_cap: 60                    # so if I get calls I can answer them" (was 8 / 220). Per day, separate from the residential daily_email_cap
     blast_paused: false              # 2026-11-17: Rodrigo: "start it so all those messages can be sent out" (held 11-11 to 11-17)
     queue_dir: "data/commercial_queue"
+  # Rodrigo, 2026-11-17: "let's FU with everyone that did not answer on the first commercial email we sent". One follow-up per
+  # broker, in the first email's Gmail thread, oldest first email first, inside the send window, sharing commercial.outreach.daily_cap.
+  # Never to a broker who answered (any thread, or anything in the Gmail thread), a thread Rodrigo wrote in, his columns / Working Deals,
+  # a bounce, a do-not-contact address. Sent ones are remembered in commercial_kv (follow_up:<email>), so it never repeats (follow_up.py).
+  follow_up:
+    enabled: true
+    per_round: 3                     # per 20-minute round, after the first emails of that round
+    min_days: 3                      # a first email younger than this waits
   # Rodrigo, 2026-11-11 (sending paused): one "sorry for the delay, we are working through the properties, we will get back with
   # you" note to every broker who answered before `before` and never heard back from Charles or Rodrigo. Once per broker, never to
   # a thread Rodrigo wrote in, a card on Working Deals / Offer out / Closed / Not a fit, or a broker read not-a-fit (delay_note.py).

@@ -35,7 +35,7 @@ def test_first_touch_is_conversation_first(cfg):
         d = compose_email(None, cfg, _agent(), [_prop()], seed)
         text = d["body"].split("\n\nBest")[0].lower()
         assert "?" in text and any(k in text for k in ("flexib", "room", "roof", "seller", "held", "offers"))
-        assert "$" not in text and "%" not in text and "offer" not in text and "cash" not in text and "offer" not in d["subject"].lower()
+        assert "$" not in text and "%" not in text and not re.search(r"\b(our|an|cash) offer\b|offer (of|at)\b", text) and "cash" not in text and "offer" not in d["subject"].lower()
         assert "isn't far from where" not in text          # no preliminary analysis on this prop → never implied
         assert not BANNED_RE.search(d["body"])             # no listing echo, no fake observations, no corporate phrasing
         assert "—" not in d["body"] and " - " not in d["body"] and "—" not in d["subject"]   # Rodrigo: no dashes
@@ -67,7 +67,7 @@ def test_angle_follows_the_facts(cfg):
 def test_validator_rejects_protocol_violations(cfg):
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    filler = " This could work for us if the big systems aren't all coming due at once. Do you know how old the roof and the AC are?"
+    filler = " I did not see much in the listing about the big systems. Do you know how old the roof and the AC are?"
     for bad in ("I looked at the photos and the roof looks fine on NW 11th St.", "Your NW 11th St listing caught our attention.",
                 "I noticed the property needs TLC on NW 11th St and it fits our criteria.", "NW 11th St could be a good fit for our portfolio."):
         assert any("protocol" in x for x in validate_email("Quick question on NW 11th St", bad + filler + sig, p)), bad
@@ -245,7 +245,7 @@ def test_voice_protocol_rejects_personal_framing_of_criteria(cfg):
     from titan.outreach.compose import PERSONAL_RE
     p = [_prop()]
     sig = "\n\nBest regards,\n\nCharles Grant"
-    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. What matters on our side is whether the big systems are coming due. How old are the roof and the AC?"
+    ok = "Hey Maria,\n\nCharles with Titan Realty Investments here, we're looking for properties around Miami. Quick question on NW 11th St. I didn't see much about the big systems in the listing. How old are the roof and the AC?"
     assert validate_email("Quick question on NW 11th St", ok + sig, p) == []
     for bad in ("I'm less focused on the renovation and more on the leases.", "The roof doesn't bother me as much as the kitchen.",
                 "I'd have to ask my boss about that.", "We can definitely pay what they want.", "I don't mind doing the kitchen."):
@@ -281,7 +281,7 @@ def test_photo_rule_rodrigo_2026_10_27(cfg):
     only with fewer than 4 photos may it (then the template says the listing doesn't give much to go on)."""
     from titan.outreach.compose import angle_for, may_ask_how_much_work
     sig = "\n\nBest regards,\n\nCharles Grant"
-    head = "Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St. The roof and the AC decide our number on this one, so a couple of questions first. "
+    head = "Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on NW 11th St. A couple of questions first. "
     asks = ("How much work would you say it really needs?", "How deep of a project is it?", "Is it mostly cosmetic, or is there something bigger going on?",
             "What's your read on the condition?", "What we'd want to understand is whether it's cosmetic updating or whether the big systems are coming due. Any flexibility?",
             "Does it need much beyond cosmetic work?", "I can't really tell from the listing what it needs. Any flexibility?",
@@ -292,7 +292,7 @@ def test_photo_rule_rodrigo_2026_10_27(cfg):
         assert any("how much work" in x for x in validate_email("Quick question on NW 11th St", body, many)), ask
         assert any("how much work" in x for x in validate_email("Quick question on NW 11th St", body, unknown)), ask
         assert validate_email("Quick question on NW 11th St", body, few) == [], ask
-    ok = head + "Do you know how old the roof and the AC are, and whether the seller has any room from asking?" + sig
+    ok = head + "Do you know how old the roof and the AC are, and whether the seller is flexible on price?" + sig
     assert validate_email("Quick question on NW 11th St", ok, many) == []
     assert may_ask_how_much_work(few) and not may_ask_how_much_work(many) and not may_ask_how_much_work(unknown)
     assert not may_ask_how_much_work([_prop(photos_count=3), _prop(2, photos_count=20)])     # every listing in the email must be thin
@@ -362,3 +362,51 @@ def test_street_name_drops_the_unit_number():
     assert street_name("455 NW 68th Ave Apt 702") == "NW 68th Ave"
     assert street_name("1960 Rodman St # 1-10") == "Rodman St"
     assert street_name("107 NW 11th St") == "NW 11th St"
+
+
+def test_human_wording_rodrigo_2026_11_18(cfg):
+    """Rodrigo, 2026-11-18: "really robotic ... it doesn't sound real, like a person ... we need sentences to be coherent"."""
+    from titan.outreach.compose import EMAIL_SYSTEM, EMAIL_TEMPLATES, MULTI_TEMPLATE, human_problems, voice_text
+    from titan.replies.writer import validate_reply
+    for bad in ("With the tenant already in place, the house may work for us.", "What matters on our side is how long the lease runs.",
+                "So is the seller open to some room from where they're asking?", "Does the seller have any room from asking?",
+                "The roof and the AC decide our number on this one.", "This could work for us.", "Where does the seller start listening?"):
+        assert human_problems(bad), bad
+        assert any("robotic" in x for x in validate_reply("Thanks Lise, that helps. " + bad + " Is anyone living there right now?")), bad
+    for ok in ("I saw there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs?",
+               "I saw the price hasn't changed in a while. Do you think the seller would negotiate on price if a serious offer came in?",
+               "We'd like to know until when the lease is, because we didn't see it."):
+        assert human_problems(ok) == [], ok
+    for _, body in [x for opts in EMAIL_TEMPLATES.values() for x in opts] + [MULTI_TEMPLATE]:
+        assert human_problems(body) == [], body
+    assert "what I saw, what I didn't see" in voice_text(cfg) and "Junior Acquisitions" in voice_text(cfg)   # every writer prompt gets it
+    assert "ONLY FROM THEIR COPY" in EMAIL_SYSTEM
+
+
+def test_only_from_their_copy_rodrigo_2026_11_18(cfg):
+    """A statement must be in the listing data; a question must not ask what the listing already says."""
+    from titan.outreach.compose import angle_for, copy_problems
+    tenant = "I saw there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs?"
+    assert copy_problems(tenant, [_prop(remarks="Tenant in place, great income.")]) == []
+    assert any("tenant" in x for x in copy_problems(tenant, [_prop(remarks="Needs TLC.")]))                 # the listing never said so
+    assert any("lease" in x for x in copy_problems(tenant, [_prop(remarks="Tenant in place, lease ends June 2027.")]))   # already answered
+    assert copy_problems("Is anyone living there right now?", [_prop(remarks="Needs TLC.", vacant=0)]) == []
+    assert copy_problems("Is anyone living there right now?", [_prop(remarks="Vacant and easy to show.")])
+    flat = "I saw the price hasn't changed in a while. Do you think the seller would negotiate on price?"
+    assert copy_problems(flat, [_prop(price_cuts=0, original_list_price=None, days_on_market=75)]) == []
+    assert any("reduction" in x for x in copy_problems(flat, [_prop(price_cuts=2, days_on_market=75)]))
+    assert any("sitting" in x for x in copy_problems(flat, [_prop(price_cuts=0, original_list_price=None, days_on_market=6)]))
+    down = "I saw the price has come down since it was listed. Is the seller willing to negotiate further?"
+    assert copy_problems(down, [_prop(price_cuts=1, days_on_market=60)]) == []
+    assert any("no reduction" in x for x in copy_problems(down, [_prop(price_cuts=0, original_list_price=None, days_on_market=60)]))
+    assert copy_problems("How old are the roof and the AC?", [_prop(remarks="New roof 2022, original kitchen.")])
+    assert copy_problems("How old are the roof and the AC?", [_prop(remarks="Original kitchen.")]) == []
+    assert angle_for({"remarks": "Tenant occupied, do not disturb.", "days_on_market": 90, "price_cuts": 2}) == "tenant"
+    assert angle_for({"remarks": "Tenant in place, lease through May 2027.", "year_built": 1990, "days_on_market": 12}) == "default"
+    # the fallback template never states or asks anything the listing's own copy contradicts
+    for remarks in ("Tenant occupied.", "New roof 2022, new AC 2021, re-piped. Vacant.", "Investor special. Roof 2019.", ""):
+        for dom, cuts in ((5, 0), (50, 1), (120, 0)):
+            p = _prop(remarks=remarks, days_on_market=dom, price_cuts=cuts, original_list_price=None, photos_count=12, year_built=1975)
+            for seed in range(6):
+                d = compose_email(None, cfg, _agent(), [p], seed)
+                assert validate_email(d["subject"], d["body"], [p]) == [], (remarks, dom, cuts, d["body"])

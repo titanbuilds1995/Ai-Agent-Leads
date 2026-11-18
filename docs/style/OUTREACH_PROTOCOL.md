@@ -3,6 +3,9 @@
 (Rodrigo Gayoso, 2026-10-24. This governs every first-touch email and every follow-up the engine writes. It is injected
 into the drafting prompt verbatim.)
 
+**Rodrigo, 2026-11-18: `docs/style/HUMAN_EMAIL.md` wins over every example here.** Each question is "what I saw in the listing,
+what I didn't see, then a complete question"; every statement comes from their copy; never ask what their copy already answers.
+
 ## Objective
 We are building an AI acquisitions system that identifies potentially investable MLS properties and starts genuine
 conversations with the listing agents. The primary objective of the first message is NOT to make an offer. It is to:
@@ -52,7 +55,7 @@ examples below that ask about the work are for that thin-listing case only.
 "We need to be more direct. Stop saying the house doesn't scare us, that sounds dumb, go straight into it. Stop
 communicating with 'new electrical panel'. Speak more matter of fact and sound more serious; right now it sounds very AI-ish."
 - After the intro line, go straight to the question. At most one short sentence of context, and only when it drives the
-  question ("The roof and the AC decide our number on this one.").
+  question ("I didn't see the age of the roof in the listing.").
 - Never tell the agent what doesn't scare, bother or worry us, or what is "fine on our side": no "a 1949 block house doesn't
   scare us", "the age by itself isn't an issue", "adding central AC is fine on our side", "a 2006 build is a good start for us".
 - Never recite the listing's upgrades or features back to the agent ("with the new electrical panel in", "the newer roof
@@ -107,19 +110,18 @@ quite a bit for us", not "white cabinets, tile flooring and an older bathroom".
 
 ## 6. Every message carries a small investment hypothesis
 "Here is what I think may be happening with this property." Cosmetic: "more dated than distressed; if the major
-systems are okay I could probably get comfortable with the cosmetic work." Older: "the roof and the plumbing
-decide the number on this one." Price-reduced: "they've
+systems are okay I could probably get comfortable with the cosmetic work." Older: "I didn't see the age of the roof or the plumbing in the listing. Do you know?" Price-reduced: "they've
 moved the price a couple times; I'm wondering if they're getting closer to where they'd entertain an investor number."
 Long DOM: "it's been on the market a while; what has held it back?" Tenant occupied: "is there a lease in place,
 and when does it end?" The hypothesis shapes the question; it is not written out as reassurance (§0d).
 
 ## 7. Write like an investor talking to an agent
-After the intro: "How old are the roof and the AC? And does the seller have any room from asking?" Not "I am reaching out
+After the intro: "How old are the roof and the AC? And is the seller willing to negotiate on price?" Not "I am reaching out
 regarding your listing located at… it appears this property could potentially meet our investment criteria."
 
 ## 8. Use property details selectively
 One or two meaningful things, the detail that changes the thesis. Not "3/2, 1,347 SF built in 1987 with a two-car
-garage" but "The roof and the AC decide our number on this one."
+garage" but "I didn't see how old the roof is. Do you know?"
 
 ## 9. First email = conversation, not negotiation
 No hard offer, no "70% of ARV minus repairs". Sequence: 1 property-specific conversation → 2 condition/motivation
@@ -143,8 +145,7 @@ than a 2004 house, but OLD HOUSE ≠ BAD HOUSE: a 1960 house with PVC plumbing, 
 roof and new HVAC is less risk than a poorly maintained 2005 house. Evaluate effective condition.
 
 ## 15. Conditional language
-"If what you're saying is that it's mainly cosmetic…", "If the big stuff has already been handled…", "If the seller has
-a little room from where they're asking…", "If we're really talking kitchen, floors and paint rather than systems…",
+"If what you're saying is that it's mainly cosmetic…", "If the big stuff has already been handled…", "If the seller is willing to negotiate on price…", "If we're really talking kitchen, floors and paint rather than systems…",
 "If the roof is still in good shape…", "If there isn't something major I'm missing…". Shows reasoning + uncertainty.
 
 ## 16. Ask questions agents can answer easily
@@ -163,7 +164,7 @@ document that show "Hey John — I was…" must be written "Hey John, I was…".
 
 ## 19. Do not force personalization
 If there is no meaningful property-specific observation, don't invent one. after the intro: "How old are the roof and the
-AC? And does the seller have any room from asking?" beats fake hyper-personalization.
+AC? And is the seller flexible on price?" beats fake hyper-personalization.
 
 ## 20. Response objective
 Success = the agent gives information we didn't have: "mainly cosmetic", "roof is 4 years old", "seller has some
@@ -182,9 +183,11 @@ IMPORTANT UNKNOWN · CONVERSATION ANGLE. Only then write the email.
   and how soon do they want to close?"
 - Heavy: 1959, roof unknown, original interior, cash only: "Two questions before we run numbers. How old are the roof and
   the AC, and has the plumbing ever been replaced?"
-- Light: 2006, new AC, updated flooring, original kitchen: "On a newer house it comes down to price. How much room does
-  the seller realistically have from asking?"
-- Tenant in place: "Is there a lease, and when does it end? And is the seller flexible on price?"
+- Light: 2006, new AC, updated flooring, original kitchen: "Is the seller willing to negotiate on price, or are they set on staying close to asking?"
+- Tenant in place, lease term not in the listing: "I saw there's a tenant in place, but I didn't see when the lease ends. Do you
+  know how long it runs?"
+- No price change in two months: "I saw the price hasn't changed in a while. Do you think the seller would negotiate on price if
+  a serious offer came in?"
 
 ## 26. Email quality test (before sending)
 1 Could this exact email go to 100 other listings? → rewrite. 2 Did we just repeat the listing? → reason deeper.

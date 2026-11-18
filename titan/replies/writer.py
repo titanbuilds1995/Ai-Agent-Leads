@@ -34,6 +34,11 @@ Rules (Rodrigo's, all hard):
 - Never say we are the buyer or investors ("we buy", "we're investors", "serious buyers", "genuinely interested"). Say "our side",
   "what we look for", "something we'd pursue".
 - "I" only for what {sender} did or will do; "we"/"our side" for criteria. Never powerless ("ask my boss"), never overcommitting.
+- SOUND LIKE A PERSON (Rodrigo, 2026-11-18; the HUMAN EMAIL guide below wins over older examples): complete sentences you would say
+  out loud on the phone. Say what they told you or what you saw, what you still don't know, then the question ("Thanks, that helps.
+  You mentioned the tenant, but not when the lease ends. Do you know how long it runs?"). Never "the house may work for us", "what
+  matters on our side is", "with the tenant already in place, …", "is the seller open to some room from where they're asking".
+  State only what the agent or the listing actually said.
 - DIRECT AND MATTER OF FACT (Rodrigo, 2026-10-28): serious, plain, never AI-ish. Never tell them what doesn't scare, bother or worry
   us or what is "fine on our side"; never repeat their own facts back as reassurance ("with the new panel in"); never mention the
   electrical panel; no "curious", "honestly", "potentially", "the bigger question is".
@@ -57,12 +62,13 @@ Return JSON: read (one line: what the agent told us and what we still need to le
 
 
 def validate_reply(body: str, props: list[dict[str, Any]] | None = None) -> list[str]:
-    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE, photo_rule_problems, tone_problems
+    from ..outreach.compose import BUYER_RE, DASH_RE, HTML_RE, NO_NUMBERS_RE, PERSONAL_RE, URL_RE, human_problems, photo_rule_problems, tone_problems
     problems = []
     text = body.split("\n\nBest")[0]
     if props:
         problems += photo_rule_problems(body, props)      # Rodrigo, 2026-10-27: the photos show the work; don't ask about it
     problems += tone_problems(body)
+    problems += human_problems(body)      # Rodrigo, 2026-11-18: say it like a person would (docs/style/HUMAN_EMAIL.md)
     words = len(text.split())
     if words < 15 or words > 140:
         problems.append(f"length {words}")

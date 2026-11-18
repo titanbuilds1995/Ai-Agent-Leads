@@ -254,6 +254,7 @@ outreach:
   # agent/office-facing emails Rodrigo sent (docs/style/style_examples.md §C and §F) used as few-shot.
   protocol: "docs/style/OUTREACH_PROTOCOL.md"      # Rodrigo's outreach protocol, injected into every first-touch / revise prompt
   voice_protocol: "docs/style/VOICE_PROTOCOL.md"   # junior acquisitions voice: "I" for actions, "we" for criteria
+  human_email: "docs/style/HUMAN_EMAIL.md"         # how people actually write email (Rodrigo 2026-11-18); printed ahead of the voice protocol in every writer prompt
   style_guide: "docs/style/RODRIGO_WRITING_STYLE_GUIDE.md"   # tone reference (replies, written offer)
   example_emails:
     - |

@@ -111,6 +111,102 @@ def tone_problems(body: str) -> list[str]:
             "what doesn't scare or bother us, never recite the listing's upgrades (new panel, new roof) back, no hedging or filler"]
 
 
+# Rodrigo, 2026-11-18: "really robotic ... it doesn't sound real, like a person ... we need sentences to be coherent". The
+# constructions he called out and their family (docs/style/HUMAN_EMAIL.md): verdicts about the house ("may work for us"), abstract
+# frames ("what matters on our side is", "decide our number"), dangling openers ("with the tenant already in place, ..."), and
+# questions that don't parse ("open to some room from where they're asking"). Checked on first emails, rewrites, replies, follow-ups.
+HUMAN_RE = re.compile(
+    r"\b(may|might|could|can|would|should) (actually |still |well |really )?(work|make sense|be a fit|pencil) for us\b|"
+    r"\bwhat (really |usually |normally |mainly |mostly )?(matters|counts) (most )?(on our side|on our end|for us|to us|here|on this one)\b|"
+    r"\bwith (the|a|an) [a-z' ]{2,30}? (already |currently |now )?in place,|"
+    r"\bopen to (some|a little|a bit of|any|more) room\b|\broom from (where|asking|the asking|list|the list)\b|"
+    r"\b(decide|decides|drive|drives|determine|determines) our number\b|"
+    r"\bit comes down to (price|the price|the seller'?s number)\b|\bstart(s)? listening\b", re.I)
+
+
+def human_problems(body: str) -> list[str]:
+    """Wording a person would not say out loud (HUMAN_RE). Checked everywhere Charles writes to an agent."""
+    m = HUMAN_RE.search(body.split("\n\nBest")[0])
+    if not m:
+        return []
+    return [f"robotic wording ('{m.group(0)}'). Rodrigo 2026-11-18: say it the way you would on the phone: what I saw, what I "
+            "didn't see, then a complete question (\"I saw there's a tenant in place, but I didn't see when the lease ends. Do you "
+            "know how long it runs?\" / \"Is the seller willing to negotiate on price?\")"]
+
+
+# "Anything we say we have to make sure we're getting directly from the copy that they give us" (Rodrigo, 2026-11-18). A statement
+# must be in the listing data; a question must not ask for what the listing already says. FIRST EMAILS only: in a reply the agent
+# may have told us things the listing never did.
+TENANT_COPY_RE = re.compile(r"\btenants?\b|\bleased?\b|\brented\b|\brenters?\b|section 8|month[- ]to[- ]month|rental income", re.I)
+TENANT_STATED_RE = re.compile(      # strict: the listing really says someone rents it now (used to pick the tenant template)
+    r"tenant[- ]occupied|tenants? (is |are )?in place|\btenants?\b[^.]{0,40}\b(lease|until|through|thru|month)|currently (rented|leased)|"
+    r"leased (until|through|thru)|month[- ]to[- ]month|section 8 tenant|long[- ]term tenant|(existing|current) tenant|rented (for|at) \$", re.I)
+LEASE_TERM_COPY_RE = re.compile(r"lease (ends|expires|through|thru|until|is up|runs|expiring)|leased (until|through|thru)|"
+                                r"month[- ]to[- ]month|(year|yr|month)s? (left|remaining) on (the )?lease", re.I)
+ROOF_COPY_RE = re.compile(r"roof[^.]{0,25}\b(19|20)\d\d|\b(19|20)\d\d[^.]{0,12}roof|new(er)? roof|roof (is |was )?(replaced|only |just )?\d* ?(years?|yrs?)", re.I)
+AC_COPY_RE = re.compile(r"\b(a/?c|hvac|air condition\w*)\b[^.]{0,25}\b(19|20)\d\d|\b(19|20)\d\d[^.]{0,12}\b(a/?c|hvac)\b|new(er)? (a/?c|hvac|air)", re.I)
+OCCUPANCY_COPY_RE = re.compile(r"\bvacant\b|tenant|owner[- ]occupied|\brented\b|\bleased\b", re.I)
+SAYS_TENANT_RE = re.compile(r"tenants? (is |are )?(already |currently )?in place|there('s| is| are) (a |already a )?tenants?\b|"
+                            r"the (current |existing )?tenants?\b|\bthe lease\b|tenant[- ]occupied|(house|home|property|it)('s| is) (currently )?(rented|leased)", re.I)
+PRESUMES_TENANT_RE = re.compile(r"\bthe (current |existing )?tenants?\b|\bthe lease\b", re.I)
+ASKS_LEASE_RE = re.compile(r"\b(when|how long|until when|till when)\b[^.?!]*\blease\b|\blease\b[^.?!]*\b(ends?|runs?|expires?|is up)\b[^.?!]*\?|"
+                           r"how long it runs\?", re.I)
+ASKS_ROOF_RE = re.compile(r"how old (is|are) [^.?!]*\broof\b|\broof age\b|age of the roof|when was the roof", re.I)
+ASKS_AC_RE = re.compile(r"how old (is|are) [^.?!]*\b(ac|a/c|hvac)\b|age of the (ac|a/c|hvac)|when was the (ac|a/c|hvac)", re.I)
+PLUMBING_COPY_RE = re.compile(r"re-?pip|new(er)? plumbing|(updated|replaced) plumbing|plumbing (was |has been )?(updated|replaced|redone)|\bpvc\b", re.I)
+ASKS_PLUMBING_RE = re.compile(r"plumbing[^.?!]*\b(replaced|updated|redone|original)\b[^.?!]*\?", re.I)
+ASKS_OCCUPIED_RE = re.compile(r"\bis (anyone|anybody|someone) living\b|\bis it (vacant|occupied)\b|living (there|in (it|the house)) (right )?now\?", re.I)
+NOT_MOVED_RE = re.compile(r"\b(has|have)(n'?t| not) (really |been )?(changed|moved|come down|reduced|dropped|budged)|"
+                          r"\bno (price )?(reductions?|cuts?|changes?|drops?)\b|\bsame price\b", re.I)
+REDUCED_RE = re.compile(r"\b(reductions?|reduced|price (cuts?|drops?)|(come|came|gone|went|brought) down|dropped|lowered|"
+                        r"price has (already )?moved)\b", re.I)
+SITTING_RE = re.compile(r"\b(on the market|listed|sitting|sat)\b[^.?!]{0,20}\b(a while|some time|a bit|a little bit|months)\b|"
+                        r"\b(has|have)(n'?t| not) (changed|moved|sold)[^.?!]{0,25}\b(a while|a bit|some time|a little bit|months)\b|"
+                        r"\bstill (sitting|on the market)\b|\bwhy (is it|it'?s|it is|has it) (still )?(sitting|sat)\b|"
+                        r"\b(held|holding|kept|keeping) it (back|from selling)\b", re.I)
+SITTING_MIN_DAYS = 30
+
+
+def price_reduced(p: dict[str, Any]) -> bool:
+    lp, orig = p.get("list_price"), p.get("original_list_price")
+    return bool(p.get("price_cuts")) or bool(lp and orig and orig > lp)
+
+
+def copy_problems(body: str, props: list[dict[str, Any]]) -> list[str]:
+    """Is every statement backed by the listing data, and does no question ask what the listing already says?"""
+    text = body.split("\n\nBest")[0]
+    sentences = [x for x in re.split(r"(?<=[.?!])\s+", text) if x.strip()]
+    statements = " ".join(x for x in sentences if not x.rstrip().endswith("?"))
+    questions = " ".join(x for x in sentences if x.rstrip().endswith("?"))
+    remarks = [(p.get("remarks") or "") for p in props]
+    out = []
+    if (SAYS_TENANT_RE.search(statements) or PRESUMES_TENANT_RE.search(questions)) and not any(TENANT_COPY_RE.search(r) for r in remarks):
+        out.append("says there is a tenant / a lease, but the listing does not mention one (ask \"Is anyone living there?\" instead)")
+    moved_not = NOT_MOVED_RE.search(text)
+    reduced_said = REDUCED_RE.search(NOT_MOVED_RE.sub(" ", text))
+    if moved_not and all(price_reduced(p) for p in props):
+        out.append(f"says the price has not changed ('{moved_not.group(0)}'), but the price history shows a reduction")
+    if reduced_said and not any(price_reduced(p) for p in props):
+        out.append(f"says the price came down ('{reduced_said.group(0)}'), but the listing data shows no reduction")
+    doms = [p.get("days_on_market") for p in props if p.get("days_on_market") is not None]
+    m = SITTING_RE.search(text)
+    if m and doms and max(doms) < SITTING_MIN_DAYS:
+        out.append(f"talks as if it has been sitting ('{m.group(0)}'), but it has been on the market {max(doms)} days")
+    if len(props) == 1:
+        r, p = remarks[0], props[0]
+        if ASKS_LEASE_RE.search(text) and LEASE_TERM_COPY_RE.search(r):
+            out.append("asks when the lease ends, but the listing already says it")
+        if ASKS_ROOF_RE.search(text) and ROOF_COPY_RE.search(r):
+            out.append("asks how old the roof is, but the listing already says it")
+        if ASKS_AC_RE.search(text) and AC_COPY_RE.search(r):
+            out.append("asks how old the AC is, but the listing already says it")
+        if ASKS_PLUMBING_RE.search(text) and PLUMBING_COPY_RE.search(r):
+            out.append("asks whether the plumbing was replaced, but the listing already says it")
+        if ASKS_OCCUPIED_RE.search(text) and (p.get("vacant") or OCCUPANCY_COPY_RE.search(r)):
+            out.append("asks whether anyone lives there, but the listing already says it")
+    return [f"not from their copy: {x} (Rodrigo 2026-11-18)" for x in out]
+
+
 # Rodrigo, 2026-10-27: "if the listing has 10 or 15 pictures we get a very clear idea of the work it needs, so saying we need to
 # know how much work it needs sounds dumb." With 4+ photos the email never asks or implies that we need to find out how much work
 # the house needs (ask about what photos can't show instead: roof/AC age, plumbing, electrical, permits, occupancy, flexibility).
@@ -185,7 +281,10 @@ Working rules for this call:
 - You have NOT seen any photographs (photos_analyzed is false); you only know how many the listing has (photos_count). Never describe photos or what anything "looks like" visually.
 - PHOTOS AND THE CONDITION QUESTION (Rodrigo, 2026-10-27): with 4 or more photos on the listing the agent knows anyone can see the condition, so NEVER ask or imply that we need to find out how much work the house needs. No "how much work would you say it really needs", "how deep is the project", "is it mostly cosmetic or something bigger", "what's your read on the condition", "what we'd want to understand is whether it's cosmetic updating or the big systems", "I can't tell from the listing". Ask instead about what photos can't show: roof and AC age, plumbing and electrical, permits, occupancy or tenant, why it's sitting, seller flexibility. Only when may_ask_how_much_work is true (fewer than 4 photos up) may you say the listing doesn't give much to go on and ask how much work it needs.
 - Use only what is in the input. Anything not stated is an unknown; say so conditionally ("if the roof isn't a project…"), never as a fact.
-- Do not quote or paraphrase the listing's own wording back to the agent. Reason one level deeper instead.
+- SOUND LIKE A PERSON (Rodrigo, 2026-11-18; the HUMAN EMAIL guide at the top of the voice section wins over every older example): each question is built as WHAT I SAW in the listing (one plain fact), WHAT I DIDN'T SEE, then a complete question. "I saw there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs?" / "I saw the price hasn't changed in a while. Do you think the seller would negotiate on price if a serious offer came in?" Never a verdict about the house ("the house may work for us"), never an abstract frame ("What matters on our side is…", "the roof and the AC decide our number"), never an opener like "With the tenant already in place, …", never a question that does not parse ("is the seller open to some room from where they're asking"). Read every sentence on its own: it must be something you would say out loud on the phone.
+- ONLY FROM THEIR COPY (Rodrigo, 2026-11-18): every statement must be in the input (listing_remarks_verbatim, price_cuts, price_history, days_on_market). Say the price came down only when price_cuts is above 0; say it has not changed or that it has been on the market a while only when price_cuts is 0 and days_on_market is 30 or more; mention a tenant or a lease only when the remarks do. NEVER ask for something the remarks already answer (the lease end, the roof year, the AC year, whether it is vacant): the question is about what their copy leaves out. key_unknown in the analysis must be something the listing does not state.
+- One fact from the listing to set up the question is fine; never a list of features or upgrades, never the listing's own sentences.
+- If previous_attempt is in the input, that draft was rejected for the reasons listed there. Write a new one that fixes each reason.
 - No price, offer, percentage, range, discount, "cash offer" or formula. Do not state any dollar figure. This is a conversation, not a negotiation.
 - Only if the input says may_say_close_to_asking is true may you say the asking price doesn't seem far from where you'd need to be. Otherwise never imply you are close on price.
 - One natural question an agent can answer easily (two at most). 40-90 words before the signature including the intro. Vary the opening naturally.
@@ -209,7 +308,15 @@ _STYLE_CACHE: dict[str, str] = {}
 
 def voice_text(cfg: Any) -> str:
     """The junior-acquisitions voice protocol (docs/style/VOICE_PROTOCOL.md)."""
-    return _read_doc(cfg, cfg.get("outreach.voice_protocol", "docs/style/VOICE_PROTOCOL.md"), "voice")
+    voice = _read_doc(cfg, cfg.get("outreach.voice_protocol", "docs/style/VOICE_PROTOCOL.md"), "voice")
+    human = human_text(cfg)
+    return f"{human}\n\n{voice}" if human else voice
+
+
+def human_text(cfg: Any) -> str:
+    """How people actually write email (docs/style/HUMAN_EMAIL.md, Rodrigo 2026-11-18). Goes ahead of the voice protocol, so every
+    writer that gets the voice (first emails, rewrites, replies, follow-ups, backup lane) gets it too."""
+    return _read_doc(cfg, cfg.get("outreach.human_email", "docs/style/HUMAN_EMAIL.md"), "human")
 
 
 def _read_doc(cfg: Any, rel: str, label: str) -> str:
@@ -268,75 +375,91 @@ EMAIL_TEMPLATES: dict[str, list[tuple[str, str]]] = {
     # occupancy, why it's sitting, seller flexibility). Only "few_photos" (fewer than 4 pictures up) may ask about the work.
     # Rodrigo, 2026-10-28: direct and matter of fact. After the intro go straight to what we need; no "the age doesn't scare
     # us", no reciting the listing's upgrades back, no hedging (DIRECT_RE).
+    # Rodrigo, 2026-11-18: every angle is "what I saw, what I didn't see, the ask" in sentences a person would say out loud
+    # (docs/style/HUMAN_EMAIL.md). template_email() only uses an option whose statements the listing data backs (copy_problems);
+    # "safe" asks nothing the listing could already answer.
+    "tenant": [    # the listing says it is rented but not until when
+        ("Quick question on {street_name}",
+         "Hey {first}, I saw there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs? "
+         "And is the seller willing to negotiate on price?{near_ask}\n\n{sign}"),
+        ("The house on {street_name}",
+         "Hey {first}, I saw the house is rented, but the listing doesn't say until when. Do you know when the lease ends, "
+         "and whether the tenant plans to stay?\n\n{sign}"),
+    ],
     "reduced": [   # price moved, sitting a while: pricing issue vs seller issue (§23)
         ("Quick question on {street_name}",
-         "Hey {first}, the price has already come down once since it was listed.{near_ask} Where does the seller realistically "
-         "need to be, and how soon do they want to close?\n\n{sign}"),
+         "Hey {first}, I saw the price has come down since it was listed. Do you think the seller would negotiate further "
+         "if a serious offer came in? And how soon do they want to close?{near_ask}\n\n{sign}"),
         ("{street_name}",
-         "{first}, it's had a reduction and it's still on the market.{near_ask} What has held it back, and does the seller "
-         "have more room on price?\n\n{sign}"),
+         "{first}, I saw it's had a price reduction and it's still on the market. Do you know what has held it back? "
+         "And is the seller willing to negotiate on price?{near_ask}\n\n{sign}"),
     ],
     "sitting": [   # long DOM, no cuts: why is it sitting? (§6)
         ("The house on {street_name}",
-         "Hey {first}, it's been on the market a while.{near_ask} What has held it back, and is the seller flexible on "
-         "price?\n\n{sign}"),
+         "Hey {first}, I saw it's been on the market for a while and the price hasn't changed. Do you think the seller "
+         "would negotiate on price if a serious offer came in?{near_ask}\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, two questions before we run numbers.{near_ask} Why is it still sitting, and has a contract fallen "
-         "through on it before?\n\n{sign}"),
+         "Hey {first}, I saw it's been on the market for a while. Do you know what has held it back? And has a contract "
+         "fallen through on it before?{near_ask}\n\n{sign}"),
     ],
     "heavy": [     # old house / investor-special signals: the big-ticket items photos can't show (§24)
         ("Quick question on {street_name}",
-         "Hey {first}, two questions before we run numbers. How old are the roof and the AC, and has the plumbing ever "
-         "been replaced?\n\n{sign}"),
+         "Hey {first}, I didn't see the age of the roof or the AC in the listing. Do you know how old they are? And has "
+         "the plumbing ever been replaced?\n\n{sign}"),
         ("{street_name}: a couple of questions",
-         "{first}, the roof and the AC decide our number on this one. How old are they? And has the seller had other cash "
-         "offers yet?\n\n{sign}"),
+         "{first}, two things I didn't see in the listing. How old are the roof and the AC? And has the seller had other "
+         "offers on it yet?\n\n{sign}"),
     ],
     "cosmetic": [  # dated-not-distressed hypothesis (§2, §22)
         ("The house on {street_name}",
-         "Hey {first}, the roof and the AC decide our number on this one.{near_ask} How old are they, and is the seller "
-         "flexible on price?\n\n{sign}"),
+         "Hey {first}, I didn't see in the listing whether the plumbing has ever been replaced. Do you know if it has? "
+         "And is the seller willing to negotiate on price?{near_ask}\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, two questions before we run numbers.{near_ask} Have the roof, AC or plumbing been replaced, and "
-         "when? And does the seller have room from asking?\n\n{sign}"),
+         "Hey {first}, two things I didn't see in the listing. Has the plumbing been replaced, and is anyone living in "
+         "the house right now? And is the seller flexible on price?{near_ask}\n\n{sign}"),
     ],
     "newer": [     # newer build: probably not a huge project (§25)
         ("{street_name}",
-         "Hey {first}, on a newer house it comes down to price.{near_ask} How much room does the seller realistically have "
-         "from asking?\n\n{sign}"),
+         "Hey {first}, is the seller willing to negotiate on price if a serious offer came in? And is anyone living in "
+         "the house right now?{near_ask}\n\n{sign}"),
         ("Quick question on {street_name}",
-         "Hey {first}, newer house, so it comes down to the seller's number.{near_ask} Are they flexible, or set on staying "
-         "close to asking? And is anyone living there now?\n\n{sign}"),
+         "Hey {first}, do you know how flexible the seller is on price, or are they set on staying close to asking? And "
+         "is anyone living there now?{near_ask}\n\n{sign}"),
     ],
     "land": [      # vacant land: no renovation talk; the questions are use, utilities and seller flexibility
         ("Quick question on the lot on {street_name}",
-         "Hey {first}, two questions on the lot. Is the seller flexible on price, and is there anything on zoning, access "
-         "or utilities we should know before we run numbers?\n\n{sign}"),
+         "Hey {first}, two questions on the lot. Is the seller flexible on price? And is there anything on zoning, access "
+         "or utilities we should know about?\n\n{sign}"),
         ("The lot on {street_name}",
-         "{first}, does the seller have room from asking on the lot? And is there anything about the parcel that has kept "
-         "it from selling?\n\n{sign}"),
+         "{first}, is the seller willing to negotiate on the price of the lot? And do you know why it hasn't sold "
+         "yet?\n\n{sign}"),
     ],
     "few_photos": [  # fewer than 4 pictures up: the one case where we may say we can't see the condition (Rodrigo, 2026-10-27)
         ("Quick question on {street_name}",
-         "Hey {first}, there isn't much to go on in the listing.{near_ask} How much work does it need, and is the seller "
-         "flexible on price?\n\n{sign}"),
+         "Hey {first}, there are only a few pictures on the listing, so we can't see the condition. How much work does it "
+         "need? And is the seller flexible on price?{near_ask}\n\n{sign}"),
         ("The house on {street_name}",
-         "{first}, with only a few pictures up we can't see the condition.{near_ask} How much work does it need, and is "
-         "anyone living there?\n\n{sign}"),
+         "{first}, with only a few pictures up we can't see the condition. How much work does it need? And is the seller "
+         "willing to negotiate on price?{near_ask}\n\n{sign}"),
     ],
     "default": [   # no meaningful observation: don't force one (§19)
         ("Quick question on {street_name}",
-         "Hey {first}, two questions before we run numbers.{near_ask} How old are the roof and the AC? And does the seller "
-         "have any room from asking?\n\n{sign}"),
+         "Hey {first}, two things I didn't see in the listing. How old are the roof and the AC? And is the seller flexible "
+         "on price?{near_ask}\n\n{sign}"),
         ("The house on {street_name}",
-         "{first}, a couple of questions.{near_ask} Is anyone living there right now, and is the seller flexible on "
-         "price?\n\n{sign}"),
+         "{first}, a couple of questions. Is anyone living there right now? And is the seller willing to negotiate on "
+         "price?{near_ask}\n\n{sign}"),
+    ],
+    "safe": [      # asks nothing the listing could already have answered; used when every option of the angle fails copy_problems
+        ("Quick question on {street_name}",
+         "Hey {first}, is the seller willing to negotiate on price if a serious offer came in? And how soon are they "
+         "looking to close?{near_ask}\n\n{sign}"),
     ],
 }
 MULTI_TEMPLATE = ("A few of your listings",
-                  "Hey {first}, a couple of your listings could work for us:\n{lines}\n\n"
-                  "Do any of those sellers have room from asking? And is there anything we should know that isn't in the listing, "
-                  "like roof age or a tenant in place?\n\n{sign}")
+                  "Hey {first}, I saw a couple of your listings:\n{lines}\n\n"
+                  "Are any of those sellers willing to negotiate on price? And is there anything we should know that isn't in the "
+                  "listing, like the age of the roof or a tenant?\n\n{sign}")
 
 NEAR_ASK_LINE = " The asking price isn't far from where we'd need to be."
 
@@ -356,9 +479,10 @@ def angle_for(p: dict[str, Any]) -> str:
     if condition_visible(p) is False:      # fewer than 4 pictures up: the one case where asking about the work is allowed
         return "few_photos"
     dom = p.get("days_on_market") or 0
-    cuts = p.get("price_cuts") or 0
     yb = p.get("year_built") or 0
-    if cuts and dom >= 45:
+    if TENANT_STATED_RE.search(remarks) and not LEASE_TERM_COPY_RE.search(remarks):
+        return "tenant"                    # Rodrigo, 2026-11-18: they say there is a tenant but not until when; that is the question
+    if price_reduced(p) and dom >= 45:
         return "reduced"
     if HEAVY_RE.search(remarks) or (yb and yb < 1970 and not SOLID_RE.search(remarks)):
         return "heavy"
@@ -366,7 +490,7 @@ def angle_for(p: dict[str, Any]) -> str:
         return "cosmetic"
     if yb >= 2000:
         return "newer"
-    if dom >= 60:
+    if dom >= 60 and not price_reduced(p):
         return "sitting"
     return "default"
 
@@ -443,10 +567,13 @@ def template_email(cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]],
         variant = "multi"
     else:
         angle = angle_for(props[0])
-        options = EMAIL_TEMPLATES[angle]
-        i = rnd.randrange(len(options))
-        subj, body = options[i]
-        variant = f"t:{angle}:{i}"
+        first = rnd.randrange(len(EMAIL_TEMPLATES[angle]))
+        order = [(angle, first)] + [(angle, j) for j in range(len(EMAIL_TEMPLATES[angle])) if j != first] + [("safe", 0)]
+        for angle, i in order:             # only an option whose statements and questions fit this listing's own copy
+            subj, body = EMAIL_TEMPLATES[angle][i]
+            variant = f"t:{angle}:{i}"
+            if angle == "safe" or not copy_problems(with_intro(body, intro).format(**ctx), props):
+                break
     return subj.format(**ctx), format_paragraphs(with_intro(body, intro).format(**ctx)), variant
 
 
@@ -464,7 +591,8 @@ def _history_summary(p: dict[str, Any]) -> list[str]:
     return out
 
 
-def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]]) -> tuple[str, str, dict[str, Any]] | None:
+def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]],
+              rejected: dict[str, Any] | None = None) -> tuple[str, str, dict[str, Any]] | None:
     """Protocol-driven first touch: the model fills the analysis first, then writes. Returns (subject, body, analysis)."""
     if llm is None or not llm.available:
         return None
@@ -481,6 +609,7 @@ def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict
                         "year_built": p.get("year_built"), "property_type": p.get("property_type"), "vacant": bool(p.get("vacant")),
                         "hoa_monthly": p.get("hoa"), "listing_remarks_verbatim": (p.get("remarks") or "")[:3000],
                         "may_say_close_to_asking": len(props) == 1 and may_say_close_to_asking(p, cfg)} for p in props],
+        **({"previous_attempt": rejected} if rejected else {}),
     }, ensure_ascii=False)
     system = EMAIL_SYSTEM.format(protocol=protocol_text(cfg), voice=voice_text(cfg), sender=op["sender_name"].split()[0],
                                 company=op["company"], company_short=op.get("company_short", op["company"]))
@@ -534,6 +663,8 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
         problems.append("personal framing of criteria (voice protocol: 'we' for what we look for)")
     problems += photo_rule_problems(body, props)
     problems += tone_problems(body)
+    problems += human_problems(body)
+    problems += copy_problems(body, props)
     if re.search(r"\n(thanks|thank you|appreciate it|cheers|talk soon)[,.!]?\s*\n\s*\nbest regards,", body, re.I):
         problems.append("double sign-off")
     if DASH_RE.search(body.split("\n\nBest")[0]) or DASH_RE.search(subject):
@@ -551,8 +682,9 @@ def validate_email(subject: str, body: str, props: list[dict[str, Any]]) -> list
 
 def compose_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]], seed: int) -> dict[str, Any]:
     """Claude (protocol, think-first) with up to two attempts; the angle template is the fallback. Always validated."""
-    for attempt in range(2):
-        res = llm_email(llm, cfg, agent, props)
+    rejected = None
+    for attempt in range(3):               # the writer is told why a draft was rejected (Rodrigo, 2026-11-18: coherent, from their copy)
+        res = llm_email(llm, cfg, agent, props, rejected)
         if not res:
             break
         subject, body, analysis = res
@@ -560,6 +692,7 @@ def compose_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[
         problems = validate_email(subject, body, props)
         if not problems:
             return {"subject": subject, "body": body, "variant": "claude", "analysis": analysis}
+        rejected = {"body": body, "rejected_because": problems}
         log.warning("claude first touch rejected (%s), attempt %d", problems, attempt + 1)
     subject, body, variant = template_email(cfg, agent, props, seed)
     problems = validate_email(subject, body, props)

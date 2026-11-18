@@ -58,7 +58,13 @@ def stored_status(p: dict[str, Any]) -> str | None:
 
 def homeharvest_lookup(cfg: Any, scrape=None) -> Lookup:
     """One realtor.com single-address search per house (HomeHarvest's address path returns that home with its status)."""
-    def fn(p: dict[str, Any]) -> str | None:
+    rec = homeharvest_record(cfg, scrape)
+    return lambda p: classify(rec(p))
+
+
+def homeharvest_record(cfg: Any, scrape=None) -> Callable[[dict[str, Any]], "dict[str, Any] | None"]:
+    """The realtor.com record of one house (status, photos), or None when the search finds nothing."""
+    def fn(p: dict[str, Any]) -> dict[str, Any] | None:
         from .ingest.homeharvest_src import _scraper
         loc = ", ".join(x for x in (p.get("street"), p.get("city"), f"{p.get('state') or 'FL'} {p.get('zip') or ''}".strip()) if x)
         items = (scrape or _scraper())(loc, return_type="raw", extra_property_data=False,
@@ -68,7 +74,7 @@ def homeharvest_lookup(cfg: Any, scrape=None) -> Lookup:
             return None
         sid = str(p.get("source_id") or "")
         same = [r for r in recs if sid and sid in (str(r.get("property_id")), str(r.get("listing_id")))]
-        return classify((same or recs)[0])
+        return (same or recs)[0]
     return fn
 
 

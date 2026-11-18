@@ -362,6 +362,21 @@ paths:
 # THE TRUST LADDER (Rodrigo, 2026-10-26; titan/learning.py). Every card decision is recorded; his comments become the
 # knowledge base injected into every drafting prompt. A stage unlocks only when its rate clears the bar AND Rodrigo drags the
 # "⚙ Autopilot" control card to Approved (dragging it out turns it off; the engine turns it off itself under pause_below).
+condition:
+  # PHOTO CONDITION CHECK (Rodrigo, 2026-11-18: "fresh renovations and properties that look really good ... not going to sell at a discount ...
+  # go in the listing and look at the pictures and not give me those listings"; titan/condition.py; run-daily step "condition",
+  # `make condition-check`). Remarks that plainly say fully renovated settle it for free; otherwise Claude looks at the listing's photos
+  # (paid API, about 1 to 3 cents a house, once per house). Ruled-out houses never get an email; their Fresh Leads card goes to Skip.
+  enabled: true
+  gate_outreach: true              # first emails are only drafted for houses that were looked at
+  max_per_run: 250                 # houses looked at per run (cost cap: about $5 a day at most)
+  photos_per_house: 8              # front, kitchens and baths first, then a spread
+  min_photos: 3                    # fewer than this = can't tell (the house stays)
+  stop_after_errors: 5             # photos not loading / Claude not answering: stop, change nothing
+  drop:                            # verdict -> the confidence it needs to take a house off
+    RENOVATED: ["high", "medium"]
+    GOOD_SHAPE: ["high"]
+
 learning_loop:
   # DAILY LEARNING LOOP for the house pipeline (Rodrigo, 2026-11-12; titan/learn_loop.py; run-daily step "learn", `make learn-loop`).
   # Reads every first email with what happened to it (approved as written / changed / skipped / deleted, answered or not, offered on),

@@ -37,7 +37,7 @@ def _today_count(conn, channel: str, run_date: str) -> int:
                         (run_date, channel)).fetchone()[0]
 
 
-def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
+def candidate_rows(conn, cfg: Any, gated: bool = True) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT p.*, s.score, s.cited, v.rating, v.lane, v.mao, v.offer_price, v.arv, v.repair_tier, v.repair_cost, v.arv_method, v.comp_count, v.comp_grade, a.id AS a_id, a.name AS a_name, a.email AS a_email, "
         "a.email_confidence AS a_conf, a.phone AS a_phone, a.is_office_line AS a_office "
@@ -52,6 +52,9 @@ def candidate_rows(conn, cfg: Any) -> list[dict[str, Any]]:
         out = apply_to_candidates(conn, cfg, out)
     except Exception as e:  # noqa: BLE001 — a learned preference must never stop outreach
         log.warning("learned order not applied: %s", e)
+    if gated:
+        from ..condition import gate      # Rodrigo, 2026-11-18: only houses whose photos were looked at and that are not renovated / in great shape
+        out = gate(conn, cfg, out)
     return out
 
 

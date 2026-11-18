@@ -624,12 +624,31 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   uses an option the listing's copy backs (else `safe`). Every approvals tick rewrites up to 15 waiting FIRST emails that break it
   (same path as the photo rule; comment "Rewritten to sound like a person"). Older §0d examples like "The roof and the AC decide our
   number" are superseded.
+- **Photo condition check: no fresh renovations in Fresh Leads (Rodrigo, 2026-11-18: "a lot of the fresh leads … are fresh renovations
+  and properties that look really good … not going to sell at a discount … go in the listing and look at the pictures and not give me
+  those listings")**: `titan/condition.py`, run-daily step `condition` (after board_clean), `make condition-check` (`ARGS=--all` = whole
+  board, no daily cap), `make condition-list` (looks, prints, moves nothing), config `condition:`, table `condition_checks`. Per house,
+  once: remarks that plainly say fully renovated / new construction (and nothing about work) → RENOVATED for free; otherwise up to 8 of
+  the listing's own photos (front, kitchens, baths first; links are in `properties.raw`, a realtor.com address lookup on the Mac when
+  not) go to Claude in ONE paid API call (`LLM.read_images`, about 1–3 cents a house) → RENOVATED / GOOD_SHAPE / DATED / NEEDS_WORK /
+  CANT_TELL + confidence + one sentence. RENOVATED (high / medium) or GOOD_SHAPE (high only) → house EXCLUDED (`lead_note` "condition:
+  …"), its Fresh Leads card to Skip with one "Condition check: …" comment, email never sent; not his vote (`learning.OFF_MARKET`).
+  **He drags the card back to Fresh Leads → the house is kept for good** (`kept_at`). Outreach only drafts first emails for houses that
+  were looked at (`condition.gate_outreach`); 250 looks a run. Photos not loading / Claude not answering → nothing stored, retried next
+  run, stops after 5 in a row. Only Fresh Leads + not-yet-carded houses; Needs Me / Sent / Answered untouched. The email writer is NOT
+  told what the photos show (emails still never mention photos).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18 (later), RESUME HERE: **photo condition check built** (Decisions → Photo condition check). Tested on fixtures only (5
+  tests; suite passes except the same 3 that need Google / Anthropic packages the cloud lacks). NEVER run live: the cloud has no
+  database, no API key and cannot reach realtor.com's pictures. First real run is on the Mac: `make condition-list ARGS="--limit 20"`
+  (looks at 20, prints, moves nothing), then `make condition-check`. Unverified until then: that the stored October photo links still
+  load, which picture size loads (three are tried), and how strict Claude's eye is (tune `condition.drop`). Not built: the verdict
+  line on the house card; a look at houses already in Sent (their follow-ups still go).
 - 2026-11-17 ~8pm ET, RESUME HERE: **scoring's switch-off no longer reaches the email writer.** A plan limit, 5 scoring failures or a
   missing `claude` CLI set `llm.provider = "rules"` for the run, and every first email / rewrite / reply after that fell back to
   templates even though communication runs on the paid API. Now `LLM.scoring_available` (the plan; scoring.py uses it) is separate

@@ -314,6 +314,41 @@ class LLM:
         except json.JSONDecodeError:
             return None
 
+    def read_images(self, purpose: str, images: list[tuple[bytes, str]], prompt: str, schema: dict[str, Any], system: str | None = None,
+                    max_tokens: int = 600) -> dict[str, Any] | None:
+        """One paid API call that looks at several pictures (listing photos, condition.py) and returns JSON per schema. None when
+        Claude is switched off, the key is missing or the call fails."""
+        if self._off or anthropic is None or not self._api_key or not images:
+            return None
+        import base64
+        client = self._api_client()
+        a = anthropic
+        content: list[dict[str, Any]] = [{"type": "image", "source": {"type": "base64", "media_type": mt, "data": base64.b64encode(data).decode()}}
+                                         for data, mt in images]
+        content.append({"type": "text", "text": prompt})
+        kw: dict[str, Any] = {"system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]} if system else {}
+
+        def call():
+            return client.messages.create(model=self.model, max_tokens=max_tokens, messages=[{"role": "user", "content": content}],
+                                          output_config={"format": {"type": "json_schema", "schema": schema}}, **kw)
+
+        try:
+            resp = retry(call, attempts=3, base=2.0, retry_on=(a.RateLimitError, a.InternalServerError, a.APIConnectionError, a.APITimeoutError),
+                         what=f"claude:{purpose}")
+        except Exception as e:  # noqa: BLE001
+            log.error("claude:%s failed: %s", purpose, e)
+            self.session_failures += 1
+            self.last_error = f"{type(e).__name__}: {getattr(e, 'message', e)}"[:300]
+            self._record(purpose, 0, 0, ok=False)
+            return None
+        usage = getattr(resp, "usage", None)
+        self._record(purpose, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0, ok=True, model=resp.model)
+        text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
     def _record(self, purpose: str, inp: int, out: int, ok: bool, model: str | None = None) -> None:
         model = model or self.model
         cost = self._cost(model, inp, out)

@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -86,6 +86,12 @@ clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / of
 
 clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
 	$(PY) -m titan.cli clean-board --list
+
+condition-check:  ## Claude looks at the listing photos now: freshly renovated / really good houses leave Fresh Leads (ARGS=--all for the whole board)
+	$(PY) -m titan.cli condition-check $(ARGS)
+
+condition-list:   ## same look, but only prints what it would take off (moves nothing; the looks are saved, so nothing is paid twice)
+	$(PY) -m titan.cli condition-check --list $(ARGS)
 
 backup-lane:      ## pending houses that fit our criteria: write the backup emails (Fresh Leads), draft check-ins, watch for back-on-market
 	$(PY) -m titan.cli backup-lane

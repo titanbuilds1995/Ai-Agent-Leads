@@ -21,6 +21,9 @@ TYPE_MAP = {
     "mobile": "mobile", "manufactured": "mobile", "mobile home": "mobile", "manufactured_home": "mobile",
 }
 
+_AGE = (r"(55\s*\+|55[\s-]?plus\b|55 (and|&) (older|over|up|better)|over[\s-]55\b|62\s*\+|62 (and|&) (older|over)|"
+        r"age[\s-]restrict\w*|age[\s-]qualified|senior (community|living|citizens?)|adult (community|living|only)|active[\s-]adult|hopa\b|"
+        r"kings point\b|century village\b|wynmoor\b|huntington lakes\b)")
 FLAG_PATTERNS = {
     "short_sale": r"\bshort[\s-]?sale\b",
     "reo": r"\b(reo|bank[\s-]owned|lender[\s-]owned|foreclosed|hud[\s-]owned|hud home|fannie mae|freddie mac|homepath|homesteps)\b|(?<!pre-)(?<!pre )\bforeclosure\b",
@@ -37,6 +40,10 @@ FLAG_PATTERNS = {
                      r"\bno wholesal(e|ers|ing)\b|\bwholesalers? (need not|do not|don'?t|please don'?t) (apply|contact|call|inquire)\b",
     "no_inspection": r"\b(0|zero|no)[\s-]+day inspections?\b|\bno inspection( period| contingenc(y|ies))?\b|\binspections? (are )?(waived|not permitted|not allowed)\b|"
                      r"\bwaive(d)? (the |all |any )?inspections?\b|\bas[\s-]is,? no inspections?\b",
+    # Rodrigo, 2026-11-18: no 55-and-older communities and no townhouses. Negations ("not a 55+ community", "no age
+    # restrictions", "not a townhouse") are taken out first (PRODUCT_NEG_RE).
+    "age_restricted": rf"\b{_AGE}",
+    "townhouse": r"\btown[\s-]?(house|home)s?\b",
     "estate": r"\bestate sale\b|\binherited\b|\bheirs?\b|\bdeceased\b|\btrust sale\b|\bsold by (the )?estate\b",
 }
 VACANT_RE = re.compile(r"\bvacant\b|\bunoccupied\b|\beasy to show\b.*\bvacant\b|\bno tenants?\b", re.I)
@@ -136,8 +143,35 @@ _DISTRESS = r"(short[\s-]?sale|reo|bank[\s-]owned|lender[\s-]owned|foreclosure|a
 NEGATED_RE = re.compile(rf"\b(not|no|non|never)[\s-]+(a |an |)?{_DISTRESS}(\s*(,|/|or|and|nor)\s*(a |an |)?{_DISTRESS})*\b", re.I)
 
 
+PRODUCT_NEG_RE = re.compile(rf"\b(not|no|non|never|isn'?t|without)\b[\s-]+((a|an|the|in|part of|any)\s+)*({_AGE}|town[\s-]?(house|home)s?\b)", re.I)
+# realtor.com tags / sub types that say the same thing as the remarks would
+AGE_TAGS = {"senior_community", "55_plus", "age_restricted", "senior", "active_adult", "adult_community"}
+TOWNHOUSE_TYPES = {"townhouse", "townhome", "townhomes", "town_house", "villa"}
+
+
+def product_flags(p: dict[str, Any]) -> list[str]:
+    """age_restricted / townhouse from what the stored row says beyond the remarks: type, realtor sub type, realtor tags."""
+    import json
+    raw = p.get("raw")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            raw = None
+    raw = raw if isinstance(raw, dict) else {}
+    desc = raw.get("description") if isinstance(raw.get("description"), dict) else {}
+    sub = str(p.get("sub_type") or desc.get("sub_type") or "").lower().strip()
+    tags = {str(t).lower() for t in (raw.get("tags") or []) if t}
+    out = []
+    if tags & AGE_TAGS or any("55" in t and ("plus" in t or "older" in t) for t in tags):
+        out.append("age_restricted")
+    if (p.get("property_type") or "") == "townhouse" or sub in TOWNHOUSE_TYPES:
+        out.append("townhouse")
+    return out
+
+
 def detect_flags(text: str, extra: dict[str, bool] | None = None) -> list[str]:
-    text = NEGATED_RE.sub(" ", text or "")
+    text = PRODUCT_NEG_RE.sub(" ", NEGATED_RE.sub(" ", text or ""))
     flags = [name for name, pat in FLAG_PATTERNS.items() if re.search(pat, text, re.I)]
     for k, v in (extra or {}).items():
         if v and k not in flags:
@@ -232,9 +266,15 @@ def exclude_flagged(conn, cfg: Any) -> int:
     if not bad:
         return 0
     n = 0
-    for r in conn.execute("SELECT id, remarks, listing_status, status_flags FROM properties WHERE lead_status != 'EXCLUDED'").fetchall():
+    try:   # houses Rodrigo put back on the board after the 55+ / townhouse clean-up (product_clean.py) stay
+        kept = {r[0] for r in conn.execute("SELECT property_id FROM product_keeps").fetchall()}
+    except Exception:  # noqa: BLE001 — older database
+        kept = set()
+    for r in conn.execute("SELECT id, remarks, listing_status, status_flags, property_type, raw FROM properties WHERE lead_status != 'EXCLUDED'").fetchall():
         stored = json.loads(r["status_flags"] or "[]") if isinstance(r["status_flags"], str) else (r["status_flags"] or [])
-        flags = set(detect_flags(f"{r['remarks'] or ''} {r['listing_status'] or ''}")) | set(stored)
+        flags = set(detect_flags(f"{r['remarks'] or ''} {r['listing_status'] or ''}")) | set(stored) | set(product_flags(dict(r)))
+        if r["id"] in kept:
+            flags -= {"age_restricted", "townhouse"}
         hit = sorted(flags & bad)
         if hit:
             conn.execute("UPDATE properties SET lead_status='EXCLUDED', lead_note=? WHERE id=?", (f"excluded: {', '.join(hit)}", r["id"]))

@@ -121,7 +121,7 @@ def _run_daily(cfg, args):
     conn = _open(cfg)
     c = build_clients(cfg, conn)
     summary: dict[str, Any] = {"date": today_et(), "missing": c["missing"]}
-    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "condition", "score", "value", "comps", "learn", "enrich", "backup", "follow_ups", "outreach"]
+    steps = args.steps.split(",") if args.steps else ["ingest", "board_clean", "product_clean", "condition", "score", "value", "comps", "learn", "enrich", "backup", "follow_ups", "outreach"]
     fixture = Path(args.fixture) if args.fixture else None
     try:
         if "ingest" in steps and cfg.get("ingest.paused") and not fixture:
@@ -140,6 +140,14 @@ def _run_daily(cfg, args):
         except Exception as e:  # noqa: BLE001 — a clean-up must never stop the run
             log.exception("board clean failed: %s", e)
             summary["board_clean"] = {"error": str(e)}
+    if "product_clean" in steps and not args.offline and not fixture:
+        # Rodrigo, 2026-11-18: no 55+ communities, no townhouses: their cards leave the board
+        from .product_clean import run as product_clean
+        try:
+            summary["product_clean"] = {k: v for k, v in product_clean(conn, cfg, _asana(cfg)).items() if k != "moved"}
+        except Exception as e:  # noqa: BLE001 — a clean-up must never stop the run
+            log.exception("product clean failed: %s", e)
+            summary["product_clean"] = {"error": str(e)}
     if "condition" in steps and not args.offline and not fixture and cfg.get("condition.daily", True):
         # Rodrigo, 2026-11-18: Claude looks at the listing photos; freshly renovated / really good houses never reach Fresh Leads
         from .condition import run as condition_check
@@ -538,6 +546,16 @@ def cmd_clean_board(cfg, args):
     if not asana:
         print("No Asana token (ASANA_TOKEN in .env): nothing to clean.")
         return
+    n = run(_open(cfg), cfg, asana, dry_run=args.list)
+    print(plain(n) + ("\n(--list: nothing moved)" if args.list else ""))
+
+
+def cmd_product_clean(cfg, args):
+    """55+ / townhouse clean-up now (Rodrigo, 2026-11-18): those houses are ruled out and their cards leave the board. --list prints only."""
+    from .product_clean import plain, run
+    asana = _asana(cfg)
+    if not asana:
+        print("No Asana token (ASANA_TOKEN in .env): the houses are ruled out in the database, the board is not touched.")
     n = run(_open(cfg), cfg, asana, dry_run=args.list)
     print(plain(n) + ("\n(--list: nothing moved)" if args.list else ""))
 
@@ -1169,6 +1187,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     cb_ = sub.add_parser("clean-board", help="Fresh Leads clean-up: houses under contract / sold / off market go to Skip")
     cb_.add_argument("--list", action="store_true", help="only print what would move")
+    pc_ = sub.add_parser("product-clean", help="no 55+ communities / townhouses: rule them out and take their cards off the board")
+    pc_.add_argument("--list", action="store_true", help="only print what would move")
     cc_ = sub.add_parser("condition-check", help="Claude looks at the listing photos: renovated / really good houses leave Fresh Leads")
     cc_.add_argument("--list", action="store_true", help="look and print, move nothing")
     cc_.add_argument("--all", action="store_true", help="no daily cap: the whole board in one go")
@@ -1239,7 +1259,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

@@ -20,14 +20,15 @@ operator:
 market:
   state: "FL"
   counties: ["Miami-Dade", "Broward", "Palm Beach"]
-  property_types: ["single_family", "townhouse", "multi_family", "land"]   # multi_family = duplex–quadplex
+  property_types: ["single_family", "multi_family", "land"]   # multi_family = duplex–quadplex. No townhouses (Rodrigo, 2026-11-18)
   max_units: 4
   price_min: 150000
   price_max: 750000
   lookback_days: 30            # only used with ingest.homeharvest.scope: window (or require_recent: true)
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
-  exclude_flags: ["reo", "short_sale", "auction", "not_a_home", "no_assignment", "no_inspection"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
+  # age_restricted = 55-and-older / senior / active-adult communities; townhouse = townhouses / townhomes (Rodrigo, 2026-11-18)
+  exclude_flags: ["reo", "short_sale", "auction", "not_a_home", "no_assignment", "no_inspection", "age_restricted", "townhouse"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
 
 formula:
   # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp
@@ -368,10 +369,8 @@ condition:
   # `make condition-check`). Remarks that plainly say fully renovated settle it for free; otherwise Claude looks at the listing's photos
   # (paid API, about 1 to 3 cents a house, once per house). Ruled-out houses never get an email; their Fresh Leads card goes to Skip.
   enabled: true
-  daily: false                     # HOLD (2026-11-17, Mac): Rodrigo said "do NOT run condition-check until I say so". While false the
-                                   # 5:30am run-daily skips the step; `make condition-list` / `make condition-check` by hand still work.
-                                   # When he says go: daily: true and gate_outreach: true.
-  gate_outreach: false             # true = first emails are only drafted for houses that were looked at (off with the hold, or outreach starves)
+  daily: true                      # ON (Rodrigo, 2026-11-18: "I still see a lot of properties that are in good shape"; held 11-17 to 11-18)
+  gate_outreach: true              # first emails are only drafted for houses that were looked at
   max_per_run: 250                 # houses looked at per run (cost cap: about $5 a day at most)
   photos_per_house: 8              # front, kitchens and baths first, then a spread
   min_photos: 3                    # fewer than this = can't tell (the house stays)

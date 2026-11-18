@@ -637,6 +637,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   were looked at (`condition.gate_outreach`); 250 looks a run. Photos not loading / Claude not answering → nothing stored, retried next
   run, stops after 5 in a row. Only Fresh Leads + not-yet-carded houses; Needs Me / Sent / Answered untouched. The email writer is NOT
   told what the photos show (emails still never mention photos).
+- **No 55+ communities, no townhouses (Rodrigo, 2026-11-18: "not look for properties in 55 and older communities, and no townhouses
+  ... clean out all of the properties I have on the board")**: flags `age_restricted` (55+ / 62+ / age-restricted / senior / active
+  adult / HOPA, Kings Point, Century Village, Wynmoor, Huntington Lakes; realtor.com senior tags) and `townhouse` (remarks, type, realtor
+  sub type) in `market.exclude_flags`; "townhouse" is out of `market.property_types`. Negations ("NOT a 55+ community", "no age
+  restrictions", "not a townhouse") don't count. `exclude_flagged` rules stored houses out on every score run (follow-ups stop).
+  `titan/product_clean.py`, run-daily step `product_clean` (after board_clean), `make product-clean` / `make product-clean-list`: cards
+  whose houses are all ruled out and whose agent never answered (Fresh Leads, Needs Me, Needs Revision, Approved, Sent · no answer yet) →
+  Skip with one "Rule check" comment (not his vote); an agent who answered keeps the card with one comment; he drags one back → kept for
+  good (`product_keeps`). Same day the **photo condition check was switched ON** (`condition.daily` + `gate_outreach` true).
 - **Links brokers send are opened (Rodrigo, 2026-11-18: "I thought we already worked on being able to log into links from the emails we get
   from agents … they gave us links")**: before this the engine only LISTED links (NEEDS YOU); Tammy Huston's Dropbox for Mariner Plaza sat
   unread. `titan/commercial/link_files.py`, stage `link_files` (after `om_replies` in check-replies and approvals), `make om-links` by hand:
@@ -671,26 +680,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   sends no pass when Rodrigo's card comment says stop / he takes it (`closeout.HIS_STOP_RE`) or the broker said stop (address added to
   do-not-contact; the blast skips do-not-contact); and a rules-only read (Claude unreachable) never decides a pass on its own (Tyler Sluman,
   6805 33rd St E Sarasota, offered $3.65M net / 8 cap once leased and got a rules-only NOT A FIT + "congrats").
-- **1031: no more forwards to his inbox; Not a fit = read in Charles's mailbox at once (Rodrigo, 2026-11-18: "stop forwarding me
-  emails that get answered, all of the info I only see it on my Asana board … if it says Needs Me and then I move it to Not a fit, I
-  also want the email to be marked as read on Charles's email, this way we are all in sync")**: `commercial.review.forward_to_rodrigo:
-  false` (supersedes the 11-09 forward rule). `triage_inbox` sends nothing to REPORT_TO and posts no 📬 comment; the card still goes
-  to Needs Me; reviews are stamped `forwarded_at = off:…` so switching it back on never sends the old ones. A card he drags to **Not a
-  fit** has its Gmail thread(s) marked read the same round (`closeout._mark_read`, `GmailClient.mark_read`, once per thread,
-  `commercial_kv not_fit_read:<thread id>`), even while the pass email still waits for the send window; the archive follows when the
-  card is cleared, as before. **Any move out of Needs Me marks it read too** (Rodrigo, same day: "that means that I disposed of it"):
-  a card seen in Needs Me is remembered (`commercial_kv in_needs_me:<card>`); the round it is found in another column (either board)
-  its thread(s) are marked read (`closeout._left_needs_me`); back in Needs Me starts over. A card completed / deleted straight out
-  of Needs Me is NOT marked (not built). "ready" = "read" (he confirmed). Other reports to him (deals email, EOD, morning) unchanged.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
-- 2026-11-18 (late), RESUME HERE: **1031 forwards to Rodrigo OFF + Not a fit marks the thread read in Charles's mailbox**
-  (Decisions → 1031: no more forwards). 1 new test + 1 extended; suite passes except the same 3 that need packages the cloud lacks.
-  Any move out of Needs Me marks the thread read too. Not run live: takes effect on the Mac's next round after it pulls and the branch is merged.
+- 2026-11-18 (evening), RESUME HERE: **55+ / townhouse filter built + photo condition check switched ON** (Decisions → No 55+
+  communities). Rodrigo asked why good-shape houses are still on Fresh Leads: the photo check was on HOLD since 11-17. Now on. First run
+  on the Mac: `git pull`, `make product-clean-list`, `make product-clean`, `make condition-check ARGS=--all` (~$10 for ~1,466 houses).
+  Then every 5:30am run does both. 2 tests; suite passes except the same 3 that need packages the cloud lacks. Not run live (cloud has no DB).
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

@@ -894,6 +894,10 @@ def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
         wants_fwd = bool(r.get("needs_rodrigo")) or verdict in FORWARD_VERDICTS or bool(other)
         wants_arch = verdict in ARCHIVE_VERDICTS and not other and not r.get("rodrigo_at")
         ts = iso(now)
+        if not fwd_on and wants_fwd and not r.get("forwarded_at"):
+            # Rodrigo, 2026-11-18: "stop forwarding me emails … I only see it on my Asana board". Marked, so switching forwards
+            # back on later never floods him with the old ones. The card still goes to Needs Me below.
+            _claim(conn, "forwarded_at", r["id"], f"off:{ts}")
         if fwd_on and wants_fwd and not r.get("forwarded_at"):
             if not to:
                 res["errors"] += 1

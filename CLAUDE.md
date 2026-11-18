@@ -671,12 +671,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   sends no pass when Rodrigo's card comment says stop / he takes it (`closeout.HIS_STOP_RE`) or the broker said stop (address added to
   do-not-contact; the blast skips do-not-contact); and a rules-only read (Claude unreachable) never decides a pass on its own (Tyler Sluman,
   6805 33rd St E Sarasota, offered $3.65M net / 8 cap once leased and got a rules-only NOT A FIT + "congrats").
+- **1031: no more forwards to his inbox; Not a fit = read in Charles's mailbox at once (Rodrigo, 2026-11-18: "stop forwarding me
+  emails that get answered, all of the info I only see it on my Asana board … if it says Needs Me and then I move it to Not a fit, I
+  also want the email to be marked as read on Charles's email, this way we are all in sync")**: `commercial.review.forward_to_rodrigo:
+  false` (supersedes the 11-09 forward rule). `triage_inbox` sends nothing to REPORT_TO and posts no 📬 comment; the card still goes
+  to Needs Me; reviews are stamped `forwarded_at = off:…` so switching it back on never sends the old ones. A card he drags to **Not a
+  fit** has its Gmail thread(s) marked read the same round (`closeout._mark_read`, `GmailClient.mark_read`, once per thread,
+  `commercial_kv not_fit_read:<thread id>`), even while the pass email still waits for the send window; the archive follows when the
+  card is cleared, as before. Read "ready" as "read" (not confirmed with him). Other reports to him (deals email, EOD, morning) unchanged.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18 (late), RESUME HERE: **1031 forwards to Rodrigo OFF + Not a fit marks the thread read in Charles's mailbox**
+  (Decisions → 1031: no more forwards). 1 new test + 1 extended; suite passes except the same 3 that need packages the cloud lacks.
+  Not run live: takes effect on the Mac's next round after it pulls. Not built: marking read for other columns (Closed, Offer out).
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

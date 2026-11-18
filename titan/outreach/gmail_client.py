@@ -172,6 +172,12 @@ class GmailClient:
         retry(lambda: self.svc.users().threads().modify(userId="me", id=thread_id, body={"removeLabelIds": ["INBOX", "UNREAD"]}).execute(),
               what="gmail archive")
 
+    def mark_read(self, thread_id: str) -> None:
+        """Mark a whole thread read, leaving it where it is (Rodrigo, 2026-11-18: a card he moves to Not a fit shows as read in
+        Charles's mailbox at once, so the board and the mailbox say the same thing)."""
+        retry(lambda: self.svc.users().threads().modify(userId="me", id=thread_id, body={"removeLabelIds": ["UNREAD"]}).execute(),
+              what="gmail mark read")
+
     # --- read ----------------------------------------------------------------------------------
     def thread_messages(self, thread_id: str) -> list[dict[str, Any]]:
         t = retry(lambda: self.svc.users().threads().get(userId="me", id=thread_id, format="full").execute(), what="gmail thread")

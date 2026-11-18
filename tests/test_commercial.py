@@ -320,6 +320,7 @@ class FakeOMGmail:
     def thread_messages(self, tid): return list(self.threads.get(tid, []))
     def attachments(self, mid): return self.files.get(mid, [])
     def archive_thread(self, tid): self.archived = getattr(self, "archived", []) + [tid]
+    def mark_read(self, tid): self.read = getattr(self, "read", []) + [tid]
 
 
 def _om_board(conn, cfg, tmp_path):
@@ -1352,6 +1353,8 @@ def test_his_drag_to_not_a_fit_sends_the_pass_once_and_a_call_request_needs_him(
     asana.move(gid, secs[NOT_A_FIT])                                                     # he decides: not a fit
     from datetime import datetime, timezone
     assert clear_not_fit(conn, cfg, asana, gm, now=datetime(2026, 11, 9, 3, 0, tzinfo=timezone.utc))["waiting"] == 1   # night: waits
+    assert len(getattr(gm, "read", [])) == 1                                             # marked read in Charles's mailbox at once
+    assert not getattr(gm, "archived", [])                                               # archived only when the card is cleared
     n = len(gm.sent)
     out = clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
     assert out == {**out, "cleared": 1, "passes": 1} and len(gm.sent) == n + 1
@@ -1657,3 +1660,22 @@ def test_failed_pull_marks_nothing_gone_and_emails_nothing(conn, cfg):
     assert "error" in out and "nothing" in out["error"]
     assert conn.execute("SELECT COUNT(*) FROM commercial_listings WHERE gone_at IS NOT NULL").fetchone()[0] == before
     assert conn.execute("SELECT COUNT(*) FROM commercial_runs").fetchone()[0] == runs
+
+
+def test_forwards_off_nothing_reaches_his_inbox_but_the_card_still_goes_to_needs_me(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-18: "stop forwarding me emails … I only see it on my Asana board"."""
+    from titan.commercial.board import NEEDS_ME
+    from titan.commercial.books_review import review_pending, triage_inbox
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    cfg["commercial"]["review"]["forward_to_rodrigo"] = False
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    _answer(conn, cfg, asana, gm, "Great property. Please give me a call at your earliest convenience. 850-291-3341", "r1", 1)
+    assert review_pending(conn, cfg, asana, FakeTriageLLM())["needs_rodrigo"] == 1
+    n = len(gm.sent)
+    out = triage_inbox(conn, cfg, asana, gm)
+    assert out["forwarded"] == 0 and len(gm.sent) == n and out.get("parked") == 1 and asana.where[gid] == secs[NEEDS_ME]
+    cfg["commercial"]["review"]["forward_to_rodrigo"] = True                              # switched back on: the old one is not sent
+    assert triage_inbox(conn, cfg, asana, gm)["forwarded"] == 0 and len(gm.sent) == n

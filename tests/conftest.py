@@ -19,6 +19,7 @@ def cfg():
     c = config_mod.load(ROOT / "config.yaml", env_path=FIXTURES / "nonexistent.env", force=True)
     c["outreach"]["sending_paused"] = False     # the pause switch has its own tests; everything else tests the engine running
     c["outreach"]["second_read"]["enabled"] = False   # the second reader has its own tests (tests/test_second_read.py)
+    c["commercial"]["review"]["forward_to_rodrigo"] = True   # off since 2026-11-18; the forward has its own tests, and one for "off"
     c["condition"]["gate_outreach"] = False   # the photo gate has its own tests (tests/test_condition.py)
     c["comps"]["tuning_file"] = str(FIXTURES / "nonexistent_tuning.json")   # the Mac's live data/comps_tuning.json must not change test results
     return c

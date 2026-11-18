@@ -124,6 +124,8 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
         his_drag = col == NOT_A_FIT
         if not ts and not his_drag:
             continue                             # no conversation and he did not call it: nothing to decide here
+        if his_drag:
+            _mark_read(conn, gmail, ts)          # the mailbox follows the board at once, even while the pass still waits
         reasons: list[str] = []
         ok = True
         for t in ts:
@@ -212,6 +214,27 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
         conn.execute("UPDATE commercial_listings SET board_column=? WHERE asana_task_id=? OR asana_om_task_id=?", (NOT_A_FIT, gid, gid))
         res["cleared"] += 1
     return res
+
+
+def _mark_read(conn, gmail, ts: list[dict[str, Any]]) -> None:
+    """Rodrigo, 2026-11-18: "if it says Needs Me and then I move it to Not a fit, I also want the email to be marked as read on
+    Charles's email, this way we are all in sync". Once per thread, the round he moves the card; the archive follows when the
+    card is cleared."""
+    mark = getattr(gmail, "mark_read", None)
+    if mark is None:
+        return
+    for t in ts:
+        if not t.get("gmail_thread_id"):
+            continue
+        key = f"not_fit_read:{t['id']}"
+        if conn.execute("SELECT 1 FROM commercial_kv WHERE key=?", (key,)).fetchone():
+            continue
+        try:
+            mark(t["gmail_thread_id"])
+        except Exception as e:  # noqa: BLE001
+            log.warning("closeout mark read %s: %s", t.get("listing_id"), e)
+            continue
+        conn.execute("INSERT INTO commercial_kv (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, "1"))
 
 
 def _reopen(conn, asana, secs: dict[str, str], threads: list[dict[str, Any]], res: dict[str, Any], now) -> None:

@@ -533,7 +533,8 @@ commercial:
     # The emails that need him are FORWARDED to REPORT_TO (the broker's message, the read, the files) so he gets them in his
     # own inbox; brokers that pitched other / off-market (pocket) deals are forwarded too; NOT A FIT / DOES NOT FIT threads are
     # ARCHIVED in Charles's inbox (still read by id, so a later answer is not lost).
-    forward_to_rodrigo: true
+    # Rodrigo, 2026-11-18: "stop forwarding me emails … I only see it on my Asana board": OFF. The card still goes to Needs Me.
+    forward_to_rodrigo: false
     archive_not_fit: true
     forward_max_mb: 20
     # Rodrigo, 2026-11-10: "everybody that we're 100% they're not a fit with … send them that last email … and get them out": a card

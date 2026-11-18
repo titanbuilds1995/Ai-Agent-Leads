@@ -113,6 +113,7 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
     by_card: dict[str, list[dict[str, Any]]] = {}
     for t in threads:
         by_card.setdefault(t["card_gid"], []).append(t)
+    _left_needs_me(conn, gmail, where, by_card, res)
     _reopen(conn, asana, secs, threads, res, now)
 
     for gid, col in where.items():
@@ -216,13 +217,38 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
     return res
 
 
-def _mark_read(conn, gmail, ts: list[dict[str, Any]]) -> None:
+def _left_needs_me(conn, gmail, where: dict[str, str], by_card: dict[str, list[dict[str, Any]]], res: dict[str, Any]) -> None:
+    """Rodrigo, 2026-11-18: "if I move it from Needs Me on my board, then I want it to be marked as read also, because that means
+    that I disposed of it". A card seen in Needs Me is remembered; the round it is found in any other column, its thread(s) are
+    marked read in Charles's mailbox. A card that comes back to Needs Me (a new answer) starts over. A card that is simply not
+    found (a column that failed to load, a completed card) changes nothing."""
+    for gid, col in where.items():
+        ts = [t for t in by_card.get(gid) or [] if t.get("gmail_thread_id")]
+        if not ts:
+            continue
+        key = f"in_needs_me:{gid}"
+        seen = conn.execute("SELECT 1 FROM commercial_kv WHERE key=?", (key,)).fetchone()
+        if col == NEEDS_ME:
+            if not seen:
+                conn.execute("INSERT INTO commercial_kv (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, "1"))
+                for t in ts:                     # back in Needs Me: the next move out marks it read again
+                    conn.execute("DELETE FROM commercial_kv WHERE key=?", (f"not_fit_read:{t['id']}",))
+        elif seen:
+            for t in ts:
+                conn.execute("DELETE FROM commercial_kv WHERE key=?", (f"not_fit_read:{t['id']}",))
+            if _mark_read(conn, gmail, ts):
+                conn.execute("DELETE FROM commercial_kv WHERE key=?", (key,))
+                res["marked_read"] = res.get("marked_read", 0) + 1
+
+
+def _mark_read(conn, gmail, ts: list[dict[str, Any]]) -> bool:
     """Rodrigo, 2026-11-18: "if it says Needs Me and then I move it to Not a fit, I also want the email to be marked as read on
     Charles's email, this way we are all in sync". Once per thread, the round he moves the card; the archive follows when the
     card is cleared."""
     mark = getattr(gmail, "mark_read", None)
     if mark is None:
-        return
+        return False
+    done = True
     for t in ts:
         if not t.get("gmail_thread_id"):
             continue
@@ -233,8 +259,10 @@ def _mark_read(conn, gmail, ts: list[dict[str, Any]]) -> None:
             mark(t["gmail_thread_id"])
         except Exception as e:  # noqa: BLE001
             log.warning("closeout mark read %s: %s", t.get("listing_id"), e)
+            done = False                         # tried again next round
             continue
         conn.execute("INSERT INTO commercial_kv (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, "1"))
+    return done
 
 
 def _reopen(conn, asana, secs: dict[str, str], threads: list[dict[str, Any]], res: dict[str, Any], now) -> None:

@@ -1679,3 +1679,29 @@ def test_forwards_off_nothing_reaches_his_inbox_but_the_card_still_goes_to_needs
     assert out["forwarded"] == 0 and len(gm.sent) == n and out.get("parked") == 1 and asana.where[gid] == secs[NEEDS_ME]
     cfg["commercial"]["review"]["forward_to_rodrigo"] = True                              # switched back on: the old one is not sent
     assert triage_inbox(conn, cfg, asana, gm)["forwarded"] == 0 and len(gm.sent) == n
+
+
+def test_a_card_moved_out_of_needs_me_is_marked_read_in_charless_mailbox(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-18: "if I move it from Needs Me on my board … marked as read also, because that means I disposed of it"."""
+    from titan.commercial.board import NEEDS_ME, REVIEWED
+    from titan.commercial.closeout import clear_not_fit
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    _answer(conn, cfg, asana, gm, "Please give me a call. 850-291-3341", "r1", 1)
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert not getattr(gm, "read", [])                                   # never in Needs Me: nothing marked
+    asana.move(gid, secs[NEEDS_ME])
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert not getattr(gm, "read", [])                                   # sitting in Needs Me: stays unread
+    asana.move(gid, secs[REVIEWED])                                      # he disposed of it
+    assert clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET).get("marked_read") == 1 and len(gm.read) == 1
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert len(gm.read) == 1                                             # once
+    asana.move(gid, secs[NEEDS_ME])                                      # a new answer brings it back
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    asana.move(gid, secs[REVIEWED])
+    clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert len(gm.read) == 2                                             # and out again: read again

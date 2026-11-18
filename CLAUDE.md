@@ -678,7 +678,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   to Needs Me; reviews are stamped `forwarded_at = off:…` so switching it back on never sends the old ones. A card he drags to **Not a
   fit** has its Gmail thread(s) marked read the same round (`closeout._mark_read`, `GmailClient.mark_read`, once per thread,
   `commercial_kv not_fit_read:<thread id>`), even while the pass email still waits for the send window; the archive follows when the
-  card is cleared, as before. Read "ready" as "read" (not confirmed with him). Other reports to him (deals email, EOD, morning) unchanged.
+  card is cleared, as before. **Any move out of Needs Me marks it read too** (Rodrigo, same day: "that means that I disposed of it"):
+  a card seen in Needs Me is remembered (`commercial_kv in_needs_me:<card>`); the round it is found in another column (either board)
+  its thread(s) are marked read (`closeout._left_needs_me`); back in Needs Me starts over. A card completed / deleted straight out
+  of Needs Me is NOT marked (not built). "ready" = "read" (he confirmed). Other reports to him (deals email, EOD, morning) unchanged.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
@@ -687,7 +690,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 ## Current status
 - 2026-11-18 (late), RESUME HERE: **1031 forwards to Rodrigo OFF + Not a fit marks the thread read in Charles's mailbox**
   (Decisions → 1031: no more forwards). 1 new test + 1 extended; suite passes except the same 3 that need packages the cloud lacks.
-  Not run live: takes effect on the Mac's next round after it pulls. Not built: marking read for other columns (Closed, Offer out).
+  Any move out of Needs Me marks the thread read too. Not run live: takes effect on the Mac's next round after it pulls and the branch is merged.
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

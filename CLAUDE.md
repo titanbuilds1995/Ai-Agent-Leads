@@ -677,6 +677,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the
+  Mac's .env; $5.68). 1,253 listings, 82 never seen before, 14 of those in the box; in-box went 543 → 214: the income screen took out
+  290 (236 vacant / owner-user / lease-up, 25 development, 15 hotels under 8 after manager + tax, 10 small Miami-Dade multifamily, 4
+  business with the building). 38 cards posted to New, all no-cap (NEEDS-OM); NO new listing shows a cap of 8+. 38 gone, 10 price
+  drops. `make commercial-blast`: 23 brokers queued for the cap question (3 a round / 60 a day, from 8am); Larry Starr not in it.
+  `commercial.schedule` set back to "manual" (the pull is done; no second charge on the 19th). Watch: the queue entry for
+  dawn@pfeiferrealtygroup.com (Sanibel) has no street; three older 8+ listings have no card because they are SUSPECT (Mohammad Hasan
+  x2, Michael Grant 9022 Midnight Pass Rd whose back-solved cap is 99.9 = bad data). The cloud's APIFY_TOKEN still needs the new token.
 - 2026-11-17 ~10pm ET (Mac clock; the cloud's dates run a day ahead), RESUME HERE: **1031 round two has NOT run: the Mac's Apify token
   is refused** (`make doctor`: "Apify token fail, token rejected (401)"). Rodrigo regenerates it in console.apify.com and puts it in
   the Mac's `.env` himself, then `make doctor`, then `make commercial` once (or the 5:30am run on the date in `commercial.schedule`

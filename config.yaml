@@ -553,7 +553,7 @@ commercial:
   # Rodrigo, 2026-11-18: "let's do another search and get after it tomorrow". A date = that one morning's run-daily (5:30am on the Mac)
   # pulls LoopNet again (~$7 of the Apify Starter plan), re-scores with round one's lessons, posts the new cards, emails him the deals
   # and queues the no-cap question for brokers never emailed. Back to manual after that day.
-  schedule: "2026-11-19"             # manual | daily | YYYY-MM-DD. daily = run-daily step "commercial" (costs Apify credit every morning)
+  schedule: "manual"                 # manual | daily | YYYY-MM-DD. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
   # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a
   # "why this fits" line goes to REPORT_TO (the same layout he forwards to the investor), each card linking to the site.

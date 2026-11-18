@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from . import db
 from .asana import BOT, Asana, AsanaError
 from .learning import learned_block
-from .outreach.compose import EMAIL_SCHEMA, compose_email, may_ask_how_much_work, photo_rule_problems, protocol_text, seed_for, signature, tone_problems, validate_email, voice_text
+from .outreach.compose import EMAIL_SCHEMA, compose_email, copy_problems, human_problems, may_ask_how_much_work, photo_rule_problems, protocol_text, seed_for, signature, tone_problems, validate_email, voice_text
 from .util import iso, log, now_utc, today_et
 
 START, END = "-----EMAIL-----", "-----END EMAIL-----"
@@ -198,6 +198,12 @@ and the company name says it all: never "we're investors", "we buy here regularl
 are the buyer ("we're looking for properties in X", "what we look for", "our side"; never "we buy", "we'd buy", "serious buyers").
 and name every listed street in the body. If the feedback asks for numbers or analysis rather than a change to the email, keep the email a
 conversation (ask the agent for the fact instead of stating a figure).
+HUMAN (Rodrigo, 2026-11-18; the HUMAN EMAIL guide at the top of the voice section wins over older examples): every sentence is one you
+would say out loud on the phone. Build the question as what we saw in the listing, what we didn't see, then a complete question ("I saw
+there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs?" / "Is the seller willing to negotiate on
+price if a serious offer came in?"). Never "the house may work for us", "what matters on our side is", "with the tenant already in place,
+…", "open to some room from where they're asking". State only what the listing data or Rodrigo's feedback says; never ask for
+something the remarks already answer.
 DIRECT (Rodrigo, 2026-10-28): matter of fact and serious, never AI-ish. After the intro go straight to the question. Never tell the agent
 what doesn't scare, bother or worry us or what is "fine on our side"; never recite the listing's upgrades back ("with the new electrical
 panel in"); never mention the electrical panel; no "curious", "honestly", "potentially", "the bigger question is".
@@ -1055,8 +1061,12 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
             break
         if violating_only:
             body_now = row.get("body") or ""
-            photo_bad = bool(photo_rule_problems(body_now, _props_for(conn, row)))
-            if not photo_bad and not tone_problems(body_now):     # Rodrigo, 2026-10-28: AI-ish wording is rewritten too
+            props_now = _props_for(conn, row)
+            photo_bad = bool(photo_rule_problems(body_now, props_now))
+            # Rodrigo, 2026-11-18: robotic wording, or a statement / question that does not fit the listing's own copy
+            human_bad = (human_problems(body_now) + (copy_problems(body_now, props_now) if props_now else [])) \
+                if not photo_bad and (row.get("kind") or "first_touch") == "first_touch" else []
+            if not photo_bad and not human_bad and not tone_problems(body_now):     # Rodrigo, 2026-10-28: AI-ish wording is rewritten too
                 continue
         elif only_old_style and (row.get("analysis") or "").strip() not in ("", "{}"):
             n["skipped_already_protocol"] += 1
@@ -1093,7 +1103,11 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
             asana.update_notes(row["asana_task_id"], card_notes(row["to_address"], d["subject"], d["body"], row["id"],
                                                                  listing_meta(props[0], agent, d.get("analysis"))))
         _attach_picture(cfg, asana, row["asana_task_id"], row["to_address"], d["subject"], d["body"], row["id"], rev=99)
-        if violating_only and not photo_bad:
+        if violating_only and human_bad:
+            asana.comment(row["asana_task_id"], "Rewritten to sound like a person (Rodrigo, 2026-11-18): what we saw in the listing, what "
+                                                "we didn't see, then a plain question. Was: " + human_bad[0].split(" (Rodrigo")[0][:160]
+                                                + ". New picture attached.")
+        elif violating_only and not photo_bad:
             asana.comment(row["asana_task_id"], "Rewritten to be direct (Rodrigo, 2026-10-28): straight to the question, no \"doesn't scare "
                                                 "us\", no reciting the listing's upgrades back. New picture attached.")
         elif violating_only:

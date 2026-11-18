@@ -99,10 +99,10 @@ def test_delay_note_off_means_nothing_at_all_goes_to_a_broker(conn, cfg, tmp_pat
 
 
 def test_shipped_config_back_on_with_the_blast_held():
-    """Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m." The no-cap blast stays held."""
+    """Rodrigo, 2026-11-16: "we're back onto our regular schedule, sending from 8 a.m. to 6 p.m." The no-cap blast is back on at medium pace (Rodrigo, 2026-11-17)."""
     from titan.config import load
     cfg = load(force=True)
     assert cfg.get("outreach.sending_paused") is False and cfg.get("commercial.delay_note.enabled") is False
-    assert cfg.get("commercial.outreach.blast_paused") is True
+    assert cfg.get("commercial.outreach.blast_paused") is False and cfg.get("commercial.outreach.per_round") == 3
     w = cfg.get("outreach.asana.send_window")
     assert (w["start"], w["end"]) == ("08:00", "18:00")

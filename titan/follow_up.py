@@ -75,7 +75,7 @@ TEMPLATES = [
     "Good morning {first},\n\nCharles with Titan Realty Investments. I emailed you {when} about {street} and wanted to check back.\n\n"
     "Is the seller still open to a conversation on it?",
     "Good morning {first},\n\nCharles with Titan Realty Investments. I emailed you {when} about {street} and wanted to check back.\n\n"
-    "Is there any room from asking on it, or is the seller holding firm for now?",
+    "Is the seller willing to negotiate on price, or are they holding firm for now?",
     "Good morning {first},\n\nCharles with Titan Realty Investments. I reached out about {street} {when}.\n\n"
     "Is there a good time this week for a quick call about it?",
 ]

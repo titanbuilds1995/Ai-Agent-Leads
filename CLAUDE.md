@@ -608,12 +608,33 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   cannot resolve DNS). (4) `make verify-list FILE=list.csv`: clean / dead / unknown split (syntax, duplicates, role mailboxes, dead domains,
   MX, SMTP RCPT through `enrich.default_mx/default_rcpt`) before anyone sends to a list. Not done: DNS of the domain not checked yet
   (needs the Mac); Google Postmaster Tools not set up (his Google Admin).
+- **Emails sound like a person, and only say what their copy says (Rodrigo, 2026-11-18: "really robotic … 'with the tenant already in
+  place, the house may work for us. What matters on our side is how long the lease runs' … it doesn't sound real … anything we say we have
+  to make sure we're getting directly from the copy that they give us … sentences need to be coherent")**: `docs/style/HUMAN_EMAIL.md`
+  (research + rules; printed AHEAD of the voice protocol by `compose.voice_text`, so first emails, rewrites, replies, follow-ups and the
+  backup lane all get it; it wins over older examples). Every question = WHAT I SAW in the listing, WHAT I DIDN'T SEE, a complete
+  question: "I saw there's a tenant in place, but I didn't see when the lease ends. Do you know how long it runs?" / "I saw the price
+  hasn't changed in a while. Do you think the seller would negotiate on price if a serious offer came in?" ("a serious offer" is his
+  wording and allowed; a figure or "our offer" still is not). Code in compose.py: `HUMAN_RE` / `human_problems()` reject "may work for
+  us", "what matters on our side", "with the X already in place, …", "open to some room", "room from asking", "decide our number", "it
+  comes down to price", "start listening" (first emails, rewrites, replies, follow-ups); `copy_problems()` (first emails only) rejects a
+  tenant / lease the remarks never mention, "price came down" with no cut, "hasn't changed" with a cut, "on the market a while" under 30
+  days, and any question the remarks already answer (lease end, roof year, AC year, plumbing replaced, vacant). The writer gets the
+  rejection reasons on its retry (3 attempts). Fallback templates rewritten in that shape, new `tenant` angle, and `template_email` only
+  uses an option the listing's copy backs (else `safe`). Every approvals tick rewrites up to 15 waiting FIRST emails that break it
+  (same path as the photo rule; comment "Rewritten to sound like a person"). Older §0d examples like "The roof and the AC decide our
+  number" are superseded.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18, RESUME HERE: **human-email rules built** (Decisions → Emails sound like a person). Tested on fixtures (2 new tests;
+  suite passes except 3 that need Google / Anthropic packages this container lacks, same before the change). NOT tried with the live
+  Claude writer (no API key in the cloud): the first real run is the Mac's next approvals round, which also starts rewriting waiting
+  Fresh Leads cards that break the rules, 15 a round. Watch: the new cards' wording, and how many fall back to templates
+  (`claude first touch rejected` in logs = the checks are too strict somewhere). Also fixed a stale test for yesterday's blast setting.
 - 2026-11-17 ~12:30pm ET, RESUME HERE: Rodrigo said his messages "paused and don't go". Checked: house sending works (8 went Mon,
   Denise's reply handled today at noon; Approved column empty, nothing stuck). What was still held was the **1031 no-cap blast queue**:
   now ON at medium pace (`blast_paused: false`, 3 per round / 60 a day; Decisions → Sending back ON). The Mac is 1 commit behind

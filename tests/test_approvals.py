@@ -427,7 +427,7 @@ def test_approvals_tick_rewrites_cards_that_ask_how_much_work_a_photographed_lis
     oid0 = parse_card(asana.tasks[gids[0]]["notes"])["outreach_id"]
     pid = json.loads(loaded.execute("SELECT property_ids FROM outreach WHERE id=?", (oid0,)).fetchone()[0])[0]
     street = loaded.execute("SELECT street FROM properties WHERE id=?", (pid,)).fetchone()[0]
-    bad = (f"Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on {street}. It could work for us.\n\n"
+    bad = (f"Hey Maria,\n\nCharles with Titan Realty Investments. I saw your listing on {street}. It has been listed since June.\n\n"
            f"How much work would you say it really needs? And is the seller open to some flexibility?\n\n{signature(cfg)}")
     loaded.execute("UPDATE outreach SET body=? WHERE id=?", (bad, oid0))
     n = rewrite_pending(loaded, cfg, asana, None, violating_only=True)

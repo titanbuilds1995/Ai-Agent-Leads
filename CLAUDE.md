@@ -677,6 +677,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18 ~5:15pm ET: **Powers Plaza OM (6308 W Colonial, Orlando; Dylan Morse) read by hand**: the PDF is image-only, so the engine's
+  read was blind. Real read pinned on the 1031 card (Needs Me): the 9.53% counts an UNSIGNED 5,300 SF lease; on signed leases ~7.3% →
+  true 8 cap ~$4.57M; 79% of signed rent is churches / a religious school. Charles's drafted "thanks for the books" there must NOT go.
+  Gap: image-only PDFs are not transcribed (only JPG/PNG are); worth routing scanned PDF pages through `llm.transcribe_image`.
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

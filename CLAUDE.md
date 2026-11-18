@@ -637,12 +637,26 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   were looked at (`condition.gate_outreach`); 250 looks a run. Photos not loading / Claude not answering → nothing stored, retried next
   run, stops after 5 in a row. Only Fresh Leads + not-yet-carded houses; Needs Me / Sent / Answered untouched. The email writer is NOT
   told what the photos show (emails still never mention photos).
+- **Links brokers send are opened (Rodrigo, 2026-11-18: "I thought we already worked on being able to log into links from the emails we get
+  from agents … they gave us links")**: before this the engine only LISTED links (NEEDS YOU); Tammy Huston's Dropbox for Mariner Plaza sat
+  unread. `titan/commercial/link_files.py`, stage `link_files` (after `om_replies` in check-replies and approvals), `make om-links` by hand:
+  every document link in a broker's own words (quoted history ignored, Outlook safelinks unwrapped) is opened ONCE on the Mac: Dropbox file
+  or folder (dl=1, a folder comes as a ZIP), Google Drive file, Docs / Sheets / Slides (exported), OneDrive / SharePoint, direct PDF / Excel
+  URL. PDFs / spreadsheets / docs inside go to `data/listings/<id>/`, thread → BOOKS, "🔗 Opened the link" comment, regrade, and a fresh 🧠
+  read when that answer was already read (no_reply). **Never logs in**: data rooms (Revere, Buildout, Crexi, DocSend, Box, ShareFile),
+  Drive folders and sign-in pages get one "🔐" comment (open it in your browser, drop the files on the card). Network errors retry, 3
+  tries. Table `commercial_link_files`. The cloud cannot reach Dropbox / Drive (proxy 403): this only works on the Mac.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18, RESUME HERE: **broker links are now opened** (Decisions → Links brokers send are opened). Tested on fixtures (4 tests; suite
+  passes except the same 3 that need packages the cloud lacks). Never run live: the cloud is blocked from Dropbox. First real run on the
+  Mac: `make om-links` (prints every link and what happened). Known waiting: Tammy Huston's Mariner Plaza Dropbox (Nov 13, NAI Talcor
+  thread filed under 415 Richard Jackson Blvd's listing, since that is the thread she answered in). Revere CRE data room (Sleep Inn) needs
+  his login: stays his.
 - 2026-11-17 ~8:40pm ET (Mac), RESUME HERE: **photo condition check tried live, list only** (`make condition-list ARGS="--limit 20"`,
   nothing moved, $0.13). First try: every photo failed (the Mac's Python has no root certificates: CERTIFICATE_VERIFY_FAILED); fixed
   in `condition._download` with certifi. Second try: 20 looked at (19 by photos, 8 each, the 640x480 size loads; 1 from the remarks):

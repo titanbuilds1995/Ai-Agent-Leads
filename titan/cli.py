@@ -301,6 +301,12 @@ def cmd_check_replies(cfg, args):
         except Exception as e:  # noqa: BLE001
             log.exception("om replies failed: %s", e)
             res["om_replies"] = {"error": str(e)[:200]}
+        try:     # 2026-11-18: documents the broker linked instead of attaching are opened and filed before the read
+            from .commercial.link_files import pull_link_files
+            res["link_files"] = pull_link_files(conn, cfg, asana, c["llm"])
+        except Exception as e:  # noqa: BLE001
+            log.exception("link files failed: %s", e)
+            res["link_files"] = {"error": str(e)[:200]}
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         try:     # Rodrigo, 2026-11-09: "I need everything to be read for me": every answer + its books, read on the card
             res["books_review"] = review_pending(conn, cfg, asana, c["llm"])
@@ -674,6 +680,8 @@ def cmd_approvals(cfg, args):
         from .commercial.follow_up import send_follow_ups
         stage("om_follow_ups", lambda: send_follow_ups(conn, cfg, asana, c["gmail"]))   # 2026-11-17: one follow-up to every broker who never answered the first email
         stage("om_replies", lambda: poll_om_replies(conn, cfg, c["gmail"], asana))
+        from .commercial.link_files import pull_link_files
+        stage("link_files", lambda: pull_link_files(conn, cfg, asana, c["llm"]))   # 2026-11-18: Dropbox / Drive / OneDrive links brokers send are opened and filed
         from .commercial.books_review import review_pending, send_approved_replies, triage_inbox
         stage("books_review", lambda: review_pending(conn, cfg, asana, c["llm"]))         # read every answer + its books for Rodrigo
         from .commercial.delay_note import send_delay_notes
@@ -873,6 +881,25 @@ def cmd_books_review(cfg, args):
         out["sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
     conn.commit()
     print(json.dumps(out, indent=2))
+
+
+def cmd_om_links(cfg, args):
+    """Rodrigo, 2026-11-18 ("brokers gave us links"): open every Dropbox / Drive / OneDrive link a broker sent in an OM thread now,
+    file what is inside on the deal and read it. Links that need a login are listed, never logged into."""
+    from .commercial.link_files import pull_link_files
+    from .commercial.working import wrap as working_board
+    conn = _open(cfg)
+    c = build_clients(cfg, conn, need=("llm",))
+    asana = None if args.no_asana else working_board(cfg, _asana(cfg))
+    out = pull_link_files(conn, cfg, asana, c["llm"], limit=args.limit)
+    conn.commit()
+    if asana is not None and out.get("opened"):
+        from .commercial.books_review import review_pending
+        out["books_review"] = review_pending(conn, cfg, asana, c["llm"])
+        conn.commit()
+    print(f"Links looked at: {out['links']} · opened: {out['opened']} ({out['files']} files) · need a login: {out['login']} · failed: {out['errors']}")
+    for r in conn.execute("SELECT status, listing_id, files, note, url FROM commercial_link_files ORDER BY updated_at DESC LIMIT 40").fetchall():
+        print(f"  {r[0]:<6} listing {r[1]:>10}  {(r[2] or r[3] or '')[:70]:<70}  {r[4][:90]}")
 
 
 def cmd_om_strays(cfg, args):
@@ -1175,6 +1202,9 @@ def main(argv: list[str] | None = None) -> int:
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
+    sp = sub.add_parser("om-links", help="open the document links brokers sent (Dropbox, Drive, OneDrive), file and read them now")
+    sp.add_argument("--limit", type=int, default=50)
+    sp.add_argument("--no-asana", action="store_true")
     sp = sub.add_parser("om-strays", help="find broker answers that came as a new email instead of a reply and put them on their 1031 cards")
     sp.add_argument("--no-asana", action="store_true")
     sp.add_argument("--redo", action="store_true", help="look again at everything since the first OM request")
@@ -1200,7 +1230,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

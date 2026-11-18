@@ -298,6 +298,13 @@ def _file_list(cfg: Any, listing_id: str) -> list[dict[str, Any]]:
     return list(documents.local_files(cfg.root / cfg.get("commercial.documents.dir", "data/listings") / str(listing_id)))
 
 
+def _not_opened(conn, urls: list[str]) -> list[str]:
+    """Linked documents link_files.py has NOT opened (a login, or not tried yet)."""
+    from .link_files import opened_urls, unwrap
+    opened = opened_urls(conn) if conn is not None else set()
+    return [u for u in urls if unwrap(u) not in opened]
+
+
 def doc_links(text: str) -> list[str]:
     """Documents the broker linked instead of attaching (Dropbox, Drive, a PDF URL…). Recorded, never fetched from here."""
     return [u for u in LINK_RE.findall(text or "") if DOC_HOST_RE.search(u)][:6]
@@ -318,7 +325,8 @@ def _listing_block(L: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _prompt(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]], sent: list[str] | None = None) -> str:
+def _prompt(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], files: list[dict[str, Any]], sent: list[str] | None = None,
+            conn=None) -> str:
     parts = [_listing_block(L), "", f"Broker: {t.get('broker_name') or ''} <{t.get('broker_email') or ''}> · answered {t.get('hours_to_reply')} h after our email.", ""]
     if sent:
         parts.append("WHAT CHARLES ALREADY SENT THIS BROKER after the first request (never ask any of this again, never repeat it):")
@@ -330,7 +338,12 @@ def _prompt(L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str, Any]], fi
         parts.append(f"--- {m.get('created_at')} from {m.get('from_addr')}\n{(m.get('body') or '').strip()[:3000]}")
     links = [u for m in msgs for u in doc_links(m.get("body") or "")]
     if links:
-        parts.append("\nDocuments LINKED (not attached, not opened): " + ", ".join(links))
+        shut = _not_opened(conn, links)
+        if len(shut) < len(links):
+            parts.append("\nDocuments LINKED and opened by the engine (their files are in DOCUMENTS ON FILE): "
+                         + ", ".join(u for u in links if u not in shut))
+        if shut:
+            parts.append("\nDocuments LINKED (not attached, not opened: a login or a link the engine could not open): " + ", ".join(shut))
     parts.append("")
     if files:
         parts.append(f"DOCUMENTS ON FILE ({len(files)}):")
@@ -561,7 +574,7 @@ def reader_case(conn, L: dict[str, Any], t: dict[str, Any], msgs: list[dict[str,
                             "price, a date or a commitment, Rodrigo decides those",
             "listing": _listing_block(L), "thread": thread,
             "documents_we_have_from_them": sorted({str(f.get("filename") or f.get("name") or "") for f in list(att) + list(files)} - {""}),
-            "documents_they_linked_not_opened": [u for m in msgs for u in doc_links(m.get("body") or "")]}
+            "documents_they_linked_not_opened": _not_opened(conn, [u for m in msgs for u in doc_links(m.get("body") or "")])}
     if r:
         case["our_read_of_their_answer"] = {k: r.get(k) for k in ("verdict", "what_they_said", "next_step", "needs_rodrigo")}
     if instruction:
@@ -628,7 +641,7 @@ def review_thread(conn, cfg: Any, llm, t: dict[str, Any], asana=None, secs: dict
     r = None
     if llm is not None and getattr(llm, "available", False):
         try:
-            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files, charles_sent(conn, t)), SCHEMA, max_tokens=4000)
+            r = llm.structured("commercial_books_review", SYSTEM, _prompt(L, t, msgs, files, charles_sent(conn, t), conn), SCHEMA, max_tokens=4000)
         except Exception as e:  # noqa: BLE001
             log.warning("books review %s: %s", t["listing_id"], e)
             r = None

@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -148,6 +148,9 @@ commercial-sheets: ## the top listings still missing their LoopNet sheet + the p
 
 commercial-round: ## one round of the 1031 board now: send the OM requests in "Approved · send OM request", read the brokers' answers, file the books
 	$(PY) -m titan.cli approvals
+
+om-links:         ## open the Dropbox / Drive / OneDrive links brokers sent, file the documents on the deal and read them (Mac; logins never)
+	$(PY) -m titan.cli om-links $(ARGS)
 
 om-strays:        ## find broker answers that came as a NEW email (not a reply) and put them on their 1031 cards; prints who
 	$(PY) -m titan.cli om-strays $(ARGS)

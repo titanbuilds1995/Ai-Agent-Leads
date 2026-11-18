@@ -55,3 +55,19 @@ def test_gmail_send_refuses_without_ok():
                                      msg("Walter <walter@grandoaks.com>", "Perfect, got it.", 2)]
     with pytest.raises(ContactHold):
         g.send("walter@grandoaks.com", "Re: deal", "One more thing.", thread_id="t1")
+
+
+def test_told_us_to_stop_blocks_even_with_his_ok():
+    """2026-11-18, Larry Starr: "Don't contact me again. I will take action against you if you do." No override."""
+    import pytest
+    from titan.contact_guard import StopContact, told_us_to_stop
+    from titan.outreach.gmail_client import GmailClient
+    thread = [msg("Charles <charles@titanrealtyinvestments.com>", "Does it hold an eight cap? Please stop me if not.", 50),
+              msg("Larry <larry@svn.com>", "Don't contact me again. I will take action against you if you do.", 2)]
+    assert told_us_to_stop(thread[:1], DOM) is None                    # our own words never trip it
+    assert told_us_to_stop(thread, DOM)
+    g = GmailClient.__new__(GmailClient)
+    g.sender = "charles@titanrealtyinvestments.com"
+    g.thread_messages = lambda tid: thread
+    with pytest.raises(StopContact):
+        g.send("larry@svn.com", "Re: deal", "Thanks for the update.", thread_id="t1", confirmed=True)

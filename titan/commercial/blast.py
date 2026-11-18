@@ -45,9 +45,11 @@ def build_queue(conn, cfg: Any, run_date: str | None = None) -> list[dict[str, A
         "AND COALESCE(broker_email,'')<>'' ORDER BY score DESC").fetchall()]
     emailed = {r[0] for r in conn.execute("SELECT LOWER(broker_email) FROM commercial_threads WHERE broker_email IS NOT NULL").fetchall()}
     by: dict[str, list[dict[str, Any]]] = {}
+    # 2026-11-18, round one: no hotel that sent books held an 8 after a manager and the tax reset, so a hotel with no cap is not asked
+    skip = set(cfg.get("commercial.outreach.blast_skip_assets", []) or [])
     for r in rows:
         em = r["broker_email"].strip().lower()
-        if em in emailed:
+        if em in emailed or r.get("asset_class") in skip or db.is_dnc(conn, email=em):
             continue
         by.setdefault(em, []).append(_listing(r))
     out = []
@@ -87,7 +89,7 @@ def pending(conn, cfg: Any) -> list[dict[str, Any]]:
             continue
         for e in entries:
             em = (e.get("broker_email") or "").lower()
-            if not em or em in emailed or em in seen:
+            if not em or em in emailed or em in seen or db.is_dnc(conn, email=em):
                 continue
             seen.add(em)
             out.append(e)

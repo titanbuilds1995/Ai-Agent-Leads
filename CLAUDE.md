@@ -655,12 +655,34 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   the pass with NO second read (review_thread's pass was read; Nicholas Costello's was caught there, 11-17). Now `_second_read_ok`
   reads it against the thread first: reader unreachable = waits; objects = never sent, one "HOLD, not sent" comment, card to Needs Me,
   never re-read (`commercial_kv closeout_hold:<thread id>`).
+- **1031 round two, with round one's lessons (Rodrigo, 2026-11-18: "look for more commercial properties tomorrow … with everything that
+  we learned from this round")**: 208 broker answers on the 1031 boards were read (Nov 9–18): 91 said vacant / owner-user / lease-up, 28
+  cap under 8 at asking, 16 already gone, 15 development, 14 gated (NDA / POF / call), 11 a business sold with the building; no card ever
+  read FITS; every hotel's books fell from 8.3–10.2% to ~6–7.6% after a manager + tax reset; listings WITH a stated cap answered ~65% and
+  sent books ~70%. Built: `titan/commercial/income.py` (in `scoring.in_box`, box step "income"): no-cap listings whose text reads vacant /
+  owner-user / lease-up / build-to-suit (and no lease language) are out; a business sold with the building and no lease is out; development /
+  land value is out; a hotel's stated cap is screened at `buyer_box.hotel_noi_factor` 0.75; `multifamily_min_units_by_county` (Miami-Dade 20).
+  The no-cap question now asks "on the leases in place". No-cap hotels are not asked (`outreach.blast_skip_assets`). `commercial.schedule`
+  takes a date: that morning's run-daily pulls LoopNet once (~$7, Apify Starter), posts cards, emails him the deals and builds the no-cap
+  queue for brokers never emailed (`build_queue_after_pull`); a broker emailed in round one is never asked again here. **Stop means stop
+  (Larry Starr, SVN, 11-18: "Don't contact me again. I will take action against you")**: the Not-a-fit clean-up had sent him the pass on
+  11-16 after Rodrigo commented "Stop all communication … I will be emailing him directly". Now `GmailClient.send` refuses any email into a
+  thread where they told us to stop (`contact_guard.told_us_to_stop`, `StopContact`, no override, not even "send anyway"); the clean-up
+  sends no pass when Rodrigo's card comment says stop / he takes it (`closeout.HIS_STOP_RE`) or the broker said stop (address added to
+  do-not-contact; the blast skips do-not-contact); and a rules-only read (Claude unreachable) never decides a pass on its own (Tyler Sluman,
+  6805 33rd St E Sarasota, offered $3.65M net / 8 cap once leased and got a rules-only NOT A FIT + "congrats").
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18 (evening), RESUME HERE: **1031 round two scheduled for tomorrow 2026-11-19** (Decisions → 1031 round two). The Mac's 5:30am
+  run-daily pulls LoopNet (`commercial.schedule: "2026-11-19"`; the cloud's Apify token is refused, so only the Mac can pull), re-scores
+  with the new income screen, posts cards to New, emails Rodrigo the deals, queues the no-cap question for new brokers (3 a round / 60 a
+  day). Rodrigo drags the stated-cap cards (the best answerers) to "Approved · send OM request". Stop-means-stop + no pass from a
+  rules-only read built after Larry Starr's threat. 3 tests; suite passes except the same 3 that need packages the cloud lacks. NOT run
+  live. After tomorrow set `commercial.schedule` back to "manual" (it only fires on that date anyway). Open: reopen Tyler Sluman?
 - 2026-11-18, RESUME HERE: **"congrats" removed + the Not-a-fit clean-up now goes through the second reader** (Decisions → Never
   "congrats"). Cause: the pass template read "being sold" / "leased" as a closed deal, and the clean-up's pass skipped the second read.
   3 new tests; suite passes except the same 3 that need packages the cloud lacks. Not checked: how many brokers already got it (Charles's

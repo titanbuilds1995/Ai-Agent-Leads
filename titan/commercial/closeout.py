@@ -26,6 +26,38 @@ from .books_review import ARCHIVE_VERDICTS, DEAD_RE, _first_name, _listing, _mes
 
 DECLINE_RE = re.compile(r"won'?t work for us|will not work for us|(?:we(?:'ll| will)?|going to) pass\b|pass (?:on|for now)|"
                         r"(?:doesn'?t|does not|isn'?t|is not) (?:a )?fit|not a fit|below what|not for us|not what (?:we|a partner)", re.I)
+# Rodrigo's own word on the card that we stop writing this broker (2026-11-18, Larry Starr: on 11-11 he commented "Stop all
+# communication … I will be emailing him directly", the clean-up still sent the pass on 11-16, Larry threatened action on 11-18).
+HIS_STOP_RE = re.compile(r"\bstop (?:all )?(?:communication|contact|emailing|emails?|writing|messaging)|\b(?:do not|don'?t|no more) "
+                         r"(?:email|contact|write|message|reach out|send)|\bi(?:'ll| will| am going to)? (?:be )?(?:email|contact|call|handl|tak)(?:ing|e)? "
+                         r"(?:him|her|them|this|it|over)|\bleave (?:him|her|them) alone\b|\b(?:hold|pause) (?:all )?(?:communication|emails?)", re.I)
+
+
+def his_stop(asana, gid: str) -> bool:
+    """Rodrigo (not the engine) wrote on this card that we stop writing the broker / he takes it over."""
+    from ..asana import BOT
+    try:
+        comments = asana.comments(gid)
+    except Exception as e:  # noqa: BLE001 — unknown = do not send
+        log.warning("closeout: comments of %s unreadable: %s", gid, e)
+        return True
+    return any(HIS_STOP_RE.search(c.get("text") or "") for c in comments if not (c.get("text") or "").startswith(BOT))
+
+
+def broker_said_stop(conn, t: dict[str, Any], cfg: Any) -> bool:
+    """The broker told us to stop: never another email, and the address goes on do-not-contact."""
+    from ..contact_guard import own_words, STOPPED_RE
+    ours = (cfg.get("gmail.sender") or "@titanrealtyinvestments.com").rpartition("@")[2].lower()
+    for m in _messages(conn, t["id"]):
+        if ours and ours in (m.get("from_addr") or "").lower():
+            continue
+        if STOPPED_RE.search(own_words(m.get("body") or "")):
+            if t.get("broker_email") and not db.is_dnc(conn, email=t["broker_email"]):
+                db.add_dnc(conn, None, None, t["broker_email"], "1031 broker told us to stop")
+            return True
+    return False
+
+
 HIS_COLUMNS = (NEEDS_ME, NEEDS_REVISION, REVIEWED, SEND, "Good fit", "Offer out", "Closed")
 CLEARABLE = ("New", NO_ANSWER, IN_TOUCH, "Books received", NOT_A_FIT)
 
@@ -97,7 +129,10 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
         for t in ts:
             r = _latest(conn, t["id"])
             other = json.loads((r or {}).get("other_deals") or "[]") if r else []
-            sure = his_drag or (r is not None and (r.get("verdict") or "").upper() in ARCHIVE_VERDICTS and not other and not r.get("needs_rodrigo"))
+            # a rules-only read (Claude unreachable) never decides a pass on its own (2026-11-18, Tyler Sluman: his "$3.65M net, 8 cap
+            # once leased" was read NOT A FIT by the rules and got the pass)
+            sure = his_drag or (r is not None and (r.get("verdict") or "").upper() in ARCHIVE_VERDICTS and not other and not r.get("needs_rodrigo")
+                                and (r.get("source") or "") != "rules")
             if not sure or (t.get("rodrigo_at") and not his_drag):
                 ok = False
                 break
@@ -111,9 +146,13 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str,
                     break
         if not ok:
             continue
-        # 1) the pass, where one is still owed
+        # 1) the pass, where one is still owed. Never when he said stop on the card, or the broker told us to stop.
+        quiet = bool(ts) and his_stop(asana, gid)
         for t in ts:
             msgs = _messages(conn, t["id"])
+            if quiet or broker_said_stop(conn, t, cfg):
+                reasons.append("no email: " + ("you said to stop writing them" if quiet else "they told us to stop"))
+                continue
             if t.get("rodrigo_at") or t.get("bounced") or not msgs or declined(conn, t):
                 continue
             if not in_win or res["passes"] >= per_round or gmail is None:

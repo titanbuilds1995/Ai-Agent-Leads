@@ -120,14 +120,17 @@ class GmailClient:
         # Rodrigo, 2026-11-15 (Walter got three emails in an hour): into a conversation with someone outside our domain, read the
         # thread first. They already acknowledged us, or we already wrote them in the last 24 hours with no answer since: HOLD.
         # Only Rodrigo's "send anyway" written after the bold warning (confirmed=True) gets past it.
-        if thread_id and not confirmed and not _own_domain(to, self.sender):
-            from ..contact_guard import ContactHold, hold_reason
+        if thread_id and not _own_domain(to, self.sender):
+            from ..contact_guard import ContactHold, StopContact, hold_reason, told_us_to_stop
             try:
                 msgs = self.thread_messages(thread_id)
             except Exception as e:  # noqa: BLE001 — a thread we cannot open is checked by the not-found fallback below
                 log.warning("contact guard: could not read thread %s: %s", thread_id, e)
                 msgs = []
-            reason = hold_reason(msgs, self.sender.rpartition("@")[2])
+            stop = told_us_to_stop(msgs, self.sender.rpartition("@")[2])
+            if stop:                               # 2026-11-18, Larry Starr: no override, ever
+                raise StopContact(f'They told us to stop contacting them ("{stop}"). Nothing is sent to them again.')
+            reason = None if confirmed else hold_reason(msgs, self.sender.rpartition("@")[2])
             if reason:
                 raise ContactHold(reason)
         # Rodrigo, 2026-11-12 (Eric Cederman): an email to an outside address that says a file is attached or signed, with

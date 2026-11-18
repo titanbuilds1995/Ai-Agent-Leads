@@ -56,6 +56,7 @@ BOX_STEPS: list[tuple[str, str, re.Pattern[str]]] = [
     ("land", "Land, development or a business only", re.compile(r"^land / development", re.I)),
     ("airport", "Too far from a commercial airport", re.compile(r"min to the nearest airport", re.I)),
     ("quality", "Building class or condition below the bar", re.compile(r"^quality:", re.I)),
+    ("income", "Not a passive income property (vacant, owner-user, a business, development, hotel books)", re.compile(r"^income:", re.I)),
 ]
 
 

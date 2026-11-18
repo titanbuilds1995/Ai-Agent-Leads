@@ -1595,3 +1595,48 @@ def test_process_block_tells_the_investor_how_we_got_here(conn, cfg, tmp_path):
     cfg.raw["commercial"]["process"] = {"criteria": [{"title": "Mine", "text": "my words"}], "note": "hello"}
     P2 = build_deals(conn, cfg, "2026-11-07")["process"]
     assert P2["criteria"] == [{"title": "Mine", "text": "my words"}] and P2["note"] == "hello"
+
+
+def test_his_stop_comment_or_the_brokers_stop_means_no_pass_ever(conn, cfg, tmp_path):
+    """2026-11-18, Larry Starr: Rodrigo commented "Stop all communication … I will be emailing him directly" on 11-11, the clean-up
+    still sent the pass on 11-16, Larry answered "Don't contact me again. I will take action against you". Never again."""
+    from titan import db
+    from titan.commercial.board import NOT_A_FIT
+    from titan.commercial.closeout import clear_not_fit
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?, broker_name='Adam Smith'", (iso(SAT_10AM_ET),))
+    _answer(conn, cfg, asana, gm, "Thanks, the seller wants full price.", "r1", 1)
+    asana.comment_raw(gid, "Stop all communication with this broker. I will be emailing him directly.")
+    asana.move(gid, secs[NOT_A_FIT])
+    n = len(gm.sent)
+    out = clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    assert out["passes"] == 0 and len(gm.sent) == n and out["cleared"] == 1
+    assert any("you said to stop writing them" in c for c in asana.stories[gid])
+    # the broker himself says stop: no pass, and his address is do-not-contact
+    asana2, secs2, gid2 = _om_board(conn, cfg, tmp_path)
+    conn.execute("UPDATE commercial_threads SET cleared_at=NULL")
+    _answer(conn, cfg, asana2, gm, "Don't contact me again. I will take action against you if you do.", "r9", 2)
+    asana2.move(gid2, secs2[NOT_A_FIT])
+    n = len(gm.sent)
+    clear_not_fit(conn, cfg, asana2, gm, now=SAT_10AM_ET)
+    assert len(gm.sent) == n and db.is_dnc(conn, email="adam@trustrealtyusa.com")
+
+
+def test_income_screen_takes_out_what_round_one_said_was_never_a_deal(cfg):
+    from titan.commercial.income import income_screen
+    base = {"asset_class": "office", "stated_cap": None, "county": "Hillsborough"}
+    assert "not an income property" in income_screen({**base, "text": "Two-story office building delivered vacant, ideal for an owner-user."}, cfg)
+    assert income_screen({**base, "text": "100% leased to three tenants, NNN leases through 2030. Owner-user? No."}, cfg) is None
+    assert "business" in income_screen({**base, "asset_class": "retail", "text": "Express car wash, business included."}, cfg)
+    assert income_screen({**base, "asset_class": "retail", "text": "Car wash leased to a national operator, NNN."}, cfg) is None
+    assert "development" in income_screen({**base, "text": "Redevelopment opportunity priced at land value."}, cfg)
+    assert "hotel" in income_screen({"asset_class": "hotel", "stated_cap": 9.5, "text": "Hotel"}, cfg)
+    assert income_screen({"asset_class": "hotel", "stated_cap": 11.0, "text": "Hotel"}, cfg) is None
+    assert "units" in income_screen({"asset_class": "multifamily", "stated_cap": 8.5, "units": 12, "county": "Miami-Dade", "text": ""}, cfg)
+    assert income_screen({"asset_class": "multifamily", "stated_cap": 8.5, "units": 12, "county": "Duval", "text": ""}, cfg) is None
+    # a stated cap means income: vacancy words alone do not take it out
+    assert income_screen({**base, "stated_cap": 8.4, "text": "One suite available for lease at $22/sf NNN."}, cfg) is None

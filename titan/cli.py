@@ -211,13 +211,22 @@ def _run_daily(cfg, args):
             summary["follow_ups"] = {"error": str(e)}
     if "outreach" in steps:
         summary["outreach"] = run_outreach(conn, cfg, c["llm"], c["gmail"], c["twilio"], asana=_asana(cfg))
-    if "commercial" in steps or (not args.steps and cfg.get("commercial.schedule") == "daily" and cfg.get("commercial.enabled")):
-        # the 1031 buyer screen (2026-11-08): only every morning when Rodrigo set commercial.schedule: daily (it spends Apify credit)
+    sched = str(cfg.get("commercial.schedule") or "manual")
+    # "daily" = every morning; a date ("2026-11-19") = that one morning only (Rodrigo, 2026-11-18: "do another search … tomorrow")
+    due = sched == "daily" or (sched == today_et() and not conn.execute(
+        "SELECT 1 FROM commercial_runs WHERE run_date=? AND kind='full'", (today_et(),)).fetchone())
+    if "commercial" in steps or (not args.steps and due and cfg.get("commercial.enabled")):
+        # the 1031 buyer screen (2026-11-08): only when Rodrigo scheduled it (it spends Apify credit)
         from .commercial.run import run as commercial_run
         try:
-            out = commercial_run(conn, cfg, c["apify"], asana=_asana(cfg), gmail=c["gmail"], full_pull=True)
+            out = commercial_run(conn, cfg, c["apify"], asana=_asana(cfg), gmail=c["gmail"], full_pull=True, email=True)
             out.pop("ranked", None)
             summary["commercial"] = out
+            if cfg.get("commercial.outreach.build_queue_after_pull", True):
+                # the no-cap question for every new in-box broker; the approvals rounds send it at the commercial pace
+                from .commercial.blast import build_queue
+                q = build_queue(conn, cfg)
+                summary["commercial"]["queued"] = {"brokers": len(q), "listings": sum(len(e["listing_ids"]) for e in q)}
         except Exception as e:  # noqa: BLE001
             log.exception("commercial screen failed: %s", e)
             summary["commercial"] = {"error": str(e)}

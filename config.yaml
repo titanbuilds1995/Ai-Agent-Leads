@@ -452,6 +452,10 @@ commercial:
     airport_minutes_per_mile: 1.4
     min_building_class: "C"
     min_year_built: null             # e.g. 1980 to flag older buildings as "watch"
+    # Round one's lessons (2026-11-18, 208 broker answers read; titan/commercial/income.py): no-cap listings that read vacant /
+    # owner-user / lease-up, a business sold with the building and no lease, and development plays are out of the box.
+    hotel_noi_factor: 0.75           # a hotel's stated cap is screened at 75% of itself (5 of 5 hotels' books fell that far after a manager + tax reset)
+    multifamily_min_units_by_county: {"Miami-Dade": 20}   # four brokers: no 8 cap on small Miami multifamily
   scoring:                           # weights add up to 100 (titan/commercial/scoring.py explains each)
     cap: 25
     dom_and_cuts: 12
@@ -498,6 +502,8 @@ commercial:
   outreach:
     per_round: 3                     # commercial emails per 20-min round (cards + queue). Rodrigo 2026-11-17: "slow it down ... from high to medium,
     daily_cap: 60                    # so if I get calls I can answer them" (was 8 / 220). Per day, separate from the residential daily_email_cap
+    blast_skip_assets: ["hotel"]     # 2026-11-18: hotels with no stated cap are not asked (none held an 8 in round one)
+    build_queue_after_pull: true     # the scheduled pull builds the no-cap queue for brokers never emailed
     blast_paused: false              # 2026-11-17: Rodrigo: "start it so all those messages can be sent out" (held 11-11 to 11-17)
     queue_dir: "data/commercial_queue"
   # Rodrigo, 2026-11-17: "let's FU with everyone that did not answer on the first commercial email we sent". One follow-up per
@@ -544,7 +550,10 @@ commercial:
                "YPUU4QdTIVqgPt0Zs", "aQ1uLUBZcHEUkQwmS", "MRCy4jUKf46fvcJpN", "l3D3ev4tWhi4gzzXu", "Keg246m89T9JbDJzj", "NIbdYqvayLsayu8Xe",
                "fX5N8HIOqyafhNQGk", "mZi0Yo4Xq7o3Myi62", "O5WNtBatjXeo99YKy", "kWcXPy02oST6NMIgK", "2UApmJy2UYBd5jvqI", "9MZ86VHnda61FecKH",
                "iSiGHYQKXkIJyy7pA", "WSmOs8TJFE25aC6aa", "dKMsEVEZRQyqNEPVm"]
-  schedule: "manual"                 # manual | daily. daily = run-daily step "commercial" (costs Apify credit every morning)
+  # Rodrigo, 2026-11-18: "let's do another search and get after it tomorrow". A date = that one morning's run-daily (5:30am on the Mac)
+  # pulls LoopNet again (~$7 of the Apify Starter plan), re-scores with round one's lessons, posts the new cards, emails him the deals
+  # and queues the no-cap question for brokers never emailed. Back to manual after that day.
+  schedule: "2026-11-19"             # manual | daily | YYYY-MM-DD. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
   # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a
   # "why this fits" line goes to REPORT_TO (the same layout he forwards to the investor), each card linking to the site.

@@ -73,6 +73,10 @@ def in_box(L: dict[str, Any], cfg: Any) -> tuple[bool | None, str]:
         return False, f"{L.get('airport_minutes')} min to the nearest airport ({L.get('airport_code')}), over the {_box(cfg, 'airport_max_minutes')} min limit"
     if L.get("quality") == "out":
         return False, "quality: " + "; ".join(L.get("quality_reasons") or [])
+    from .income import income_screen          # round one's lessons (2026-11-18)
+    why = income_screen(L, cfg)
+    if why:
+        return False, why
     return True, ""
 
 

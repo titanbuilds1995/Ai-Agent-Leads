@@ -26,6 +26,31 @@ ACK_MAX_WORDS = 30
 RECENT_HOURS = 24
 
 
+# Rodrigo, 2026-11-18 (Larry Starr, SVN: "Don't contact me again. I will take action against you if you do", after the Not-a-fit
+# clean-up sent him a pass Rodrigo had told us to stop): someone who told us to stop never gets another email from any of our senders,
+# whatever anyone confirms. Checked on their own words only (quoted history dropped), so our "stop" never trips it.
+STOPPED_RE = re.compile(r"(?:do not|don'?t|never|stop) (?:contact|email|e-mail|message|text|call|reach out to|write to)(?:ing)? (?:me|us)\b|"
+                        r"\bstop (?:emailing|contacting|messaging|texting|sending)\b|\bremove me\b|\btake me off\b|\bunsubscribe\b|"
+                        r"\bleave me alone\b|\b(?:take|pursue) (?:legal )?action against\b|\bcease and desist\b|\bharass", re.I)
+
+
+def told_us_to_stop(messages: list[dict[str, Any]], our_domain: str) -> str | None:
+    """The words of the first message in the thread where they told us to stop, or None."""
+    dom = (our_domain or "").lower().lstrip("@")
+    for m in messages:
+        if _ours(m.get("from", ""), dom):
+            continue
+        said = own_words(m.get("body") or "")
+        hit = STOPPED_RE.search(said)
+        if hit:
+            return re.sub(r"\s+", " ", said[max(0, hit.start() - 40): hit.end() + 40]).strip()
+    return None
+
+
+class StopContact(Exception):
+    """They told us to stop. Never sent, no override (not "send anyway", not confirmed=True)."""
+
+
 class ContactHold(Exception):
     """An email that would bombard someone. Never sent without Rodrigo's OK written after the warning."""
 

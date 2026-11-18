@@ -91,11 +91,11 @@ def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     if all(L.get("asset_class") == "hotel" for L in Ls):
         asks = asks.replace("the rent roll", "the STR report")
     if len(Ls) == 1:
-        ask = ("The listing does not show a cap rate, so one straight question: at the asking price, does it hold an eight cap or better "
+        ask = ("The listing does not show a cap rate, so one straight question: at the asking price, on the leases in place, does it hold an eight cap or better "
                "once it sells and the taxes are reassessed?")
         close = f"If it does, we want to take a look and we move fast. Send over {asks} and you will have an answer from us quickly."
     else:
-        ask = "None of them show a cap rate, so one straight question: does any of them hold an eight cap or better at asking once it sells and the taxes are reassessed?"
+        ask = "None of them show a cap rate, so one straight question: does any of them hold an eight cap or better at asking, on the leases in place, once it sells and the taxes are reassessed?"
         close = f"If one does, we want to take a look and we move fast. Send over {asks} for that one and you will have a quick answer."
     body = (f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. {ask}\n\n{close}\n\n" + signature(cfg))

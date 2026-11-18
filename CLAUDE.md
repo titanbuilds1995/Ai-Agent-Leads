@@ -646,12 +646,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   read when that answer was already read (no_reply). **Never logs in**: data rooms (Revere, Buildout, Crexi, DocSend, Box, ShareFile),
   Drive folders and sign-in pages get one "🔐" comment (open it in your browser, drop the files on the card). Network errors retry, 3
   tries. Table `commercial_link_files`. The cloud cannot reach Dropbox / Drive (proxy 403): this only works on the Mac.
+- **Never "congrats", and the clean-up's pass email is second-read too (Rodrigo, 2026-11-18: "we need to stop messaging agents and
+  telling them congrats on getting it done we sound like idiots. I thought we are double checking our work")**: the fixed 1031 pass
+  said "congrats on getting it done" whenever the broker's email had the bare word "sold" or "leased" ("this is being sold as the
+  building", "100% leased"). `DEAD_RE` now needs a plain statement that it is gone (under contract, in escrow, accepted an offer, has
+  sold, no longer available); the pass never congratulates ("Thanks for the update on <street>" when it is gone). "congrat" in any
+  drafted 1031 reply = NEEDS YOU (`COMMIT_RE`); in a house email it is rejected (`DIRECT_RE`). The gap: `closeout.clear_not_fit` sent
+  the pass with NO second read (review_thread's pass was read; Nicholas Costello's was caught there, 11-17). Now `_second_read_ok`
+  reads it against the thread first: reader unreachable = waits; objects = never sent, one "HOLD, not sent" comment, card to Needs Me,
+  never re-read (`commercial_kv closeout_hold:<thread id>`).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-18, RESUME HERE: **"congrats" removed + the Not-a-fit clean-up now goes through the second reader** (Decisions → Never
+  "congrats"). Cause: the pass template read "being sold" / "leased" as a closed deal, and the clean-up's pass skipped the second read.
+  3 new tests; suite passes except the same 3 that need packages the cloud lacks. Not checked: how many brokers already got it (Charles's
+  Sent folder, Mac): `sqlite3 titan_leads.db "SELECT to_address, sent_at FROM outreach WHERE body LIKE '%congrat%' AND status='sent'"`.
 - 2026-11-18, RESUME HERE: **broker links are now opened** (Decisions → Links brokers send are opened). Tested on fixtures (4 tests; suite
   passes except the same 3 that need packages the cloud lacks). Never run live: the cloud is blocked from Dropbox. First real run on the
   Mac: `make om-links` (prints every link and what happened). Known waiting: Tammy Huston's Mariner Plaza Dropbox (Nov 13, NAI Talcor

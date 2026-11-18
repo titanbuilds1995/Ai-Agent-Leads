@@ -313,7 +313,7 @@ def cmd_check_replies(cfg, args):
             res["om_reply_sends"] = send_approved_replies(conn, cfg, asana, c["gmail"])
             res["om_triage"] = triage_inbox(conn, cfg, asana, c["gmail"])       # forward what needs him, archive what does not fit
             from .commercial.closeout import clear_not_fit
-            res["not_fit_cleared"] = clear_not_fit(conn, cfg, asana, c["gmail"])  # pass email, then the card leaves the board
+            res["not_fit_cleared"] = clear_not_fit(conn, cfg, asana, c["gmail"], llm=c["llm"])  # pass email, then the card leaves the board
         except Exception as e:  # noqa: BLE001
             log.exception("books review failed: %s", e)
             res["books_review"] = {"error": str(e)[:200]}
@@ -693,7 +693,7 @@ def cmd_approvals(cfg, args):
         from .commercial.deal_sheet import sync as sync_deal_sheets
         stage("deal_sheets", lambda: sync_deal_sheets(conn, cfg, asana))   # 2026-11-10: offers / counters / investor price on the 1031 site
         from .commercial.closeout import clear_not_fit
-        stage("not_fit_cleared", lambda: clear_not_fit(conn, cfg, asana, c["gmail"]))   # 2026-11-10: pass email, then off the board
+        stage("not_fit_cleared", lambda: clear_not_fit(conn, cfg, asana, c["gmail"], llm=c["llm"]))   # 2026-11-10: pass email, then off the board
         asana = email_asana
     from .learning import learn_tick
     stage("learning", lambda: learn_tick(conn, cfg, asana))      # record Rodrigo's decisions, rebuild the knowledge base, run autopilot (if he turned it on)

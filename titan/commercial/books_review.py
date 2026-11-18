@@ -44,8 +44,13 @@ from .outreach import BOOK_KINDS, regrade, verdict_text
 
 LINK_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
 DOC_HOST_RE = re.compile(r"1drv\.ms|dropbox|drive\.google|docs\.google|box\.com|sharefile|wetransfer|onedrive|sharepoint|dealroom|buildout|crexi|loopnet\.com/.*(?:document|brochure|om)|\.pdf", re.I)
-DEAD_RE = re.compile(r"(?:just |already |recently )?(?:signed a lease|leased|under contract|sold|off (?:the )?market|no longer (?:available|for sale)|"
-                     r"accepted an offer|in escrow|withdrawn)", re.I)
+# Rodrigo, 2026-11-18: "stop telling them congrats on getting it done, we sound like idiots". The old pattern matched the bare words
+# "sold" and "leased", so "this is being sold as the building", "100% leased NNN" or "once sold" read as a closed deal. Only a plain
+# statement that it is gone counts now.
+DEAD_RE = re.compile(r"\bunder contract\b|\bin escrow\b|\baccepted an? (?:offer|loi)\b|\bno longer (?:available|for sale|on the market)\b|"
+                     r"\b(?:been|got|went) (?:sold|leased|pulled|withdrawn)\b|\b(?:it|property|building|this one|that one) (?:has |just |already )?(?:sold|closed)\b|"
+                     r"\b(?:just|already|recently) (?:sold|closed|leased|signed a lease)\b|\b(?:is|was|has been) (?:taken|pulled) off (?:the )?market\b|"
+                     r"\bwe(?:'ve| have)? (?:sold|leased) it\b", re.I)
 DISCLAIMER_RE = re.compile(r"(?:confidentiality notice|disclaimer|this (?:e-?mail|message) (?:message )?(?:is intended|and any attachments|may contain))[\s\S]*", re.I)
 
 
@@ -83,7 +88,9 @@ COMMIT_RE = re.compile(
     # Charles only sees the broker's thread, not the rest of the inbox: Box / Dropbox / DocuSign invitations arrive as their own
     # emails, so he can never say something did not arrive (Julio, 11-10: "We haven't received the Box invitation yet" when it had)
     r"(?:have(?:n't| not)|has(?:n't| not)|didn't|did not|never|not yet|yet to) (?:been )?(?:receiv\w*|get|got|gotten|come through|arriv\w*|show\w* up|see\w*)|"
-    r"(?:didn't|did not|doesn't|does not) (?:come|go) through|not received|re-?send|missing on our end|on our end)", re.I)
+    r"(?:didn't|did not|doesn't|does not) (?:come|go) through|not received|re-?send|missing on our end|on our end|"
+    # Rodrigo, 2026-11-18: never congratulate a broker / agent (we read a sale into an email that never said it)
+    r"congrat\w*)", re.I)
 
 
 def commits_us(draft: str) -> list[str]:
@@ -460,7 +467,8 @@ def template_reply(kind: str, first: str, cfg: Any = None, *, sold: bool = False
                     "roll and the offering memorandum.\n\nWe're analyzing everything off the books right now, and once we have them "
                     "we'll go through it and get back to you.")
     elif kind == "pass":
-        opener = ("Thank you for letting us know, and congrats on getting it done. We are always buying." if sold
+        # never "congrats" (Rodrigo, 2026-11-18): when it is gone we just thank them for the update
+        opener = (f"Thanks for the update on {place}. We are always buying." if sold
                   else "Thank you for getting back to us. This one won't work for us, but we are always buying.")
         body = (opener + "\n\nIf you ever come across pocket listings, distressed properties that need work, or apartment buildings, we have "
                 "capital ready and other partners looking. Please send them our way.")

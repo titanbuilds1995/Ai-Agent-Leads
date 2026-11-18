@@ -98,7 +98,7 @@ DIRECT_RE = re.compile(
     r"\bthe (bigger|big|main|real) questions? (is|are|for us|here)\b|"
     r"\b(just )?curious\b|\bhonestly\b|\bpotentially\b|\bmore interesting for us\b|\b(a )?good start for us\b|"
     r"\b(pretty |a lot |actually |fairly )?close(r)? to (what|something) (we|that)\b|"
-    r"\belectrical panel\b|\b(new|newer|updated|upgraded|recent|replaced) panel\b|"
+    r"\bcongrat\w*|\belectrical panel\b|\b(new|newer|updated|upgraded|recent|replaced) panel\b|"
     r"\bwith the (new|newer|updated|upgraded|recent|renovated|replaced) [a-z/ ]{2,30}? (in|done|already|handled|in place|taken care of)\b", re.I)
 
 

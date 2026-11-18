@@ -66,8 +66,8 @@ def _latest(conn, thread_id: int) -> dict[str, Any] | None:
     return db.row_to_dict(row) if row else None
 
 
-def clear_not_fit(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
-    res: dict[str, Any] = {"cleared": 0, "passes": 0, "waiting": 0, "reopened": 0, "errors": 0}
+def clear_not_fit(conn, cfg: Any, asana, gmail, now=None, llm=None) -> dict[str, Any]:
+    res: dict[str, Any] = {"cleared": 0, "passes": 0, "waiting": 0, "reopened": 0, "errors": 0, "held": 0}
     project = cfg.get("commercial.asana.project")
     if asana is None or not project or not cfg.get("commercial.review.clear_not_fit", True):
         return res
@@ -124,6 +124,9 @@ def clear_not_fit(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
             last = (msgs[-1].get("body") or "") if msgs else ""
             body = template_reply("pass", _first_name(t.get("broker_name"), t.get("broker_email")), cfg, sold=bool(DEAD_RE.search(last)),
                                   street=L.get("street"), seed=int(t.get("id") or 0))
+            if not _second_read_ok(conn, cfg, llm, asana, secs, gid, t, L, msgs, body, res):
+                ok = False
+                break
             subject = t.get("subject") or ""
             subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
             stamp = iso(now)
@@ -195,3 +198,36 @@ def _reopen(conn, asana, secs: dict[str, str], threads: list[dict[str, Any]], re
             continue
         conn.execute("UPDATE commercial_threads SET cleared_at=NULL, updated_at=? WHERE card_gid=?", (iso(now), t["card_gid"]))
         res["reopened"] += 1
+
+
+def _second_read_ok(conn, cfg: Any, llm, asana, secs: dict[str, str], gid: str, t: dict[str, Any], L: dict[str, Any],
+                    msgs: list[dict[str, Any]], body: str, res: dict[str, Any]) -> bool:
+    """Rodrigo, 2026-11-18 ("I thought we are double checking our work before we email anyone"): the clean-up's pass email went out
+    with no second read, and one told a broker "congrats on getting it done" on a building that never sold. Now it is read against
+    the whole thread first. Reader unreachable = wait (next round). Reader objects = never sent: one comment, card to Needs Me."""
+    from .. import second_read
+    if not second_read.enabled(cfg):
+        return True
+    key = f"closeout_hold:{t['id']}"
+    if conn.execute("SELECT 1 FROM commercial_kv WHERE key=?", (key,)).fetchone():
+        res["held"] += 1                                  # already held for him: never re-read, never sent on its own
+        return False
+    from .books_review import reader_case
+    _, review = second_read.run(llm, cfg, reader_case(conn, L, t, msgs, [], fixed_text=True), body, None)
+    if review is not None and review.get("verdict") is None:
+        res["waiting"] += 1                               # not read (Claude unreachable): try again next round
+        return False
+    if second_read.passed(review):
+        return True
+    conn.execute("INSERT INTO commercial_kv (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                 (key, json.dumps({"at": iso(now_utc()), "problems": (review or {}).get("problems")}, default=str)))
+    res["held"] += 1
+    try:
+        asana.comment(gid, "HOLD, not sent: the polite pass to " + (t.get("broker_email") or "the broker") + " did not clear the second "
+                           "read.\n" + second_read.line(review) + "\n\nNothing goes out. Write the answer you want on this card, or "
+                           "drag it to Not a fit again if nothing needs saying.")
+        if secs.get(NEEDS_ME):
+            asana.move(gid, secs[NEEDS_ME])
+    except Exception as e:  # noqa: BLE001
+        log.warning("closeout hold %s: %s", gid, e)
+    return False

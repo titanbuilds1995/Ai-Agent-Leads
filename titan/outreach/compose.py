@@ -10,7 +10,7 @@ from typing import Any
 
 from pathlib import Path
 
-from ..llm import LLM
+from ..llm import LLM, ready as llm_ready
 from ..util import first_name, pretty_phone, inspection_phrase, log
 
 # First touch never leads with a price: no %, no "k"/"thousand" amounts, no offer/discount language.
@@ -594,7 +594,7 @@ def _history_summary(p: dict[str, Any]) -> list[str]:
 def llm_email(llm: LLM | None, cfg: Any, agent: dict[str, Any], props: list[dict[str, Any]],
               rejected: dict[str, Any] | None = None) -> tuple[str, str, dict[str, Any]] | None:
     """Protocol-driven first touch: the model fills the analysis first, then writes. Returns (subject, body, analysis)."""
-    if llm is None or not llm.available:
+    if not llm_ready(llm, "draft_email"):
         return None
     op = cfg["operator"]
     user = json.dumps({

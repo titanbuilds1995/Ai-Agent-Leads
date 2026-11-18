@@ -630,6 +630,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 ~8pm ET, RESUME HERE: **scoring's switch-off no longer reaches the email writer.** A plan limit, 5 scoring failures or a
+  missing `claude` CLI set `llm.provider = "rules"` for the run, and every first email / rewrite / reply after that fell back to
+  templates even though communication runs on the paid API. Now `LLM.scoring_available` (the plan; scoring.py uses it) is separate
+  from `LLM.available` (true whenever the paid-API writer can run); `structured()` sends non-score purposes to the API first. Only
+  `scoring.provider: rules` / `TITAN_LLM=rules` turns Claude off altogether. 1 new test, suite passes on the Mac. Watch the next
+  run-daily: new Fresh Leads cards should be Claude-written, not templates. Also today: `make follow-ups` ran, nothing to send (only
+  36 first emails ever sent; 650 wait in Fresh Leads; Stefania Anchorena is due but her listing lookup keeps coming back "can't tell").
 - 2026-11-17 evening (Mac), RESUME HERE: **human-email rules tried with the live writer** (dry run, 5 HOT houses, read-only, nothing
   posted or sent, $0.04): 5 of 5 written by Claude, no rejections, no template fallback. BUT the real morning runs wrote **templates
   only** (Nov 14: 31, Nov 16: 100, Nov 17: 118 cards, 0 by Claude). Cause found, NOT fixed yet (waiting on Rodrigo's OK):

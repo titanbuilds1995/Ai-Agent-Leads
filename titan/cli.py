@@ -479,7 +479,7 @@ def cmd_score_test(cfg, args):
     conn = _open(cfg)
     llm = LLM(cfg, conn)
     print(f"provider: {llm.provider}" + ("  (Claude Code plan, no API spend)" if llm.provider == "claude_code" else ""))
-    if not llm.available:
+    if not llm.scoring_available:
         print("Claude is not available: install/log in to Claude Code (`claude` then /login), then retry.")
         sys.exit(1)
     rows = [db.row_to_dict(r) for r in conn.execute("SELECT * FROM properties WHERE remarks != '' AND lead_status != 'EXCLUDED' "

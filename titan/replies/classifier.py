@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..llm import LLM
+from ..llm import LLM, ready as llm_ready
 
 CLASSES = ["BOUNCE", "INTERESTED", "ASK_FOR_OFFER", "COUNTER_WITH_NUMBER", "NOT_INTERESTED", "SOLD_OR_PENDING", "QUESTION", "OUT_OF_OFFICE", "STOP"]
 
@@ -161,7 +161,7 @@ Precedence when several apply: STOP > OUT_OF_OFFICE > SOLD_OR_PENDING > COUNTER_
 
 def classify(text: str, list_price: int | None = None, llm: LLM | None = None) -> Classification:
     c = classify_rules(text, list_price)
-    if c.confidence >= 0.75 or llm is None or not llm.available:
+    if c.confidence >= 0.75 or not llm_ready(llm, "classify_reply"):
         return c
     out = llm.structured("classify_reply", LLM_SYSTEM, json.dumps({"list_price": list_price, "reply": text[:3000]}), LLM_SCHEMA, max_tokens=200)
     if not out or out.get("label") not in CLASSES:

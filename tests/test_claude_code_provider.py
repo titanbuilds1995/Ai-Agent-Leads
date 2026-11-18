@@ -42,7 +42,7 @@ def test_plan_limit_stops_calls_without_errors_flood(cfg, monkeypatch):
         return Proc(json.dumps({"result": "You've hit your session limit · resets 3pm", "is_error": True}), returncode=1)
     llm = _cc(cfg, monkeypatch, run)
     assert llm.structured("score_t", "s", "u", {}) is None
-    assert llm.limit_hit and not llm.available and llm.structured("score_t", "s", "u", {}) is None and len(calls) == 1
+    assert llm.limit_hit and not llm.scoring_available and llm.structured("score_t", "s", "u", {}) is None and len(calls) == 1
 
 
 def test_missing_cli_never_falls_back_to_paid_api_unless_allowed(cfg, monkeypatch):
@@ -144,3 +144,32 @@ def test_communication_runs_on_the_api_scoring_on_the_plan(cfg, monkeypatch):
     assert llm.structured("revise_email", "s", "u", {}) == {"api": "revise_email"} and not calls
     assert llm.structured("draft_reply", "s", "u", {}) == {"api": "draft_reply"} and not calls
     assert llm.structured("score_batch", "s", "u", {}) == {"scored": 1} and len(calls) == 1
+
+
+def test_scoring_switch_off_never_reaches_the_email_writer(cfg, monkeypatch):
+    """Rodrigo, 2026-11-17: a plan limit (or 5 scoring failures) set provider to "rules" for the run, and first emails
+    written later in the same run fell back to templates. The writer is on the paid API and must not notice."""
+    cfg.raw["scoring"]["communication_provider"] = "api"
+    cli_calls, api_calls = [], []
+
+    def run(cmd, **kw):
+        cli_calls.append(1)
+        return Proc(json.dumps({"result": "You've hit your session limit", "is_error": True}), returncode=1)
+    llm = _cc(cfg, monkeypatch, run)
+    monkeypatch.setattr(llm_mod, "anthropic", object())
+    monkeypatch.setattr(LLM, "_api", lambda self, purpose, *a, **k: api_calls.append(purpose) or {"ok": 1})
+    assert llm.structured("score_t", "s", "u", {}) is None and llm.provider == "rules"          # scoring switched off
+    assert not llm.scoring_available and llm.structured("score_t", "s", "u", {}) is None       # and stays on the rules, unpaid
+    assert llm.available and llm.available_for("draft_email") and llm_mod.ready(llm, "draft_email")
+    assert llm.structured("draft_email", "s", "u", {}) == {"ok": 1}
+    assert api_calls == ["draft_email"] and len(cli_calls) == 1
+    # the same when the `claude` CLI is missing altogether (provider "rules" from the start)
+    monkeypatch.delenv("TITAN_LLM", raising=False)
+    monkeypatch.setattr(llm_mod.shutil, "which", lambda name: None)
+    monkeypatch.setattr(llm_mod, "CLAUDE_CLI_PLACES", [])
+    bare = LLM(cfg, None)
+    assert bare.provider == "rules" and not bare.scoring_available and bare.available
+    assert bare.structured("score_t", "s", "u", {}) is None and bare.structured("draft_email", "s", "u", {}) == {"ok": 1}
+    # scoring.provider: rules / TITAN_LLM=rules still means no Claude at all
+    off = LLM(cfg, None, provider="rules")
+    assert not off.available and off.structured("draft_email", "s", "u", {}) is None

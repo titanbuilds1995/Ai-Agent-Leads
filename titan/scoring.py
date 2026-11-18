@@ -63,6 +63,12 @@ Rules:
 - summary: one plain sentence an investor can read in 2 seconds."""
 
 
+def _can_score(llm) -> bool:
+    """Claude for scoring (the plan). `llm.available` also covers the paid-API email writer, which a scoring switch-off must
+    not touch (Rodrigo, 2026-11-17); test doubles only carry `available`."""
+    return bool(getattr(llm, "scoring_available", getattr(llm, "available", False)))
+
+
 def remarks_hash(l: dict[str, Any]) -> str:
     key = f"{l.get('remarks','')}|{l.get('days_on_market')}|{l.get('price_cuts')}|{l.get('list_price')}|{l.get('status_flags')}"
     return hashlib.sha1(key.encode()).hexdigest()[:16]
@@ -152,7 +158,7 @@ def score_property(llm: LLM | None, p: dict[str, Any], cfg: Any) -> dict[str, An
     weights = cfg.get("scoring.signals", {})
     negatives = cfg.get("scoring.negatives", {})
     res = None
-    if llm is not None and llm.available:
+    if llm is not None and _can_score(llm):
         res = score_llm(llm, p, weights, negatives)
         if res is not None and res["score"] >= 40 and not res["cited"]:
             res = None  # a score with no evidence is not acceptable; fall back
@@ -216,7 +222,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         p["_prio"] = claude_priority(p, cfg)
     items.sort(key=lambda p: (99 if p["_prio"] is None else p["_prio"]))     # target lanes get Claude first
     prefetched: dict[int, dict[str, Any]] = {}
-    if llm and llm.available and llm.provider == "claude_code":
+    if llm and _can_score(llm) and llm.provider == "claude_code":
         # Claude Code plan: score the target listings in batches up front, then fall through the normal loop
         todo = [p for p in items if p["_prio"] is not None and (force or p.get("prev_hash") != remarks_hash(p) or p.get("prev_method") == "rules")][:cap]
         if limit:
@@ -224,7 +230,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
         size = max(1, int(cfg.get("scoring.claude_code_batch_size", 20)))
         w, neg = cfg.get("scoring.signals", {}), cfg.get("scoring.negatives", {})
         for i in range(0, len(todo), size):
-            if not llm.available:
+            if not _can_score(llm):
                 break                       # plan limit hit or switched off after failures
             prefetched.update(score_llm_batch(llm, todo[i:i + size], w, neg))
             if llm.session_failures >= 5 and llm.session_successes == 0:
@@ -236,7 +242,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
             warning = f"Claude Code plan limit reached; the rest are scored by rules and get Claude on the next run. ({llm.limit_hit})"
     for p in items:
         h = remarks_hash(p)
-        want_claude = bool(llm and llm.available and p["_prio"] is not None and claude_used < cap)
+        want_claude = bool(llm and _can_score(llm) and p["_prio"] is not None and claude_used < cap)
         # unchanged listings are skipped, except rules scores of target listings once Claude can take them
         if not force and p.get("prev_hash") == h and not (want_claude and p.get("prev_method") == "rules"):
             skipped += 1
@@ -249,7 +255,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
             res = score_property(llm if want_claude else None, p, cfg)
         if want_claude or p["id"] in prefetched:
             claude_used += 1
-        if llm and llm.available and llm.session_failures >= 5 and llm.session_successes == 0:
+        if llm and _can_score(llm) and llm.session_failures >= 5 and llm.session_successes == 0:
             warning = (f"Claude scoring failed {llm.session_failures} times in a row and was switched off for this run; "
                        f"the rest are scored by the keyword rules. Last error: {llm.last_error}")
             log.error(warning)
@@ -267,7 +273,7 @@ def run_scoring(conn, cfg: Any, llm: LLM | None = None, limit: int | None = None
             break
     counts = {"scored": n, "skipped_unchanged": skipped, **methods, "llm_cost_usd": round(llm.session_cost, 4) if llm else 0,
               "claude_failed": llm.session_failures if llm else 0, "excluded_reo_short_sale": excluded,
-              "claude_cap_reached": bool(llm and llm.available and claude_used >= cap)}
+              "claude_cap_reached": bool(llm and _can_score(llm) and claude_used >= cap)}
     if warning:
         counts["warning"] = warning
     db.finish_run(conn, run_id, "ok", counts)

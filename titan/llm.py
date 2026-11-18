@@ -91,6 +91,9 @@ class LLM:
             self.provider = "claude" if (paid_ok and key and anthropic is not None) else "rules"
         else:
             self.provider = {"api": "claude"}.get(wanted, wanted)
+        # scoring.provider: rules (or TITAN_LLM=rules) means "no Claude at all". Anything else that later sets provider to
+        # "rules" (plan limit, 5 scoring failures in a row, no `claude` CLI) is a SCORING switch-off and never reaches the writer.
+        self._off = wanted == "rules"
         self.limit_hit: str | None = None
         self._client = None
         if self.provider == "claude":
@@ -118,8 +121,22 @@ class LLM:
         return self._client
 
     @property
-    def available(self) -> bool:
+    def scoring_available(self) -> bool:
+        """Claude for SCORING: the plan (or provider api). Switched off for the run on a plan limit, five failures in a row, or
+        a missing `claude` CLI (provider becomes "rules")."""
         return self.provider in ("claude", "claude_code")
+
+    @property
+    def available(self) -> bool:
+        """Claude for anything. The communication part (first emails, rewrites, replies, reply reading, card work) runs on the
+        paid API (Rodrigo, 2026-10-27), so a scoring switch-off never turns the email writer into templates (Rodrigo,
+        2026-11-17). Scoring code asks `scoring_available`."""
+        return self.scoring_available or (not self._off and self._always_api("communication"))
+
+    def available_for(self, purpose: str) -> bool:
+        if purpose.startswith("score"):
+            return self.scoring_available
+        return self.scoring_available or (not self._off and self._always_api(purpose))
 
     def _claude_code(self, purpose: str, system: str, user: str, schema: dict[str, Any]) -> dict[str, Any] | None:
         """One `claude -p` call on the Claude Code plan. The API key is removed from the child's environment so the plan,
@@ -206,11 +223,11 @@ class LLM:
 
     def structured(self, purpose: str, system: str, user: str, schema: dict[str, Any], max_tokens: int = 1024) -> dict[str, Any] | None:
         """Return a dict matching schema, or None when the API is unavailable/refused (caller falls back to rules)."""
-        if not self.available:
+        if not self._off and self._always_api(purpose):      # before the availability check: scoring's switch-off is not ours
+            return self._api(purpose, system, user, schema, max_tokens)
+        if not self.scoring_available:
             return None
         if self.provider == "claude_code":
-            if self._always_api(purpose):
-                return self._api(purpose, system, user, schema, max_tokens)
             return self._claude_code(purpose, system, user, schema)
         return self._api(purpose, system, user, schema, max_tokens)
 
@@ -305,3 +322,11 @@ class LLM:
         if self.conn is not None:
             from . import db
             db.record_usage(self.conn, model, purpose, inp, out, cost, ok)
+
+
+def ready(llm: Any, purpose: str) -> bool:
+    """`llm.available_for(purpose)` for the real LLM; plain `available` for test doubles that only carry that flag."""
+    if llm is None:
+        return False
+    fn = getattr(llm, "available_for", None)
+    return bool(fn(purpose)) if callable(fn) else bool(getattr(llm, "available", False))

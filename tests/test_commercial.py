@@ -1640,3 +1640,20 @@ def test_income_screen_takes_out_what_round_one_said_was_never_a_deal(cfg):
     assert income_screen({"asset_class": "multifamily", "stated_cap": 8.5, "units": 12, "county": "Duval", "text": ""}, cfg) is None
     # a stated cap means income: vacancy words alone do not take it out
     assert income_screen({**base, "stated_cap": 8.4, "text": "One suite available for lease at $22/sf NNN."}, cfg) is None
+
+
+
+def test_failed_pull_marks_nothing_gone_and_emails_nothing(conn, cfg):
+    """2026-11-17: the Apify token was refused, every search came back empty, and the run marked all 543 listings gone."""
+    from titan.commercial import run as run_mod
+
+    class DeadApify:
+        def run_actor(self, *a, **k):
+            raise RuntimeError("HTTP 401 user-or-token-not-found")
+    conn.execute("CREATE TABLE IF NOT EXISTS _probe (x)")
+    before = conn.execute("SELECT COUNT(*) FROM commercial_listings WHERE gone_at IS NOT NULL").fetchone()[0]
+    runs = conn.execute("SELECT COUNT(*) FROM commercial_runs").fetchone()[0]
+    out = run_mod.run(conn, cfg, apify=DeadApify(), push_asana=False, email=True, full_pull=True)
+    assert "error" in out and "nothing" in out["error"]
+    assert conn.execute("SELECT COUNT(*) FROM commercial_listings WHERE gone_at IS NOT NULL").fetchone()[0] == before
+    assert conn.execute("SELECT COUNT(*) FROM commercial_runs").fetchone()[0] == runs

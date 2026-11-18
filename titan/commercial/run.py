@@ -156,6 +156,17 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
             return {"error": "no Apify client (APIFY_TOKEN missing)"}
         by_family = loopnet.pull_search(cfg, apify, families, max_items)
         raw_rows = [r for rows in by_family.values() for r in rows]
+        empty = sorted(f for f, rows in by_family.items() if not rows)
+        if not raw_rows:
+            # 2026-11-17 (Mac): the Apify token was refused (401), every search failed, and the run went on with 0 listings: it marked
+            # all 543 in-box listings gone, recorded a full pull and emailed an empty deals email. A pull that brings nothing is a
+            # failed pull: stop here, store nothing, email nothing.
+            db.finish_run(conn, rid, "error", {"reason": "every LoopNet search failed or came back empty"})
+            return {"error": "the LoopNet pull brought back nothing (every search failed: check APIFY_TOKEN / the Apify account); "
+                             "nothing was stored, marked gone, posted or emailed"}
+        if empty and full_pull is not False:
+            log.warning("commercial: search families with no rows (%s): this pull marks nothing gone", ", ".join(empty))
+            full_pull = False            # a partial pull must never mark the missing listings gone
         cost["search_usd"] = loopnet.estimate_cost(len(raw_rows), 0, cfg)["search_usd"]
     listings = loopnet.dedupe(raw_rows)
     if today:

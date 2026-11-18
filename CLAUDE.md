@@ -677,6 +677,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 ~10pm ET (Mac clock; the cloud's dates run a day ahead), RESUME HERE: **1031 round two has NOT run: the Mac's Apify token
+  is refused** (`make doctor`: "Apify token fail, token rejected (401)"). Rodrigo regenerates it in console.apify.com and puts it in
+  the Mac's `.env` himself, then `make doctor`, then `make commercial` once (or the 5:30am run on the date in `commercial.schedule`
+  does it), then `make commercial-blast`; set the schedule back to "manual" after the pull so it is not paid twice. Tonight's
+  `make commercial` attempt started no Apify run ($0), but the engine went on with 0 listings: it marked all 543 in-box listings gone,
+  recorded a "full" run and emailed Rodrigo an empty deals email. Undone by hand in the database (543 back to active, the run row and
+  its snapshots removed). Fixed in `commercial/run.py`: a pull that brings nothing stops with an error (nothing stored, marked gone,
+  posted or emailed), and a pull with an empty family marks nothing gone. 1 new test, suite passes. Blast queue: 0 waiting (not
+  rebuilt: stored listings have not been through the new income screen). Larry Starr is not in the queue.
 - 2026-11-18 (evening), RESUME HERE: **1031 round two scheduled for tomorrow 2026-11-19** (Decisions → 1031 round two). The Mac's 5:30am
   run-daily pulls LoopNet (`commercial.schedule: "2026-11-19"`; the cloud's Apify token is refused, so only the Mac can pull), re-scores
   with the new income screen, posts cards to New, emails Rodrigo the deals, queues the no-cap question for new brokers (3 a round / 60 a

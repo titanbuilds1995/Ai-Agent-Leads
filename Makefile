@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: product-clean product-clean-list condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -86,6 +86,12 @@ clean-board:      ## Fresh Leads clean-up now: houses under contract / sold / of
 
 clean-board-list: ## only print which Fresh Leads houses are no longer for sale (moves nothing)
 	$(PY) -m titan.cli clean-board --list
+
+product-clean:    ## no 55+ communities / townhouses: rule them out now and move their cards to Skip (runs every morning too)
+	$(PY) -m titan.cli product-clean
+
+product-clean-list: ## only print which cards the 55+ / townhouse rule would take off the board (moves nothing)
+	$(PY) -m titan.cli product-clean --list
 
 condition-check:  ## Claude looks at the listing photos now: freshly renovated / really good houses leave Fresh Leads (ARGS=--all for the whole board)
 	$(PY) -m titan.cli condition-check $(ARGS)

@@ -637,6 +637,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   were looked at (`condition.gate_outreach`); 250 looks a run. Photos not loading / Claude not answering → nothing stored, retried next
   run, stops after 5 in a row. Only Fresh Leads + not-yet-carded houses; Needs Me / Sent / Answered untouched. The email writer is NOT
   told what the photos show (emails still never mention photos).
+- **No 55+ communities, no townhouses (Rodrigo, 2026-11-18: "not look for properties in 55 and older communities, and no townhouses
+  ... clean out all of the properties I have on the board")**: flags `age_restricted` (55+ / 62+ / age-restricted / senior / active
+  adult / HOPA, Kings Point, Century Village, Wynmoor, Huntington Lakes; realtor.com senior tags) and `townhouse` (remarks, type, realtor
+  sub type) in `market.exclude_flags`; "townhouse" is out of `market.property_types`. Negations ("NOT a 55+ community", "no age
+  restrictions", "not a townhouse") don't count. `exclude_flagged` rules stored houses out on every score run (follow-ups stop).
+  `titan/product_clean.py`, run-daily step `product_clean` (after board_clean), `make product-clean` / `make product-clean-list`: cards
+  whose houses are all ruled out and whose agent never answered (Fresh Leads, Needs Me, Needs Revision, Approved, Sent · no answer yet) →
+  Skip with one "Rule check" comment (not his vote); an agent who answered keeps the card with one comment; he drags one back → kept for
+  good (`product_keeps`). Same day the **photo condition check was switched ON** (`condition.daily` + `gate_outreach` true).
 - **Links brokers send are opened (Rodrigo, 2026-11-18: "I thought we already worked on being able to log into links from the emails we get
   from agents … they gave us links")**: before this the engine only LISTED links (NEEDS YOU); Tammy Huston's Dropbox for Mariner Plaza sat
   unread. `titan/commercial/link_files.py`, stage `link_files` (after `om_replies` in check-replies and approvals), `make om-links` by hand:
@@ -677,6 +686,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18 (evening), RESUME HERE: **55+ / townhouse filter built + photo condition check switched ON** (Decisions → No 55+
+  communities). Rodrigo asked why good-shape houses are still on Fresh Leads: the photo check was on HOLD since 11-17. Now on. First run
+  on the Mac: `git pull`, `make product-clean-list`, `make product-clean`, `make condition-check ARGS=--all` (~$10 for ~1,466 houses).
+  Then every 5:30am run does both. 2 tests; suite passes except the same 3 that need packages the cloud lacks. Not run live (cloud has no DB).
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

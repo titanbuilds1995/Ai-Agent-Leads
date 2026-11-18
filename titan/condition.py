@@ -132,13 +132,25 @@ def _media_type(data: bytes) -> str | None:
     return None
 
 
+def _ssl_context():
+    """The Mac's Python has no root certificates of its own (first live run, 2026-11-17: every photo failed with
+    CERTIFICATE_VERIFY_FAILED while curl loaded them). certifi's bundle (installed with requests) fixes that."""
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
 def _download(url: str, timeout: float = 15.0) -> tuple[bytes, str] | None:
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                                                              "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 — https links from the listing record
+        with urllib.request.urlopen(req, timeout=timeout, context=_ssl_context()) as r:  # noqa: S310 — https links from the listing record
             data = r.read(4_000_000)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        log.debug("condition: photo %s did not load: %s", url, e)
         return None
     mt = _media_type(data)
     return (data, mt) if mt else None

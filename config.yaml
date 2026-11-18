@@ -368,7 +368,10 @@ condition:
   # `make condition-check`). Remarks that plainly say fully renovated settle it for free; otherwise Claude looks at the listing's photos
   # (paid API, about 1 to 3 cents a house, once per house). Ruled-out houses never get an email; their Fresh Leads card goes to Skip.
   enabled: true
-  gate_outreach: true              # first emails are only drafted for houses that were looked at
+  daily: false                     # HOLD (2026-11-17, Mac): Rodrigo said "do NOT run condition-check until I say so". While false the
+                                   # 5:30am run-daily skips the step; `make condition-list` / `make condition-check` by hand still work.
+                                   # When he says go: daily: true and gate_outreach: true.
+  gate_outreach: false             # true = first emails are only drafted for houses that were looked at (off with the hold, or outreach starves)
   max_per_run: 250                 # houses looked at per run (cost cap: about $5 a day at most)
   photos_per_house: 8              # front, kitchens and baths first, then a spread
   min_photos: 3                    # fewer than this = can't tell (the house stays)

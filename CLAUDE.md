@@ -643,6 +643,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 ~8:40pm ET (Mac), RESUME HERE: **photo condition check tried live, list only** (`make condition-list ARGS="--limit 20"`,
+  nothing moved, $0.13). First try: every photo failed (the Mac's Python has no root certificates: CERTIFICATE_VERIFY_FAILED); fixed
+  in `condition._download` with certifi. Second try: 20 looked at (19 by photos, 8 each, the 640x480 size loads; 1 from the remarks):
+  6 RENOVATED (would leave), 4 GOOD_SHAPE medium (stay), 9 DATED, 1 can't tell (renderings on a land listing). **HOLD until Rodrigo
+  says go:** `condition.daily: false` (run-daily skips the step) and `gate_outreach: false`; when he says go, set both true and run
+  `make condition-check`. The 20 looks are saved, so they are not paid for again. Open: 2 of the 6 are "medium" calls with rental-grade
+  finishes (405 NW 64th St, 11801 SW 180th St); a 2021 build is called RENOVATED; 1,466 houses still waiting (about $10 for all).
 - 2026-11-18 (later), RESUME HERE: **photo condition check built** (Decisions → Photo condition check). Tested on fixtures only (5
   tests; suite passes except the same 3 that need Google / Anthropic packages the cloud lacks). NEVER run live: the cloud has no
   database, no API key and cannot reach realtor.com's pictures. First real run is on the Mac: `make condition-list ARGS="--limit 20"`

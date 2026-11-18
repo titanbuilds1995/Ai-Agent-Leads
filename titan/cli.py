@@ -140,7 +140,7 @@ def _run_daily(cfg, args):
         except Exception as e:  # noqa: BLE001 — a clean-up must never stop the run
             log.exception("board clean failed: %s", e)
             summary["board_clean"] = {"error": str(e)}
-    if "condition" in steps and not args.offline and not fixture:
+    if "condition" in steps and not args.offline and not fixture and cfg.get("condition.daily", True):
         # Rodrigo, 2026-11-18: Claude looks at the listing photos; freshly renovated / really good houses never reach Fresh Leads
         from .condition import run as condition_check
         try:

@@ -677,6 +677,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18 ~1pm ET: **772 Cortaro Dr (Christian Bennett / agent Frederick Alonzo) package for Walter**: 2-page deal summary PDF (rent roll,
+  NNN cap scenarios: 6.9% in place, ~8.0% only if the 1,437 SF suite leases, 8 cap on today's rent = ~$3.19M; open items) + broker rent roll,
+  as a Gmail DRAFT from rodrigo@ in the "Alexander Oaks deal sheet" thread (to Walter, cc Cat, Taylor). Second-read: FIX, applied. NOT sent.
+  Open: Walter's Nov 15 Ringling flood-zone question unanswered and Ringling is dead (Larry); OM not attached (only in Charles's inbox).
 - 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
   agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the

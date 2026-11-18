@@ -630,6 +630,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-17 evening (Mac), RESUME HERE: **human-email rules tried with the live writer** (dry run, 5 HOT houses, read-only, nothing
+  posted or sent, $0.04): 5 of 5 written by Claude, no rejections, no template fallback. BUT the real morning runs wrote **templates
+  only** (Nov 14: 31, Nov 16: 100, Nov 17: 118 cards, 0 by Claude). Cause found, NOT fixed yet (waiting on Rodrigo's OK):
+  `scoring.py` sets `llm.provider = "rules"` after 5 failed plan logins (the Mac's Claude login answers 401 / "Not logged in"), and
+  run-daily hands that same switched-off client to outreach, so first emails never reach the paid API. Fix = keep the scoring
+  switch-off away from communication calls (`_always_api`), and `claude` → /login on the Mac. Still open in the drafts: "new listing"
+  said about houses first seen Oct 23–24 (stored days-on-market is frozen since ingest was paused), "back on the market" taken from
+  the scraper flag with no history behind it, and 2–3 questions in one email. All 10 HOT houses already have an email on file.
 - 2026-11-18, RESUME HERE: **human-email rules built** (Decisions → Emails sound like a person). Tested on fixtures (2 new tests;
   suite passes except 3 that need Google / Anthropic packages this container lacks, same before the change). NOT tried with the live
   Claude writer (no API key in the cloud): the first real run is the Mac's next approvals round, which also starts rewriting waiting

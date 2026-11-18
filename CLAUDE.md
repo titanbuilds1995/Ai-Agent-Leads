@@ -352,6 +352,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   REPORT_TO ("FW [NEEDS YOU] <address> · <broker>", the read + the broker's words + their files attached, 📬 comment); NOT A FIT /
   DOES NOT FIT threads are ARCHIVED in Charles's inbox once Charles's pass note has gone (🗂 comment; the thread is still read by id,
   so a later answer is not lost). Once per review (`commercial_reviews.forwarded_at / archived_at`), retroactive on existing reviews.
+  **One forward conversation per broker (Rodrigo, 2026-11-18: "still sending me emails once they answer a second time, as if it was a
+  new email")**: a broker email that already has Rodrigo in To / Cc is not forwarded at all (it is in his inbox); every later forward
+  for the same broker thread goes INTO the first forward's Gmail conversation ("Re: FW [...]", In-Reply-To), with only the new
+  message(s) and files he has not had (`commercial_threads.fwd`; older forwards found in Charles's sent mail by street).
 - **Charles answers the 1031 brokers fast in Rodrigo's words; a thread Rodrigo writes in is his (Rodrigo, 2026-11-10: "if someone sends all of the
   information … answer them before I can get to it … anything but the books or questions, grab the conversation … answer politely to anyone
   that it's not a fit … plant the seed")**: three fixed replies (`books_review.template_kind` / `template_reply`), each once per thread, go out on
@@ -652,6 +656,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18, RESUME HERE: **1031 forwards no longer arrive as a new email per broker answer** (Decisions → One forward
+  conversation per broker). Skipped when he is cc'd on the broker's email; otherwise threaded into the first forward. Tested on
+  fixtures (1 new test + the triage test); live on the Mac's next round after `git pull`. **Larry Starr (331 John Ringling, SVN)
+  said "Don't contact me again. I will take action against you":** Charles's automatic pass went to him on Nov 16 while Rodrigo was
+  negotiating in a separate thread from rodrigo@ that the engine can't see. Mark him do-not-contact; nothing more to Larry.
 - 2026-11-18, RESUME HERE: **broker links are now opened** (Decisions → Links brokers send are opened). Tested on fixtures (4 tests; suite
   passes except the same 3 that need packages the cloud lacks). Never run live: the cloud is blocked from Dropbox. First real run on the
   Mac: `make om-links` (prints every link and what happened). Known waiting: Tammy Huston's Mariner Plaza Dropbox (Nov 13, NAI Talcor

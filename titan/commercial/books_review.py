@@ -892,11 +892,16 @@ def triage_inbox(conn, cfg: Any, asana, gmail, now=None) -> dict[str, Any]:
                 log.warning("triage: REPORT_TO not set, cannot forward %s", r.get("lid"))
             elif _claim(conn, "forwarded_at", r["id"], ts):     # one forward per review, even when two rounds overlap
                 try:
-                    _forward(conn, cfg, gmail, to, r, other, max_bytes, now)
-                    if asana is not None and r.get("card_gid"):
-                        why = "needs you" if r.get("needs_rodrigo") else ("pitched other deals" if other else verdict.lower())
-                        asana.comment(r["card_gid"], f"📬 Forwarded to your inbox ({why}).")
-                    res["forwarded"] += 1
+                    if _already_his(gmail, to, r):
+                        # Rodrigo, 2026-11-18: "why am I still receiving emails … on agents that I am in conversation with in my
+                        # email?" He is on the broker's email himself (To / Cc): it is already in his inbox, no copy from Charles.
+                        res["skipped_his"] = res.get("skipped_his", 0) + 1
+                    else:
+                        follow = _forward(conn, cfg, gmail, to, r, other, max_bytes, now)
+                        if asana is not None and r.get("card_gid"):
+                            why = "needs you" if r.get("needs_rodrigo") else ("pitched other deals" if other else verdict.lower())
+                            asana.comment(r["card_gid"], f"📬 Forwarded to your inbox ({why})" + (", in the same email conversation as before." if follow else "."))
+                        res["forwarded"] += 1
                 except Exception as e:  # noqa: BLE001
                     conn.execute("UPDATE commercial_reviews SET forwarded_at=NULL WHERE id=?", (r["id"],))
                     res["errors"] += 1
@@ -978,12 +983,67 @@ def _unpark(conn, cfg: Any, asana, listing_id: str, card_gid: str) -> None:
         conn.execute("UPDATE commercial_listings SET board_column='In touch with the agent' WHERE listing_id=?", (listing_id,))
 
 
-def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str], max_bytes: int, now) -> None:
+def _addresses(m: dict[str, Any]) -> str:
+    return " ".join(str(m.get(k) or "") for k in ("to", "cc")).lower()
+
+
+def _already_his(gmail, to: str, r: dict[str, Any]) -> bool:
+    """True when the broker's latest email was written to Rodrigo too (he is in To or Cc), so it already sits in his inbox."""
+    me = (to or "").lower()
+    if not me:
+        return False
+    try:
+        if r.get("gmail_message_id") and hasattr(gmail, "message"):
+            return me in _addresses(gmail.message(r["gmail_message_id"]))
+        if r.get("gmail_thread_id"):
+            inbound = [m for m in gmail.thread_messages(r["gmail_thread_id"])
+                       if "titanrealtyinvestments.com" not in (m.get("from") or "").lower()]
+            return bool(inbound) and me in _addresses(inbound[-1])
+    except Exception as e:  # noqa: BLE001 — can't tell: forward as before
+        log.warning("triage: could not check the recipients of %s: %s", r.get("lid"), e)
+    return False
+
+
+def _earlier_forward(conn, gmail, to: str, r: dict[str, Any], addr: str) -> dict[str, Any] | None:
+    """The forward conversation already in his inbox for this broker thread: stored, or (forwards sent before 2026-11-18) found in
+    Charles's sent mail by the address in the subject."""
+    row = conn.execute("SELECT fwd FROM commercial_threads WHERE id=?", (r["thread_id"],)).fetchone()
+    if row and row[0]:
+        try:
+            return json.loads(row[0])
+        except json.JSONDecodeError:
+            pass
+    if not addr or not hasattr(gmail, "search") or not hasattr(gmail, "message"):
+        return None
+    try:
+        street = addr.split(",")[0].replace('"', "")
+        ids = gmail.search(f'in:sent to:{to} subject:"FW" subject:"{street}"', max_results=10)
+        if not ids:
+            return None
+        m = gmail.message(ids[-1])          # the oldest one: the conversation started there
+        return {"thread_id": m.get("thread_id"), "subject": m.get("subject"), "msgid": m.get("message_id_header"), "files": []}
+    except Exception as e:  # noqa: BLE001
+        log.warning("triage: could not look up an earlier forward for %s: %s", r.get("lid"), e)
+        return None
+
+
+def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str], max_bytes: int, now) -> bool:
+    """Forward the broker's answer to Rodrigo. The first one starts an email conversation in his inbox; every later answer from
+    the same broker goes INTO that conversation (Rodrigo, 2026-11-18: "it seems like we are still sending me emails once they
+    answer a second time, as if it was a new email"), with only the new email(s) and only files he has not had yet.
+    Returns True when it went into an earlier conversation."""
     L = _listing(conn, r["lid"])
     msgs = _messages(conn, r["thread_id"])
     tag = "NEEDS YOU" if r.get("needs_rodrigo") else ("POCKET / OTHER DEALS" if other else (r.get("verdict") or "").upper())
     addr = f"{L.get('street') or L.get('address') or ''}, {L.get('city') or ''}".strip(", ")
     subject = f"FW [{tag}] {addr or r.get('thread_subject') or ''} · {r.get('broker_name') or r.get('broker_email') or ''}"
+    prev = _earlier_forward(conn, gmail, to, r, addr)
+    if prev and prev.get("subject"):
+        subject = prev["subject"] if prev["subject"].lower().startswith("re:") else f"Re: {prev['subject']}"
+    sent_files = set((prev or {}).get("files") or [])
+    shown = msgs[-3:]
+    if prev and prev.get("upto"):
+        shown = [m for m in msgs if (m.get("created_at") or "") > prev["upto"]][-3:] or msgs[-1:]
     card = f"https://app.asana.com/0/{cfg.get('commercial.asana.project')}/{r['card_gid']}" if r.get("card_gid") else ""
     cap = L.get("stated_cap") or L.get("cap_rate")
     parts = [f"{tag}: {addr}" + (f" · asking {money(L['price'])}" if L.get("price") else "") + (f" · stated cap {cap}%" if cap else ""),
@@ -991,7 +1051,7 @@ def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str]
     if other:
         parts += ["Other deals they pitched:"] + [f"• {o}" for o in other] + [""]
     parts += [r.get("text") or "", "", "---- The broker's email(s) ----"]
-    for m in msgs[-3:]:
+    for m in shown:
         parts.append(f"\nFrom {m.get('from_addr')} · {m.get('created_at')}\n{(m.get('body') or '').strip()[:4000]}")
     attachments: list[dict[str, Any]] = []
     total = 0
@@ -999,7 +1059,7 @@ def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str]
         files = json.loads(r.get("thread_files") or "[]")
     except json.JSONDecodeError:
         files = []
-    for mid in dict.fromkeys(f.get("message_id") for f in files if f.get("message_id")):
+    for mid in dict.fromkeys(f.get("message_id") for f in files if f.get("message_id") and f.get("message_id") not in sent_files):
         try:
             for a in gmail.attachments(mid):
                 if total + len(a.get("bytes") or b"") > max_bytes:
@@ -1009,6 +1069,23 @@ def _forward(conn, cfg: Any, gmail, to: str, r: dict[str, Any], other: list[str]
                 attachments.append(a)
         except Exception as e:  # noqa: BLE001
             parts.append(f"(could not fetch the files of message {mid}: {str(e)[:120]})")
-    if files and not attachments:
+    if files and not attachments and not sent_files:
         parts.append("Files on the Mac: " + ", ".join(f.get("filename") or "" for f in files))
-    gmail.send(to, subject, "\n".join(parts), attachments=attachments or None)
+    kw: dict[str, Any] = {"attachments": attachments or None}
+    if prev and prev.get("thread_id"):
+        kw["thread_id"] = prev["thread_id"]
+        if prev.get("msgid"):
+            kw["in_reply_to"] = prev["msgid"]
+    sent = gmail.send(to, subject, "\n".join(parts), **kw) or {}
+    state = dict(prev or {})
+    if not state.get("thread_id"):
+        state.update({"thread_id": sent.get("thread_id"), "subject": subject, "msgid": None})
+        try:
+            if sent.get("message_id") and hasattr(gmail, "message"):
+                state["msgid"] = gmail.message(sent["message_id"]).get("message_id_header")
+        except Exception:  # noqa: BLE001 — threadId alone keeps it together in Charles's sent mail; his inbox groups by subject
+            pass
+    state["files"] = sorted(sent_files | {f.get("message_id") for f in files if f.get("message_id")})
+    state["upto"] = max([m.get("created_at") or "" for m in msgs] + [state.get("upto") or ""])
+    conn.execute("UPDATE commercial_threads SET fwd=? WHERE id=?", (json.dumps(state), r["thread_id"]))
+    return bool(prev and prev.get("thread_id"))

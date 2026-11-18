@@ -820,8 +820,12 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     n = len(gm.sent)                    # 2026-11-11 (Cameron): Charles already answered once, so his T-12 ask waits for Rodrigo
     assert send_approved_replies(conn, cfg, asana, gm, now=SAT_10AM_ET)["sent"] == 0 and len(gm.sent) == n
     tri = triage_inbox(conn, cfg, asana, gm)
-    assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("FW [NEEDS YOU]")
+    assert tri["forwarded"] == 1 and tri["archived"] == 0 and gm.sent[-1][1].startswith("Re: FW [NEEDS YOU]")
     assert "Amoco gas station, West Palm Beach" in gm.sent[-1][2]
+    # 2026-11-18: the broker's second answer goes INTO the first forward's conversation, not a new email; the NDA is not re-attached
+    first_fwd = next(i for i, x in enumerate(gm.sent) if x[1].startswith("FW [NEEDS YOU]"))
+    assert gm.kw[-1].get("thread_id") == f"t{first_fwd + 1}" and not gm.kw[-1].get("attachments")
+    assert "Please sign the NDA attached" not in gm.sent[-1][2]
     # 5) a flat NOT A FIT: Charles's pass note goes first, then the thread is archived in his inbox
     _answer(conn, cfg, asana, gm, "Actually the building is vacant now.", "r5", 5)
     review_pending(conn, cfg, asana, llm)
@@ -831,6 +835,26 @@ def test_simple_replies_go_on_their_own_needs_you_is_forwarded_and_not_fit_is_ar
     assert tri["archived"] == 1 and gm.archived == ["t1"]
     assert any("🗂 Archived in Charles's inbox" in c for c in asana.stories[gid])
     assert triage_inbox(conn, cfg, asana, gm)["archived"] == 0                   # once
+
+
+def test_no_forward_when_rodrigo_is_already_on_the_brokers_email(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-18: "why am I still receiving emails … on agents that I am in conversation with in my email?" When the
+    broker wrote to him too (To / Cc), the answer is already in his inbox: no copy from Charles."""
+    from titan.commercial.books_review import review_pending, triage_inbox
+    from titan.commercial.outreach import send_om_requests
+    from tests.test_approvals import SAT_10AM_ET
+    asana, secs, gid = _om_board(conn, cfg, tmp_path)
+    cfg.secrets["REPORT_TO"] = "rodrigo@titanrealtyinvestments.com"
+    gm = FakeOMGmail()
+    send_om_requests(conn, cfg, asana, gm, now=SAT_10AM_ET)
+    conn.execute("UPDATE commercial_threads SET sent_at=?", (iso(SAT_10AM_ET),))
+    _answer(conn, cfg, asana, gm, "Please sign the NDA attached before I release the OM.", "r3", 3)
+    gm.threads["t1"][-1]["cc"] = "Rodrigo D. Gayoso <rodrigo@titanrealtyinvestments.com>"
+    review_pending(conn, cfg, asana, FakeTriageLLM())
+    n = len(gm.sent)
+    tri = triage_inbox(conn, cfg, asana, gm)
+    assert tri["forwarded"] == 0 and tri.get("skipped_his") == 1 and len(gm.sent) == n
+    assert triage_inbox(conn, cfg, asana, gm).get("skipped_his", 0) == 0          # decided once
 
 
 def test_charles_answers_books_asks_for_books_and_passes_politely_on_his_own(conn, cfg, tmp_path):

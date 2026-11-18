@@ -677,6 +677,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18 ~7:25am ET: morning check only. **No 7am report**; EOD Tue 0 of 25 (follow-ups never ran). Flags card: opendoor / beycome
+  agents in HOT, review summaries misread street numbers as seller numbers (Juan Huice '$214,000'), land on Fresh Leads. Waiting on Rodrigo.
 - 2026-11-17 ~11pm ET (Mac), RESUME HERE: **1031 round two RAN** (`make commercial` by hand after Rodrigo put a new Apify token in the
   Mac's .env; $5.68). 1,253 listings, 82 never seen before, 14 of those in the box; in-box went 543 → 214: the income screen took out
   290 (236 vacant / owner-user / lease-up, 25 development, 15 hotels under 8 after manager + tax, 10 small Miami-Dade multifamily, 4

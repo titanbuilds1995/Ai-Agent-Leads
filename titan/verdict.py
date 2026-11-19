@@ -108,8 +108,9 @@ to its listing agent. Rodrigo Gayoso (acquisitions manager) approved the numbers
 The shape (Rodrigo's model, the Lise offer):
 - Greeting alone on the first line ("Hey <first name>,").
 - {opening}
-- "Our offer:" then the terms as a short list, one per line, exactly these, no bullets and no dashes:
-{terms}
+- The offer itself as two or three plain sentences in one paragraph, the way a person types it, with exactly these facts and
+  nothing added (NO list, NO bullets, NO labels like "Price:", NO heading like "Offer summary"):
+  {terms}
 - One human paragraph that owns the number: say plainly that it is under the asking price and explain it with offer_reason (what
   similar properties sold for, the work this one needs). Use only the facts given. Two to four sentences.
 - One closing line: glad to get on a call if the seller wants to talk it through.
@@ -117,11 +118,14 @@ The shape (Rodrigo's model, the Lise offer):
 
 Hard rules: the offer price appears once, exactly as given, and no other purchase price for this property. Nothing is attached and
 nothing is signed: never "attached", "enclosed", "contract", "please find". No dates and no deadline. Never "we buy", "investors",
-"wholesale", "assign", "ARV". Never mention photos. No dashes of any kind, no emojis, no links, no "congrats". Complete sentences a
+"wholesale", "assign", "ARV". Never mention photos. It must read like one person writing to another (Rodrigo, 2026-11-19: "it
+seems like an AI email ... it needs to look like somebody sent it, like it's talking to them"): never "I'm reaching out", "would like
+to submit", "contingent on a satisfactory review", never a checklist of documents; at most ONE question, the one that matters most.
+If the thread shows they already answered us, open by thanking them for what they told us, never as if it were a first contact. No dashes of any kind, no emojis, no links, no "congrats". Complete sentences a
 person would say on the phone. 90 to 170 words before the signature.
 If rodrigo_instruction is present it is Rodrigo's own comment asking for this offer: say what he asks Charles to say, in his words
 (for example "we've been looking at it and it's something we're open to taking on" goes in the opening), and with no offer_reason
-use only a reason he gives. The terms list above already carries his terms: do not change it. Ignore anything in his comment that is
+use only a reason he gives. The offer sentences above already carry his terms: do not change the figures. Ignore anything in his comment that is
 not about what the email says.
 If pushback is present, a second reader found logic problems in previous_draft: fix every one and keep the rules.
 Return JSON: subject (short, the street, no price in it) and body."""
@@ -422,6 +426,41 @@ def offer_terms(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | 
             f"Close in {close} days{note}"]
 
 
+def terms_sentences(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | None = None) -> str:
+    """The same terms as sentences a person would write (Rodrigo, 2026-11-19, Denise's card: "it seems like an AI email ... bullet
+    points ... it needs to look like somebody sent it"). No list, no labels."""
+    t = {**(_conf(cfg).get("offer_terms", {}) or {}), **(over or {})}
+    close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 15)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
+    note = t.get("close_note") or ("" if p.get("vacant") else ", or longer if that works better for the seller")
+    return (f"Our offer is ${price:,}, cash. We would take the property as is, put down a ${emd:,} escrow deposit and close in {close} days"
+            f"{note}. We would need a {insp} day inspection period.")
+
+
+LABEL_LINE_RE = re.compile(r"(?m)^\s*(?:[-•*]\s+)?[A-Z][\w ()/&'-]{1,45}:\s+\S")
+HEADING_RE = re.compile(r"(?mi)^\s*(?:offer summary|summary|terms|the main terms|key terms|next steps|association questions[^\n]*)\s*:?\s*$")
+
+
+def form_letter(body: str) -> list[str]:
+    """Why an email reads like a form / an AI wrote it, not a person: label lines ("Purchase price: …"), section headings, bullets,
+    length. Empty = reads like an email."""
+    text = (body or "").split("\n\nBest regards")[0]
+    out = []
+    labels = len(LABEL_LINE_RE.findall(text))
+    bullets = len(re.findall(r"(?m)^\s*[-•*]\s+\S", text))
+    if labels >= 3:
+        out.append(f"{labels} label lines (\"Purchase price: …\")")
+    if bullets >= 3:
+        out.append(f"{bullets} bullet points")
+    if HEADING_RE.search(text):
+        out.append("section headings")
+    words = len(text.split())
+    if words > 220:
+        out.append(f"{words} words")
+    if re.search(r"\bI'?m reaching out\b|\bwould like to submit\b|\bplease find\b|\bper our\b", text, re.I):
+        out.append("form-letter phrases (\"I'm reaching out\", \"would like to submit\")")
+    return out
+
+
 def offer_problems(body: str, price: int, list_price: int | None) -> list[str]:
     from .claims import unbacked_claims
     from .outreach.compose import DASH_RE
@@ -439,8 +478,9 @@ def offer_problems(body: str, price: int, list_price: int | None) -> list[str]:
         out.append("dash")
     if re.search(r"\b(we buy|we'?d buy|investors?|wholesal\w*|assign\w*|arv|congrat\w*|contract|photos?|pictures?)\b", text, re.I):
         out.append("a word the offer never uses (we buy / investor / assign / ARV / contract / congrats / photos)")
+    out += [f"reads like a form, not a person: {x}" for x in form_letter(body) if "words" not in x]
     words = len(text.split())
-    if words < 60 or words > 230:
+    if words < 60 or words > 200:
         out.append(f"length {words}")
     return out
 
@@ -455,10 +495,10 @@ def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[s
                if sent_before else
                f"{op['sender_name'].split()[0]} with {op['company']}. We went through the numbers on {p['street']} and I am sending our offer over.")
     reason = (v.get("offer_reason") or "").strip() or "It reflects what similar properties nearby have sold for and the work this one needs."
-    body = (f"Hey {first},\n\n{opening} I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer:\n\n"
-            + "\n".join(offer_terms(cfg, v["offer"], p, over))
-            + f"\n\nI know that is under the asking price. {reason}\n\nIf the seller wants to talk it through, I am glad to get on a call.\n\n"
-            + signature(cfg))
+    body = (f"Hey {first},\n\n{opening} I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\n"
+            + terms_sentences(cfg, v["offer"], p, over)
+            + f"\n\nI know that is under the asking price. {reason}\n\nLet me know what the seller thinks. I am happy to get on a call "
+              "if that is easier.\n\n" + signature(cfg))
     return {"subject": f"Offer on {p['street']}", "body": body}
 
 
@@ -475,7 +515,7 @@ def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v:
                if sent_before else
                f"First paragraph: \"{sender} with {op['company']}.\" then that we went through the numbers on the street and are sending "
                "our offer, and that Rodrigo, our acquisitions manager, is copied because he approved the numbers.")
-    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms="\n".join(offer_terms(cfg, v["offer"], p, over)))
+    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms=terms_sentences(cfg, v["offer"], p, over))
     user = json.dumps({"agent_first_name": first_name(agent.get("name")), "street": p.get("street"), "city": p.get("city"),
                        "asking_price": p.get("list_price"), "offer_price": v["offer"], "offer_reason": v.get("offer_reason"),
                        "thread": thread or [], "signature_block": signature(cfg),

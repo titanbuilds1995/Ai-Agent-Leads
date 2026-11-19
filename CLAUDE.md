@@ -705,12 +705,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   terms he states, and his comment is the writer's instruction. **His standard offer terms: $5,000 escrow, 15 day inspection, cash,
   30 day close** (`verdict.offer_terms`; the older 9-day inspection is superseded). Also fixed: a QUESTION using "price reduction" no longer
   fails the copy check (Caridad Casado's rewrite was refused every round); "The email we send: …" is read as his dictated email (Denise).
+  **Offers read like a person wrote them (same day, Denise's card: "this email is absolutely horrible, it seems like an AI email … it
+  needs to look like somebody sent it, like it's talking to them")**: the email was his own pasted text ("Offer summary", six label lines,
+  an 11-item document checklist, "I'm reaching out" to an agent who had already answered). Now every drafted offer is PROSE
+  (`verdict.terms_sentences`: "Our offer is $X, cash. We would take the property as is, put down a $5,000 escrow deposit and close in 30
+  days. We would need a 15 day inspection period."), no list / labels / headings, at most one question, thanks first when they already
+  wrote (this supersedes the Lise "terms as a short list"). `verdict.form_letter()` names what reads like a form; the offer writer is
+  rejected on it, and a dictated email that trips it still goes on the card (his words) but with a bold warning. Rule + before/after in
+  `docs/style/HUMAN_EMAIL.md` → "Offers and long emails". Not built: a richer signature / footer (waiting on his answer).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~3:45pm ET, RESUME HERE: Rodrigo called Denise's offer email "an AI email". Rewritten short and human and re-posted on her
+  card as "Answer with: …" (the Mac's next round replaces the NEXT EMAIL; stays in Needs Me). Offers are prose from now on (Decisions →
+  The bottom line, last paragraph); Tamara's and Arkeshia's card offers rewritten the same way by hand. 8 tests in test_verdict; suite
+  passes except the same 3. **Open, his answer needed: the footer.** Proposed a fuller plain-text signature (email + address lines);
+  a logo / designed footer is held because pictures and HTML are what hurt the domain's spam reputation on Nov 4–9.
 - 2026-11-19 ~3:30pm ET, RESUME HERE: Rodrigo asked why cards sit in Needs Revision and why Tamara Mason's rewrite ignored him. Causes
   fixed in code (Decisions → The bottom line, last paragraph); 7 tests in test_verdict, suite passes except the same 3. By hand from the
   cloud: **Tamara Mason** offer at $250,000 on her card (Needs Me), **Arkeshia Love** offer updated to his terms (15 day inspection) and

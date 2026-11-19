@@ -546,7 +546,12 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         if reply:                      # a legacy reply card for this agent is now a duplicate
             asana.comment(reply[0]["gid"], "Closed: the answer now lives on the lead card (one card per lead).")
             answers.close_card(cfg, asana, reply[0]["gid"])
-        asana.comment(gid, "Your email is the NEXT EMAIL on this card now (your words, cleaned up, picture attached). "
+        from .verdict import form_letter
+        form = form_letter(body)      # Rodrigo, 2026-11-19 (Denise): a pasted form letter went onto the card as "your words"
+        asana.comment(gid, (f"**This reads like a form letter, not like a person wrote it ({'; '.join(form)}).** It is on the card as you "
+                            "gave it; before you send it, comment the points in your own words (\"Answer with: Hi …\") and it is replaced. "
+                            if form else "")
+                           + "Your email is the NEXT EMAIL on this card now (your words, cleaned up, picture attached). "
                            + ("It is in Approved and goes out at the next send round (8:30am–5:30pm ET). Drag it to Needs Me to stop it." if go else
                               "Moved to Needs Me: drag this card to Approved to send it, or comment what to change.")
                            + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))

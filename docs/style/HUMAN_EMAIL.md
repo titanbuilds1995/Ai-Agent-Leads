@@ -76,3 +76,31 @@ And do you think the seller would negotiate on price if a serious offer came in?
 No price, number or percentage. Never "we buy" / "we're the buyer" / "we're investors". Nothing about the photos. With 4 or more
 photos never ask how much work the house needs. No "doesn't scare us", no reciting upgrades, no "curious" / "honestly" /
 "potentially". No dashes. Greeting on its own line, short paragraphs. "A serious offer" is fine; "our offer" or any figure is not.
+
+## Offers and long emails (Rodrigo, 2026-11-19, Denise's card: "this email is absolutely horrible, it seems like an AI email")
+
+The email that set this rule opened "I'm reaching out about your listing" to an agent who had already answered us, then had an
+"Offer summary" of six label lines and an eleven-item checklist of association documents. Nobody writes that to a person.
+
+- An offer is a short email, 90 to 170 words: thank them for what they told us, the offer in two or three sentences, one paragraph
+  that owns the number, one closing line.
+- No headings ("Offer summary"), no label lines ("Purchase price: ..."), no bullets, no checklist of documents.
+- At most one question: the one that changes the number (special assessments, the lease end). The rest waits for the inspection.
+- Never "I'm reaching out", "would like to submit", "contingent on a satisfactory review", "please find".
+- If they already wrote to us, the email answers them. It never reads like a first contact.
+
+After:
+
+    Hi Denise,
+
+    Thank you for getting back to me, and for the details on the roof and the AC. That helped.
+
+    We went over the numbers on 275 Jacaranda Dr and would like to make an offer of $275,000, cash. We would take the property as
+    is, put down a $5,000 escrow deposit, and close within 30 days. We would need a 15 day inspection period, mainly to go through
+    the association documents.
+
+    I know that is below the asking price. With the building being from 1974, the association is our biggest question. Do you know
+    if there are any special assessments right now, or any coming up?
+
+    Let me know what the seller thinks. I am happy to get on a call if that is easier.
+

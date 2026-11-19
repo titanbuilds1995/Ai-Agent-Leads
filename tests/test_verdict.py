@@ -11,12 +11,12 @@ from tests.test_comment_router import _setup
 
 ASK = "give me the comps for this property, it really needs a full rehab and I think the price is way too high"
 OFFER_BODY = ("Hey Richard,\n\nCharles with Titan Realty Investments. We went through the numbers on the property and I am sending our offer "
-              "over. I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer:\n\nPrice: $255,000, cash\n"
-              "As is, no repairs asked of the seller\n15 day inspection period\n$5,000 escrow deposit\nClose in 30 days, or longer if that works "
-              "better for the seller\n\nI know that is under the asking price. Two similar homes nearby sold for $300,000 and $330,000, and "
-              "this one needs a full rehab before it can be lived in.\n\nIf the seller wants to talk it through, I am glad to get on a "
-              "call.\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379")
-
+              "over. I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer is $255,000, cash. We would take "
+              "the property as is, put down a $5,000 escrow deposit and close in 30 days, or longer if that works better for the seller. We "
+              "would need a 15 day inspection period.\n\nI know that is under the asking price. Two similar homes nearby sold for $300,000 and "
+              "$330,000, and this one needs a full rehab before it can be lived in.\n\nLet me know what the seller thinks. I am happy to get "
+              "on a call if that is easier.\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\n"
+              "Office Line: +1 (561) 405 7379")
 
 class Reader:
     """Claude for the card chat, the last reader, the offer writer and the second reader."""
@@ -82,7 +82,7 @@ def test_bottom_line_is_last_and_the_offer_is_drafted_on_the_card(loaded, cfg, t
     assert "What was wrong in our numbers" in last and "Why it has not sold" in last and "Based on the sales" in last
     assert "⚖️ Second read" in last and "Nothing sends until you drag the card to Approved" in last
     card = parse_card(asana.tasks[gid]["notes"])
-    assert "Price: $255,000, cash" in card["body"] and card["cc"] == ["boss@example.com"] and "$" not in card["subject"]
+    assert "Our offer is $255,000, cash" in card["body"] and card["cc"] == ["boss@example.com"] and "$" not in card["subject"]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me") and asana.where[gid] != _sections(cfg)["approved"]
     row = loaded.execute("SELECT body, variant, status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()
     assert row["variant"] == "offer:verdict" and "$255,000" in row["body"] and row["status"] != "sent"
@@ -126,7 +126,7 @@ def test_his_number_becomes_the_offer(loaded, cfg, tmp_path, monkeypatch):
     n = sync_feedback(loaded, cfg, asana, llm)
     assert n.get("offers_drafted") == 1 and "verdict" not in llm.calls and "revise_email" not in llm.calls
     card = parse_card(asana.tasks[gid]["notes"])
-    assert "Price: $262,000, cash" in card["body"]
+    assert "Our offer is $262,000, cash" in card["body"]
     assert "$38,000 (13%) under asking" in asana.stories[gid][-1]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
 
@@ -161,3 +161,17 @@ def test_his_stuck_comments_now_work():
     assert [x for x in copy_problems(claim, p) if "came down" in x]
     d = dictation(['The email we send: "Hi Denise,\nTitan Realty Investments would like to submit a cash offer.\nPurchase price: $275,000, all cash"'])
     assert d and d[0].startswith("Hi Denise") and "$275,000" in d[0]
+
+
+def test_a_form_letter_is_named_and_an_offer_never_looks_like_one(cfg):
+    """Rodrigo, 2026-11-19 (Denise): "it seems like an AI email ... it needs to look like somebody sent it"."""
+    form = ("Hi Denise,\n\nI'm reaching out about your listing. Titan would like to submit a cash offer.\n\nOffer summary\n\n"
+            "Purchase price: $275,000, all cash\nEarnest money deposit: $5,000\nInspection period: 10 days\nClosing: within 30 days\n\n"
+            "Best regards,\n\nCharles Grant")
+    why = " ".join(verdict.form_letter(form))
+    assert "label lines" in why and "section headings" in why and "form-letter phrases" in why
+    assert [x for x in verdict.offer_problems(form + " " + "word " * 60, 275000, None) if "reads like a form" in x]
+    assert not verdict.form_letter(OFFER_BODY) and not verdict.offer_problems(OFFER_BODY, 255000, 300000)
+    t = verdict.template_offer(cfg, {"name": "Tamara Mason"}, {"street": "455 NW 68th Ave", "city": "Plantation"},
+                               {"offer": 250000, "offer_reason": ""}, False, verdict.parse_terms("15 day inspection, 30 day closing or as soon as the title is approved"))
+    assert not verdict.form_letter(t["body"]) and "close in 30 days, or as soon as title is approved" in t["body"]

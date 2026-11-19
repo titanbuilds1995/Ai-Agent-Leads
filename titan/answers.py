@@ -257,7 +257,7 @@ listing agent. Turn the dictation into the email, keeping it HIS: every point, h
 nothing of substance removed, no new facts, no softening. Fix punctuation, spelling, capitalization and dictation slips (run-on
 sentences, "what I what I wrote", repeated words); split into short paragraphs; the greeting alone on the first line
 ("Hey {first},", or his greeting if he gave one); keep every question he asked (several questions are fine here, they are his);
-keep any number or term he stated exactly as he said it; no dashes of any kind; plain text; end with the signature block given.
+keep any number or term he stated exactly as he said it; a bullet list he gave (lines starting with "•") stays a bullet list, one bullet per line, unchanged; no dashes of any kind; plain text; end with the signature block given.
 Return JSON: body."""
 TIDY_SCHEMA = {"type": "object", "properties": {"body": {"type": "string"}}, "required": ["body"], "additionalProperties": False}
 

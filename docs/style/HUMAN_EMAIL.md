@@ -82,9 +82,11 @@ photos never ask how much work the house needs. No "doesn't scare us", no reciti
 The email that set this rule opened "I'm reaching out about your listing" to an agent who had already answered us, then had an
 "Offer summary" of six label lines and an eleven-item checklist of association documents. Nobody writes that to a person.
 
-- An offer is a short email, 90 to 170 words: thank them for what they told us, the offer in two or three sentences, one paragraph
-  that owns the number, one closing line.
-- No headings ("Offer summary"), no label lines ("Purchase price: ..."), no bullets, no checklist of documents.
+- An offer is a short email, 90 to 170 words: thank them for what they told us, "Our offer:" and the terms, one paragraph that owns
+  the number, one closing line.
+- **The terms are bullet points, one term per bullet** (Rodrigo, same day: "each term needs to be a set bullet point"). Five bullets:
+  price, as is, inspection, escrow deposit, closing. That is the only list in the email.
+- No headings ("Offer summary"), no checklist of documents, no second list.
 - At most one question: the one that changes the number (special assessments, the lease end). The rest waits for the inspection.
 - Never "I'm reaching out", "would like to submit", "contingent on a satisfactory review", "please find".
 - If they already wrote to us, the email answers them. It never reads like a first contact.
@@ -95,12 +97,17 @@ After:
 
     Thank you for getting back to me, and for the details on the roof and the AC. That helped.
 
-    We went over the numbers on 275 Jacaranda Dr and would like to make an offer of $275,000, cash. We would take the property as
-    is, put down a $5,000 escrow deposit, and close within 30 days. We would need a 15 day inspection period, mainly to go through
-    the association documents.
+    We went over the numbers on 275 Jacaranda Dr and would like to make an offer.
+
+    Our offer:
+
+    • Price: $275,000, cash
+    • As is, no repairs asked of the seller
+    • 15 day inspection period, mainly to go through the association documents
+    • $5,000 escrow deposit
+    • Close in 30 days
 
     I know that is below the asking price. With the building being from 1974, the association is our biggest question. Do you know
     if there are any special assessments right now, or any coming up?
 
     Let me know what the seller thinks. I am happy to get on a call if that is easier.
-

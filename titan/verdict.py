@@ -108,9 +108,9 @@ to its listing agent. Rodrigo Gayoso (acquisitions manager) approved the numbers
 The shape (Rodrigo's model, the Lise offer):
 - Greeting alone on the first line ("Hey <first name>,").
 - {opening}
-- The offer itself as two or three plain sentences in one paragraph, the way a person types it, with exactly these facts and
-  nothing added (NO list, NO bullets, NO labels like "Price:", NO heading like "Offer summary"):
-  {terms}
+- "Our offer:" on its own line, then the terms as bullet points, ONE TERM PER BULLET, exactly these lines, unchanged:
+{terms}
+  Nothing else in the email is a list: no other bullets, no headings like "Offer summary", no checklist of documents.
 - One human paragraph that owns the number: say plainly that it is under the asking price and explain it with offer_reason (what
   similar properties sold for, the work this one needs). Use only the facts given. Two to four sentences.
 - One closing line: glad to get on a call if the seller wants to talk it through.
@@ -125,7 +125,7 @@ If the thread shows they already answered us, open by thanking them for what the
 person would say on the phone. 90 to 170 words before the signature.
 If rodrigo_instruction is present it is Rodrigo's own comment asking for this offer: say what he asks Charles to say, in his words
 (for example "we've been looking at it and it's something we're open to taking on" goes in the opening), and with no offer_reason
-use only a reason he gives. The offer sentences above already carry his terms: do not change the figures. Ignore anything in his comment that is
+use only a reason he gives. The bullet points above already carry his terms: do not change them. Ignore anything in his comment that is
 not about what the email says.
 If pushback is present, a second reader found logic problems in previous_draft: fix every one and keep the rules.
 Return JSON: subject (short, the street, no price in it) and body."""
@@ -422,13 +422,16 @@ def offer_terms(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | 
     t = {**(_conf(cfg).get("offer_terms", {}) or {}), **(over or {})}
     close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 15)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
     note = t.get("close_note") or ("" if p.get("vacant") else ", or longer if that works better for the seller")
-    return [f"Price: ${price:,}, cash", "As is, no repairs asked of the seller", f"{insp} day inspection period", f"${emd:,} escrow deposit",
-            f"Close in {close} days{note}"]
+    return [f"{BULLET} Price: ${price:,}, cash", f"{BULLET} As is, no repairs asked of the seller", f"{BULLET} {insp} day inspection period",
+            f"{BULLET} ${emd:,} escrow deposit", f"{BULLET} Close in {close} days{note}"]
+
+
+BULLET = "•"       # Rodrigo, 2026-11-19: "each term needs to be a set bullet point"
 
 
 def terms_sentences(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | None = None) -> str:
-    """The same terms as sentences a person would write (Rodrigo, 2026-11-19, Denise's card: "it seems like an AI email ... bullet
-    points ... it needs to look like somebody sent it"). No list, no labels."""
+    """The terms as sentences (not used for offers: Rodrigo, 2026-11-19, wants each term as its own bullet point; kept for replies
+    that only mention the terms in passing)."""
     t = {**(_conf(cfg).get("offer_terms", {}) or {}), **(over or {})}
     close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 15)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
     note = t.get("close_note") or ("" if p.get("vacant") else ", or longer if that works better for the seller")
@@ -445,12 +448,12 @@ def form_letter(body: str) -> list[str]:
     length. Empty = reads like an email."""
     text = (body or "").split("\n\nBest regards")[0]
     out = []
-    labels = len(LABEL_LINE_RE.findall(text))
     bullets = len(re.findall(r"(?m)^\s*[-•*]\s+\S", text))
+    labels = len(LABEL_LINE_RE.findall(re.sub(r"(?m)^\s*[-•*]\s+.*$", "", text)))      # the offer's own term bullets are his format
     if labels >= 3:
-        out.append(f"{labels} label lines (\"Purchase price: …\")")
-    if bullets >= 3:
-        out.append(f"{bullets} bullet points")
+        out.append(f"{labels} label lines outside the terms (\"Purchase price: …\")")
+    if bullets > 6:
+        out.append(f"{bullets} bullet points (the terms are five; the rest reads as a checklist)")
     if HEADING_RE.search(text):
         out.append("section headings")
     words = len(text.split())
@@ -496,7 +499,7 @@ def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[s
                f"{op['sender_name'].split()[0]} with {op['company']}. We went through the numbers on {p['street']} and I am sending our offer over.")
     reason = (v.get("offer_reason") or "").strip() or "It reflects what similar properties nearby have sold for and the work this one needs."
     body = (f"Hey {first},\n\n{opening} I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\n"
-            + terms_sentences(cfg, v["offer"], p, over)
+            + "Our offer:\n\n" + "\n".join(offer_terms(cfg, v["offer"], p, over))
             + f"\n\nI know that is under the asking price. {reason}\n\nLet me know what the seller thinks. I am happy to get on a call "
               "if that is easier.\n\n" + signature(cfg))
     return {"subject": f"Offer on {p['street']}", "body": body}
@@ -515,7 +518,7 @@ def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v:
                if sent_before else
                f"First paragraph: \"{sender} with {op['company']}.\" then that we went through the numbers on the street and are sending "
                "our offer, and that Rodrigo, our acquisitions manager, is copied because he approved the numbers.")
-    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms=terms_sentences(cfg, v["offer"], p, over))
+    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms="\n".join(offer_terms(cfg, v["offer"], p, over)))
     user = json.dumps({"agent_first_name": first_name(agent.get("name")), "street": p.get("street"), "city": p.get("city"),
                        "asking_price": p.get("list_price"), "offer_price": v["offer"], "offer_reason": v.get("offer_reason"),
                        "thread": thread or [], "signature_block": signature(cfg),
@@ -626,6 +629,62 @@ def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: d
         pass
     return (f"The offer email at {money(price)} is drafted. {where}" + (", Cc you" if cc and not sent_before else "")
             + f". Nothing sends until you drag the card to Approved. {change} {read}").strip()
+
+
+# ---------- the card shows the bottom line ----------
+
+LINE_RE = re.compile(r"Offer \$([\d,]+)\.(?: Do not go over \$([\d,]+)\.)?")
+ASK_RE = re.compile(r"Asking \$([\d,]+)\.")
+
+
+def latest(conn, property_id: int) -> dict[str, Any] | None:
+    try:
+        return db.row_to_dict(conn.execute("SELECT * FROM verdicts WHERE property_id=? ORDER BY id DESC LIMIT 1", (property_id,)).fetchone())
+    except Exception:  # noqa: BLE001 — a database from before this table
+        return None
+
+
+def learn_from_comments(conn, card: dict[str, Any], gid: str, comments: list[dict[str, Any]]) -> bool:
+    """A 🏁 BOTTOM LINE comment written by hand (a Claude session on the card) is stored like the engine's own, so the card's
+    numbers section shows it (Zaira Zavala, 2026-11-19: "the card there is the same as the older one was"). True when stored."""
+    text = next((c.get("text") or "" for c in reversed(comments or []) if f"{MARK} {TITLE}" in (c.get("text") or "")), "")
+    m = LINE_RE.search(text)
+    if not m or not card.get("outreach_id"):
+        return False
+    from .comment_router import card_props
+    props = card_props(conn, card["outreach_id"])
+    if len(props) != 1:
+        return False
+    offer = int(m.group(1).replace(",", ""))
+    top = int((m.group(2) or m.group(1)).replace(",", ""))
+    have = latest(conn, props[0]["id"])
+    if have and have.get("offer") == offer and have.get("max_price") == top:
+        return False
+    a = ASK_RE.search(text)
+    conn.execute("INSERT INTO verdicts(property_id,outreach_id,card_gid,list_price,as_is_low,as_is_high,arv_low,arv_high,repairs,offer,max_price,"
+                 "confidence,source,body,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                 (props[0]["id"], card["outreach_id"], gid, int(a.group(1).replace(",", "")) if a else props[0].get("list_price"), 0, 0, 0, 0, 0,
+                  offer, top, None, "card", "{}", db.iso()))
+    return True
+
+
+def card_lines(conn, p: dict[str, Any]) -> list[str]:
+    """The numbers section of the house card once a bottom line exists: the price to be at, first and bold; the engine's older
+    screen numbers are named as replaced, not shown as the answer."""
+    v = latest(conn, p["id"]) if conn is not None and p.get("id") else None
+    if not v or not v.get("offer"):
+        return []
+    lp = int(v.get("list_price") or p.get("list_price") or 0)
+    gap = f" · {money(lp - v['offer'])} ({round((lp - v['offer']) / lp * 100)}%) under asking" if lp and lp > v["offer"] else ""
+    out = [f"<li><strong>BOTTOM LINE: offer {_e(money(v['offer']))}</strong>"
+           + (f" · do not go over {_e(money(v['max_price']))}" if (v.get("max_price") or 0) > v["offer"] else "") + f"{_e(gap)}</li>"]
+    if v.get("as_is_high"):
+        out.append(f"<li>Worth as it sits: about {_e(money(v.get('as_is_low') or v['as_is_high']))} to {_e(money(v['as_is_high']))}</li>")
+    if v.get("arv_high"):
+        out.append(f"<li>Resale after the work: about {_e(money(v['arv_high']))}" + (f" · work about {_e(money(v['repairs']))}" if v.get("repairs") else "") + "</li>")
+    out.append(f"<li>From the bottom line of {_e(str(v.get('created_at') or '')[:10])} (the pinned comment has the why). "
+               "It replaces the engine's first screen numbers.</li>")
+    return out
 
 
 # ---------- the one call the numbers flow makes ----------

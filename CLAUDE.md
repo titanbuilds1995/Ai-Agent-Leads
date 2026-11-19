@@ -713,12 +713,28 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   wrote (this supersedes the Lise "terms as a short list"). `verdict.form_letter()` names what reads like a form; the offer writer is
   rejected on it, and a dictated email that trips it still goes on the card (his words) but with a bold warning. Rule + before/after in
   `docs/style/HUMAN_EMAIL.md` → "Offers and long emails". Not built: a richer signature / footer (waiting on his answer).
+  **CORRECTION, same day: the terms ARE bullet points (Rodrigo: "each term needs to be a set bullet point, not how we have it now")**.
+  I had read his "Bullet points." as a complaint and made offers prose; he meant he wants them. Every drafted offer: conversational
+  opening, "Our offer:", then five "•" bullets, one term each (price / as is / inspection / escrow / closing; `verdict.offer_terms`),
+  the paragraph that owns the number, the closing line. Still no headings, no document checklist, no other list (`form_letter` allows
+  up to six bullets). **The card shows the price**: once a bottom line exists (the engine's, or a 🏁 comment written by hand, read by
+  `verdict.learn_from_comments`), THE NUMBERS on the card starts "BOTTOM LINE: offer $X · do not go over $Y · $ and % under asking"
+  and the engine's first ARV / MAO are no longer shown beside it (`verdict.card_lines`, `house_card._numbers`; Zaira Zavala: "the card
+  there is the same as the older one was"). "final analysis" / "clear conclusion" / "the price we need to be at" now count as a
+  numbers ask, so they get the bottom line and not another long read.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~4:50pm ET, RESUME HERE: offers use BULLET terms (I had made them prose by mistake); the card's numbers section shows
+  the bottom line (Decisions → The bottom line, CORRECTION paragraph). 9 tests in test_verdict; suite passes except the same 3. By hand:
+  **Zaira Zavala** (890 E 52nd St) pinned 🏁 bottom line (offer $260,000, ceiling $275,000, $135,000 / 34% under $395,000; depends on
+  the house being frame, unverified) + offer email posted as "Answer with: …" for the Mac to put on the card; the contact guard will hold
+  it until he says "send anyway" (she already answered). **Arkeshia's $275,000 offer was SENT 3:47pm ET** (list terms, no bullet marks).
+  **Tamara Mason**: her agent rejected $250,000; he dictated "$260,000 might be the most we can do …" and dragged the card to Approved at
+  4:33pm ET: watch what actually went out. **Denise**: bullet version re-posted. Footer still waiting on his answer.
 - 2026-11-19 ~3:45pm ET, RESUME HERE: Rodrigo called Denise's offer email "an AI email". Rewritten short and human and re-posted on her
   card as "Answer with: …" (the Mac's next round replaces the NEXT EMAIL; stays in Needs Me). Offers are prose from now on (Decisions →
   The bottom line, last paragraph); Tamara's and Arkeshia's card offers rewritten the same way by hand. 8 tests in test_verdict; suite

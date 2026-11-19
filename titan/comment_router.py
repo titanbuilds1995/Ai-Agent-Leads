@@ -26,7 +26,9 @@ NUMBERS_RE = re.compile(
     r"\bcomps?\b|\bcomp(?:ed|ing)?\s+(?:it|this|that)|comparab|\barv\b|after[- ]?re?pair|resale value|what (?:it|this|we|they|homes?|"
     r"houses?|properties|products?)[\w ]{0,20}(?:could|would|can|are)\s+(?:re)?sell|sell (?:it )?for\b|land value|for (?:the )?land\b|"
     r"new construction|new build|run (?:the )?numbers|numbers (?:look|on)|what the numbers|cash ?flow|cash cow|subfloor|"
-    r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|\bexit\b", re.I)
+    r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|\bexit\b|"
+    # Zaira Zavala, 2026-11-19: "I need a final analysis … a clear conclusion on the price we need to be at" got another long read, no bottom line
+    r"final analysis|bottom line|clear conclusion|conclusion on the price|(?:price|number) we (?:need|should|have) to be|what (?:price|number) (?:do|should) we", re.I)
 SEND_RE = re.compile(
     r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|"
     r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)\b|^\s*(?:ok(?:ay)?,? )?approved?[.! ]*$", re.I)

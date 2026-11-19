@@ -737,6 +737,11 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         if not card or not _sent_lead(card):
             continue
         feedback, comments = pending_feedback(asana, t["gid"])
+        try:      # a bottom line written on the card by hand is stored, so the card's numbers section shows it (Zaira, 2026-11-19)
+            from .verdict import learn_from_comments
+            learn_from_comments(conn, card, t["gid"], comments)
+        except Exception as e:  # noqa: BLE001
+            log.warning("bottom line on card %s not read: %s", t["gid"], e)
         if not feedback:
             continue                      # lead_board keeps it in Needs Me / Answered
         try:
@@ -754,6 +759,11 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         if _add_phone(conn, asana, t, card):
             n["phones_added"] += 1
         feedback, comments = pending_feedback(asana, t["gid"])
+        try:      # a bottom line written on the card by hand is stored, so the card's numbers section shows it (Zaira, 2026-11-19)
+            from .verdict import learn_from_comments
+            learn_from_comments(conn, card, t["gid"], comments)
+        except Exception as e:  # noqa: BLE001
+            log.warning("bottom line on card %s not read: %s", t["gid"], e)
         if not feedback:
             if where == nr:
                 last = (comments[-1].get("text") or "") if comments else ""

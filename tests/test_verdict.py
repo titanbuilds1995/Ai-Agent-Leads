@@ -11,9 +11,9 @@ from tests.test_comment_router import _setup
 
 ASK = "give me the comps for this property, it really needs a full rehab and I think the price is way too high"
 OFFER_BODY = ("Hey Richard,\n\nCharles with Titan Realty Investments. We went through the numbers on the property and I am sending our offer "
-              "over. I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer is $255,000, cash. We would take "
-              "the property as is, put down a $5,000 escrow deposit and close in 30 days, or longer if that works better for the seller. We "
-              "would need a 15 day inspection period.\n\nI know that is under the asking price. Two similar homes nearby sold for $300,000 and "
+              "over. I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer:\n\n• Price: $255,000, cash\n"
+              "• As is, no repairs asked of the seller\n• 15 day inspection period\n• $5,000 escrow deposit\n• Close in 30 days, or longer if "
+              "that works better for the seller\n\nI know that is under the asking price. Two similar homes nearby sold for $300,000 and "
               "$330,000, and this one needs a full rehab before it can be lived in.\n\nLet me know what the seller thinks. I am happy to get "
               "on a call if that is easier.\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\n"
               "Office Line: +1 (561) 405 7379")
@@ -82,7 +82,7 @@ def test_bottom_line_is_last_and_the_offer_is_drafted_on_the_card(loaded, cfg, t
     assert "What was wrong in our numbers" in last and "Why it has not sold" in last and "Based on the sales" in last
     assert "⚖️ Second read" in last and "Nothing sends until you drag the card to Approved" in last
     card = parse_card(asana.tasks[gid]["notes"])
-    assert "Our offer is $255,000, cash" in card["body"] and card["cc"] == ["boss@example.com"] and "$" not in card["subject"]
+    assert "• Price: $255,000, cash" in card["body"] and "• 15 day inspection period" in card["body"] and card["cc"] == ["boss@example.com"] and "$" not in card["subject"]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me") and asana.where[gid] != _sections(cfg)["approved"]
     row = loaded.execute("SELECT body, variant, status FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()
     assert row["variant"] == "offer:verdict" and "$255,000" in row["body"] and row["status"] != "sent"
@@ -116,7 +116,7 @@ def test_his_number_becomes_the_offer(loaded, cfg, tmp_path, monkeypatch):
     assert verdict.asked_price(tamara) == 250000
     assert verdict.parse_terms(" ".join(tamara)) == {"inspection_days": 15, "close_days": 30, "deposit": 5000,
                                                      "close_note": ", or as soon as title is approved"}
-    assert verdict.offer_terms(cfg, 250000, {}, verdict.parse_terms(" ".join(tamara)))[-1] == "Close in 30 days, or as soon as title is approved"
+    assert verdict.offer_terms(cfg, 250000, {}, verdict.parse_terms(" ".join(tamara)))[-1] == "• Close in 30 days, or as soon as title is approved"
     assert verdict.asked_price(["Okay let's draft a $275k asking price, and write the same thing we write on all of them: 5k escrow, "
                                 "15 day inspection, cash close, same as the other ones."]) == 275000
     assert verdict.asked_price(["offer 250k, the ARV is 400k"]) is None            # two prices: not ours to guess
@@ -126,7 +126,7 @@ def test_his_number_becomes_the_offer(loaded, cfg, tmp_path, monkeypatch):
     n = sync_feedback(loaded, cfg, asana, llm)
     assert n.get("offers_drafted") == 1 and "verdict" not in llm.calls and "revise_email" not in llm.calls
     card = parse_card(asana.tasks[gid]["notes"])
-    assert "Our offer is $262,000, cash" in card["body"]
+    assert "• Price: $262,000, cash" in card["body"]
     assert "$38,000 (13%) under asking" in asana.stories[gid][-1]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
 
@@ -174,4 +174,22 @@ def test_a_form_letter_is_named_and_an_offer_never_looks_like_one(cfg):
     assert not verdict.form_letter(OFFER_BODY) and not verdict.offer_problems(OFFER_BODY, 255000, 300000)
     t = verdict.template_offer(cfg, {"name": "Tamara Mason"}, {"street": "455 NW 68th Ave", "city": "Plantation"},
                                {"offer": 250000, "offer_reason": ""}, False, verdict.parse_terms("15 day inspection, 30 day closing or as soon as the title is approved"))
-    assert not verdict.form_letter(t["body"]) and "close in 30 days, or as soon as title is approved" in t["body"]
+    assert not verdict.form_letter(t["body"]) and "• Close in 30 days, or as soon as title is approved" in t["body"]
+    assert t["body"].count("•") == 5                                   # each term its own bullet (Rodrigo, 2026-11-19)
+
+
+def test_card_shows_the_bottom_line_and_a_conclusion_ask_triggers_it(loaded, cfg, tmp_path, monkeypatch):
+    """Zaira Zavala, 2026-11-19: "I need a final analysis ... a clear conclusion on the price we need to be at" got another long read, and
+    the card kept showing the engine's old ARV / MAO."""
+    from titan.comment_router import classify
+    from titan import house_card
+    assert "numbers" in classify(["Hey I need a final analysis on this property, you did not give me something clear conclusion on the "
+                                  "price we need to be at for this deal."])
+    asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "")
+    card = parse_card(asana.tasks[gid]["notes"])
+    hand = [{"text": "🤖 🏁 BOTTOM LINE · 890 E 52nd St, Hialeah\n\nAsking $395,000. Offer $260,000. Do not go over $275,000. That is ..."}]
+    assert verdict.learn_from_comments(loaded, card, gid, hand) and not verdict.learn_from_comments(loaded, card, gid, hand)   # stored once
+    _, _, props = house_card.load(loaded, card["outreach_id"])
+    lines = " ".join(house_card._numbers(props[0]))
+    assert "BOTTOM LINE: offer $260,000" in lines and "do not go over $275,000" in lines and "$135,000 (34%) under asking" in lines
+    assert "Internal MAO" not in lines

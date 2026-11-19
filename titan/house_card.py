@@ -101,6 +101,9 @@ def listing_line(p: dict[str, Any]) -> str:
 def _numbers(p: dict[str, Any]) -> list[str]:
     lp, arv, mao = p.get("list_price"), p.get("arv"), p.get("mao")
     out = []
+    if p.get("bottom_line"):         # the last reader's price (titan/verdict.py) is the answer; the screen numbers are not shown beside it
+        ask = f"<li><strong>Asking {_e(_money(lp))}</strong>" + (f" · ${lp / p['sqft']:,.0f}/sf" if lp and p.get("sqft") else "") + "</li>"
+        return [ask, *p["bottom_line"]]
     ask = f"<li><strong>Asking {_e(_money(lp))}</strong>"
     if lp and p.get("sqft"):
         ask += f" · ${lp / p['sqft']:,.0f}/sf"
@@ -266,6 +269,9 @@ def load(conn, outreach_id: int) -> tuple[dict[str, Any] | None, dict[str, Any],
         f"FROM properties p LEFT JOIN valuations v ON v.property_id=p.id WHERE p.id IN ({','.join('?' * len(pids)) or 'NULL'})", pids)]
     order = {pid: i for i, pid in enumerate(pids)}
     props.sort(key=lambda p: order.get(p["id"], 99))
+    from .verdict import card_lines
+    for p in props:
+        p["bottom_line"] = card_lines(conn, p)
     return row, agent, props
 
 

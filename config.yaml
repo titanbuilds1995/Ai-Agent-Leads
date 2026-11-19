@@ -379,6 +379,24 @@ condition:
     RENOVATED: ["high", "medium"]
     GOOD_SHAPE: ["high"]
 
+verdict:
+  # THE BOTTOM LINE (Rodrigo, 2026-11-19, Arkeshia Love: "another layer, another model ... a last and final paragraph, bolded ... what
+  # price we need to get it at and what's the difference"; titan/verdict.py). After the NUMBERS snapshot and Claude's read, a last
+  # reader settles them: what was wrong in our numbers, why it has not sold, what it is worth, the offer, the gap to asking; then the
+  # offer email at that price is drafted on the same card (Needs Me; nothing sends until he drags it to Approved).
+  enabled: true
+  sitting_days: 45                 # listed this long without selling = the asking price is not the value
+  sitting_discount_pct: 3          # on a sitting listing no number of ours is closer than this to the asking price
+  full_rehab_per_sf: 60            # rules-only fallback when he says "full rehab" and Claude is unreachable
+  photos: true                     # Claude looks at the listing's photos for the work it needs (one paid call, a few cents, once per house)
+  photos_per_house: 12
+  draft_offer: true                # false = the bottom line only, no offer email on the card
+  cc_rodrigo: true                 # offers Cc REPORT_TO (the Lise model)
+  offer_terms:                     # his written-offer terms (2026-10-26)
+    close_days: 30
+    inspection_days: 9
+    deposit: 5000
+
 learning_loop:
   # DAILY LEARNING LOOP for the house pipeline (Rodrigo, 2026-11-12; titan/learn_loop.py; run-daily step "learn", `make learn-loop`).
   # Reads every first email with what happened to it (approved as written / changed / skipped / deleted, answered or not, offered on),

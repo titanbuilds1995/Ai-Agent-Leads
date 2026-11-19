@@ -315,6 +315,10 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
     """Do what the comment asks (titan/comment_router.py). True = handled, no rewrite. A list = the agent's listings,
     to put in front of the rewrite (he asked to double-check one). None = plain rewrite."""
     from . import comment_router as cr
+    from . import verdict
+    if verdict.offer_comment(conn, cfg, asana, llm, t["gid"], card, feedback):     # "offer 290k": his number, the offer email on this card
+        n["offers_drafted"] = n.get("offers_drafted", 0) + 1
+        return True
     want = cr.classify(feedback)
     a = _cfg(cfg)
     nm = needs_me_section(cfg, asana)
@@ -322,7 +326,8 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
         n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
     if "numbers" in want:
         try:
-            posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache))
+            snaps: list = []
+            posted = cr.numbers_snapshot(conn, cfg, asana, t["gid"], card, feedback, _comps_fn(cfg, conn, comps_cache), keep=snaps)
         except Exception as e:  # noqa: BLE001 — say it once, keep the feedback pending (a Held comment does not consume it)
             log.exception("numbers snapshot for card %s: %s", t["gid"], e)
             last = (asana.comments(t["gid"]) or [{}])[-1].get("text") or ""
@@ -334,14 +339,18 @@ def route_comment(conn, cfg: Any, asana: Asana, t: dict[str, Any], where: str, c
             return True
         n["numbers"] += posted
         from . import card_chat
+        chat = None
         if card_chat.is_question(feedback):   # Rodrigo, 2026-10-27 (David Carlton): "give me an analysis and feedback", not just a table
             try:
-                card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(t["gid"]))
+                chat = card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(t["gid"]))
             except Exception as e:  # noqa: BLE001
                 log.warning("card chat after numbers on %s: %s", t["gid"], e)
         asana.comment(t["gid"], f"{NUMBERS_HELD}. Moved to Needs Me: nothing sends from there. "
-                                "Comment what to send, or drag the card to Approved to send it as written."
+                                "The bottom line (what it is worth, the offer, the gap to asking) is the next comment."
                       + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
+        # Rodrigo, 2026-11-19 (Arkeshia Love): a last reader settles the numbers into ONE bold conclusion + the offer email, last on the card
+        n["verdicts"] = n.get("verdicts", 0) + verdict.after_numbers(conn, cfg, asana, llm, t["gid"], card, snaps, feedback,
+                                                                     (chat or {}).get("answer") or "")
         nm = needs_me_section(cfg, asana)
         if where != nm:
             asana.move(t["gid"], nm)
@@ -477,13 +486,20 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
     if ans and card.get("body") and _squash_text(card["body"]) != _squash_text(row.get("body") or ""):
         ans["body"] = card["body"]            # what the card says is what sends (he may have edited the lines himself)
     text = " ".join(feedback)
+    from . import verdict
+    if verdict.offer_comment(conn, cfg, asana, llm, gid, card, feedback):     # "offer 290k": his number becomes the NEXT EMAIL here
+        n["offers_drafted"] = n.get("offers_drafted", 0) + 1
+        if reply:
+            _hold_reply(asana, reply, a, nr, "the offer on the lead card is the answer now")
+        return
     want = cr.classify(feedback)
     question = card_chat.is_question(feedback)
     if "call" in want:
         n["calls"] += int(cr.call_card(conn, cfg, asana, card, feedback))
     if "numbers" in want:
         try:
-            posted = cr.numbers_snapshot(conn, cfg, asana, gid, card, feedback, _comps_fn(cfg, conn, comps_cache),
+            snaps: list = []
+            posted = cr.numbers_snapshot(conn, cfg, asana, gid, card, feedback, _comps_fn(cfg, conn, comps_cache), keep=snaps,
                                          tail="Internal numbers: nothing reaches the agent until you decide. "
                                               + ("The NEXT EMAIL on this card is untouched." if ans else
                                                  "Comment what Charles should answer and it becomes the NEXT EMAIL on this card."))
@@ -493,9 +509,11 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
             n["revise_failed"] += 1
             return
         n["numbers"] += posted
+        chat = None
         if question:      # "re-check these comps and give me a range": the table AND the read, here
             try:
-                if card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(gid), lead_card=True, say_failed=False):
+                chat = card_chat.answer(conn, cfg, asana, llm, t, card, feedback, asana.comments(gid), lead_card=True, say_failed=False)
+                if chat:
                     n["chat"] += 1
             except Exception as e:  # noqa: BLE001
                 log.warning("card chat after numbers on %s: %s", gid, e)
@@ -507,6 +525,9 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
                                     ". Comment what Charles should answer and it becomes the NEXT EMAIL on this card.")
                           + (" Lead marked hot and a call card is on your board for tomorrow." if "call" in want else ""))
             answers.hold(conn, cfg, asana, card["outreach_id"], gid) if ans else (asana.move(gid, nm) if where != nm else None)
+            # the last reader: one bold conclusion + the offer as the NEXT EMAIL (Rodrigo, 2026-11-19); last on the card
+            n["verdicts"] = n.get("verdicts", 0) + verdict.after_numbers(conn, cfg, asana, llm, gid, card, snaps, feedback,
+                                                                         (chat or {}).get("answer") or "")
             return
     # the email in his own words → it IS the next email on this card
     d = answers.dictation(feedback)
@@ -1059,6 +1080,8 @@ def rewrite_pending(conn, cfg: Any, asana: Asana, llm, only_old_style: bool = Tr
     for row in rows:
         if limit is not None and n["rewritten"] + n["failed"] >= limit:
             break
+        if (row.get("variant") or "").startswith("offer"):      # an offer email drafted from the bottom line: never regenerated
+            continue
         if violating_only:
             body_now = row.get("body") or ""
             props_now = _props_for(conn, row)

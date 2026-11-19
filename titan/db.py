@@ -220,6 +220,13 @@ CREATE TABLE IF NOT EXISTS backup_leads (
 CREATE TABLE IF NOT EXISTS condition_checks (   -- 2026-11-18: Claude looked at the listing photos (condition.py)
   property_id INTEGER PRIMARY KEY, verdict TEXT, confidence TEXT, reason TEXT, source TEXT, photos_seen INTEGER,
   checked_at TEXT NOT NULL, acted_at TEXT, kept_at TEXT, prev_status TEXT);
+CREATE TABLE IF NOT EXISTS photo_reads (   -- 2026-11-19: what the listing photos say about the work, read on a numbers ask (verdict.py)
+  property_id INTEGER PRIMARY KEY, level TEXT, repairs_low INTEGER, repairs_high INTEGER, seen TEXT, not_shown TEXT, summary TEXT,
+  photos_seen INTEGER, read_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS verdicts (   -- 2026-11-19: the bottom line posted after a numbers snapshot (verdict.py)
+  id INTEGER PRIMARY KEY, property_id INTEGER, outreach_id INTEGER, card_gid TEXT, list_price INTEGER, as_is_low INTEGER, as_is_high INTEGER,
+  arv_low INTEGER, arv_high INTEGER, repairs INTEGER, offer INTEGER, max_price INTEGER, confidence TEXT, source TEXT, body TEXT,
+  created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS product_keeps (   -- 2026-11-18: 55+ / townhouse he put back on the board (product_clean.py)
   property_id INTEGER PRIMARY KEY, kept_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS status_checks (property_id INTEGER PRIMARY KEY, status TEXT, checked_at TEXT NOT NULL);

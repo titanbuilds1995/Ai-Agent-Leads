@@ -171,7 +171,7 @@ def agent_listings(conn, outreach_id: int) -> list[str]:
 
 
 def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any], feedback: list[str], comps_fn,
-                     tail: str | None = None) -> int:
+                     tail: str | None = None, keep: list | None = None) -> int:
     """Build the snapshot for each house asked about and post it as a comment on the card he asked on (no new card anywhere);
     save the text under reports/comps/. Returns how many were posted."""
     from . import comps_report
@@ -189,6 +189,8 @@ def numbers_snapshot(conn, cfg: Any, asana, card_gid: str, card: dict[str, Any],
         slug = re.sub(r"[^a-z0-9]+", "-", f"{p['street']} {p['city']}".lower()).strip("-")
         (out_dir / f"{slug}.md").write_text(comps_report.to_text(s))
         asana.comment_html(card_gid, comps_report.to_comment(s, tail))
+    if keep is not None:          # the bottom line (titan/verdict.py) reads the same snapshots
+        keep.extend(snaps)
     return len(snaps)
 
 

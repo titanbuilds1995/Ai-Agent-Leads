@@ -680,12 +680,37 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   sends no pass when Rodrigo's card comment says stop / he takes it (`closeout.HIS_STOP_RE`) or the broker said stop (address added to
   do-not-contact; the blast skips do-not-contact); and a rules-only read (Claude unreachable) never decides a pass on its own (Tyler Sluman,
   6805 33rd St E Sarasota, offered $3.65M net / 8 cap once leased and got a rules-only NOT A FIT + "congrats").
+- **The bottom line: a last reader settles the numbers, then the offer is drafted (Rodrigo, 2026-11-19, Arkeshia Love / 4108 Greenwood
+  Ave: "we need to add another layer, another model … what is the fault in our logic … why isn't the property selling at the price that it
+  currently has … a last and final paragraph, bolded … all I need is a conclusion and what price we need to get it at and what's the
+  difference … if I'm asking you for a number on this board it's because I want us to draft an email with an offer out at that price")**:
+  `titan/verdict.py`, config `verdict:`, tables `verdicts` / `photo_reads`. The engine had said "we need to be at $521,000, the ask is
+  fine" on a duplex nobody bought at $372,900 in 228 days. Now, after the NUMBERS snapshot and the 💬 read, a THIRD Claude call (purpose
+  `verdict`, paid API) gets his comment, the snapshot, the comps, the 💬 read, the photo read and the rules' findings (`market_test`: a
+  house that sat `sitting_days` 45+ at a price is not worth that price; $/sf spread; comps bigger than the house; ARV off the top half;
+  borrowed ratio; "full rehab" against a light repair tier) and posts ONE comment, last on the card: "🏁 BOTTOM LINE" in bold: asking,
+  worth as it sits, offer, ceiling, $ and % under asking, the conclusion paragraph, what was wrong in our numbers, why it has not sold.
+  `settle()` holds every number under the asking price on a sitting listing whatever the model says. **Photos**: on the ask Claude looks
+  at up to 12 listing photos for the work it needs (`photo_read`, one paid call, once per house, Mac only; not loading = goes on without).
+  **Offer email**: at the bottom-line price, Lise model (terms list: cash, as is, 9-day inspection, $5k deposit, 30-day close; a
+  paragraph that owns the number; Cc Rodrigo; nothing attached), second-read, on the SAME card: an unsent first email is replaced
+  (variant `offer:verdict`, never regenerated, never autopilot), a lead in conversation gets it as NEXT EMAIL (a waiting answer is not
+  overwritten). Always Needs Me: only his drag to Approved sends. **"offer 290k"** as a comment (the number alone) drafts the offer at HIS
+  number on that card (`offer_comment`; replaces a waiting draft). Claude unreachable → rules-only bottom line (marked), no offer email.
+  This replaces "a number reaches an agent only through approve-offer": the number still only goes when he drags the card.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~3pm ET, RESUME HERE: **bottom line + offer draft built** (Decisions → The bottom line). Tested on fixtures only (5
+  tests; suite passes except the same 3 that need packages the cloud lacks); NEVER run live (no database or API key in the cloud). First
+  real run: his next "comps" / "numbers" comment on a card after the Mac pulls. Watch: the 🏁 comment is the last one, the offer lands on
+  the card in Needs Me, the photo line shows (photos load on the Mac only). **Arkeshia Love (4108 Greenwood Ave) done by hand from the
+  cloud**: pinned 🏁 comment (offer $275,000, ceiling $295,000, $97,900 / 26% under the $372,900 ask) and the offer email is on her card
+  in Needs Me (Cc Rodrigo); the Mac's database still holds the old question email for outreach #174, the card text is what sends.
+  Open: he checks 523 48th St on the MLS (sold fixed up or as is?) before sending; the $100k rehab is an estimate.
 - 2026-11-18 ~7pm ET (Mac), RESUME HERE: **first live run of the 55+ / townhouse clean-up and the photo check, done.**
   `make product-clean`: 4,282 houses ruled out (3,227 typed townhouse), 43 cards to Skip, 4 cards kept with a note (other house
   fine), 1 kept because the agent answered (Denise Gilbert, 275 Jacaranda Dr, townhouse, Needs Revision). `make condition-check

@@ -722,12 +722,23 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   and the engine's first ARV / MAO are no longer shown beside it (`verdict.card_lines`, `house_card._numbers`; Zaira Zavala: "the card
   there is the same as the older one was"). "final analysis" / "clear conclusion" / "the price we need to be at" now count as a
   numbers ask, so they get the bottom line and not another long read.
+- **Approved + a comment = rewrite, logic proof, send (Rodrigo, 2026-11-19: "I don't want to have to approve again the message after
+  I've already said the changes … rewrite it, logic proof it … once that is approved, then we can send it")**: a card he dragged to
+  Approved and then commented on (all his comments since the engine's last one are read) is held, rewritten from the comment, and the
+  rewrite is read by the second reader (`approvals.proofread`, first emails too; a FIX goes back to the writer). Reader says SEND → the
+  card goes back to Approved and out in the same round, no second drag. Reader objects / HOLD / unreachable → Needs Me with a bold
+  "Not sent" line. Same on a lead card in conversation (NEXT EMAIL). Still his look: a comment saying don't send / hold / wait /
+  tomorrow / later (`NO_SEND_RE`), a question, a numbers ask, and an offer at a price (offer drafts always land in Needs Me). This
+  supersedes "the rewrite lands in Needs Me" for cards that were in Approved; a comment on a card NOT in Approved works as before.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~5:30pm ET, RESUME HERE: **approved + comment now rewrites, is second-read, and sends** (Decisions → Approved + a
+  comment). Tested on fixtures (test_approvals; suite passes except the same 3). Not run live: the Mac picks it up on its next pull.
+  Watch the first card he approves and comments on: "Held …", then "Revised … already approved … ⚖️ Second read: agrees", then 📤 Sent.
 - 2026-11-19 ~4:50pm ET, RESUME HERE: offers use BULLET terms (I had made them prose by mistake); the card's numbers section shows
   the bottom line (Decisions → The bottom line, CORRECTION paragraph). 9 tests in test_verdict; suite passes except the same 3. By hand:
   **Zaira Zavala** (890 E 52nd St) pinned 🏁 bottom line (offer $260,000, ceiling $275,000, $135,000 / 34% under $395,000; depends on

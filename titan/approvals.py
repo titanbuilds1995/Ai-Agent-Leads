@@ -619,6 +619,7 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         return
     # a change to the answer: rewrite the one on this card, or write it from the conversation when none is drafted yet
     go = "send_after" in want or (answers.wants_send(text) and not question)
+    drag = where == a["approved"] and not go and not question and not NO_SEND_RE.search(text)   # approved, then commented
     agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row.get("agent_id"),)).fetchone()) or {}
     props = _props_for(conn, row)
     if ans:
@@ -653,7 +654,9 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         if where != nm:
             asana.move(gid, nm)
         return
-    answers.set_answer(conn, cfg, asana, card["outreach_id"], body, note="From your comment on this card", approved=go, quiet=True)
+    from . import second_read as _sr
+    cleared = drag and _sr.passed(second)          # Rodrigo, 2026-11-19: approved + comment = rewrite, logic proof, send
+    answers.set_answer(conn, cfg, asana, card["outreach_id"], body, note="From your comment on this card", approved=go or cleared, quiet=True)
     from .learning import record_lesson
     try:
         record_lesson(conn, "reply", text, card["outreach_id"], gid, (ans or {}).get("body") or "", body)
@@ -665,9 +668,63 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
     asana.comment(gid, ("Revised based on your comment: the NEXT EMAIL on this card (picture attached). " if ans else
                         "Wrote Charles's answer from your comment: it is the NEXT EMAIL on this card (picture attached). ")
                   + ("You said send it: it is in Approved and goes out at the next send round." if go else
+                     "You had already approved this card, so it stays in Approved and goes out at the next send round. Drag it to "
+                     "Needs Me to stop it." if cleared else NOT_CLEARED if drag else
                      "Moved to Needs Me: drag this card to Approved to send it, or comment more changes.")
                   + _second_line(second, go))
     n["revised"] += 1
+
+
+# Approved + a comment (Rodrigo, 2026-11-19: "I don't want to have to approve again the message after I've already said the
+# changes that need to be made ... rewrite it, logic proof it ... once that is approved, then we can send it"). A card he dragged
+# to Approved and then commented on is rewritten, read by the second reader, and goes out without a second drag when the reader
+# clears it. Not cleared (objects / HOLD / unreachable) → Needs Me. A comment that says not to send keeps his look.
+HELD_APPROVED = "Held: you left a comment after approving"
+NO_SEND_RE = re.compile(HOLD_WORDS_RE.pattern + r"|\b(?:not approved|tomorrow|later|before (?:we|you|it) sends?|let me (?:see|look|read))\b|[❌🛑🚫✋👎]", re.I)
+NOT_CLEARED = "**Not sent: the second reader did not clear it, so it is in Needs Me.** Drag it to Approved to send it anyway, or comment what to change."
+
+
+def approved_then_commented(comments: list[dict[str, Any]]) -> bool:
+    """True when the comment being handled was written on a card that sat in Approved (send_approved held it for this rewrite)."""
+    for c in reversed(comments or []):
+        tx = c.get("text") or ""
+        if tx.startswith(f"{BOT} {HELD_APPROVED}"):
+            return True
+        if tx.startswith(BOT) and not tx.startswith((f"{BOT} {FAILED_PREFIX}", f"{BOT} Held:", f"{BOT} {PROMPT_PREFIX}")):
+            return False
+    return False
+
+
+def proofread(conn, cfg: Any, llm, card: dict[str, Any], out: dict[str, Any], feedback: list[str], props: list[dict[str, Any]],
+              is_reply: bool, routed: list[str] | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """The second reader on a card rewrite that is about to go out without another look from Rodrigo: it reads the thread (empty
+    for a first email), the listing facts, his comment and the rewrite; a FIX goes back to the writer. (email, review)."""
+    from . import second_read
+    if not second_read.enabled(cfg):
+        return out, None
+    latest = dict(out)
+    try:
+        from .replies.writer import reader_case
+        row = db.row_to_dict(conn.execute("SELECT * FROM outreach WHERE id=?", (card["outreach_id"],)).fetchone()) or {}
+        agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (row.get("agent_id"),)).fetchone()) or {}
+        case = reader_case(conn, row, agent, props, instruction=" ".join(feedback))
+        if not is_reply:
+            case["note"] = ("This is the FIRST email to this agent: an empty thread is expected. Check that it does what Rodrigo's "
+                            "comment asked and that every fact in it is in the listing facts.")
+
+        def again(pushback: list[str]) -> str | None:
+            o, pr = revise(conn, cfg, llm, {**card, "subject": latest["subject"], "body": latest["body"]}, feedback + [
+                "A second reader checked this draft. Fix these logic problems and keep Rodrigo's change: " + " | ".join(pushback)],
+                props, is_reply=is_reply, routed=routed)
+            if o and not pr:
+                latest.update(subject=o["subject"], body=o["body"])
+                return o["body"]
+            return None
+        _, review = second_read.run(llm, cfg, case, out["body"], again)
+    except Exception as e:  # noqa: BLE001 — not read = not cleared
+        log.warning("second read of the rewrite on outreach %s: %s", card.get("outreach_id"), e)
+        return out, {"verdict": None, "problems": [], "why": "", "rounds": 0, "first": []}
+    return latest, review
 
 
 def _second_line(second: dict[str, Any] | None, go: bool) -> str:
@@ -797,6 +854,14 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             f"SELECT * FROM properties WHERE id IN ({','.join('?' * len(json.loads(row.get('property_ids') or '[]'))) or 'NULL'})",
             json.loads(row.get("property_ids") or "[]"))]
         out, problems = revise(conn, cfg, llm, card, feedback, props, is_reply=bool(card.get("reply_to")), routed=routed if isinstance(routed, list) else None)
+        from .comment_router import classify as _classify
+        from . import second_read as _sr
+        explicit = "send_after" in _classify(feedback)          # he said what to write AND "send it": his go-ahead for this rewrite
+        drag = not explicit and approved_then_commented(comments) and not NO_SEND_RE.search(" ".join(feedback))
+        second = None
+        if out and not problems and (explicit or drag):         # it is about to go without another look: the second reader first
+            out, second = proofread(conn, cfg, llm, card, out, feedback, props, bool(card.get("reply_to")),
+                                    routed if isinstance(routed, list) else None)
         if problems:
             last = (comments[-1].get("text") or "") if comments else ""
             if not last.startswith(f"{BOT} {FAILED_PREFIX}"):      # say it once; the feedback stays pending and is retried next tick
@@ -825,12 +890,15 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
         for f in feedback:
             if not (TEST_RE.search(f) and len(f.split()) <= 8):
                 record_lesson(conn, card_kind(t.get("notes") or ""), f, card["outreach_id"], t["gid"], card["body"], out["body"])
-        from .comment_router import classify as _classify
-        go = "send_after" in _classify(feedback)          # he said what to write AND "send it": his go-ahead for this rewrite
-        asana.comment(t["gid"], (f"Revised based on your comment (picture v{rev} attached). You said send it: moved to Approved, it goes "
-                                 f"out at the next send round (8:30am–5:30pm). Drag it to Needs Me to stop it." if go else
-                                 f"Revised based on your comment (picture v{rev} attached). Moved to Needs Me: drag to Approved when it's good.")
-                      + (f" Listings we have for this agent: {'; '.join(routed)}." if isinstance(routed, list) else ""))
+        cleared = drag and _sr.passed(second)             # approved, then commented: goes when the second reader clears it
+        go = explicit or cleared
+        asana.comment(t["gid"], f"Revised based on your comment (picture v{rev} attached). "
+                      + ("You said send it: moved to Approved, it goes out at the next send round. Drag it to Needs Me to stop it." if explicit else
+                         "You had already approved this card, so it is back in Approved and goes out at the next send round. Drag it "
+                         "to Needs Me to stop it." if cleared else NOT_CLEARED if drag else
+                         "Moved to Needs Me: drag to Approved when it's good.")
+                      + (f" Listings we have for this agent: {'; '.join(routed)}." if isinstance(routed, list) else "")
+                      + _second_line(second, explicit))
         if go:
             asana.move(t["gid"], a["approved"])
             n["rewritten_and_sent"] = n.get("rewritten_and_sent", 0) + 1
@@ -927,11 +995,12 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
     if held:
         res["held_for_feedback"] = len(held)
         for gid in held:
-            asana.comment(gid, "Held: you left a comment after approving, so this went to Needs Revision. Nothing sends from there. "
-                               "Your feedback is being applied; the card moves to Needs Me when the rewrite lands.")
+            asana.comment(gid, f"{HELD_APPROVED}, so the send waits while your change is applied. The rewrite is read by the "
+                               "second reader; when it clears, the card goes back to Approved and sends. If not, it lands in Needs Me.")
     if held or lead_cards:
         sync_feedback(conn, cfg, asana, llm, gmail)          # apply the comment now, not next tick
-        approved = [t for t in asana.section_tasks(a["approved"]) + _warm_approved() if not is_control(t) and t["gid"] not in {h for h in held}]
+        approved = [t for t in asana.section_tasks(a["approved"]) + _warm_approved() if not is_control(t)]
+        # a held card that is back in Approved was rewritten and cleared by the second reader (Rodrigo, 2026-11-19): it sends now
         # a lead card whose comment was a dictated "send it" is back in Approved with its NEXT EMAIL: it sends now
     if not approved or not in_window(cfg, now):
         return res

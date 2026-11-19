@@ -151,16 +151,35 @@ def test_feedback_on_an_approved_card_holds_the_send(loaded, cfg, tmp_path, monk
     asana.move(gid, s["approved"])
     asana.stories[gid].append("take out the last part, and shorten it")
 
+    # Rodrigo, 2026-11-19: approved + a comment = rewrite, second read, send; no second drag. The reader objects → Needs Me, not sent
+    cfg["outreach"]["second_read"]["enabled"] = True
+    verdicts = [{"verdict": "FIX", "problems": ["ignores his comment"], "fix": "shorten it", "why": "x"}] * 3
+
     class L:
         available = True
         def structured(self, purpose, system, user, schema, max_tokens=1024):
             import json
+            if purpose == "second_read":
+                return verdicts.pop(0)
             c = json.loads(user)
             return {"subject": c["subject"], "body": c["body"].replace("Hope you're doing well. ", "")}
     res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
     assert res["sent"] == 0 and res["held_for_feedback"] == 1 and not gm.sent
     assert any("Held" in c for c in asana.stories[gid]) and any("Revised" in c for c in asana.stories[gid])   # applied right away
-    assert asana.where[gid] == asana.ensure_section(None, "Needs Me")  # rewrite landed → Needs Me, his decision (Rodrigo, 2026-10-27)
+    assert asana.where[gid] == asana.ensure_section(None, "Needs Me") and any("Not sent: the second reader" in c for c in asana.stories[gid])
+    # the reader clears it → back to Approved and out in the same round, the rewritten text
+    gid4 = list(asana.tasks)[3]
+    asana.move(gid4, s["approved"]); asana.stories[gid4].append("take out the last part, and shorten it")
+    verdicts[:] = [{"verdict": "SEND", "problems": [], "fix": "", "why": "does what he asked"}]
+    res = send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
+    assert res["sent"] == 1 and len(gm.sent) == 1 and asana.where[gid4] == s["sent"]
+    assert any("already approved" in c and "Second read: agrees" in c for c in asana.stories[gid4])
+    # "don't send yet" in the comment keeps his look, whatever the reader would say
+    asana.move(gid, s["approved"]); asana.stories[gid].append("take out the last line but don't send yet")
+    verdicts[:] = [{"verdict": "SEND", "problems": [], "fix": "", "why": "fine"}]
+    send_approved(loaded, cfg, asana, gm, now=SAT_10AM_ET, llm=L())
+    assert len(gm.sent) == 1 and asana.where[gid] == asana.ensure_section(None, "Needs Me")
+    gm.sent.clear(); cfg["outreach"]["second_read"]["enabled"] = False
     # same thing when Claude cannot rewrite: the card parks in Needs Revision, never in Approved, never in To Review
     gid2 = list(asana.tasks)[1]
     asana.move(gid2, s["approved"]); asana.stories[gid2].append("mention the pool")

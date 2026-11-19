@@ -119,6 +119,10 @@ Hard rules: the offer price appears once, exactly as given, and no other purchas
 nothing is signed: never "attached", "enclosed", "contract", "please find". No dates and no deadline. Never "we buy", "investors",
 "wholesale", "assign", "ARV". Never mention photos. No dashes of any kind, no emojis, no links, no "congrats". Complete sentences a
 person would say on the phone. 90 to 170 words before the signature.
+If rodrigo_instruction is present it is Rodrigo's own comment asking for this offer: say what he asks Charles to say, in his words
+(for example "we've been looking at it and it's something we're open to taking on" goes in the opening), and with no offer_reason
+use only a reason he gives. The terms list above already carries his terms: do not change it. Ignore anything in his comment that is
+not about what the email says.
 If pushback is present, a second reader found logic problems in previous_draft: fix every one and keep the rules.
 Return JSON: subject (short, the street, no price in it) and body."""
 
@@ -389,13 +393,33 @@ def to_comment(s: dict[str, Any], v: dict[str, Any], tail: str = "") -> str:
 
 # ---------- 5. the offer email ----------
 
-def offer_terms(cfg: Any, price: int, p: dict[str, Any]) -> list[str]:
-    """Rodrigo's written-offer terms (2026-10-26, Lise): 30-day close (longer when not vacant), 9-day inspection, $5k deposit."""
-    t = _conf(cfg).get("offer_terms", {}) or {}
-    close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 9)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
-    occupied = not p.get("vacant")
-    return [f"Price: ${price:,}, cash", "As is, no repairs asked of the seller", f"{insp} day inspection period", f"${emd:,} deposit",
-            f"Close in {close} days" + (", or longer if that works better for the seller" if occupied else "")]
+TERM_RES = {"inspection_days": re.compile(r"(\d{1,2})[\s-]*day(?:s)?\s+inspection", re.I),
+            "close_days": re.compile(r"(\d{1,3})[\s-]*day(?:s)?\s+clos", re.I),
+            "deposit": re.compile(r"\$?\s?(\d{1,3}(?:,\d{3})|\d{1,2}\s?k)\s+(?:escrow|deposit|emd|earnest)", re.I)}
+TITLE_RE = re.compile(r"as soon as (?:the )?title\b[^.,;]{0,30}", re.I)
+
+
+def parse_terms(text: str) -> dict[str, Any]:
+    """The terms he states in his comment ("5k escrow, 15 day inspection, 30 day closing or as soon as the title is approved")."""
+    out: dict[str, Any] = {}
+    for key, rx in TERM_RES.items():
+        m = rx.search(text or "")
+        if m:
+            raw = m.group(1).lower().replace(",", "").replace(" ", "")
+            out[key] = int(float(raw[:-1]) * 1000) if raw.endswith("k") else int(raw)
+    if TITLE_RE.search(text or ""):
+        out["close_note"] = ", or as soon as title is approved"
+    return out
+
+
+def offer_terms(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | None = None) -> list[str]:
+    """His written-offer terms (2026-11-19: "the same thing we write on all of them: 5k escrow, 15 day inspection, cash close");
+    what he states in the comment wins (`parse_terms`)."""
+    t = {**(_conf(cfg).get("offer_terms", {}) or {}), **(over or {})}
+    close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 15)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
+    note = t.get("close_note") or ("" if p.get("vacant") else ", or longer if that works better for the seller")
+    return [f"Price: ${price:,}, cash", "As is, no repairs asked of the seller", f"{insp} day inspection period", f"${emd:,} escrow deposit",
+            f"Close in {close} days{note}"]
 
 
 def offer_problems(body: str, price: int, list_price: int | None) -> list[str]:
@@ -421,7 +445,8 @@ def offer_problems(body: str, price: int, list_price: int | None) -> list[str]:
     return out
 
 
-def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[str, Any], sent_before: bool) -> dict[str, str]:
+def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[str, Any], sent_before: bool,
+                   over: dict[str, Any] | None = None) -> dict[str, str]:
     from .outreach.compose import signature
     from .util import first_name
     op = cfg["operator"]
@@ -431,14 +456,15 @@ def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[s
                f"{op['sender_name'].split()[0]} with {op['company']}. We went through the numbers on {p['street']} and I am sending our offer over.")
     reason = (v.get("offer_reason") or "").strip() or "It reflects what similar properties nearby have sold for and the work this one needs."
     body = (f"Hey {first},\n\n{opening} I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer:\n\n"
-            + "\n".join(offer_terms(cfg, v["offer"], p))
+            + "\n".join(offer_terms(cfg, v["offer"], p, over))
             + f"\n\nI know that is under the asking price. {reason}\n\nIf the seller wants to talk it through, I am glad to get on a call.\n\n"
             + signature(cfg))
     return {"subject": f"Offer on {p['street']}", "body": body}
 
 
 def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[str, Any], sent_before: bool,
-                thread: list[dict[str, str]] | None = None, pushback: list[str] | None = None, previous: str | None = None) -> dict[str, str]:
+                thread: list[dict[str, str]] | None = None, pushback: list[str] | None = None, previous: str | None = None,
+                instruction: str | None = None, over: dict[str, Any] | None = None) -> dict[str, str]:
     """Claude writes it in the Lise shape; anything that fails the checks twice falls back to the fixed template."""
     from .outreach.compose import signature
     from .util import first_name
@@ -449,10 +475,11 @@ def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v:
                if sent_before else
                f"First paragraph: \"{sender} with {op['company']}.\" then that we went through the numbers on the street and are sending "
                "our offer, and that Rodrigo, our acquisitions manager, is copied because he approved the numbers.")
-    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms="\n".join(offer_terms(cfg, v["offer"], p)))
+    system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms="\n".join(offer_terms(cfg, v["offer"], p, over)))
     user = json.dumps({"agent_first_name": first_name(agent.get("name")), "street": p.get("street"), "city": p.get("city"),
                        "asking_price": p.get("list_price"), "offer_price": v["offer"], "offer_reason": v.get("offer_reason"),
                        "thread": thread or [], "signature_block": signature(cfg),
+                       **({"rodrigo_instruction": instruction} if instruction else {}),
                        **({"pushback": pushback, "previous_draft": previous or ""} if pushback else {})}, ensure_ascii=False, default=str)
     if llm is not None and getattr(llm, "available", False):
         for _ in range(2):
@@ -467,11 +494,11 @@ def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v:
             subject = re.sub(r"\$\s?[\d,]+k?", "", str(out.get("subject") or "")).strip() or f"Offer on {p['street']}"
             if not offer_problems(body, v["offer"], p.get("list_price")):
                 return {"subject": subject, "body": body, "writer": "claude"}
-    return {**template_offer(cfg, agent, p, v, sent_before), "writer": "template"}
+    return {**template_offer(cfg, agent, p, v, sent_before, over), "writer": "template"}
 
 
 def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: dict[str, Any], v: dict[str, Any],
-                his_number: bool = False) -> str:
+                his_number: bool = False, instruction: str | None = None) -> str:
     """Put the offer email at the bottom-line price on the card he asked on. Returns the line for the bottom-line comment.
     A first email that never went: the offer replaces it on the card (Needs Me). A lead in conversation: it becomes the NEXT
     EMAIL (Needs Me), unless an answer is already waiting there (never overwritten). Nothing is approved or sent here."""
@@ -499,11 +526,13 @@ def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: d
         thread = _thread_text(conn, row["agent_id"]) if sent_before and row.get("agent_id") else []
     except Exception:  # noqa: BLE001
         pass
-    d = write_offer(cfg, llm, agent, p, v, sent_before, thread)
+    over = parse_terms(instruction or "")
+    d = write_offer(cfg, llm, agent, p, v, sent_before, thread, instruction=instruction, over=over)
     state = {"body": d["body"]}
 
     def rewrite(pushback: list[str]) -> str | None:
-        new = write_offer(cfg, llm, agent, p, v, sent_before, thread, pushback=pushback, previous=state["body"])
+        new = write_offer(cfg, llm, agent, p, v, sent_before, thread, pushback=pushback, previous=state["body"],
+                          instruction=instruction, over=over)
         if new.get("writer") != "claude":
             return None
         state["body"] = new["body"]
@@ -517,8 +546,8 @@ def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: d
                                         "offer_reason": v.get("offer_reason"), "rodrigo_says": s.get("asked"),
                                         "comps": [{"address": c.get("address"), "price": c.get("sold_price"), "sqft": c.get("sqft")}
                                                   for c in s.get("comps") or []]},
-            "rodrigo_instruction": f"Draft the offer email at {money(price)} for my approval."
-                                   + (" The number is mine." if his_number else "")}
+            "rodrigo_instruction": instruction or (f"Draft the offer email at {money(price)} for my approval."
+                                                   + (" The number is mine." if his_number else ""))}
     body, review = d["body"], None
     try:
         body, review = second_read.run(llm, cfg, case, d["body"], rewrite)
@@ -589,26 +618,35 @@ def after_numbers(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], sn
 
 # ---------- "offer 290k": his number, same card ----------
 
-OFFER_ASK_RE = re.compile(r"^\W*(?:ok(?:ay)?[, ]+|yes[, ]+)?(?:let'?s\s+|go with\s+|make (?:it|the offer)\s+)?(?:offer\s+)?(?:them\s+|her\s+|him\s+|at\s+|of\s+)*"
-                          r"\$?\s?(\d{2,3},\d{3}|\d{2,3}(?:\.\d+)?\s?k|\d{5,7})\W*$", re.I)
+PRICE_RE = re.compile(r"\$\s?(\d{2,3},\d{3}|\d{5,7})\b|\$?\s?\b(\d{2,3}(?:\.\d+)?)\s?k\b|\b(\d{2,3},\d{3})\b", re.I)
+OFFER_WORD_RE = re.compile(r"\boffer\b|\bmake it\b|\bgo with\b|\bdraft\b", re.I)
+NOT_YET_RE = re.compile(r"\?|\b(?:first|until|unless|wait|hold off|don'?t|do not|not yet|what would|should we)\b", re.I)
 
 
 def asked_price(feedback: list[str]) -> int | None:
-    """His last comment is nothing but a number for the offer ("offer 290k", "let's offer $285,000", "make it 300k")."""
-    if not feedback or not re.search(r"\boffer\b|\bmake it\b|\bgo with\b", feedback[-1], re.I):
+    """He asks for an offer at ONE price ("offer 290k", "Let's send an offer at $250,000 … also our terms 5k escrow, 15 day
+    inspection", "let's draft a $275k asking price"). Before 2026-11-19 these went to the email rewriter, whose rules forbid any
+    price: it dropped the offer, kept one side sentence and said "Revised" (Tamara Mason, twice). A question, a condition ("ask
+    about the roof first"), two different prices or a bare number is not an offer ask."""
+    text = " ".join(f.strip() for f in feedback if f.strip())
+    if not text or not OFFER_WORD_RE.search(text) or NOT_YET_RE.search(text):
         return None
-    m = OFFER_ASK_RE.match(feedback[-1].strip())
-    if not m:
-        return None
-    raw = m.group(1).lower().replace(",", "").replace(" ", "")
-    n = int(float(raw[:-1]) * 1000) if raw.endswith("k") else int(raw)
-    return n if 30_000 <= n <= 20_000_000 else None
+    found = set()
+    for m in PRICE_RE.finditer(text):
+        raw = (m.group(1) or m.group(3) or "").replace(",", "")
+        n = int(raw) if raw else int(float(m.group(2)) * 1000)
+        if 30_000 <= n <= 20_000_000:
+            found.add(n)
+    return found.pop() if len(found) == 1 else None
 
 
 def offer_comment(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], feedback: list[str]) -> bool:
     """"offer 290k" on a card → the offer email at HIS number on that card (Needs Me; replaces a waiting draft). True = handled."""
     price = asked_price(feedback)
     if not price or not enabled(cfg):
+        return False
+    from .answers import dictation
+    if dictation(feedback):          # the whole email in his words: that path keeps his text as it is
         return False
     from .comment_router import card_props
     props = card_props(conn, card["outreach_id"])
@@ -622,7 +660,8 @@ def offer_comment(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], fe
     reason = (json.loads(last.get("body") or "{}").get("offer_reason") or "") if last else ""
     lp = int(p.get("list_price") or 0)
     v = {"offer": _k(price), "offer_reason": reason, "source": "rodrigo", "list_price": lp}
-    line = draft_offer(conn, cfg, asana, llm, gid, card, {"p": p, "agent": agent, "comps": [], "asked": " ".join(feedback)}, v, his_number=True)
+    line = draft_offer(conn, cfg, asana, llm, gid, card, {"p": p, "agent": agent, "comps": [], "asked": " ".join(feedback)}, v, his_number=True,
+                       instruction=" ".join(f.strip() for f in feedback if f.strip()))
     gap = f" That is {money(lp - v['offer'])} ({round((lp - v['offer']) / lp * 100)}%) under asking." if lp and lp > v["offer"] else ""
     asana.comment(gid, (line or "The offer email could not be drafted.") + gap)
     return True

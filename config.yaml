@@ -394,7 +394,7 @@ verdict:
   cc_rodrigo: true                 # offers Cc REPORT_TO (the Lise model)
   offer_terms:                     # his written-offer terms (2026-10-26)
     close_days: 30
-    inspection_days: 9
+    inspection_days: 15              # Rodrigo, 2026-11-19 (Arkeshia): "the same thing we write on all of them: 5k escrow, 15 day inspection, cash close"
     deposit: 5000
 
 learning_loop:

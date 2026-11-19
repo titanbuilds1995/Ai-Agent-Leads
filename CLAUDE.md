@@ -698,12 +698,26 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   overwritten). Always Needs Me: only his drag to Approved sends. **"offer 290k"** as a comment (the number alone) drafts the offer at HIS
   number on that card (`offer_comment`; replaces a waiting draft). Claude unreachable → rules-only bottom line (marked), no offer email.
   This replaces "a number reaches an agent only through approve-offer": the number still only goes when he drags the card.
+  **Any comment that asks for an offer at ONE price drafts the offer (same day, Tamara Mason: "it did not read what I told it to do")**:
+  "Let's send an offer at $250,000 … our terms 5k escrow, 15 day inspection, 30 day closing or as soon as the title is approved" used to
+  go to the email rewriter, whose rules forbid a price: it dropped the offer, kept one side sentence and said "Revised", twice. Now
+  `verdict.asked_price` catches it before the rewriter (not a question, a condition, two prices or a bare number), `parse_terms` reads the
+  terms he states, and his comment is the writer's instruction. **His standard offer terms: $5,000 escrow, 15 day inspection, cash,
+  30 day close** (`verdict.offer_terms`; the older 9-day inspection is superseded). Also fixed: a QUESTION using "price reduction" no longer
+  fails the copy check (Caridad Casado's rewrite was refused every round); "The email we send: …" is read as his dictated email (Denise).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~3:30pm ET, RESUME HERE: Rodrigo asked why cards sit in Needs Revision and why Tamara Mason's rewrite ignored him. Causes
+  fixed in code (Decisions → The bottom line, last paragraph); 7 tests in test_verdict, suite passes except the same 3. By hand from the
+  cloud: **Tamara Mason** offer at $250,000 on her card (Needs Me), **Arkeshia Love** offer updated to his terms (15 day inspection) and
+  back in Needs Me, **Denise Gilbert** his 11-17 offer email re-posted as "Answer with: …" so the Mac's next round makes it the NEXT EMAIL
+  (Needs Me). The Mac's database still has the old emails for outreach #64 and #174: the card text is what sends. **Caridad Casado**
+  rewrites itself on the Mac's next round after it pulls. **Chevelle Young** (Warm Leads, Needs Revision, comps asked 11-12) is NOT
+  explained: the code reads that column; needs the Mac's log (`grep -i chevelle logs/*` / the approvals log around the warm board).
 - 2026-11-19 ~3pm ET, RESUME HERE: **bottom line + offer draft built** (Decisions → The bottom line). Tested on fixtures only (5
   tests; suite passes except the same 3 that need packages the cloud lacks); NEVER run live (no database or API key in the cloud). First
   real run: his next "comps" / "numbers" comment on a card after the Mac pulls. Watch: the 🏁 comment is the last one, the offer lands on

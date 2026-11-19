@@ -183,7 +183,8 @@ def copy_problems(body: str, props: list[dict[str, Any]]) -> list[str]:
     if (SAYS_TENANT_RE.search(statements) or PRESUMES_TENANT_RE.search(questions)) and not any(TENANT_COPY_RE.search(r) for r in remarks):
         out.append("says there is a tenant / a lease, but the listing does not mention one (ask \"Is anyone living there?\" instead)")
     moved_not = NOT_MOVED_RE.search(text)
-    reduced_said = REDUCED_RE.search(NOT_MOVED_RE.sub(" ", text))
+    # only a STATEMENT claims a cut: "would the seller work with us on a price reduction?" asks for one (Caridad Casado, 2026-11-19)
+    reduced_said = REDUCED_RE.search(NOT_MOVED_RE.sub(" ", statements))
     if moved_not and all(price_reduced(p) for p in props):
         out.append(f"says the price has not changed ('{moved_not.group(0)}'), but the price history shows a reduction")
     if reduced_said and not any(price_reduced(p) for p in props):

@@ -214,7 +214,8 @@ def pending_agents(conn) -> set[int]:
 # ---------- Rodrigo dictating the email on the card ----------
 DICTATE_RE = re.compile(r"^\s*(?:(?:please |hey |ok(?:ay)? |hi )*)(?:answer|reply|respond|say|write back|tell (?:him|her|them)|"
                         r"email (?:him|her|them)|send (?:him|her|them)|reply with|respond with|"
-                        r"i want (?:us|you|charles) to (?:answer|reply|say|respond|write|send|email))\b", re.I)
+                        r"i want (?:us|you|charles) to (?:answer|reply|say|respond|write|send|email)|"
+                        r"(?:here(?:'s| is) |this is )?the (?:email|message|offer) (?:we|i|to) (?:send|want|will send|are sending))\b", re.I)
 # "I wrote a message up top … put that into an email and send it to her" (Thais, 2026-11-02): the email is an earlier comment
 USE_ABOVE_RE = re.compile(r"\b(?:put (?:that|this|it|what i wrote|the message)[^.]{0,30}(?:in|into) an? email|"
                           r"(?:send|email) (?:her|him|them) (?:that|this|it|what i wrote|the message|exactly that)|"
@@ -239,7 +240,7 @@ def dictation(feedback: list[str]) -> tuple[str, str] | None:
             return "\n\n".join(earlier), last
     text = "\n".join(cleaned)
     if DICTATE_RE.search(text):
-        m = re.search(r"\b(?:following|say|write|answer|reply|respond|with)\b[^:]{0,40}:\s*(.+)$", text, re.I | re.S)
+        m = re.search(r"\b(?:following|say|write|answer|reply|respond|with|send|want)\b[^:]{0,40}:\s*(.+)$", text, re.I | re.S)
         body = (m.group(1) if m else DICTATE_RE.sub("", text, count=1)).strip().strip('"“”')
         if len(body.split()) >= 6:
             return body, text[: len(text) - len(body)] if m else DICTATE_RE.search(text).group(0)

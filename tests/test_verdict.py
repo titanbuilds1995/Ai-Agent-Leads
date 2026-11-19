@@ -12,7 +12,7 @@ from tests.test_comment_router import _setup
 ASK = "give me the comps for this property, it really needs a full rehab and I think the price is way too high"
 OFFER_BODY = ("Hey Richard,\n\nCharles with Titan Realty Investments. We went through the numbers on the property and I am sending our offer "
               "over. I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\nOur offer:\n\nPrice: $255,000, cash\n"
-              "As is, no repairs asked of the seller\n9 day inspection period\n$5,000 deposit\nClose in 30 days, or longer if that works "
+              "As is, no repairs asked of the seller\n15 day inspection period\n$5,000 escrow deposit\nClose in 30 days, or longer if that works "
               "better for the seller\n\nI know that is under the asking price. Two similar homes nearby sold for $300,000 and $330,000, and "
               "this one needs a full rehab before it can be lived in.\n\nIf the seller wants to talk it through, I am glad to get on a "
               "call.\n\nBest regards,\n\nCharles Grant\nJunior Acquisitions Agent\nTitan Realty Investments\nOffice Line: +1 (561) 405 7379")
@@ -109,6 +109,17 @@ def test_his_number_becomes_the_offer(loaded, cfg, tmp_path, monkeypatch):
     assert verdict.asked_price(["make it 262.5k"]) == 262500
     assert verdict.asked_price(["what would be a good offer for them"]) is None
     assert verdict.asked_price(["offer 290k but ask about the roof first"]) is None and verdict.asked_price(["290k"]) is None
+    # Tamara Mason, 2026-11-18: two comments, a price and his terms; the rewriter dropped the offer and said "Revised"
+    tamara = ["Let's send an offer at $250,000 - draft that as an offer and let's email them and send it to them, tell them we've been "
+              "looking at it and it's something we're open to taking on..", "Also our terms 5k escrow,  15 day inspection, 30 day closing "
+              "or as soon as the title is approved."]
+    assert verdict.asked_price(tamara) == 250000
+    assert verdict.parse_terms(" ".join(tamara)) == {"inspection_days": 15, "close_days": 30, "deposit": 5000,
+                                                     "close_note": ", or as soon as title is approved"}
+    assert verdict.offer_terms(cfg, 250000, {}, verdict.parse_terms(" ".join(tamara)))[-1] == "Close in 30 days, or as soon as title is approved"
+    assert verdict.asked_price(["Okay let's draft a $275k asking price, and write the same thing we write on all of them: 5k escrow, "
+                                "15 day inspection, cash close, same as the other ones."]) == 275000
+    assert verdict.asked_price(["offer 250k, the ARV is 400k"]) is None            # two prices: not ours to guess
     asana, gid = _setup(loaded, cfg, tmp_path, monkeypatch, "offer 262k")
     _sitting(loaded)
     llm = Reader(offer=262000)
@@ -136,3 +147,17 @@ def test_photos_are_read_once_and_reach_the_last_reader(loaded, cfg):
     b = verdict.photo_read(loaded, cfg, Eyes(), p, fetch)
     assert a["level"] == "HEAVY" and b["repairs_high"] == 110000 and b["seen"] == ["Original kitchen"] and looks == [5]
     assert verdict.photo_read(loaded, cfg, Eyes(), {**p, "id": 999999}, lambda _p: None) is None        # pictures did not load: goes on
+
+
+def test_his_stuck_comments_now_work():
+    """2026-11-19, cards stuck in Needs Revision: Caridad's rewrite was refused because his QUESTION used the words "price
+    reduction"; Denise's "The email we send: ..." was not read as his dictated email."""
+    from titan.answers import dictation
+    from titan.outreach.compose import copy_problems
+    p = [{"remarks": "Tenant in place.", "price_cuts": 0, "list_price": 625000, "original_list_price": 625000, "days_on_market": 94}]
+    ask = "Hey Caridad,\n\nCharles with Titan Realty Investments. Do you think the seller is willing to work with us on a price reduction?\n\nBest regards,"
+    assert not [x for x in copy_problems(ask, p) if "came down" in x]
+    claim = "Hey Caridad,\n\nI saw it has had a price reduction. Do you know why?\n\nBest regards,"
+    assert [x for x in copy_problems(claim, p) if "came down" in x]
+    d = dictation(['The email we send: "Hi Denise,\nTitan Realty Investments would like to submit a cash offer.\nPurchase price: $275,000, all cash"'])
+    assert d and d[0].startswith("Hi Denise") and "$275,000" in d[0]

@@ -595,6 +595,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   comment, card to Needs Me. 1031 replies: the same comment, the draft waits. Only his "send anyway" written AFTER the warning
   (`confirmed_after_hold`; a newer warning needs a new OK) sends it (`send(..., confirmed=True)`); "send anyway" on a house card moves
   it to Approved (comment_router). Fresh first emails (no thread) are not checked. Other senders (pass emails, delay notes) just wait.
+  **Fixed 2026-11-19 (Zaira Zavala: "Yes, we are still interested." held his $260,000 offer as if she had said thanks):** a reply
+  that says they are still in / open / waiting on us (`ENGAGED_RE`: interested, still available, open to, send us an offer, seller
+  is…, flexible, call me, showing) is an answer, never an acknowledgement; an email that makes an offer at a price (`is_offer`: the
+  word offer + a dollar figure) is never held by an earlier acknowledgement (the 24-hour rule still applies); and his plain "send it"
+  written AFTER the warning counts as his OK, same as "send anyway".
 - **Deliverability (Rodrigo, 2026-11-16: his emails to many people went to spam; `titan/deliverability.py`, `docs/DELIVERABILITY.md`)**: the
   cause was ~65 identical 140–430 KB HTML flyers sent from rodrigo@ on Nov 4 / 6 / 9 (a script through smtp.gmail.com, then forwards by
   hand) to a scraped owner list: ~15% hard bounces (dead aol / bellsouth / cox / yahoo addresses), "Reply STOP", a `List-Unsubscribe`
@@ -736,6 +741,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-19 ~6:15pm ET, RESUME HERE: **contact guard no longer holds offers to agents who said "yes, still interested"** (Decisions
+  → Contact guard, Fixed 2026-11-19). Zaira Zavala's $260,000 offer (card 1219888365738227, Needs Me, his "Send it" at 5:06pm ET)
+  goes once the Mac pulls and he drags the card to Approved. Tests pass except the same 3.
 - 2026-11-19 ~5:30pm ET, RESUME HERE: **approved + comment now rewrites, is second-read, and sends** (Decisions → Approved + a
   comment). Tested on fixtures (test_approvals; suite passes except the same 3). Not run live: the Mac picks it up on its next pull.
   Watch the first card he approves and comments on: "Held …", then "Revised … already approved … ⚖️ Second read: agrees", then 📤 Sent.

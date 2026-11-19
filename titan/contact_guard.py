@@ -5,8 +5,10 @@ email, we don't email them again. Even if I say so, we need to make it bold and 
 Before any email goes into an existing conversation with someone outside our domain, the thread is read:
 - their last message only acknowledges ours ("Excellent", "Absolutely", "Got it", "Thanks", "Sounds good", "Will review") → HOLD;
 - we already wrote them in the last 24 hours and they have not answered since → HOLD (no bombarding).
-A hold never sends. It shows a bold warning and waits for Rodrigo's explicit OK in words ("send anyway" / "yes send it anyway"),
-written AFTER the warning. His plain "send it" from before the warning does not count: that is the point of the warning.
+A hold never sends. It shows a bold warning and waits for Rodrigo's explicit OK in words ("send anyway" / "send it"),
+written AFTER the warning. His "send it" from before the warning does not count: that is the point of the warning.
+Not an acknowledgement (2026-11-19, Zaira): "yes, still interested", "the seller is open", "send us an offer". Not held by an
+earlier acknowledgement: an email that makes an offer at a price. The 24-hour rule still applies to offers.
 `GmailClient.send(..., confirmed=True)` is the only way past it, and only the senders that saw his OK pass it.
 """
 from __future__ import annotations
@@ -20,7 +22,17 @@ ACK_RE = re.compile(
     r"noted|understood|sounds good|sounds great|will do|will review|will look|i'?ll (?:review|look|take a look|check)|"
     r"looking forward|appreciate(?: it)?|ok(?:ay)?|cool|nice|great work|good work|copy that|roger|yes|yep|sure|👍|🙏|🎉)\b", re.I)
 QUOTE_RE = re.compile(r"^\s*(?:>|On .{5,200}wrote:\s*$|-{2,}\s*Original Message|From: .+@|Sent from my )", re.I)
-CONFIRM_RE = re.compile(r"\b(send (?:it )?anyway|yes,? send(?: it)?(?: anyway)?|i approve|approved,? send|go ahead and send|confirm(?:ed)?,? send)\b", re.I)
+CONFIRM_RE = re.compile(r"\b(send (?:it )?anyway|send it|yes,? send(?: it)?(?: anyway)?|i approve|approved,? send|go ahead and send|confirm(?:ed)?,? send)\b", re.I)
+# Rodrigo, 2026-11-19 (Zaira Zavala: "Yes, we are still interested." was read as a thank-you and held his $260,000 offer):
+# a short message that says they are still in, open, or waiting on us is an ANSWER, not an acknowledgement. Ball is in our court.
+ENGAGED_RE = re.compile(
+    r"\b(?:interested|still (?:available|active|on the market|for sale|open)|open to|would consider|will consider|entertain|"
+    r"make (?:us |me )?an offer|send (?:us |me |over |your )*(?:an? |your )?offer|submit|what (?:is|would be) your|your (?:best |highest )?offer|"
+    r"seller (?:is|would|will|wants|might)|flexible|motivated|negotiable|let'?s talk|call me|give me a call|"
+    r"show(?:ing)?|walk ?through|come see|see it)\b", re.I)
+# An email that carries an offer at a price is the next step itself, not one more note: an earlier acknowledgement never holds it.
+OFFER_RE = re.compile(r"\boffer\b", re.I)
+PRICE_RE = re.compile(r"\$\s?\d{1,3}(?:,\d{3})+|\$\s?\d+(?:\.\d+)?\s?[kK]\b")
 HOLD_PREFIX = "HOLD, not sent:"
 ACK_MAX_WORDS = 30
 RECENT_HOURS = 24
@@ -73,9 +85,15 @@ def is_ack(body: str) -> bool:
     """A short message that only acknowledges ours: nothing asked, nothing new to answer."""
     text = own_words(body)
     words = re.findall(r"[\w']+", text)
-    if not words or len(words) > ACK_MAX_WORDS or "?" in text:
+    if not words or len(words) > ACK_MAX_WORDS or "?" in text or ENGAGED_RE.search(text):
         return False
     return bool(ACK_RE.search(text))
+
+
+def is_offer(body: str) -> bool:
+    """Our email makes an offer at a price (Rodrigo's number): the word offer and a dollar figure in our own words."""
+    text = own_words(body)
+    return bool(OFFER_RE.search(text) and PRICE_RE.search(text))
 
 
 def _ours(sender: str, domain: str) -> bool:
@@ -83,7 +101,7 @@ def _ours(sender: str, domain: str) -> bool:
 
 
 def hold_reason(messages: list[dict[str, Any]], our_domain: str, now_ts: float | None = None,
-                recent_hours: int = RECENT_HOURS) -> str | None:
+                recent_hours: int = RECENT_HOURS, offer: bool = False) -> str | None:
     """Why this thread should not get another email from us now (None = fine).
     messages: the thread oldest first, each {'from', 'internal_ts', 'body'}."""
     msgs = [m for m in messages if (m.get("body") or "").strip() or m.get("from")]
@@ -92,7 +110,7 @@ def hold_reason(messages: list[dict[str, Any]], our_domain: str, now_ts: float |
     msgs = sorted(msgs, key=lambda m: int(m.get("internal_ts") or 0))
     dom = (our_domain or "").lower().lstrip("@")
     last = msgs[-1]
-    if not _ours(last.get("from", ""), dom) and is_ack(last.get("body") or ""):
+    if not offer and not _ours(last.get("from", ""), dom) and is_ack(last.get("body") or ""):
         said = re.sub(r"\s+", " ", own_words(last.get("body") or ""))[:80]
         who = re.sub(r"\s*<.*?>", "", last.get("from") or "they").strip().strip('"') or "They"
         return f'{who} already answered our last email ("{said}"). They have what they need.'

@@ -71,3 +71,21 @@ def test_told_us_to_stop_blocks_even_with_his_ok():
     g.thread_messages = lambda tid: thread
     with pytest.raises(StopContact):
         g.send("larry@svn.com", "Re: deal", "Thanks for the update.", thread_id="t1", confirmed=True)
+
+
+def test_still_interested_is_an_answer_and_an_offer_is_never_held_by_an_ack():
+    """2026-11-19, Zaira Zavala: "Yes, we are still interested." held Rodrigo's $260,000 offer as if she had said thanks."""
+    assert not is_ack("Yes, we are still interested.")
+    assert not is_ack("The seller is open to offers")
+    assert not is_ack("Sure, send us your offer")
+    assert is_ack("Excellent, thanks!") and is_ack("Got it, will review")
+    from titan.contact_guard import is_offer
+    offer = "Hi Zaira,\n\nOur offer:\n\n• Price: $260,000, cash\n• Close in 30 days"
+    assert is_offer(offer) and not is_offer("Is the seller open to an offer?") and not is_offer("The ask is $395,000.")
+    ack = [msg("Charles <charles@titanrealtyinvestments.com>", "Any update?", 50), msg("Agent <a@x.com>", "Thanks!", 49)]
+    assert hold_reason(ack, DOM, NOW) and hold_reason(ack, DOM, NOW, offer=True) is None
+    recent = [msg("Agent <a@x.com>", "Thanks!", 50), msg("Charles <charles@titanrealtyinvestments.com>", "Hi", 2)]
+    assert hold_reason(recent, DOM, NOW, offer=True)          # the 24-hour rule still holds an offer
+    from titan.asana import BOT
+    cm = [{"text": f"{BOT} **HOLD, not sent: x**"}, {"text": "Send it"}]
+    assert confirmed_after_hold(cm, BOT)                        # his "send it" written after the warning is his OK

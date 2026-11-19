@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS commercial_deals (listing_id TEXT PRIMARY KEY, data T
 CREATE TABLE IF NOT EXISTS commercial_card_files (attachment_gid TEXT PRIMARY KEY, listing_id TEXT, card_gid TEXT, name TEXT, path TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS commercial_kv (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS card_format (gid TEXT PRIMARY KEY, version TEXT, at TEXT);   -- house cards in the 1031 layout (house_card.refresh_cards)
+CREATE TABLE IF NOT EXISTS card_fields (gid TEXT PRIMARY KEY, phone TEXT, address TEXT, at TEXT);   -- Phone / Address custom fields last written on a card (titan/card_fields.py)
 -- Inbox messages the stray-answer sweep already looked at (titan/commercial/strays.py): matched to a thread or not, never fetched twice.
 CREATE TABLE IF NOT EXISTS commercial_stray_seen (gmail_message_id TEXT PRIMARY KEY, thread_id INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS commercial_runs (

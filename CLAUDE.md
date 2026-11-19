@@ -735,12 +735,22 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "Not sent" line. Same on a lead card in conversation (NEXT EMAIL). Still his look: a comment saying don't send / hold / wait /
   tomorrow / later (`NO_SEND_RE`), a question, a numbers ask, and an offer at a price (offer drafts always land in Needs Me). This
   supersedes "the rewrite lands in Needs Me" for cards that were in Approved; a comment on a card NOT in Approved works as before.
+- **Phone and Address fields on every card (Rodrigo, 2026-11-19: "a field that I can click on for the number and also a field for
+  the address")**: `titan/card_fields.py`, approvals stage `card_fields`. Two workspace TEXT custom fields "Phone" and "Address" are put
+  on the Email Approvals, Warm Leads, 1031 and Working Deals boards (shown on the card front) and filled from the database: house cards
+  = listing agent's phone + the house address (two houses joined with " + "), 1031 cards = broker phone + property address. Written
+  only when a value changes (table `card_fields`), 300 cards a round. Asana has no phone-number field type, so the number is text:
+  in the Asana phone app tap the field, copy, call. Off switch: `outreach.asana.card_fields: false`.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-19 ~6:45pm ET, RESUME HERE: **Phone + Address fields on Asana cards built** (Decisions → Phone and Address fields). Tested on
+  fixtures only (1 test; suite passes except the same 3). Not run live: the cloud has no ASANA_TOKEN. First run = the Mac's next
+  approvals round after it pulls (makes the two fields, puts them on the 4 boards, fills ~all cards over 2–3 rounds). If Asana refuses
+  the field (plan without custom fields) the stage logs the error and nothing else changes.
 - 2026-11-19 ~6:15pm ET, RESUME HERE: **contact guard no longer holds offers to agents who said "yes, still interested"** (Decisions
   → Contact guard, Fixed 2026-11-19). Zaira Zavala's $260,000 offer (card 1219888365738227, Needs Me, his "Send it" at 5:06pm ET)
   goes once the Mac pulls and he drags the card to Approved. Tests pass except the same 3.

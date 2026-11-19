@@ -192,3 +192,23 @@ class Asana:
     def tag_task(self, task: str, tag: str) -> None:
         self._req("POST", f"/tasks/{task}/addTag", json={"data": {"tag": tag}})
 
+
+    # --- card fields (2026-11-19): "Phone" and "Address" as Asana custom fields on the lead boards ---------------------
+    def ensure_text_field(self, name: str) -> str:
+        """The gid of the workspace's text custom field called `name`, created when it does not exist yet."""
+        ws = self.workspace()
+        for f in self._req("GET", f"/workspaces/{ws}/custom_fields", params={"opt_fields": "name,resource_subtype", "limit": 100}) or []:
+            if (f.get("name") or "").strip().lower() == name.strip().lower():
+                return f["gid"]
+        return self._req("POST", "/custom_fields", json={"data": {"workspace": ws, "name": name, "resource_subtype": "text"}})["gid"]
+
+    def ensure_project_field(self, project: str, field: str) -> None:
+        """Put the custom field on the board (shown on the card front), once."""
+        for s in self._req("GET", f"/projects/{project}/custom_field_settings", params={"opt_fields": "custom_field.gid", "limit": 100}) or []:
+            if ((s.get("custom_field") or {}).get("gid")) == field:
+                return
+        self._req("POST", f"/projects/{project}/addCustomFieldSetting", json={"data": {"custom_field": field, "is_important": True}})
+
+    def set_fields(self, task: str, values: dict[str, str]) -> None:
+        """Write custom field values ({field gid: text}) on a card."""
+        self._req("PUT", f"/tasks/{task}", json={"data": {"custom_fields": values}})

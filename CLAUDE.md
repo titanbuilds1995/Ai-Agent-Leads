@@ -686,6 +686,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-18 ~7pm ET (Mac), RESUME HERE: **first live run of the 55+ / townhouse clean-up and the photo check, done.**
+  `make product-clean`: 4,282 houses ruled out (3,227 typed townhouse), 43 cards to Skip, 4 cards kept with a note (other house
+  fine), 1 kept because the agent answered (Denise Gilbert, 275 Jacaranda Dr, townhouse, Needs Revision). `make condition-check
+  ARGS=--all` ($2.88 + $0.21 list): 476 looked at, 162 renovated / 133 good shape / 148 dated; 10 Fresh Leads cards to Skip, 181
+  houses ruled out before a card. Nothing waiting for a check. Nothing sent. Close call worth a glance: 18010 NW 48th Ct (one bath
+  still old). From now on the 5:30am run does both.
 - 2026-11-18 (evening), RESUME HERE: **55+ / townhouse filter built + photo condition check switched ON** (Decisions → No 55+
   communities). Rodrigo asked why good-shape houses are still on Fresh Leads: the photo check was on HOLD since 11-17. Now on. First run
   on the Mac: `git pull`, `make product-clean-list`, `make product-clean`, `make condition-check ARGS=--all` (~$10 for ~1,466 houses).

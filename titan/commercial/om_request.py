@@ -131,6 +131,42 @@ def medical_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     return {"subject": subject[:90], "body": format_paragraphs(body)}
 
 
+def campaign_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
+    """One email per broker for the medical campaign, by what their listings are (`lane`): in the box → `medical_request`; a 7 cap
+    (Rodrigo, 2026-11-20: "possibly 7 caps … with potential to increase") → is there a way it gets to an eight; no price ("can we
+    email them and try to get something out of them") → what is the seller asking and does it hold an eight there."""
+    Ls = [L for L in listings if L]
+    if not Ls:
+        raise ValueError("no listings")
+    lanes = {L.get("lane") or "box" for L in Ls}
+    if lanes == {"box"}:
+        return medical_request(cfg, Ls)
+    name, first = first_name(Ls[0].get("broker_name")), Ls[0]
+    asks = "the trailing twelve, the rent roll and the offering memorandum"
+    open_ = "We are placing a 1031 exchange with a partner of ours and the clock is running."
+    if len(Ls) == 1 and lanes == {"seven"}:
+        saw = f"I saw your listing at {_where(first)} on LoopNet."
+        ask = ("We need an eight cap or better, and this one is listed a little under that. Is there a way it gets there, with rents that "
+               "are under market or leases coming up for renewal, or is the seller flexible on the price?")
+        close = f"If there is, could you send over {asks}? You will have an answer from us quickly."
+    elif len(Ls) == 1:
+        saw = f"I saw your listing at {_where(first)} on LoopNet."
+        ask = ("The listing does not show a price or a cap rate. What is the seller asking, and at that price does it hold an eight cap or "
+               "better on the leases in place, once it sells and the taxes are reassessed?")
+        close = f"If it does, we want to take a look and we move fast. Send over {asks} and you will have an answer from us quickly."
+    else:
+        saw = f"I saw your listings on LoopNet, {_where(first)} and {len(Ls) - 1} more."
+        ask = ("One straight question: do any of them hold an eight cap or better on the leases in place, once it sells and the taxes are "
+               "reassessed, or get there with rents that are under market?")
+        if "no_price" in lanes:
+            ask += " And what is the seller asking on the ones with no price?"
+        close = f"For the ones that do, send over {asks} and you will have a quick answer."
+    body = f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n{open_} {ask}\n\n{close}\n\n" + signature(cfg)
+    street = first.get("street") or "Your listing"
+    subject = street + (f", {first['city']}" if first.get("city") else "") + (" and more" if len(Ls) > 1 else "") + " on LoopNet"
+    return {"subject": subject[:90], "body": format_paragraphs(body)}
+
+
 def validate_om_request(subject: str, body: str) -> list[str]:
     """Same house rules as the first emails, minus the residential-only ones."""
     problems: list[str] = []

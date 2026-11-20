@@ -150,7 +150,7 @@ commercial-blast: ## queue the no-cap question for every in-box broker without a
 	$(PY) -m titan.cli commercial-blast --build --list
 
 medical:          ## the medical campaign: LoopNet medical pull (about a dollar) → "Titan 1031 · Medical" board → one request for the financials per broker, queued for Charles@
-	$(PY) -m titan.cli commercial-medical
+	$(PY) -m titan.cli commercial-medical $(ARGS)
 
 medical-list:     ## what the medical campaign would do (listings + the emails), nothing pulled, posted or queued
 	$(PY) -m titan.cli commercial-medical --list

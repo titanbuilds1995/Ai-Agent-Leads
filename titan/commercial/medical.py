@@ -24,7 +24,7 @@ from typing import Any
 from .. import db
 from ..util import iso, log, now_utc, today_et
 from .board import NOT_A_FIT, column_key
-from .om_request import medical_request, validate_om_request
+from .om_request import campaign_request, validate_om_request
 
 # what LoopNet calls it (type / subtype / the listing's own name): any of these is medical
 LABEL_RE = re.compile(r"medical|dental|dentist|surg|clinic|urgent care|dialysis|veterinar|animal hospital|health ?care|physician|"
@@ -58,31 +58,73 @@ def is_nnn(L: dict[str, Any]) -> bool:
     return (L.get("asset_class") == "nnn" or bool(NNN_RE.search(" ".join(str(L.get(k) or "") for k in ("lease_type", "description", "name")))))
 
 
-def listings(conn) -> list[dict[str, Any]]:
-    """In the box, active, medical; triple net first, then a stated cap, then the engine's score."""
+def _row(r: dict[str, Any]) -> dict[str, Any]:
+    try:
+        L = json.loads(r.get("data") or "{}")
+    except json.JSONDecodeError:
+        L = {}
+    for k, v in r.items():
+        if k not in ("data", "raw") and v not in (None, "") and L.get(k) in (None, ""):
+            L[k] = v
+    for k in ("listing_id", "score", "tag", "evidence_grade", "broker_email", "broker_name", "broker_phone", "brokerage", "price", "stated_cap",
+              "asana_task_id", "asana_om_task_id", "board_column"):
+        L[k] = r.get(k)
+    for k in ("tag_reasons", "docs_missing", "highlights", "motivation", "credit_tenants", "documents"):
+        if isinstance(L.get(k), str):
+            try:
+                L[k] = json.loads(L[k])
+            except json.JSONDecodeError:
+                pass
+    L["from_medical_search"] = '"_searchFamily": "medical"' in (r.get("raw") or "")
+    return L
+
+
+def _fits_but_for(L: dict[str, Any], cfg: Any, **assume) -> bool:
+    """Would the listing be in the box if this one thing were different (the cap, the missing price)? Every other screen still
+    applies: asset type, airport, quality, vacant / owner-user / development."""
+    from .scoring import in_box
+    return in_box({**L, **assume}, cfg)[0] is True
+
+
+def listings(conn, cfg: Any = None) -> list[dict[str, Any]]:
+    """Active medical listings, each with a `lane`: "box" (in the buyer box), and with `cfg` also the two lanes Rodrigo added on
+    2026-11-20 ("what about some that are possibly 7 caps, with potential to increase, also the ones that had no price … can we
+    email them and try to get something out of them"): "seven" (in the box except for a stated cap between `near_cap_min` and the
+    floor) and "no_price" (price not disclosed, everything else fits). A listing LoopNet's own medical search returned counts as
+    medical in those two lanes even when its type label did not come through. Box first, triple net and stated caps first."""
+    near = float(cfg.get("commercial.medical.near_cap_min", 7.0) or 0) if cfg is not None else 0
+    no_price = bool(cfg.get("commercial.medical.no_price", True)) if cfg is not None else False
+    floor = float(cfg.get("commercial.buyer_box.cap_min", 8.0)) if cfg is not None else 8.0
+    mid = int(cfg.get("commercial.buyer_box.sweet_spot_max", 6_000_000)) if cfg is not None else 0
     out = []
-    for r in conn.execute("SELECT * FROM commercial_listings WHERE in_box=1 AND gone_at IS NULL AND COALESCE(status,'active')='active'").fetchall():
+    for r in conn.execute("SELECT * FROM commercial_listings WHERE gone_at IS NULL AND COALESCE(status,'active')='active'").fetchall():
         r = db.row_to_dict(r)
-        try:
-            L = json.loads(r.get("data") or "{}")
-        except json.JSONDecodeError:
-            L = {}
-        for k, v in r.items():
-            if k not in ("data", "raw") and v not in (None, "") and L.get(k) in (None, ""):
-                L[k] = v
-        for k in ("listing_id", "score", "tag", "evidence_grade", "broker_email", "broker_name", "broker_phone", "brokerage", "price", "stated_cap",
-                  "asana_task_id", "asana_om_task_id", "board_column"):
-            L[k] = r.get(k)
-        for k in ("tag_reasons", "docs_missing", "highlights", "motivation", "credit_tenants", "documents"):
-            if isinstance(L.get(k), str):
-                try:
-                    L[k] = json.loads(L[k])
-                except json.JSONDecodeError:
-                    pass
-        if is_medical(L):
-            L["medical_nnn"] = is_nnn(L)
+        if r.get("in_box") == 1:
+            L = _row(r)
+            if is_medical(L):
+                L["lane"] = "box"
+                out.append(L)
+            continue
+        if cfg is None or not (near or no_price):
+            continue
+        L = _row(r)
+        med = is_medical(L)
+        if not med and L["from_medical_search"] and (L.get("asset_class") in (None, "", "office", "medical")):
+            med = True
+            L["asset_class"] = "medical"
+        if not med:
+            continue
+        cap = L.get("stated_cap")
+        if near and L.get("price") and cap is not None and near <= cap < floor and _fits_but_for(L, cfg, stated_cap=None):
+            L["lane"] = "seven"
             out.append(L)
-    out.sort(key=lambda L: (not L["medical_nnn"], L.get("stated_cap") is None, -(L.get("score") or 0)))
+        elif no_price and not L.get("price") and (cap is None or cap >= near or not near) and _fits_but_for(L, cfg, price=mid, stated_cap=None):
+            L["lane"] = "no_price"
+            out.append(L)
+    for L in out:
+        L["medical_nnn"] = is_nnn(L)
+    order = {"box": 0, "seven": 1, "no_price": 2}
+    out.sort(key=lambda L: (order[L["lane"]], not L["medical_nnn"], L.get("stated_cap") is None, -(L.get("score") or 0)))
     return out
 
 
@@ -119,7 +161,7 @@ def _skip_reason(conn, em: str, emailed: dict[str, str]) -> str | None:
 
 def plan(conn, cfg: Any) -> dict[str, Any]:
     """What a run would do, touching nothing: the listings, one email per broker, and why a broker gets none."""
-    Ls = listings(conn)
+    Ls = listings(conn, cfg)
     emailed = _emailed(conn)
     by: dict[str, list[dict[str, Any]]] = {}
     notes: dict[str, str] = {}
@@ -133,7 +175,7 @@ def plan(conn, cfg: Any) -> dict[str, Any]:
     emails = []
     for em, group in by.items():
         try:
-            msg = medical_request(cfg, group)
+            msg = campaign_request(cfg, group)
         except ValueError:
             continue
         problems = validate_om_request(msg["subject"], msg["body"])
@@ -169,6 +211,7 @@ def run_campaign(conn, cfg: Any, apify, asana, *, pull_first: bool = True, run_d
     p = plan(conn, cfg)
     res["listings"], res["nnn"] = len(p["listings"]), sum(L["medical_nnn"] for L in p["listings"])
     res["with_cap"] = sum(L.get("stated_cap") is not None for L in p["listings"])
+    res["seven"], res["no_price"] = (sum(L["lane"] == k for L in p["listings"]) for k in ("seven", "no_price"))
     res["not_emailed"] = len(p["notes"])
     main, project = cfg.get("commercial.asana.project"), cfg.get("commercial.asana.medical_project")
     cards: dict[str, str] = {}
@@ -197,11 +240,13 @@ def run_campaign(conn, cfg: Any, apify, asana, *, pull_first: bool = True, run_d
                 except Exception as e:  # noqa: BLE001
                     log.warning("medical: could not move card %s: %s", gid, e)
                 continue
+            lane_note = {"seven": f"NOT IN THE BOX YET: the listing shows a {L.get('stated_cap')}% cap. On the board to see whether the income or the price can get it to an 8. ",
+                         "no_price": "NO PRICE on the listing: on the board to get the price and the numbers out of the broker. "}.get(L["lane"], "")
             if lid in queued_to:
-                extra = (f"MEDICAL CAMPAIGN: Charles's request for the financials to {queued_to[lid]} is queued; it goes out at the next rounds "
+                extra = lane_note + (f"MEDICAL CAMPAIGN: Charles's request for the financials to {queued_to[lid]} is queued; it goes out at the next rounds "
                          "inside the send window. Nothing to drag.")
             else:
-                extra = "MEDICAL CAMPAIGN: " + p["notes"].get(lid, "not emailed") + "."
+                extra = lane_note + "MEDICAL CAMPAIGN: " + p["notes"].get(lid, "not emailed") + "."
             try:
                 made = create_card(asana.inner, project, secs["New"], cfg, L, with_email=False, extra=extra)
             except Exception as e:  # noqa: BLE001
@@ -261,13 +306,14 @@ def text(res: dict[str, Any], p: dict[str, Any] | None = None) -> str:
     lines = ["LoopNet medical pull: " + (f"{pl.get('rows')} listings read, about ${pl.get('cost_usd') or 0:.2f}" if pl.get("rows") is not None
                                           else "NOT done (" + str(pl.get("error") or pl.get("skipped")) + "); worked from the stored listings")]
     if "listings" in res:
-        lines.append(f"{res['listings']} medical listings in the box · {res['nnn']} triple net · {res['with_cap']} show a cap rate")
+        lines.append(f"{res['listings']} medical listings · {res['listings'] - res.get('seven', 0) - res.get('no_price', 0)} in the box · "
+                     f"{res.get('seven', 0)} with a 7 cap · {res.get('no_price', 0)} with no price · {res['nnn']} triple net · {res['with_cap']} show a cap rate")
         lines.append(f"Medical board: {res['cards']} new cards, {res['moved']} moved over from the 1031 board, {res['already']} left where they are")
         lines.append(f"Emails: {res['queued']} brokers queued · {res['not_emailed']} listings not emailed (already emailed / no email / asked us to stop)")
     for e in (p or {}).get("emails", []):
         lines.append(f"\n--- to {e['broker_email']} · {len(e['listings'])} listing(s) ---\nSubject: {e['subject']}\n{e['body']}")
     for L in (p or {}).get("listings", []):
         why = (p or {}).get("notes", {}).get(str(L["listing_id"]))
-        lines.append(f"  {'NNN ' if L['medical_nnn'] else '    '}{(str(L.get('stated_cap')) + '%') if L.get('stated_cap') else 'no cap':>7} · ${(L.get('price') or 0):,} · "
+        lines.append(f"  {L.get('lane', 'box'):8} {'NNN ' if L['medical_nnn'] else '    '}{(str(L.get('stated_cap')) + '%') if L.get('stated_cap') else 'no cap':>7} · ${(L.get('price') or 0):,} · "
                      f"{L.get('street')}, {L.get('city')} · {L.get('broker_name')}" + (f" · NOT EMAILED: {why}" if why else ""))
     return "\n".join(lines)

@@ -865,7 +865,8 @@ def cmd_commercial_medical(cfg, args):
     if args.list:
         p = medical.plan(conn, cfg)
         print(medical.text({"pull": {"skipped": "list only"}, "listings": len(p["listings"]), "nnn": sum(L["medical_nnn"] for L in p["listings"]),
-                            "with_cap": sum(L.get("stated_cap") is not None for L in p["listings"]), "cards": 0, "moved": 0, "already": 0,
+                            "with_cap": sum(L.get("stated_cap") is not None for L in p["listings"]),
+                            "seven": sum(L["lane"] == "seven" for L in p["listings"]), "no_price": sum(L["lane"] == "no_price" for L in p["listings"]), "cards": 0, "moved": 0, "already": 0,
                             "queued": len(p["emails"]), "not_emailed": len(p["notes"])}, p))
         return 0
     c = build_clients(cfg, conn, need=("apify",))

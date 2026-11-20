@@ -1807,3 +1807,33 @@ def test_a_hotel_or_a_passing_mention_is_not_medical():
     assert is_medical({"asset_class": "office", "property_subtype": "Medical"})
     assert is_medical({"asset_class": "retail", "name": "South Dade Animal Hospital"})
     assert is_medical({"asset_class": "nnn", "description": "A free-standing Class A medical office building leased to Conviva."})
+
+
+def test_medical_seven_caps_and_no_price_listings_get_their_own_question(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-20: "what about some that are possibly 7 caps, with potential to increase, also the ones that had no
+    price … can we email them and try to get something out of them"."""
+    from titan.commercial import medical
+    from titan.commercial.om_request import campaign_request, validate_om_request
+    from titan.commercial.run import store
+    cfg.root = tmp_path
+    base = dict(asset_class="medical", property_type="Office", property_subtype="Medical")
+    rows = [clean_listing(listing_id="21", street="21 Seven St", city="Orlando", stated_cap=7.4, in_box=False, broker_email="seven@x.com", **base),
+            clean_listing(listing_id="22", street="22 Low St", city="Orlando", stated_cap=6.2, in_box=False, broker_email="low@x.com", **base),
+            clean_listing(listing_id="23", street="23 Quiet St", city="Tampa", price=None, stated_cap=None, stated_noi=None, in_box=None, broker_email="quiet@x.com", **base),
+            clean_listing(listing_id="24", street="24 Big St", city="Tampa", price=20_000_000, stated_cap=7.5, in_box=False, broker_email="big@x.com", **base),
+            clean_listing(listing_id="25", street="25 Shop St", city="Tampa", stated_cap=7.5, in_box=False, asset_class="retail", property_type="Retail", broker_email="shop@x.com"),
+            clean_listing(listing_id="26", street="26 Search St", city="Ocala", price=None, stated_cap=None, stated_noi=None, in_box=None, asset_class="office",
+                          property_type="Office", broker_email="quiet@x.com", raw={"_searchFamily": "medical"})]
+    for L in rows:
+        store(conn, L, "2026-11-20")
+    p = medical.plan(conn, cfg)
+    assert {L["listing_id"]: L["lane"] for L in p["listings"]} == {"21": "seven", "23": "no_price", "26": "no_price"}
+    by = {e["broker_email"]: e for e in p["emails"]}
+    assert "listed a little under that" in by["seven@x.com"]["body"] and "rents that are under market" in by["seven@x.com"]["body"]
+    assert "what is the seller asking on the ones with no price" in by["quiet@x.com"]["body"] and len(by["quiet@x.com"]["listings"]) == 2
+    one = campaign_request(cfg, [dict(rows[2], lane="no_price")])
+    assert "does not show a price or a cap rate" in one["body"]
+    for r in (one, by["seven@x.com"], by["quiet@x.com"]):
+        assert validate_om_request(r["subject"], r["body"]) == [], r["body"]
+    cfg.raw["commercial"]["medical"] = {"near_cap_min": 0, "no_price": False}
+    assert medical.plan(conn, cfg)["listings"] == []

@@ -755,12 +755,26 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   (`data/commercial_queue/<date>-medical.json`, `priority` 1 = ahead of the no-cap blast) and out from Charles@ at the commercial pace;
   when sent the card gets 📤 and moves to Sent · no answer yet. **Never re-asks a broker Charles already emailed** (any commercial thread),
   a do-not-contact or missing address: the card says why.
+  **Two more lanes (Rodrigo, same afternoon: "what about some that are possibly 7 caps, with potential to increase, also the ones that
+  had no price … can we email them and try to get something out of them")**, medical only, config `commercial.medical.near_cap_min` 7.0 /
+  `no_price` true: **seven** = fits the box except a stated cap of 7.0–7.99; **no_price** = price not disclosed, every other screen passes
+  (asset, airport, quality, vacant / owner-user). Both get a card in New on the Medical board (the card says NOT IN THE BOX YET / NO PRICE)
+  and their own question (`om_request.campaign_request`): 7 cap → "listed a little under that. Is there a way it gets there, with rents
+  under market or leases coming up for renewal, or is the seller flexible on the price?"; no price → "What is the seller asking, and at
+  that price does it hold an eight cap …". A listing LoopNet's medical search returned counts as medical in these two lanes even with no
+  type label (`_searchFamily` on the raw row, set by `run.py` from now on, so it needs one fresh pull). The 8 floor of the 1031 box
+  itself is unchanged; brokers already emailed are still not re-asked.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-20 ~3:30pm ET, RESUME HERE: **7-cap and no-price lanes added to the medical campaign** (Decisions → Medical campaign, "Two more
+  lanes"). Tested on fixtures only (1 new test; suite passes except the same 3). NOT run live. On the Mac: `git pull --no-edit origin
+  claude/stoic-ride-p6ptnm`, `make medical` (re-pulls, ~$0.47, so the search rows carry their tag), check `make medical-list`, then
+  `make approvals-now`. Watch: how many of the 38 no-price listings pass the other screens, wording of the first emails, and that no
+  broker already emailed is in the queue. Still open for Rodrigo: follow up the 13 already-emailed in-box medical brokers?
 - 2026-11-20 ~2pm ET (Mac), RESUME HERE: **medical campaign RAN** (`make medical`, $0.47). LoopNet returned 280 (70 never seen
   before, all 70 out of the box: 38 no price, the rest owner-user / vacant, price, cap under 8, C- area). 14 medical listings in the
   box, 3 triple net, 2 show a cap (772 Cortaro Dr 8.0%, 1401 N University Dr 8.34%). Medical board: 14 cards (9 new, 5 moved from the

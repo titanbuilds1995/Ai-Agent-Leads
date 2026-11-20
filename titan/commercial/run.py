@@ -155,6 +155,10 @@ def run(conn, cfg: Any, apify=None, asana=None, gmail=None, *, run_date: str | N
             db.finish_run(conn, rid, "skipped", {"reason": "no Apify client"})
             return {"error": "no Apify client (APIFY_TOKEN missing)"}
         by_family = loopnet.pull_search(cfg, apify, families, max_items)
+        for fam, rows in by_family.items():          # which LoopNet search a row came from (the medical campaign reads it: medical.py)
+            for r in rows:
+                if isinstance(r, dict):
+                    r.setdefault("_searchFamily", fam)
         raw_rows = [r for rows in by_family.values() for r in rows]
         empty = sorted(f for f, rows in by_family.items() if not rows)
         if not raw_rows:

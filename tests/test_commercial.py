@@ -1794,3 +1794,16 @@ def test_medical_campaign_runs_once_on_its_date(conn, cfg, tmp_path, monkeypatch
     monkeypatch.setattr(medical, "today_et", lambda: "2026-11-20")
     assert "listings" in medical.run_if_due(conn, cfg, None, None)
     assert medical.run_if_due(conn, cfg, None, None) == {"skipped": "not due"}
+
+
+def test_a_hotel_or_a_passing_mention_is_not_medical():
+    """2026-11-20, first list on the Mac: "Hospitality" matched "hospital" and three hotels were queued as medical; use lists and
+    "near the Medical Center" matched too."""
+    from titan.commercial.medical import is_medical
+    assert not is_medical({"asset_class": "hotel", "property_type": "Hospitality", "property_subtype": "Hotel", "name": "Red Roof Inn - Hospitality for Sale"})
+    assert not is_medical({"asset_class": "industrial", "description": "Zoning allows medical, restaurant, veterinary, grooming/kennel uses."})
+    assert not is_medical({"asset_class": "multifamily", "description": "Minutes from the Miami VA Medical Center."})
+    assert not is_medical({"asset_class": "office", "description": "Permitted use is professional office; medical uses are restricted."})
+    assert is_medical({"asset_class": "office", "property_subtype": "Medical"})
+    assert is_medical({"asset_class": "retail", "name": "South Dade Animal Hospital"})
+    assert is_medical({"asset_class": "nnn", "description": "A free-standing Class A medical office building leased to Conviva."})

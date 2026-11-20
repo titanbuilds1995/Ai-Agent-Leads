@@ -761,6 +761,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-20 ~2pm ET (Mac), RESUME HERE: **medical campaign RAN** (`make medical`, $0.47). LoopNet returned 280 (70 never seen
+  before, all 70 out of the box: 38 no price, the rest owner-user / vacant, price, cap under 8, C- area). 14 medical listings in the
+  box, 3 triple net, 2 show a cap (772 Cortaro Dr 8.0%, 1401 N University Dr 8.34%). Medical board: 14 cards (9 new, 5 moved from the
+  1031 board). **0 brokers queued, 0 emails sent**: 13 listings belong to brokers Charles already emailed (Nov 9–18), 1 has no email
+  (2801 SW 3rd Ave, Miami, NNN, $8M: call). `make approvals-now` not run by hand (nothing medical to send). **Bug caught on the list
+  before anything went out:** "Hospitality" matched "hospital", so 3 hotels (Red Roof Kissimmee, Best Western Tallahassee, Comfort Inn
+  Miramar Beach) were queued as medical; use lists / "near X Medical Center" / "medical uses restricted" matched too. Fixed in
+  `medical.LABEL_RE` / `TEXT_RE`, 1 test; suite passes. Also committed the Chevelle Young warm-board fix that sat uncommitted on the
+  Mac. Known gap: most of the 280 came back without LoopNet's type (sheets blocked), so 102 unlabeled offices from the medical search
+  are not counted as medical unless their text says so; none of the in-box ones had a new broker either way. Conviva (20 Cypress
+  Point Pky) fell out: its sheet shows a 5.79% cap. Open for Rodrigo: follow up the 13 already-emailed medical brokers in their
+  existing threads? (his call, the contact guard applies.)
 - 2026-11-20 ~2pm ET, RESUME HERE: **medical campaign built** (Decisions → Medical campaign). The Medical board exists on Asana (empty
   until the Mac runs). Tested on fixtures only (3 tests; suite passes except the same 3). NOT run live: the cloud's Apify token is still
   refused and it has no database. First run = the Mac's next approvals round today (`run_on: "2026-11-20"`), or `make medical` by hand.

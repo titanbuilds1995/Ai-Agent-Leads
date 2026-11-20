@@ -28,11 +28,15 @@ from .om_request import medical_request, validate_om_request
 
 # what LoopNet calls it (type / subtype / the listing's own name): any of these is medical
 LABEL_RE = re.compile(r"medical|dental|dentist|surg|clinic|urgent care|dialysis|veterinar|animal hospital|health ?care|physician|"
-                      r"\bMOB\b|hospital|outpatient|imaging|radiolog|dermatolog|orthop|pediatric|cardiolog|oncolog|\bDaVita\b|Fresenius", re.I)
+                      r"\bMOB\b|hospital(?!ity)|outpatient|imaging|radiolog|dermatolog|orthop|pediatric|cardiolog|oncolog|\bDaVita\b|Fresenius", re.I)
 # in the description only a phrase that says what the BUILDING is counts ("two blocks from the hospital" does not)
-TEXT_RE = re.compile(r"medical (?:office|building|center|plaza|condo|campus|facility|tenant|use|practice)|dental (?:office|practice|building|clinic)|"
-                     r"surgery center|surgical center|urgent care|dialysis|veterinar|animal hospital|physician(?:s)? (?:office|practice|group)|"
+TEXT_RE = re.compile(r"medical (?:office )?(?:building|complex|condo|campus|facility|plaza|park|portfolio|investment)|medical office space|"
+                     r"dental (?:office|practice|building|clinic)|surgery center|surgical center|urgent care|dialysis|"
+                     r"veterinar\w* (?:clinic|hospital|practice|office)|animal hospital|physician(?:s)? (?:office|practice|group)|"
                      r"\bDaVita\b|Fresenius|outpatient (?:clinic|center|facility)|imaging center", re.I)
+# 2026-11-20 (first list on the Mac): "Hospitality" matched "hospital" and three hotels were about to be asked as medical; a use list
+# ("zoned for medical, veterinary …"), "near X Medical Center", "medical users / tenants / uses" in the description matched too.
+# The label never takes "hospitality"; the description only counts when it names the building itself.
 NNN_RE = re.compile(r"\bnnn\b|triple[- ]net|net[- ]leased?|absolute net", re.I)
 KV = "medical_campaign:"
 STAY = (NOT_A_FIT, "Closed")          # an open card he put there is not carried over

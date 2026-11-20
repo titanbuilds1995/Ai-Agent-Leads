@@ -261,3 +261,16 @@ def test_card_parts_drops_old_rendered_stand_blocks():
     assert p["email"].endswith("(outreach #1)")
     st = {"status": "Needs you", "last_in": "Thais", "count": "1", "drafts": []}
     assert stand_html(st, notes).count("WHERE WE STAND") == 1
+
+
+def test_unsent_card_on_the_warm_board_is_read(loaded, cfg, tmp_path, monkeypatch):
+    """Rodrigo, 2026-11-19 (Chevelle Young): a card dragged onto the warm board's Needs Revision before its first email went
+    out sat a week with his comment unanswered: only sent lead cards were read there. Now it is handled like its twin."""
+    asana, _ = _cards(loaded, cfg, tmp_path, monkeypatch)
+    w = _sections(cfg)["warm_leads"]
+    g1 = list(asana.tasks)[0]
+    asana.move(g1, w["needs_revision"])
+    asana.stories[g1].append("make it shorter")
+    sync_feedback(loaded, cfg, asana, _LLM())
+    assert asana.where[g1] == w["needs_me"]               # worked on, back to his column on the warm board
+    assert any(x.startswith(f"{BOT} Revised") for x in asana.stories[g1])

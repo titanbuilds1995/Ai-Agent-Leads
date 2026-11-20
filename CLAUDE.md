@@ -769,6 +769,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   The bottom line, last paragraph); Tamara's and Arkeshia's card offers rewritten the same way by hand. 8 tests in test_verdict; suite
   passes except the same 3. **Open, his answer needed: the footer.** Proposed a fuller plain-text signature (email + address lines);
   a logo / designed footer is held because pictures and HTML are what hurt the domain's spam reputation on Nov 4–9.
+- 2026-11-19 ~3:35pm ET (Mac), RESUME HERE: **Chevelle Young explained + fixed.** Cause: her card (outreach #136) was dragged onto
+  Warm Leads before the first email ever went out; on the warm board `sync_feedback` only handled lead cards whose first email was sent,
+  and the unsent-card loop only read the approvals board, so nobody read his 11-12 comment. Fix: that loop now also takes unsent
+  warm-board cards (`warm_unsent`, moves stay on the warm board); 1 test. Ran the feedback step only (no send stage, no Gmail):
+  NUMBERS + 💬 + 🏁 BOTTOM LINE posted (offer $220k, ceiling $255k, ask $450k), card in warm Needs Me. The offer email replaced her
+  never-sent FIRST email (Cc Rodrigo) and the second reader still objects. Rodrigo decides: offer as a first touch, or the question email first.
+  Also seen: `claude:offer_email hit max_tokens` twice in that run (the offer writer's token limit may be too low).
 - 2026-11-19 ~3:30pm ET, RESUME HERE: Rodrigo asked why cards sit in Needs Revision and why Tamara Mason's rewrite ignored him. Causes
   fixed in code (Decisions → The bottom line, last paragraph); 7 tests in test_verdict, suite passes except the same 3. By hand from the
   cloud: **Tamara Mason** offer at $250,000 on her card (Needs Me), **Arkeshia Love** offer updated to his terms (15 day inspection) and

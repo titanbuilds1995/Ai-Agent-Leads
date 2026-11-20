@@ -807,7 +807,12 @@ def sync_feedback(conn, cfg: Any, asana: Asana, llm, gmail=None) -> dict[str, in
             log.exception("handling the comment on lead card %s: %s", t["gid"], e)
             n["revise_failed"] += 1
     tasks, in_approved = _board()         # re-read: a reply card held from Approved by a lead-card comment is rewritten this round
-    for t, where in tasks + in_approved:
+    # Rodrigo, 2026-11-19 (Chevelle Young): a card he dragged onto the Warm Leads board before its first email went out was read
+    # by nobody: the lead loop above skips unsent cards and this loop only saw the approvals board. Warm cards that are still
+    # unsent are handled here like their approvals twin (moves land on the matching warm column).
+    seen = {t["gid"] for t, _ in tasks + in_approved}
+    warm_unsent = [(t, w) for t, w in (asana.lead_cards() if hasattr(asana, "lead_cards") else []) if t["gid"] not in seen]
+    for t, where in tasks + in_approved + warm_unsent:
         card = parse_card(t.get("notes") or "")
         if not card or _sent_lead(card):
             continue

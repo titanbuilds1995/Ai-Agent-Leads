@@ -114,6 +114,14 @@ def listings(conn, cfg: Any = None) -> list[dict[str, Any]]:
             L["asset_class"] = "medical"
         if not med:
             continue
+        # 2026-11-20 (first run of these lanes on the Mac): 128 of 140 "no price" listings were LoopNet search-page stubs (sheet
+        # blocked: no address, no broker email, half under 5,000 SF) and each got a junk card. A lane listing must be a real one:
+        # a street and a city we can name in the email, a broker we can reach, and not a small suite.
+        if not (L.get("street") and L.get("city")) or not (L.get("broker_email") or L.get("broker_phone")):
+            continue
+        sf = L.get("building_sf")
+        if isinstance(sf, (int, float)) and sf and sf < float(cfg.get("commercial.medical.min_sf", 5000) or 0):
+            continue
         cap = L.get("stated_cap")
         if near and L.get("price") and cap is not None and near <= cap < floor and _fits_but_for(L, cfg, stated_cap=None):
             L["lane"] = "seven"

@@ -144,25 +144,30 @@ def campaign_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]
     name, first = first_name(Ls[0].get("broker_name")), Ls[0]
     asks = "the trailing twelve, the rent roll and the offering memorandum"
     open_ = "We are placing a 1031 exchange with a partner of ours and the clock is running."
+    place = _where(first)
+    one = f"I saw {place} on LoopNet." if place.startswith("the ") else f"I saw your listing at {place} on LoopNet."
     if len(Ls) == 1 and lanes == {"seven"}:
-        saw = f"I saw your listing at {_where(first)} on LoopNet."
+        saw = one
         ask = ("We need an eight cap or better, and this one is listed a little under that. Is there a way it gets there, with rents that "
                "are under market or leases coming up for renewal, or is the seller flexible on the price?")
-        close = f"If there is, could you send over {asks}? You will have an answer from us quickly."
+        close = f"If there is, could you send over {asks}?"
     elif len(Ls) == 1:
-        saw = f"I saw your listing at {_where(first)} on LoopNet."
-        ask = ("The listing does not show a price or a cap rate. What is the seller asking, and at that price does it hold an eight cap or "
-               "better on the leases in place, once it sells and the taxes are reassessed?")
-        close = f"If it does, we want to take a look and we move fast. Send over {asks} and you will have an answer from us quickly."
+        saw = one
+        shows = "a price" if first.get("stated_cap") else "a price or a cap rate"
+        ask = (f"The listing does not show {shows}. What is the seller asking, and at that price does it hold an eight cap or better on "
+               "the leases in place?")
+        close = f"If it does, we move fast. Could you send over {asks}?"
     else:
-        saw = f"I saw your listings on LoopNet, {_where(first)} and {len(Ls) - 1} more."
-        ask = ("One straight question: do any of them hold an eight cap or better on the leases in place, once it sells and the taxes are "
-               "reassessed, or get there with rents that are under market?")
+        saw = f"I saw your listings on LoopNet, {place} and {len(Ls) - 1} more."
+        ask = "One straight question: do any of them hold an eight cap or better on the leases in place, or get there with rents that are under market?"
         if "no_price" in lanes:
             ask += " And what is the seller asking on the ones with no price?"
-        close = f"For the ones that do, send over {asks} and you will have a quick answer."
+        close = f"For the ones that do, could you send over {asks}?"
     body = f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n{open_} {ask}\n\n{close}\n\n" + signature(cfg)
     street = first.get("street") or "Your listing"
+    pm = re.match(r"(?i)portfolio of (\d+)", street)
+    if pm:
+        street = f"Your {pm.group(1)}-property listing"
     subject = street + (f", {first['city']}" if first.get("city") else "") + (" and more" if len(Ls) > 1 else "") + " on LoopNet"
     return {"subject": subject[:90], "body": format_paragraphs(body)}
 

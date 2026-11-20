@@ -1835,5 +1835,18 @@ def test_medical_seven_caps_and_no_price_listings_get_their_own_question(conn, c
     assert "does not show a price or a cap rate" in one["body"]
     for r in (one, by["seven@x.com"], by["quiet@x.com"]):
         assert validate_om_request(r["subject"], r["body"]) == [], r["body"]
+    # the Mac's first run: long real addresses ran 111-116 words, a 6-property listing read "your listing at the 6-property listing",
+    # and LoopNet stubs (no address / no broker / a small suite) got cards
+    long = dict(rows[2], lane="no_price", street="1000-1042 South Military Trail Professional Center", city="West Palm Beach", broker_name="Christopher Montgomery")
+    for L in (long, dict(long, lane="seven", stated_cap=7.4), dict(long, stated_cap=7.2)):
+        r = campaign_request(cfg, [L])
+        assert validate_om_request(r["subject"], r["body"]) == [], r["body"]
+    assert "does not show a price." in campaign_request(cfg, [dict(long, stated_cap=7.2)])["body"]
+    port = campaign_request(cfg, [dict(long, street="Portfolio of 6 Properties For Sale in", city="Middleburg")])
+    assert "I saw the 6-property listing in Middleburg on LoopNet." in port["body"] and port["subject"].startswith("Your 6-property listing, Middleburg")
+    for i, over in enumerate(({"street": None}, {"city": None}, {"broker_email": "", "broker_phone": ""}, {"building_sf": 2400})):
+        store(conn, clean_listing(**{**base, "listing_id": f"3{i}", "street": f"3{i} Stub St", "city": "Tampa", "price": None, "stated_cap": None,
+                                     "stated_noi": None, "in_box": None, "broker_email": f"stub{i}@x.com", **over}), "2026-11-20")
+    assert {L["listing_id"] for L in medical.plan(conn, cfg)["listings"]} == {"21", "23", "26"}
     cfg.raw["commercial"]["medical"] = {"near_cap_min": 0, "no_price": False}
     assert medical.plan(conn, cfg)["listings"] == []

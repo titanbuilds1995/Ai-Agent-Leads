@@ -770,6 +770,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-20 ~4pm ET, RESUME HERE: **fixes after the Mac stopped the 7-cap / no-price run** (entry below). Done in the cloud, fixtures
+  only (suite passes except the same 3): the two lanes now need a street, a city and a reachable broker and skip buildings under 5,000 SF
+  (`commercial.medical.min_sf`), so LoopNet stubs get no card; the lane emails are shorter (long addresses pass the 110-word rule); a
+  "Portfolio of N" listing reads "the N-property listing"; a no-price listing that shows a cap is asked for the price only. STILL TO DO
+  ON THE MAC (it has the raw rows): fill a stub's street / city from `listingName` so the nine 7.0–7.8% listings become real, delete the
+  128 junk cards on the Medical board (Rodrigo's OK = pasting the prompt) and clear their `asana_task_id`, drop the two non-medical ones
+  (8510 Westside Industrial Dr, 1000-1042 S Military Trl), then `make medical-list`, read every email, `make medical ARGS=--no-pull`.
+  **0 medical emails have gone out so far.**
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
   270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet
   search-page stubs (sheet blocked: no price, no address, no broker email, 56 of them under 5,000 SF), not "price undisclosed"; they

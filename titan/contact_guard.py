@@ -87,7 +87,17 @@ def is_ack(body: str) -> bool:
     words = re.findall(r"[\w']+", text)
     if not words or len(words) > ACK_MAX_WORDS or "?" in text or ENGAGED_RE.search(text):
         return False
-    return bool(ACK_RE.search(text))
+    if not ACK_RE.search(text):
+        return False
+    # The opening sentence must itself be a thank-you / got-it: "Great rental, seller looking for reasonable offers" opens with
+    # "great" but says something new (Martin Hoffman, 2026-11-19: the guard held Rodrigo's follow-up over it).
+    first = next((s for s in re.split(r"[.!\n]+", text) if s.strip()), "")
+    rest = ACK_RE.sub(" ", first)
+    left = [w for w in re.findall(r"[a-z']+", rest.lower()) if w not in ACK_FILLER]
+    return len(left) <= 2
+
+
+ACK_FILLER = frozenset("so very much you for the this that it i we all again and a so much will be to your our me us".split())
 
 
 def is_offer(body: str) -> bool:

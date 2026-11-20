@@ -747,6 +747,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-20 ~7:30am ET: morning check + 2 fixes. **No 7am report.** (1) Javier's offer email went out Thu 8:04am with Rodrigo's
+  note "Let's ask them this." in it: `answers.strip_asides` + TIDY_SYSTEM now drop his asides to Charles from dictated emails.
+  (2) The contact guard held Martin Hoffman's follow-up because "Great rental seller looking for reasonable offers" read as a thank-you:
+  `is_ack` now needs the opening sentence itself to be the acknowledgement. 2 tests; full suite passes in the cloud.
 - 2026-11-19 ~6:45pm ET, RESUME HERE: **Phone + Address fields on Asana cards built** (Decisions → Phone and Address fields). Tested on
   fixtures only (1 test; suite passes except the same 3). Not run live: the cloud has no ASANA_TOKEN. First run = the Mac's next
   approvals round after it pulls (makes the two fields, puts them on the 4 boards, fills ~all cards over 2–3 rounds). If Asana refuses

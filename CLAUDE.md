@@ -770,6 +770,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-20 ~4pm ET: Rodrigo asked for restaurant rental comps in Brickell for a buyer. Answered in chat from public listings and
+  broker reports (asking rents about $70–$120/SF NNN, Cushman Q3 2026 Brickell retail average $84.96); nothing built, no paid pull.
+  Open: the property's address and size, to tighten the comps. The medical RESUME HERE below is still the next engine step.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
   270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet
   search-page stubs (sheet blocked: no price, no address, no broker email, 56 of them under 5,000 SF), not "price undisclosed"; they

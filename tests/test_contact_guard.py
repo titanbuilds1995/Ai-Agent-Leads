@@ -89,3 +89,15 @@ def test_still_interested_is_an_answer_and_an_offer_is_never_held_by_an_ack():
     from titan.asana import BOT
     cm = [{"text": f"{BOT} **HOLD, not sent: x**"}, {"text": "Send it"}]
     assert confirmed_after_hold(cm, BOT)                        # his "send it" written after the warning is his OK
+
+
+def test_an_answer_that_opens_with_great_is_not_an_acknowledgement():
+    assert not is_ack("Great rental seller looking for reasonable offers . Martin hoffman P.A Broker-associate The Keyes co")
+    assert is_ack("Great, thank you so much!") and is_ack("Sounds good, thank you.")
+
+
+def test_his_note_to_charles_is_not_sent_to_the_agent():
+    from titan.answers import strip_asides
+    out = strip_asides("Our offer would need to be at about $140,000.\n\nDo the sellers owe more than that? Let's ask them this.")
+    assert "ask them this" not in out and out.rstrip().endswith("Do the sellers owe more than that?")
+    assert strip_asides("Tell her we close in 30 days.") == "Tell her we close in 30 days."

@@ -93,11 +93,11 @@ def pending(conn, cfg: Any) -> list[dict[str, Any]]:
                 continue
             seen.add(em)
             out.append(e)
-    out.sort(key=lambda e: -(e.get("score") or 0))
+    out.sort(key=lambda e: (-(e.get("priority") or 0), -(e.get("score") or 0)))    # a campaign he asked for today goes first (medical.py)
     return out
 
 
-def send_queue(conn, cfg: Any, gmail, room: int, now: datetime | None = None) -> dict[str, Any]:
+def send_queue(conn, cfg: Any, gmail, room: int, now: datetime | None = None, asana=None, secs: dict[str, str] | None = None) -> dict[str, Any]:
     """Send up to `room` queued emails from Charles@. Each one is logged like an OM request (outreach kind om_request + a
     commercial_threads row on the first listing, the others in listing_ids) so replies, the response clock and the books flow the same way."""
     now = now or now_utc()
@@ -123,16 +123,32 @@ def send_queue(conn, cfg: Any, gmail, room: int, now: datetime | None = None) ->
                     store(conn, L, run_date)
                 except Exception as ex:  # noqa: BLE001
                     log.warning("blast: could not store listing %s: %s", L.get("listing_id"), ex)
+        cards = {str(k): v for k, v in (e.get("cards") or {}).items() if v}       # a campaign that carded its listings first (medical.py)
+        card = cards.get(ids[0]) if ids else None
+        card = card or next(iter(cards.values()), None)
         cur = conn.execute("INSERT INTO outreach (agent_id, property_ids, channel, kind, status, subject, body, to_address, gmail_thread_id, "
-                           "gmail_message_id, run_date, created_at, sent_at) VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?)",
+                           "gmail_message_id, run_date, created_at, sent_at, asana_task_id) VALUES (NULL,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                            (json.dumps([f"loopnet:{i}" for i in ids]), "email", "om_request", "sent", e["subject"], e["body"], e["broker_email"],
-                            sent.get("thread_id"), sent.get("message_id"), run_date, ts, ts))
+                            sent.get("thread_id"), sent.get("message_id"), run_date, ts, ts, card))
         conn.execute("INSERT INTO commercial_threads (listing_id, listing_ids, broker_email, broker_name, gmail_thread_id, gmail_message_id, outreach_id, "
-                     "subject, sent_at, state, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                     "subject, sent_at, state, card_gid, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                      (ids[0] if ids else "", json.dumps(ids), e["broker_email"], e.get("broker_name"), sent.get("thread_id"), sent.get("message_id"),
-                      cur.lastrowid, e["subject"], ts, "SENT", ts, ts))
+                      cur.lastrowid, e["subject"], ts, "SENT", card, ts, ts))
         for i in ids:
-            conn.execute("UPDATE commercial_listings SET board_column=COALESCE(board_column,'In touch with the agent') WHERE listing_id=?", (i,))
+            if cards:
+                conn.execute("UPDATE commercial_listings SET board_column='Sent · no answer yet' WHERE listing_id=?", (i,))
+            else:
+                conn.execute("UPDATE commercial_listings SET board_column=COALESCE(board_column,'In touch with the agent') WHERE listing_id=?", (i,))
+        if asana is not None and cards:
+            when = now.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            for i, gid in cards.items():
+                try:
+                    asana.comment(gid, f"📤 Sent to {e['broker_email']} at {when} UTC (subject \"{e['subject']}\"). Waiting for the books; the reply clock is running."
+                                  + ("" if gid == card or len(cards) == 1 else " One email covered all of this broker's listings; the answer shows on the first one's card."))
+                    if (secs or {}).get("Sent · no answer yet"):
+                        asana.move(gid, secs["Sent · no answer yet"])
+                except Exception as ex:  # noqa: BLE001
+                    log.warning("blast: card %s not updated: %s", gid, ex)
         res["sent"] += 1
     res["waiting"] = max(0, len(todo) - res["sent"])
     return res

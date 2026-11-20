@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..util import log
-from .board import NEEDS_ME, NEEDS_REVISION, NOT_A_FIT, REVIEWED, column_key
+from .board import COLUMNS as MAIN_COLUMNS, NEEDS_ME, NEEDS_REVISION, NOT_A_FIT, REVIEWED, column_key
 
 BOARD_NAME = "Titan 1031 · Working Deals"
 WAITING = "Waiting on the broker"
@@ -23,14 +23,21 @@ COLUMNS = {NEEDS_ME: NEEDS_ME, NEEDS_REVISION: NEEDS_REVISION, REVIEWED: REVIEWE
            "Books received": "Books received", "Offer out": "Offer out", "Closed": "Closed", NOT_A_FIT: NOT_A_FIT}
 
 
-def ensure_working_board(asana, project: str) -> dict[str, str]:
-    """{1031 column key: Working Deals section gid}, creating any column that is missing (in the order above, Not a fit last)."""
+MEDICAL_NAME = "Titan 1031 · Medical"
+# Rodrigo, 2026-11-20: "a new board with just medical buildings". Same columns as the 1031 board, so everything works there as it
+# does on the 1031 board: drag to "Approved · send OM request" sends, answers / books / reads land on the card (medical.py).
+MEDICAL_COLUMNS = {c: c for c in MAIN_COLUMNS}
+
+
+def ensure_working_board(asana, project: str, columns: dict[str, str] | None = None) -> dict[str, str]:
+    """{1031 column key: section gid on that board}, creating any column that is missing (in the order above, Not a fit last)."""
+    columns = columns or COLUMNS
     have: dict[str, str] = {}
     for sec in asana.sections(project):
         key = column_key(sec.get("name"))
         if key:
             have[key] = sec["gid"]
-    for name, key in COLUMNS.items():
+    for name, key in columns.items():
         if key not in have:
             have[key] = asana.ensure_section(project, name)
     from .board import last_at_end
@@ -39,14 +46,16 @@ def ensure_working_board(asana, project: str) -> dict[str, str]:
 
 
 class CommercialAsana:
-    """The Asana client, with the 1031 board and Working Deals seen as one board (see the module doc)."""
+    """The Asana client, with the 1031 board, Working Deals and the Medical board seen as one board (see the module doc)."""
 
-    def __init__(self, inner, main: str, working: str):
-        self._a, self.main, self.working = inner, str(main), str(working)
+    def __init__(self, inner, main: str, working: str | None = None, medical: str | None = None):
+        self._a, self.main = inner, str(main)
+        self.working = str(working) if working else None
+        self.medical = str(medical) if medical else None
         self._loaded = False
-        self._main_secs: dict[str, str] = {}      # 1031 section gid → column key
-        self._work: dict[str, str] = {}           # column key → Working Deals section gid
-        self._on_work: set[str] = set()
+        self._main_secs: dict[str, str] = {}              # 1031 section gid → column key
+        self._secs: dict[str, dict[str, str]] = {}        # other board → {column key: its section gid}
+        self._board_of: dict[str, str] = {}               # card gid → the other board it lives on
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._a, name)
@@ -54,6 +63,14 @@ class CommercialAsana:
     @property
     def inner(self):
         return self._a
+
+    def _others(self) -> list[tuple[str, dict[str, str]]]:
+        out = []
+        if self.working:
+            out.append((self.working, COLUMNS))
+        if self.medical:
+            out.append((self.medical, MEDICAL_COLUMNS))
+        return out
 
     def _load(self) -> None:
         if self._loaded:
@@ -63,29 +80,45 @@ class CommercialAsana:
             key = column_key(sec.get("name"))
             if key:
                 self._main_secs[sec["gid"]] = key
-        self._work = ensure_working_board(self._a, self.working)
-        for t in self._a.project_tasks(self.working):
-            self._on_work.add(t["gid"])
-            projects = {str((m.get("project") or {}).get("gid")) for m in t.get("memberships") or []}
-            if self.main in projects:          # he added it to Working Deals and it is still on the 1031 board: one place only
-                try:
-                    self._a.remove_project(t["gid"], self.main)
-                    log.info("working deals: %s taken off the 1031 board", t.get("name"))
-                except Exception as e:  # noqa: BLE001
-                    log.warning("working deals: could not take %s off the 1031 board: %s", t["gid"], e)
+        for board, columns in self._others():
+            self._secs[board] = ensure_working_board(self._a, board, columns)
+            for t in self._a.project_tasks(board):
+                self._board_of.setdefault(t["gid"], board)
+                projects = {str((m.get("project") or {}).get("gid")) for m in t.get("memberships") or []}
+                if self.main in projects:          # it was put on the other board and is still on the 1031 board: one place only
+                    try:
+                        self._a.remove_project(t["gid"], self.main)
+                        log.info("%s: %s taken off the 1031 board", board, t.get("name"))
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("%s: could not take %s off the 1031 board: %s", board, t["gid"], e)
 
     def on_working(self, task: str) -> bool:
         self._load()
-        return task in self._on_work
+        return bool(self.working) and self._board_of.get(task) == self.working
+
+    def on_medical(self, task: str) -> bool:
+        self._load()
+        return bool(self.medical) and self._board_of.get(task) == self.medical
+
+    def medical_sections(self) -> dict[str, str]:
+        """{column: section gid} on the Medical board ({} when there is none)."""
+        self._load()
+        return dict(self._secs.get(self.medical or "", {}))
+
+    def placed(self, task: str, board: str) -> None:
+        """A card was just created on / moved to one of the other boards: engine moves stay there from now on."""
+        self._load()
+        self._board_of[task] = str(board)
 
     def move(self, task: str, section: str) -> None:
         self._load()
         key = self._main_secs.get(section)
-        if key and task in self._on_work:
-            target = self._work.get(key)
+        board = self._board_of.get(task)
+        if key and board:
+            target = self._secs.get(board, {}).get(key)
             if target:
                 return self._a.move(task, target)
-            log.info("working deals: no %r column there, card %s stays where it is", key, task)
+            log.info("%s: no %r column there, card %s stays where it is", board, key, task)
             return None
         return self._a.move(task, section)
 
@@ -93,9 +126,14 @@ class CommercialAsana:
         self._load()
         out = list(self._a.section_tasks(section))
         key = self._main_secs.get(section)
-        if key and self._work.get(key) and self._work[key] != section:
+        if key:
             seen = {t["gid"] for t in out}
-            out += [t for t in self._a.section_tasks(self._work[key]) if t["gid"] not in seen]
+            for board, _ in self._others():
+                other = self._secs.get(board, {}).get(key)
+                if other and other != section:
+                    more = [t for t in self._a.section_tasks(other) if t["gid"] not in seen]
+                    seen |= {t["gid"] for t in more}
+                    out += more
         return out
 
     def project_tasks(self, project: str, completed_since: str = "now") -> list[dict[str, Any]]:
@@ -103,13 +141,17 @@ class CommercialAsana:
         if str(project) == self.main:
             self._load()
             seen = {t["gid"] for t in out}
-            out += [t for t in self._a.project_tasks(self.working, completed_since) if t["gid"] not in seen]
+            for board, _ in self._others():
+                more = [t for t in self._a.project_tasks(board, completed_since) if t["gid"] not in seen]
+                seen |= {t["gid"] for t in more}
+                out += more
         return out
 
 
 def wrap(cfg: Any, asana):
-    """The client every commercial stage uses: wrapped when config `commercial.asana.working_project` is set."""
-    main, working = cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project")
-    if asana is None or not main or not working or isinstance(asana, CommercialAsana):
+    """The client every commercial stage uses: wrapped when `commercial.asana.working_project` or `medical_project` is set."""
+    main, working, medical = (cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"),
+                              cfg.get("commercial.asana.medical_project"))
+    if asana is None or not main or not (working or medical) or isinstance(asana, CommercialAsana):
         return asana
-    return CommercialAsana(asana, main, working)
+    return CommercialAsana(asana, main, working, medical)

@@ -60,7 +60,7 @@ def commercial_values(conn) -> dict[str, tuple[str, str]]:
 def boards(cfg: Any) -> list[str]:
     out = [cfg.get("outreach.asana.project"), cfg.get("outreach.asana.warm_leads.project")]
     if cfg.get("commercial.enabled"):
-        out += [cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project")]
+        out += [cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"), cfg.get("commercial.asana.medical_project")]
     return [str(p) for p in out if p]
 
 

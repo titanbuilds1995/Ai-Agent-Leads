@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: product-clean product-clean-list condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: medical medical-list product-clean product-clean-list condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -148,6 +148,12 @@ commercial-offline: ## re-score the last saved LoopNet rows without pulling: mak
 
 commercial-blast: ## queue the no-cap question for every in-box broker without a cap rate (one email per broker); the approvals rounds send it from Charles@
 	$(PY) -m titan.cli commercial-blast --build --list
+
+medical:          ## the medical campaign: LoopNet medical pull (about a dollar) → "Titan 1031 · Medical" board → one request for the financials per broker, queued for Charles@
+	$(PY) -m titan.cli commercial-medical
+
+medical-list:     ## what the medical campaign would do (listings + the emails), nothing pulled, posted or queued
+	$(PY) -m titan.cli commercial-medical --list
 
 commercial-sheets: ## the top listings still missing their LoopNet sheet + the prompt for a Claude in Chrome session on this Mac (make commercial-sheets TOP=15)
 	$(PY) -m titan.cli commercial-sheets --top $(or $(TOP),15)

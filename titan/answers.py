@@ -257,9 +257,23 @@ listing agent. Turn the dictation into the email, keeping it HIS: every point, h
 nothing of substance removed, no new facts, no softening. Fix punctuation, spelling, capitalization and dictation slips (run-on
 sentences, "what I what I wrote", repeated words); split into short paragraphs; the greeting alone on the first line
 ("Hey {first},", or his greeting if he gave one); keep every question he asked (several questions are fine here, they are his);
-keep any number or term he stated exactly as he said it; a bullet list he gave (lines starting with "•") stays a bullet list, one bullet per line, unchanged; no dashes of any kind; plain text; end with the signature block given.
+keep any number or term he stated exactly as he said it; drop his asides to Charles or the engine that are not words for the
+agent ("let's ask them this", "tell him", "put that in the email", "send it", "ask her that") but keep what they point at; a bullet list he gave (lines starting with "•") stays a bullet list, one bullet per line, unchanged; no dashes of any kind; plain text; end with the signature block given.
 Return JSON: body."""
 TIDY_SCHEMA = {"type": "object", "properties": {"body": {"type": "string"}}, "required": ["body"], "additionalProperties": False}
+
+
+# His notes to Charles that rode along in the dictation (Javier Rodriguez, 2026-11-19: the email went out ending
+# "Do the sellers owe more than that? Let's ask them this.").
+ASIDE_RE = re.compile(
+    r"(?:^|(?<=[.?!]))[ \t]*(?:and\s+)?(?:let'?s|let us|go ahead and|make sure (?:to|you))?\s*"
+    r"(?:ask|tell|mention)\s+(?:them|him|her)\s+(?:this|that|it)(?:\s+(?:too|also|as well|in the email))?"
+    r"[ \t]*(?:[.!]+(?=\s|$)|$)", re.I | re.M)
+
+
+def strip_asides(text: str) -> str:
+    """Drop whole sentences that are only his instruction to Charles ("Let's ask them this."), never the agent's words."""
+    return re.sub(r"[ \t]{2,}", " ", ASIDE_RE.sub("", text)).replace(" \n", "\n")
 
 
 def tidy_dictation(llm, cfg: Any, body: str, agent: dict[str, Any]) -> str:
@@ -283,6 +297,7 @@ def tidy_dictation(llm, cfg: Any, body: str, agent: dict[str, Any]) -> str:
         if not re.match(r"^(hey|hi|hello|good (?:morning|afternoon|evening))\b", text, re.I):
             text = f"Hey {first},\n\n{text}"
         text = re.sub(r"^((?:hey|hi|hello)\s+\w+)[,:]?\s*(\w)", lambda g: f"{g.group(1)},\n\n{g.group(2).upper()}", text, count=1, flags=re.I)
+    text = strip_asides(text)
     text = format_paragraphs(text)
     if "charles" not in text.lower()[-220:]:
         text = f"{text.rstrip()}\n\n{sig}"

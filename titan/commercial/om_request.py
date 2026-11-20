@@ -109,6 +109,28 @@ def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     return {"subject": subject[:90], "body": body}
 
 
+def medical_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
+    """The medical campaign (Rodrigo, 2026-11-20: "email all those medical agents today, see if we can get finances"): one email per
+    broker for all of their medical listings, in the wording he already approved. One listing with a cap: the OM request. No caps:
+    the eight-cap question. Several with at least one cap stated: which of them hold an eight cap, then the books for those."""
+    Ls = [L for L in listings if L]
+    if not Ls:
+        raise ValueError("no listings")
+    if len(Ls) == 1 and Ls[0].get("stated_cap"):
+        return om_request(cfg, Ls[0])
+    if not any(L.get("stated_cap") for L in Ls):
+        return cap_question(cfg, Ls)
+    name = first_name(Ls[0].get("broker_name"))
+    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. I saw your listings on LoopNet, {_where(Ls[0])} and {len(Ls) - 1} more.\n\n"
+            "We are placing a 1031 exchange with a partner of ours and the clock is running. One straight question: which of them hold an eight "
+            "cap or better at asking, on the leases in place, once it sells and the taxes are reassessed?\n\n"
+            "For the ones that do, we want to take a look and we move fast. Send over the trailing twelve, the rent roll and the offering "
+            "memorandum and you will have a quick answer.\n\n" + signature(cfg))
+    first = Ls[0]
+    subject = (first.get("street") or "Your listings") + (f", {first['city']}" if first.get("city") else "") + " and more on LoopNet"
+    return {"subject": subject[:90], "body": format_paragraphs(body)}
+
+
 def validate_om_request(subject: str, body: str) -> list[str]:
     """Same house rules as the first emails, minus the residential-only ones."""
     problems: list[str] = []

@@ -1705,3 +1705,92 @@ def test_a_card_moved_out_of_needs_me_is_marked_read_in_charless_mailbox(conn, c
     asana.move(gid, secs[REVIEWED])
     clear_not_fit(conn, cfg, asana, gm, now=SAT_10AM_ET)
     assert len(gm.read) == 2                                             # and out again: read again
+
+
+# --- the medical campaign (Rodrigo, 2026-11-20) --------------------------------------------------------------------------------
+
+def test_medical_request_wording_passes_the_house_rules(cfg):
+    from titan.commercial.om_request import medical_request, validate_om_request
+    a = {"broker_name": "Jane Doe, CCIM", "street": "1 Main St", "city": "Orlando", "asset_class": "medical", "stated_cap": 8.2}
+    b = {"street": "2 Oak Ave", "city": "Tampa", "asset_class": "medical"}
+    one = medical_request(cfg, [a])
+    assert "numbers behind the cap rate" in one["body"]                       # a stated cap: the books behind it
+    assert "does it hold an eight cap" in medical_request(cfg, [dict(b, broker_name="Jane")])["body"]
+    mixed = medical_request(cfg, [a, b])
+    assert "which of them hold an eight cap" in mixed["body"] and "1 Main St in Orlando and 1 more" in mixed["body"]
+    for r in (one, mixed, medical_request(cfg, [dict(b, broker_name="Jane"), b])):
+        assert validate_om_request(r["subject"], r["body"]) == [], r["body"]
+
+
+def test_medical_campaign_fills_its_board_queues_one_email_per_broker_and_never_reasks(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-20: "a new board on Asana with just medical buildings and email all those medical agents today, see if we
+    can get finances". Medical listings in the box get a card on the Medical board, an open card on the 1031 board moves over, one
+    request per broker is queued first in line, a broker Charles already emailed is not asked again, and the sent email moves the
+    card to Sent · no answer yet ON the Medical board."""
+    from titan.commercial import medical
+    from titan.commercial.blast import pending
+    from titan.commercial.board import NO_ANSWER, ensure_board
+    from titan.commercial.outreach import send_om_requests
+    from titan.commercial.run import store
+    from titan.commercial.working import CommercialAsana
+    from tests.test_approvals import SAT_10AM_ET
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["asana"].update({"project": "proj-1031", "working_project": None, "medical_project": "proj-med"})
+    cfg.raw["commercial"]["outreach"] = {"per_round": 3, "daily_cap": 100}
+    rows = [clean_listing(listing_id="11", listing_url="https://www.loopnet.com/Listing/11/", street="11 Doctor Dr", city="Orlando", asset_class="medical",
+                          property_type="Office", property_subtype="Medical", broker_email="ann@med.com", broker_name="Ann Lee", stated_cap=None, stated_noi=None, score=70),
+            clean_listing(listing_id="12", listing_url="https://www.loopnet.com/Listing/12/", street="12 Clinic Ct", city="Tampa", asset_class="nnn",
+                          property_type="Retail", name="DaVita Dialysis", broker_email="ann@med.com", broker_name="Ann Lee", score=80),
+            clean_listing(listing_id="13", listing_url="https://www.loopnet.com/Listing/13/", street="13 Dental Way", city="Ocala", asset_class="medical",
+                          property_type="Office", broker_email="old@med.com", broker_name="Old Friend", score=60),
+            clean_listing(listing_id="14", listing_url="https://www.loopnet.com/Listing/14/", street="14 Vet Rd", city="Naples", asset_class="office",
+                          property_type="Office", description="Fully leased veterinary hospital on a long lease.", broker_email="", broker_name="No Email", score=50),
+            clean_listing(listing_id="15", listing_url="https://www.loopnet.com/Listing/15/", street="15 Store St", city="Miami", asset_class="retail",
+                          property_type="Retail", description="Strip center two blocks from the hospital.", broker_email="shop@x.com", score=90),
+            clean_listing(listing_id="16", listing_url="https://www.loopnet.com/Listing/16/", street="16 Out St", city="Miami", asset_class="medical", in_box=False,
+                          broker_email="out@x.com", score=90)]
+    for L in rows:
+        L.setdefault("in_box", True)
+        store(conn, L, "2026-11-20")
+    conn.execute("INSERT INTO commercial_threads (listing_id, broker_email, sent_at, state, created_at, updated_at) VALUES ('99','old@med.com','2026-11-10T15:00:00Z','SENT','x','x')")
+    a = FakeWorkingAsana()
+    secs = ensure_board(a, "proj-1031")
+    old = a.create_task("proj-1031", secs[NO_ANSWER], "Old Friend · Medical · Ocala", "https://www.loopnet.com/Listing/13/")["gid"]
+    a.task = lambda gid, fields="name,notes": {**a.tasks[gid], "completed": a.tasks[gid].get("completed", False),
+                                              "memberships": [{"project": {"gid": a.board_of.get(a.where[gid], "proj-1031")}, "section": {"name": a._sections[a.where[gid]]}}]}
+    w = CommercialAsana(a, "proj-1031", None, "proj-med")
+    p = medical.plan(conn, cfg)
+    assert [L["listing_id"] for L in p["listings"]] == ["12", "13", "14", "11"]          # a stated cap first; the strip center and the out-of-box one are not in
+    assert [(e["broker_email"], len(e["listings"])) for e in p["emails"]] == [("ann@med.com", 2)]
+    assert "already emailed this broker on 2026-11-10" in p["notes"]["13"] and "no email" in p["notes"]["14"]
+    res = medical.run_campaign(conn, cfg, None, w, pull_first=False, run_date="2026-11-20")
+    med = w.medical_sections()
+    assert res["listings"] == 4 and res["cards"] == 3 and res["moved"] == 1 and res["queued"] == 1
+    assert a.where[old] == med[NO_ANSWER] and (old, "proj-1031") in a.removed            # his open card moved over, same column
+    new_cards = [g for g in a.tasks if g != old]
+    assert all(a.where[g] == med["New"] for g in new_cards)
+    q = pending(conn, cfg)
+    assert len(q) == 1 and q[0]["campaign"] == "medical" and set(q[0]["cards"]) == {"11", "12"}
+    assert medical.run_campaign(conn, cfg, None, w, pull_first=False, run_date="2026-11-20")["cards"] == 0      # a second run doubles nothing
+    assert len(a.tasks) == 4
+    gm = FakeOMGmail()
+    out = send_om_requests(conn, cfg, w, gm, now=SAT_10AM_ET)
+    assert out["queue_sent"] == 1 and [m["to"] if isinstance(m, dict) else m[0] for m in gm.sent] == ["ann@med.com"]
+    th = conn.execute("SELECT * FROM commercial_threads WHERE broker_email='ann@med.com'").fetchone()
+    assert th["card_gid"] == q[0]["cards"]["12"]
+    for gid in q[0]["cards"].values():
+        assert a.where[gid] == med[NO_ANSWER] and any("📤 Sent to ann@med.com" in c for c in a.stories[gid])
+    assert pending(conn, cfg) == []
+    assert medical.plan(conn, cfg)["emails"] == []                                       # and nobody is asked twice
+
+
+def test_medical_campaign_runs_once_on_its_date(conn, cfg, tmp_path, monkeypatch):
+    from titan.commercial import medical
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["asana"]["medical_project"] = "proj-med"
+    cfg.raw["commercial"]["medical"] = {"run_on": "2026-11-20"}
+    monkeypatch.setattr(medical, "today_et", lambda: "2026-11-21")
+    assert medical.run_if_due(conn, cfg, None, None) == {"skipped": "not due"}
+    monkeypatch.setattr(medical, "today_et", lambda: "2026-11-20")
+    assert "listings" in medical.run_if_due(conn, cfg, None, None)
+    assert medical.run_if_due(conn, cfg, None, None) == {"skipped": "not due"}

@@ -741,12 +741,32 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   = listing agent's phone + the house address (two houses joined with " + "), 1031 cards = broker phone + property address. Written
   only when a value changes (table `card_fields`), 300 cards a round. Asana has no phone-number field type, so the number is text:
   in the Asana phone app tap the field, copy, call. Off switch: `outreach.asana.card_fields: false`.
+- **Medical campaign + Medical board (Rodrigo, 2026-11-20: "a campaign where we focus on medical buildings in Florida … ideally triple
+  net or can reach our 8 cap … a new board on Asana with just medical buildings and email all those medical agents today, see if we can
+  get finances")**: `titan/commercial/medical.py`, `make medical` (`make medical-list` prints only), config `commercial.medical.run_on`
+  (that date's first approvals round runs it once, stage `medical_campaign`). It pulls LoopNet's medical-office search only (Apify, about a
+  dollar, marks nothing gone; a failed pull = works the stored listings), picks every in-box active listing that is medical (LoopNet type,
+  or name / description saying medical office, dental, surgery, urgent care, dialysis, veterinary; "near the hospital" does not count),
+  triple net and stated caps first. Board **"Titan 1031 · Medical"** (project 1220751802973172, `commercial.asana.medical_project`), the
+  SAME columns as the 1031 board and read by the engine as part of it (`working.CommercialAsana` now wraps 1031 + Working Deals + Medical:
+  drags, sends, answers, reads, Needs Me all work there and engine moves stay on that board). An open medical card on the 1031 board is
+  moved over in its column (not from Not a fit / Closed / Working Deals); every other listing gets a card in New. One request for the
+  financials per broker (`om_request.medical_request`: his approved OM-request / eight-cap wording) goes into the commercial queue
+  (`data/commercial_queue/<date>-medical.json`, `priority` 1 = ahead of the no-cap blast) and out from Charles@ at the commercial pace;
+  when sent the card gets 📤 and moves to Sent · no answer yet. **Never re-asks a broker Charles already emailed** (any commercial thread),
+  a do-not-contact or missing address: the card says why.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-20 ~2pm ET, RESUME HERE: **medical campaign built** (Decisions → Medical campaign). The Medical board exists on Asana (empty
+  until the Mac runs). Tested on fixtures only (3 tests; suite passes except the same 3). NOT run live: the cloud's Apify token is still
+  refused and it has no database. First run = the Mac's next approvals round today (`run_on: "2026-11-20"`), or `make medical` by hand.
+  Watch: the pull's row count, how many medical listings are in the box (round two's income screen removes vacant / owner-user ones, and
+  medical office is often owner-user), cards landing on the Medical board, 📤 comments. Pace is still 3 a round / 60 a day: a long list
+  finishes Saturday morning. If nothing ran today, set `run_on` to the new date or run `make medical`.
 - 2026-11-20 ~7:30am ET: morning check + 2 fixes. **No 7am report.** (1) Javier's offer email went out Thu 8:04am with Rodrigo's
   note "Let's ask them this." in it: `answers.strip_asides` + TIDY_SYSTEM now drop his asides to Charles from dictated emails.
   (2) The contact guard held Martin Hoffman's follow-up because "Great rental seller looking for reasonable offers" read as a thank-you:

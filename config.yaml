@@ -513,6 +513,7 @@ commercial:
     project: "1220324280677489"      # "Titan 1031 · Commercial (LoopNet)" board (created 2026-11-08; sections Top tier / Needs OM / Suspect / Contacted / Skip are found by name)
     push_top_n: 25                   # CLEAN top-tier cards
     needs_om_n: 40                   # OM-request task list
+    medical_project: "1220751802973172"   # "Titan 1031 · Medical" (2026-11-20): medical buildings only, same columns as the 1031 board, read as part of it (working.py)
     working_project: "1220397720099247"   # "Titan 1031 · Working Deals" (2026-11-10): brokers he is talking to and has filtered; he moves cards there (working.py)
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
@@ -571,6 +572,11 @@ commercial:
   # Rodrigo, 2026-11-18: "let's do another search and get after it tomorrow". A date = that one morning's run-daily (5:30am on the Mac)
   # pulls LoopNet again (~$7 of the Apify Starter plan), re-scores with round one's lessons, posts the new cards, emails him the deals
   # and queues the no-cap question for brokers never emailed. Back to manual after that day.
+  # Rodrigo, 2026-11-20: "a campaign where we focus on medical buildings in Florida ... email all those medical agents today". On this
+  # date the first approvals round pulls LoopNet's medical search (about a dollar), fills the Medical board and queues one request
+  # for the financials per broker (medical.py); `make medical` does the same by hand, `make medical-list` only prints.
+  medical:
+    run_on: "2026-11-20"
   schedule: "manual"                 # manual | daily | YYYY-MM-DD. daily = run-daily step "commercial" (costs Apify credit every morning)
   report_to_email: true              # the morning diff goes to REPORT_TO when Gmail is connected
   # Rodrigo, 2026-11-08: "I'm a visual guy". After every pull a Titan-style HTML email with a photo card per listing and a

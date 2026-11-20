@@ -124,7 +124,7 @@ def send_om_requests(conn, cfg: Any, asana, gmail, now: datetime | None = None) 
         res["sent"] += 1
     left = room - res["sent"]
     if left > 0 and res["queue_waiting"]:     # the no-cap blast rides the same round, after the cards
-        q = send_queue(conn, cfg, gmail, left, now=now)
+        q = send_queue(conn, cfg, gmail, left, now=now, asana=asana, secs=secs)
         res["queue_sent"], res["queue_waiting"], res["errors"] = q["sent"], q["waiting"], res["errors"] + q["errors"]
     return res
 

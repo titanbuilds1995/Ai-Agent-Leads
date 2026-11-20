@@ -705,6 +705,8 @@ def cmd_approvals(cfg, args):
         stage("card_files", lambda: pull_card_files(conn, cfg, asana, c["llm"]))   # files he drops on a 1031 card are read FIRST (before notes)
         from .commercial.card_notes import handle_notes
         stage("om_notes", lambda: handle_notes(conn, cfg, asana, c["llm"]))   # his notes on 1031 cards → Charles's next email (before the drag is read)
+        from .commercial.medical import run_if_due as medical_campaign
+        stage("medical_campaign", lambda: medical_campaign(conn, cfg, c["apify"], asana))   # 2026-11-20: once, on commercial.medical.run_on: pull, Medical board, queue the requests
         stage("om_requests", lambda: send_om_requests(conn, cfg, asana, c["gmail"]))
         from .commercial.follow_up import send_follow_ups
         stage("om_follow_ups", lambda: send_follow_ups(conn, cfg, asana, c["gmail"]))   # 2026-11-17: one follow-up to every broker who never answered the first email
@@ -851,6 +853,29 @@ def cmd_commercial_blast(cfg, args):
     if args.list:
         for e in todo:
             print(f"  {e['broker_email']:45} {e.get('broker_name') or '':28} {len(e['listing_ids'])} listing(s): {'; '.join(e['streets'][:3])}")
+    return 0
+
+
+def cmd_commercial_medical(cfg, args):
+    """The medical campaign (Rodrigo, 2026-11-20): pull LoopNet's medical search, put the in-box medical listings on the Medical
+    board, queue one request for the financials per broker. --list shows what it would do and touches nothing."""
+    from .commercial import medical
+    from .commercial.working import wrap as working_board
+    conn = _open(cfg)
+    if args.list:
+        p = medical.plan(conn, cfg)
+        print(medical.text({"pull": {"skipped": "list only"}, "listings": len(p["listings"]), "nnn": sum(L["medical_nnn"] for L in p["listings"]),
+                            "with_cap": sum(L.get("stated_cap") is not None for L in p["listings"]), "cards": 0, "moved": 0, "already": 0,
+                            "queued": len(p["emails"]), "not_emailed": len(p["notes"])}, p))
+        return 0
+    c = build_clients(cfg, conn, need=("apify",))
+    res = medical.run_campaign(conn, cfg, None if args.no_pull else c["apify"], working_board(cfg, _asana(cfg)), pull_first=not args.no_pull)
+    conn.commit()
+    print(medical.text(res, medical.plan(conn, cfg)))
+    from .commercial.blast import pending
+    from .commercial.outreach import pace
+    per_round, cap = pace(cfg)
+    print(f"\n{len(pending(conn, cfg))} broker email(s) waiting in the queue · {per_round} per round, {cap} a day, send window only")
     return 0
 
 
@@ -1230,6 +1255,9 @@ def main(argv: list[str] | None = None) -> int:
     cb.add_argument("--build", action="store_true", help="rebuild data/commercial_queue/<today>.json from the stored listings")
     cb.add_argument("--list", action="store_true", help="print the brokers still waiting to be emailed")
     cb.set_defaults(func=cmd_commercial_blast)
+    md = sub.add_parser("commercial-medical", help="the medical campaign: LoopNet medical pull, the Medical board, one request for the financials per broker")
+    md.add_argument("--list", action="store_true", help="print the listings and the emails; pull nothing, post nothing, queue nothing")
+    md.add_argument("--no-pull", action="store_true", help="skip the LoopNet pull, work from the stored listings")
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
@@ -1261,7 +1289,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "commercial-medical": cmd_commercial_medical, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

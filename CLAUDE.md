@@ -770,6 +770,18 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
+  270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet
+  search-page stubs (sheet blocked: no price, no address, no broker email, 56 of them under 5,000 SF), not "price undisclosed"; they
+  pass because the lane assumes a $6M price. **128 junk cards ("broker unknown · NNN · ? · price n/a") are now in New on the Medical
+  board, waiting on Rodrigo's OK to delete** (their gids are `asana_task_id` of the no_price rows with no broker_email). 7-cap lane: 0,
+  because the nine 7.0–7.76% listings are stubs with no price, so they fell into no-price. Of the 12 real no-price listings: 10 not
+  queued because `validate_om_request` rejects the new email at 111–116 words (the template is too long for the house rule), 1 already
+  emailed (Ashley Walker), 1 queued (Tony Rukab, Clay Town Center Medical/Office, Middleburg) and HELD: it reads "I saw your listing at
+  the 6-property listing in Middleburg", subject "Portfolio of 6 Properties For Sale in, Middleburg on LoopNet". Held = moved to a
+  `held` list in `data/commercial_queue/2026-11-20-medical.json`; queue has 0 waiting. To fix before a re-run: stubs need a real price
+  check or a size floor and the address from `listingName`; shorten the no-price email under the word limit; portfolio wording;
+  8510 Westside Industrial Dr (Jacksonville) and 1000-1042 S Military Trl look non-medical. `make medical-list` re-plans for free.
 - 2026-11-20 ~3:30pm ET, RESUME HERE: **7-cap and no-price lanes added to the medical campaign** (Decisions → Medical campaign, "Two more
   lanes"). Tested on fixtures only (1 new test; suite passes except the same 3). NOT run live. On the Mac: `git pull --no-edit origin
   claude/stoic-ride-p6ptnm`, `make medical` (re-pulls, ~$0.47, so the search rows carry their tag), check `make medical-list`, then

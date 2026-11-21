@@ -785,6 +785,20 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~3pm ET, RESUME HERE: confirmed from the cloud that the **New Deck ran** (17 cards in New on the deck board; Mac notes
+  below, merged in). Fixed after that run: emails no longer use a LoopNet marketing title or a missing street as the address
+  (`om_request.real_street` / `saw` / `subject_for`: "I saw your listing in Coral Springs on LoopNet."), and the deck pull now waits
+  1,800 s per search (multifamily timed out at 900 s). Coral Springs card's OM request fixed by hand on the card. NOT done: the income
+  screen still lets through owner-user / redevelopment listings and a 5% occupied office; nothing is queued; the deck does not refresh on
+  its own (he has not said yes to a daily pull). Next on the Mac: `git pull`, `make deck ARGS=--no-queue` (adds apartments, ~$2).
+- 2026-11-21 ~2:40pm ET (Mac), RESUME HERE: **New Deck pull RAN, queue STOPPED** (`make deck ARGS=--no-queue`, $1.91). 657 read, 18 in
+  the deck, 2 show 8+ cap (both NOI missing), 17 cards in New on the deck board, deals email to Rodrigo only. **Multifamily search timed
+  out (900s), so no apartments in this pull.** 605 dropped as "price not disclosed" (search stubs). NOT queued (`--no-pull` not run):
+  the Margate card (portfolio, no street) reads "I saw your listing at your listing" / subject "Your listing, Margate"; the Coral Springs
+  8.25% card's OM request has the whole LoopNet title as subject and street ("West Sample Road Retail Portfolio - Coral Springs, FL - …"):
+  **do not drag it to Approved until fixed**. Not income: 625 66th Ave SW Vero (fruit packing plant on 40 ac, land play), Tampa
+  "Morgan & Pierce" (office + garage pitched for redevelopment, typed hotel); owner-user-ish: 7565 Commerce Ct Sarasota, 7500 NW 25th St
+  Miami. Fix before queueing: portfolio/no-street wording (use `listingName`, or skip), income screen on "owner-users", "potential uses".
 - 2026-11-21 ~2:20pm ET, RESUME HERE: Rodrigo: "66 new properties, a lot we have no information on … narrow it down … give me one row
   that says take a look". New column **"Take a look"** on the 1031 board (section 1220763340423932, made by hand; the engine does not
   know the name and reads it as New, which is harmless; a drag from it to "Approved · send OM request" works). All 66 New cards read;

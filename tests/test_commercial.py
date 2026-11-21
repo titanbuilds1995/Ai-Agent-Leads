@@ -571,8 +571,17 @@ def test_cap_question_for_one_and_for_several_listings(cfg):
     assert "1 Main St in Tampa and 3 more." in cap_question(cfg, Ls)["body"]
     assert cap_question(cfg, Ls[:1])["subject"] == "1 Main St, Tampa on LoopNet"
     port = cap_question(cfg, [{"broker_name": "Landy", "street": "Portfolio of 2 Properties For Sale in", "city": "Coral Gables", "asset_class": "retail"}])
-    assert "I saw the 2-property listing in Coral Gables on LoopNet." in port["body"] and port["subject"] == "Your 2-property listing, Coral Gables on LoopNet"
+    assert "I saw your listing in Coral Gables on LoopNet." in port["body"] and port["subject"] == "Your listing in Coral Gables on LoopNet"
     assert validate_om_request(port["subject"], port["body"]) == []
+    # 2026-11-21, New Deck's first run: a LoopNet marketing title in place of the street, and a row with no street at all
+    from titan.commercial.om_request import om_request
+    title = om_request(cfg, {"broker_name": "Spencer", "city": "Coral Springs", "stated_cap": 8.25,
+                             "street": "West Sample Road Retail Portfolio - Coral Springs, FL - Retail Portfolio for Sale - 30,650 SF"})
+    assert title["subject"] == "Your listing in Coral Springs on LoopNet" and "I saw your listing in Coral Springs on LoopNet." in title["body"]
+    none = cap_question(cfg, [{"broker_name": "Theresa", "street": None, "city": "Margate"}])
+    assert "your listing at your listing" not in none["body"] and none["subject"] == "Your listing in Margate on LoopNet"
+    for r in (title, none):
+        assert validate_om_request(r["subject"], r["body"]) == []
 
 
 def test_blast_queue_groups_by_broker_sends_at_the_commercial_pace_and_a_reply_makes_the_card(conn, cfg, tmp_path):

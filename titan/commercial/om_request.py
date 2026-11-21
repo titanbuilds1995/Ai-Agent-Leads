@@ -24,9 +24,6 @@ def first_name(name: str | None) -> str:
 
 def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
     """Subject + body. Short, direct, one ask, no numbers, in the first-email layout (greeting on its own line)."""
-    street = (L.get("street") or L.get("name") or "your listing").strip()
-    city = L.get("city") or ""
-    where = f"{street} in {city}" if city else street
     missing = [d for d in (L.get("docs_missing") or ["OM", "T-12", "rent roll"]) if d in DOC_WORDS]
     if not missing:
         missing = ["OM", "T-12", "rent roll"]
@@ -45,7 +42,7 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
         # Rodrigo, 2026-11-09: we speak as the principal (a 1031 exchange with a partner of ours, never "a buyer we work with"); the listing shows a cap; we need the numbers to verify it is a real 8+ cap, and we give them whatever they need
         body = (
             f"Hey {first_name(L.get('broker_name'))},\n\n"
-            f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
+            f"Charles with Titan Realty Investments. {saw(L)}\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. This one is in our box. We need the numbers "
             f"behind the cap rate to verify it holds up as a real eight plus cap. Could you send over {asks}?\n\n"
             + signature(cfg)
@@ -54,25 +51,49 @@ def om_request(cfg: Any, L: dict[str, Any]) -> dict[str, str]:
         # the listing shows no cap: one question, whoever answers first moves up the list
         body = (
             f"Hey {first_name(L.get('broker_name'))},\n\n"
-            f"Charles with Titan Realty Investments. I saw your listing at {where} on LoopNet.\n\n"
+            f"Charles with Titan Realty Investments. {saw(L)}\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. This property is in our box as long as it is "
             f"a real eight plus cap. The listing does not show a cap rate, so I have to ask straight out: where is it?\n\n"
             f"If it clears that bar, could you send over {asks}?\n\n"
             + signature(cfg)
         )
     body = format_paragraphs(body)
-    subject = f"{street}" + (f", {city}" if city else "") + " on LoopNet"
-    return {"subject": subject[:90], "body": body}
+    return {"subject": subject_for(L), "body": body}
+
+
+TITLE_RE = re.compile(r"(?i)portfolio|for sale|\bLoopNet\b| - |\bSF\b|\d,\d{3}")
+
+
+def real_street(L: dict[str, Any]) -> str:
+    """The street when the listing has one. LoopNet gives a marketing title in its place for some rows ("West Sample Road Retail
+    Portfolio - Coral Springs, FL - Retail Portfolio for Sale - 30,650 SF", "Portfolio of 6 Properties For Sale in"), or nothing
+    (2026-11-21, New Deck: "I saw your listing at your listing"). Those are not a street."""
+    street = (L.get("street") or "").strip()
+    if not street or len(street) > 60 or (TITLE_RE.search(street) and not re.match(r"\d+[\w-]* \w", street)):
+        return ""
+    return street
 
 
 def _where(L: dict[str, Any]) -> str:
-    """'1 Main St in Tampa', or 'the 3-property listing in Miami' for LoopNet's 'Portfolio of 3 Properties For Sale in' rows ('portfolio' is a banned word)."""
-    street = (L.get("street") or L.get("address") or "your listing").strip()
-    city = (L.get("city") or "").strip()
-    m = re.match(r"(?i)portfolio of (\d+)", street)
-    if m:
-        return f"the {m.group(1)}-property listing" + (f" in {city}" if city else "")
-    return street + (f" in {city}" if city else "")
+    """'1 Main St in Tampa'; with no real street, 'Tampa' (callers say "your listing in Tampa")."""
+    street, city = real_street(L), (L.get("city") or "").strip()
+    if street:
+        return street + (f" in {city}" if city else "")
+    return city
+
+
+def saw(L: dict[str, Any]) -> str:
+    """The sentence that names the listing: "I saw your listing at 1 Main St in Tampa on LoopNet." / "… your listing in Tampa …"."""
+    w = _where(L)
+    if real_street(L):
+        return f"I saw your listing at {w} on LoopNet."
+    return f"I saw your listing in {w} on LoopNet." if w else "I saw your listing on LoopNet."
+
+
+def subject_for(L: dict[str, Any], more: bool = False) -> str:
+    street, city = real_street(L), (L.get("city") or "").strip()
+    head = (street + (f", {city}" if city else "")) if street else ("Your listing" + (f" in {city}" if city else ""))
+    return (head + (" and more" if more else "") + " on LoopNet")[:90]
 
 
 def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
@@ -82,11 +103,12 @@ def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     if not Ls:
         raise ValueError("no listings")
     name = first_name(Ls[0].get("broker_name"))
-    places = [_where(L) for L in Ls[:2]]
+    Ls = sorted(Ls, key=lambda L: not real_street(L))          # name a listing that has a street first
     if len(Ls) == 1:
-        saw = f"I saw {places[0]} on LoopNet." if places[0].startswith("the ") else f"I saw your listing at {places[0]} on LoopNet."
+        saw_ = saw(Ls[0])
     else:
-        saw = f"I saw your listings on LoopNet, {places[0]} and {len(Ls) - 1} more."
+        saw_ = (f"I saw your listings on LoopNet, {_where(Ls[0])} and {len(Ls) - 1} more." if real_street(Ls[0])
+                else f"I saw your {len(Ls)} listings on LoopNet.")
     asks = "the trailing twelve, the rent roll and the offering memorandum"
     if all(L.get("asset_class") == "hotel" for L in Ls):
         asks = asks.replace("the rent roll", "the STR report")
@@ -97,16 +119,10 @@ def cap_question(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     else:
         ask = "None of them show a cap rate, so one straight question: does any of them hold an eight cap or better at asking, on the leases in place, once it sells and the taxes are reassessed?"
         close = f"If one does, we want to take a look and we move fast. Send over {asks} for that one and you will have a quick answer."
-    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n"
+    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. {saw_}\n\n"
             f"We are placing a 1031 exchange with a partner of ours and the clock is running. {ask}\n\n{close}\n\n" + signature(cfg))
     body = format_paragraphs(body)
-    first = Ls[0]
-    street = first.get("street") or "Your listing"
-    pm = re.match(r"(?i)portfolio of (\d+)", street)
-    if pm:
-        street = f"Your {pm.group(1)}-property listing"
-    subject = street + (f", {first['city']}" if first.get("city") else "") + (" and more" if len(Ls) > 1 else "") + " on LoopNet"
-    return {"subject": subject[:90], "body": body}
+    return {"subject": subject_for(Ls[0], more=len(Ls) > 1), "body": body}
 
 
 def medical_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
@@ -121,14 +137,15 @@ def medical_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
     if not any(L.get("stated_cap") for L in Ls):
         return cap_question(cfg, Ls)
     name = first_name(Ls[0].get("broker_name"))
-    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. I saw your listings on LoopNet, {_where(Ls[0])} and {len(Ls) - 1} more.\n\n"
+    Ls = sorted(Ls, key=lambda L: not real_street(L))
+    many = (f"I saw your listings on LoopNet, {_where(Ls[0])} and {len(Ls) - 1} more." if real_street(Ls[0])
+            else f"I saw your {len(Ls)} listings on LoopNet.")
+    body = (f"Hey {name},\n\nCharles with Titan Realty Investments. {many}\n\n"
             "We are placing a 1031 exchange with a partner of ours and the clock is running. One straight question: which of them hold an eight "
             "cap or better at asking, on the leases in place, once it sells and the taxes are reassessed?\n\n"
             "For the ones that do, we want to take a look and we move fast. Send over the trailing twelve, the rent roll and the offering "
             "memorandum and you will have a quick answer.\n\n" + signature(cfg))
-    first = Ls[0]
-    subject = (first.get("street") or "Your listings") + (f", {first['city']}" if first.get("city") else "") + " and more on LoopNet"
-    return {"subject": subject[:90], "body": format_paragraphs(body)}
+    return {"subject": subject_for(Ls[0], more=True), "body": format_paragraphs(body)}
 
 
 def campaign_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]:
@@ -145,26 +162,25 @@ def campaign_request(cfg: Any, listings: list[dict[str, Any]]) -> dict[str, str]
     asks = "the trailing twelve, the rent roll and the offering memorandum"
     open_ = "We are placing a 1031 exchange with a partner of ours and the clock is running."
     if len(Ls) == 1 and lanes == {"seven"}:
-        saw = f"I saw your listing at {_where(first)} on LoopNet."
+        saw_ = saw(first)
         ask = ("We need an eight cap or better, and this one is listed a little under that. Is there a way it gets there, with rents that "
                "are under market or leases coming up for renewal, or is the seller flexible on the price?")
         close = f"If there is, could you send over {asks}? You will have an answer from us quickly."
     elif len(Ls) == 1:
-        saw = f"I saw your listing at {_where(first)} on LoopNet."
+        saw_ = saw(first)
         ask = ("The listing does not show a price or a cap rate. What is the seller asking, and at that price does it hold an eight cap or "
                "better on the leases in place, once it sells and the taxes are reassessed?")
         close = f"If it does, we want to take a look and we move fast. Send over {asks} and you will have an answer from us quickly."
     else:
-        saw = f"I saw your listings on LoopNet, {_where(first)} and {len(Ls) - 1} more."
+        saw_ = (f"I saw your listings on LoopNet, {_where(first)} and {len(Ls) - 1} more." if real_street(first)
+                else f"I saw your {len(Ls)} listings on LoopNet.")
         ask = ("One straight question: do any of them hold an eight cap or better on the leases in place, once it sells and the taxes are "
                "reassessed, or get there with rents that are under market?")
         if "no_price" in lanes:
             ask += " And what is the seller asking on the ones with no price?"
         close = f"For the ones that do, send over {asks} and you will have a quick answer."
-    body = f"Hey {name},\n\nCharles with Titan Realty Investments. {saw}\n\n{open_} {ask}\n\n{close}\n\n" + signature(cfg)
-    street = first.get("street") or "Your listing"
-    subject = street + (f", {first['city']}" if first.get("city") else "") + (" and more" if len(Ls) > 1 else "") + " on LoopNet"
-    return {"subject": subject[:90], "body": format_paragraphs(body)}
+    body = f"Hey {name},\n\nCharles with Titan Realty Investments. {saw_}\n\n{open_} {ask}\n\n{close}\n\n" + signature(cfg)
+    return {"subject": subject_for(first, more=len(Ls) > 1), "body": format_paragraphs(body)}
 
 
 def validate_om_request(subject: str, body: str) -> list[str]:

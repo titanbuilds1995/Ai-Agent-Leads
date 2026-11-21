@@ -890,6 +890,8 @@ def cmd_commercial_deck(cfg, args):
         print(deck.text(conn, cfg, {"pull": {"skipped": "list only"}}, deck.plan(conn, cfg, not args.no_queue)))
         return 0
     c = build_clients(cfg, conn, need=("apify", "gmail") if args.email else ("apify",))
+    if c["apify"] is not None:      # 2026-11-21: the multifamily search ran past the 900 s default and was dropped from the first pull
+        c["apify"].timeout_seconds = max(c["apify"].timeout_seconds, int(cfg.get("commercial.loopnet.timeout_seconds", 1800)))
     res = deck.run_campaign(conn, cfg, None if args.no_pull else c["apify"], working_board(cfg, _asana(cfg)), pull_first=not args.no_pull,
                             queue=not args.no_queue, gmail=c.get("gmail") if args.email else None, email=args.email, site=True)
     conn.commit()

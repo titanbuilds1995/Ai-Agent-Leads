@@ -770,6 +770,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 midday: research only, no code. Rodrigo asked why the dermatology tenant at 422 S Alafaya Trl (Orlando, units 31/32, card on
+  the Medical board, SRS) pays 2-3x the rent of the rest of that condo. Read from search snippets (LoopNet / Crexi are blocked in the
+  cloud): likely a doctor-owned / practice-set lease, short term left. Open: owner of the units (Orange County appraiser + Sunbiz, Mac
+  only), the lease and rent roll from the broker. Numbers were given in chat, not stored here.
 - 2026-11-21 ~7:25am ET: morning check only. **No 7am report.** Follow-ups live (Devon Mclean answered his first one in 80 min).
   New offer asks on cards: Devon Mclean, Juan Mora; Hilda Ritfeld floor $700k on $720k (likely pass). Fri EOD 5 of 25.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,

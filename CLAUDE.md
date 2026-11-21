@@ -770,6 +770,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 (later): McGregor Village books came in (rent roll + NOI statement by year), read in chat. The rent is backed by leases; still no manager in the expenses, all leases gross, last full year's actual NOI is well under the OM's, two units vacant. Verdict unchanged: under 8 at asking for a passive owner. Still missing: actual collections, the insurance policy, the tax bill. Numbers stay in the chat. Nothing sent.
 - 2026-11-21: Rodrigo sent the McGregor Village OM (Fort Myers neighborhood center, Royal Shell / Ronald Delfino) and asked if the 8.4% cap is real. Read in chat only: no rent roll in the OM, no management / vacancy / reserves in the expenses, so it reads under 8 at asking until the rent roll and T-12 say otherwise. Numbers are in the chat, not in this repo. Next: ask the broker for rent roll + T-12 if he wants it pursued. Nothing built, nothing sent. Also made him a 2-page internal PDF (their numbers vs ours) in reports/commercial/ (gitignored, this container only).
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
   270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet

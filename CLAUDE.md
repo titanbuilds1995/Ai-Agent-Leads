@@ -770,6 +770,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21: Rodrigo asked for a synthesis of 6308 W Colonial Dr (Powers Plaza, Dylan Morse, 1031 Needs Me). Answer given in chat: not a fit for
+  the 1031 partner (79% of signed rent is churches / a church school; 9.53% counts an unsigned lease; true 8 cap on signed leases ~$4.57M).
+  The 4-question email to Dylan is still drafted on the card, not sent. Nothing sent, nothing changed on the board.
 - 2026-11-21 ~7:25am ET: morning check only. **No 7am report.** Follow-ups live (Devon Mclean answered his first one in 80 min).
   New offer asks on cards: Devon Mclean, Juan Mora; Hilda Ritfeld floor $700k on $720k (likely pass). Fri EOD 5 of 25.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,

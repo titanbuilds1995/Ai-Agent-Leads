@@ -785,6 +785,15 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~2:20pm ET, RESUME HERE: Rodrigo: "66 new properties, a lot we have no information on … narrow it down … give me one row
+  that says take a look". New column **"Take a look"** on the 1031 board (section 1220763340423932, made by hand; the engine does not
+  know the name and reads it as New, which is harmless; a drag from it to "Approved · send OM request" works). All 66 New cards read;
+  12 moved there, each with a pinned 🤖 read: Alexander Oaks Plant City (9.09%), 250 Bird Rd Coral Gables (8.38%, broker NOT asked yet),
+  1905 E Michigan St Orlando (8.29%, size looks wrong), Clark Rd Sarasota (7.41%), 5939 Shirley St Naples (7.52%), hotel 3956 W Colonial
+  Orlando (12.39% listed), 2801 SW 3rd Ave Miami, 7212 N Dale Mabry Tampa (NOT asked yet), 1800 E Colonial Orlando, drug store Margate,
+  Merritt Island, 5397 Orange Dr Davie. 54 stay in New. Left out on purpose: two 15% caps that sat for years (6130 Porter Rd Sarasota,
+  2303 N Market St Jacksonville), the 9.3% Ormond Beach hotel (under 8 after the hotel haircut), St Pete multifamily 8.45% ("structural").
+  Not done: the rule as code (a "Take a look" lane the engine fills itself).
 - 2026-11-21 ~2:10pm ET, RESUME HERE: Rodrigo corrected the board: **"my main board" = Titan 1031 · Commercial (LoopNet)**, not Working
   Deals, and he wanted the top 15 to 25 medical, not 4. Done by hand: 20 cards moved from the Medical board (4 from Working Deals) into
   **New on the 1031 board**, renamed "MED #1 … MED #20" in rank order, each with a pinned 🤖 read. 1–5: Clark Rd Sarasota, 2801 SW 3rd Ave

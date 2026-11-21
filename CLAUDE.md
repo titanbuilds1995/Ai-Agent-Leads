@@ -770,6 +770,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~7:25am ET: morning check only. **No 7am report.** Follow-ups live (Devon Mclean answered his first one in 80 min).
+  New offer asks on cards: Devon Mclean, Juan Mora; Hilda Ritfeld floor $700k on $720k (likely pass). Fri EOD 5 of 25.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
   270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet
   search-page stubs (sheet blocked: no price, no address, no broker email, 56 of them under 5,000 SF), not "price undisclosed"; they

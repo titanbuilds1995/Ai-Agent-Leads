@@ -785,6 +785,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~2pm ET: Rodrigo asked why there are 11 new medical cards (= yesterday's medical campaign: the in-box medical listings,
+  none emailed because every broker was already emailed in Nov, one has no contact) and for the top ones on "my own personal board":
+  read as **Working Deals → Needs Me** (his word if he meant another board). Moved 4 by hand, each with a pinned 🤖 read: 4937 Clark Rd
+  Sarasota (NOI $467k, 8 cap at $5.84M), 2801 SW 3rd Ave Miami (no broker contact), 2650 SW 27th Ave Miami (8 cap at $6.56M), 1351 N
+  Courtenay Pky Merritt Island. Each has one garbled duplicate comment (html posted as text; the connector cannot delete comments). The
+  other 7 stay in New on the Medical board. Mac's Claude Code was logged out when he pasted the New Deck prompt: `/login`, then paste again.
 - 2026-11-21 ~midday ET, RESUME HERE: **New Deck ($9M to $12M) built, board created, NOT run** (Decisions → New Deck board). The
   cloud's Apify token is still refused (401), so the pull runs on the Mac: `git pull --no-edit origin claude/clever-cray-mqyobv`,
   `make doctor`, `make deck` (about $1 to $5), then `make deck-list`. Tested on fixtures only (1 test; suite passes except the same 3).

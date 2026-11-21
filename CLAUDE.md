@@ -770,7 +770,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
-- 2026-11-21: Rodrigo sent the McGregor Village OM (Fort Myers neighborhood center, Royal Shell / Ronald Delfino) and asked if the 8.4% cap is real. Read in chat only: no rent roll in the OM, no management / vacancy / reserves in the expenses, so it reads under 8 at asking until the rent roll and T-12 say otherwise. Numbers are in the chat, not in this repo. Next: ask the broker for rent roll + T-12 if he wants it pursued. Nothing built, nothing sent.
+- 2026-11-21: Rodrigo sent the McGregor Village OM (Fort Myers neighborhood center, Royal Shell / Ronald Delfino) and asked if the 8.4% cap is real. Read in chat only: no rent roll in the OM, no management / vacancy / reserves in the expenses, so it reads under 8 at asking until the rent roll and T-12 say otherwise. Numbers are in the chat, not in this repo. Next: ask the broker for rent roll + T-12 if he wants it pursued. Nothing built, nothing sent. Also made him a 2-page internal PDF (their numbers vs ours) in reports/commercial/ (gitignored, this container only).
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,
   270 rows; 0 emails sent, `make approvals-now` not run). The no-price lane is wrong as built: 128 of its 140 listings are LoopNet
   search-page stubs (sheet blocked: no price, no address, no broker email, 56 of them under 5,000 SF), not "price undisclosed"; they

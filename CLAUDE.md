@@ -785,6 +785,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~2:10pm ET, RESUME HERE: Rodrigo corrected the board: **"my main board" = Titan 1031 · Commercial (LoopNet)**, not Working
+  Deals, and he wanted the top 15 to 25 medical, not 4. Done by hand: 20 cards moved from the Medical board (4 from Working Deals) into
+  **New on the 1031 board**, renamed "MED #1 … MED #20" in rank order, each with a pinned 🤖 read. 1–5: Clark Rd Sarasota, 2801 SW 3rd Ave
+  Miami, 7825 Baymeadows Way Jacksonville (8.55% cap, no price), 2650 SW 27th Ave Miami, Merritt Island; 6–13 mostly the 7.0–7.8% cap
+  listings with no price and no broker email (stubs: address only in the LoopNet link); 18–20 marked WEAK. None is a proven 8 cap.
+  **Watch: `make medical` moves open in-box medical cards from the 1031 board back to the Medical board** (medical.run_campaign), so do
+  not re-run it without changing that. The pinned reads on MED #4 / #5 still say "#3" / "#4" (written before the re-rank).
 - 2026-11-21 ~2pm ET: Rodrigo asked why there are 11 new medical cards (= yesterday's medical campaign: the in-box medical listings,
   none emailed because every broker was already emailed in Nov, one has no contact) and for the top ones on "my own personal board":
   read as **Working Deals → Needs Me** (his word if he meant another board). Moved 4 by hand, each with a pinned 🤖 read: 4937 Clark Rd

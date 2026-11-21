@@ -770,6 +770,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21: Rodrigo sent the Palatka Promenade OM (400 N SR 19, Palatka; Marcus & Millichap) for a 1031 read. Analysis given in chat only
+  (numbers stay out of this public repo). No code change. Next: his call on an offer; ask broker for T-12, insurance quote, gov lease terms.
 - 2026-11-21 ~7:25am ET: morning check only. **No 7am report.** Follow-ups live (Devon Mclean answered his first one in 80 min).
   New offer asks on cards: Devon Mclean, Juan Mora; Hilda Ritfeld floor $700k on $720k (likely pass). Fri EOD 5 of 25.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,

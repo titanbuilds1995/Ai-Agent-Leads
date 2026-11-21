@@ -35,9 +35,9 @@ def _loads(v: Any, default: Any) -> Any:
 
 
 def load_listings(conn) -> list[dict[str, Any]]:
-    """Every in-box listing from the store, with its JSON columns unpacked and the raw actor row for the photo."""
+    """Every listing in the 1031 box or in the $9M to $12M deck (deck.py) from the store, with its JSON columns unpacked and the raw actor row for the photo."""
     out = []
-    for r in conn.execute("SELECT * FROM commercial_listings WHERE in_box=1 ORDER BY score DESC, evidence_grade").fetchall():
+    for r in conn.execute("SELECT * FROM commercial_listings WHERE in_box=1 OR in_deck=1 ORDER BY score DESC, evidence_grade").fetchall():
         L = db.row_to_dict(r)
         data = _loads(L.pop("data", None), {})
         raw = _loads(L.pop("raw", None), {})

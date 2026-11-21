@@ -257,6 +257,8 @@ MIGRATIONS = ["ALTER TABLE valuations ADD COLUMN lane TEXT", "ALTER TABLE outrea
               "ALTER TABLE commercial_listings ADD COLUMN board_column TEXT",
               "ALTER TABLE commercial_listings ADD COLUMN airport_code TEXT", "ALTER TABLE commercial_listings ADD COLUMN airport_minutes INTEGER",
               "ALTER TABLE commercial_listings ADD COLUMN quality TEXT",
+              # 2026-11-21: the $9M-$12M deck (titan/commercial/deck.py) has its own box; in_box stays the 1031 box's answer
+              "ALTER TABLE commercial_listings ADD COLUMN in_deck INTEGER", "ALTER TABLE commercial_listings ADD COLUMN deck_note TEXT",
               # 2026-11-09: one blast email can cover several of a broker's listings
               "ALTER TABLE commercial_threads ADD COLUMN listing_ids TEXT",
               "ALTER TABLE commercial_reviews ADD COLUMN other_deals TEXT", "ALTER TABLE commercial_reviews ADD COLUMN forwarded_at TEXT",

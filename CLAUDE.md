@@ -764,12 +764,33 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   that price does it hold an eight cap …". A listing LoopNet's medical search returned counts as medical in these two lanes even with no
   type label (`_searchFamily` on the raw row, set by `run.py` from now on, so it needs one fresh pull). The 8 floor of the 1031 box
   itself is unchanged; brokers already emailed are still not re-asked.
+- **New Deck board, $9M to $12M (Rodrigo, 2026-11-21: "analyze and scrape all the properties on the market that are from $9 million to
+  $12 million that fit our 8 cap rate … another board on our Asana … new deck … run it through the same process … I'm going to give my
+  investor access to this")**: `titan/commercial/deck.py`, `make deck` (`make deck-list` prints only; `ARGS=--no-pull` / `--no-queue`),
+  config `commercial.deck` (price box only: 9M / 12M; every other buyer_box rule applies: 8 cap floor, asset types, airport, quality, the
+  income screen, hotel cap at 75%). Board **"Titan 1031 · New Deck · $9M to $12M"** (project 1220763032771742,
+  `commercial.asana.deck_project`), same columns as the 1031 board and read as part of it (`working.CommercialAsana` now wraps 1031 +
+  Working Deals + Medical + Deck). The pull runs every LoopNet family at the deck's prices (Apify, marks nothing gone), scores with the
+  deck's box and stores `in_deck` / `deck_note`; **`in_box` stays the 1031 box's answer**, so the 1031 blast, gone-marking and counts
+  never see deck listings. One card per listing in New. Email = the settled process: a listing that SHOWS a cap carries the OM request
+  on its card (his drag to "Approved · send OM request" sends it); NO cap = the eight-cap question, one email per broker, queued
+  (`data/commercial_queue/<date>-deck.json`, priority 1, commercial pace); never a no-cap hotel, a broker Charles already emailed, a
+  do-not-contact or missing address (the card says why). Files in `reports/commercial/deck/<date>/` (master.xlsx, top25 pdf, deals
+  email, which `make deck` also emails to him). Site: deck listings are in deals.json, so a card dragged to Good fit shows in the
+  investor view. **The Asana cards carry broker contact and our internal numbers**: the investor's place is the site's investor view
+  unless Rodrigo says the board itself.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-21 ~midday ET, RESUME HERE: **New Deck ($9M to $12M) built, board created, NOT run** (Decisions → New Deck board). The
+  cloud's Apify token is still refused (401), so the pull runs on the Mac: `git pull --no-edit origin claude/clever-cray-mqyobv`,
+  `make doctor`, `make deck` (about $1 to $5), then `make deck-list`. Tested on fixtures only (1 test; suite passes except the same 3).
+  Watch on the first run: stub rows without address / broker (sheets blocked), portfolio wording in queued emails, how many brokers
+  are skipped as already emailed, and that nothing is queued that reads wrong (`ARGS=--no-queue` posts cards only). Open for Rodrigo:
+  does the investor get the Asana board itself (cards show broker contact + our offer anchor) or the site's investor view?
 - 2026-11-21 ~7:25am ET: morning check only. **No 7am report.** Follow-ups live (Devon Mclean answered his first one in 80 min).
   New offer asks on cards: Devon Mclean, Juan Mora; Hilda Ritfeld floor $700k on $720k (likely pass). Fri EOD 5 of 25.
 - 2026-11-20 ~3:10pm ET (Mac), RESUME HERE: **7-cap / no-price lanes RAN and were STOPPED before any email** (`make medical`, $0.45,

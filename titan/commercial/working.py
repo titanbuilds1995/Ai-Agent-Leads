@@ -27,6 +27,8 @@ MEDICAL_NAME = "Titan 1031 · Medical"
 # Rodrigo, 2026-11-20: "a new board with just medical buildings". Same columns as the 1031 board, so everything works there as it
 # does on the 1031 board: drag to "Approved · send OM request" sends, answers / books / reads land on the card (medical.py).
 MEDICAL_COLUMNS = {c: c for c in MAIN_COLUMNS}
+DECK_NAME = "Titan 1031 · New Deck · $9M to $12M"
+# Rodrigo, 2026-11-21: "another board … new properties, 9 to 12 million, new deck". Same columns again (deck.py).
 
 
 def ensure_working_board(asana, project: str, columns: dict[str, str] | None = None) -> dict[str, str]:
@@ -48,10 +50,11 @@ def ensure_working_board(asana, project: str, columns: dict[str, str] | None = N
 class CommercialAsana:
     """The Asana client, with the 1031 board, Working Deals and the Medical board seen as one board (see the module doc)."""
 
-    def __init__(self, inner, main: str, working: str | None = None, medical: str | None = None):
+    def __init__(self, inner, main: str, working: str | None = None, medical: str | None = None, deck: str | None = None):
         self._a, self.main = inner, str(main)
         self.working = str(working) if working else None
         self.medical = str(medical) if medical else None
+        self.deck = str(deck) if deck else None
         self._loaded = False
         self._main_secs: dict[str, str] = {}              # 1031 section gid → column key
         self._secs: dict[str, dict[str, str]] = {}        # other board → {column key: its section gid}
@@ -70,6 +73,8 @@ class CommercialAsana:
             out.append((self.working, COLUMNS))
         if self.medical:
             out.append((self.medical, MEDICAL_COLUMNS))
+        if self.deck:
+            out.append((self.deck, MEDICAL_COLUMNS))
         return out
 
     def _load(self) -> None:
@@ -104,6 +109,15 @@ class CommercialAsana:
         """{column: section gid} on the Medical board ({} when there is none)."""
         self._load()
         return dict(self._secs.get(self.medical or "", {}))
+
+    def on_deck(self, task: str) -> bool:
+        self._load()
+        return bool(self.deck) and self._board_of.get(task) == self.deck
+
+    def deck_sections(self) -> dict[str, str]:
+        """{column: section gid} on the New Deck board ({} when there is none)."""
+        self._load()
+        return dict(self._secs.get(self.deck or "", {}))
 
     def placed(self, task: str, board: str) -> None:
         """A card was just created on / moved to one of the other boards: engine moves stay there from now on."""
@@ -149,9 +163,9 @@ class CommercialAsana:
 
 
 def wrap(cfg: Any, asana):
-    """The client every commercial stage uses: wrapped when `commercial.asana.working_project` or `medical_project` is set."""
-    main, working, medical = (cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"),
-                              cfg.get("commercial.asana.medical_project"))
-    if asana is None or not main or not (working or medical) or isinstance(asana, CommercialAsana):
+    """The client every commercial stage uses: wrapped when `commercial.asana.working_project`, `medical_project` or `deck_project` is set."""
+    main, working, medical, deck = (cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"),
+                                    cfg.get("commercial.asana.medical_project"), cfg.get("commercial.asana.deck_project"))
+    if asana is None or not main or not (working or medical or deck) or isinstance(asana, CommercialAsana):
         return asana
-    return CommercialAsana(asana, main, working, medical)
+    return CommercialAsana(asana, main, working, medical, deck)

@@ -1837,3 +1837,64 @@ def test_medical_seven_caps_and_no_price_listings_get_their_own_question(conn, c
         assert validate_om_request(r["subject"], r["body"]) == [], r["body"]
     cfg.raw["commercial"]["medical"] = {"near_cap_min": 0, "no_price": False}
     assert medical.plan(conn, cfg)["listings"] == []
+
+
+# --- the new deck, $9M to $12M (Rodrigo, 2026-11-21) -----------------------------------------------------------------------------
+
+def test_deck_has_its_own_price_box_board_and_the_settled_email_process(conn, cfg, tmp_path):
+    """Rodrigo, 2026-11-21: "all the properties on the market that are from $9 million to $12 million that fit our 8 cap rate …
+    another board … run it through the same process". The deck's box is 9 to 12; a pulled row is in the deck without ever being in
+    the 1031 box; a stated cap puts the OM request on the card (his drag sends it), no cap queues the eight-cap question once per
+    broker, a no-cap hotel and a broker already emailed are not asked, and nothing doubles on a second run."""
+    from titan.commercial import deck, scoring
+    from titan.commercial.blast import build_queue, pending
+    from titan.commercial.board import ensure_board
+    from titan.commercial.site import load_listings
+    from titan.commercial.working import CommercialAsana
+    cfg.root = tmp_path
+    cfg.raw["commercial"]["asana"].update({"project": "proj-1031", "working_project": None, "medical_project": None, "deck_project": "proj-deck"})
+    d = deck.deck_cfg(cfg)
+    assert (d.get("commercial.buyer_box.price_min"), d.get("commercial.buyer_box.price_max")) == (9_000_000, 12_000_000)
+    assert d.get("commercial.buyer_box.cap_min") == cfg.get("commercial.buyer_box.cap_min") == 8.0 and cfg.get("commercial.buyer_box.price_max") == 8_000_000
+    big = clean_listing(price=10_000_000, stated_noi=850_000, stated_cap=8.5)
+    assert scoring.in_box(big, d)[0] is True and scoring.in_box(big, cfg) == (False, "price outside the box")
+    assert scoring.in_box(dict(big, stated_cap=7.2), d)[0] is False and scoring.in_box(dict(big, price=13_000_000), d)[0] is False
+
+    class FakeApify:
+        def run_actor(self, actor, inp, max_items=None, label=""):
+            assert inp["PriceMin"] == 9_000_000 and inp["PriceMax"] == 12_000_000
+            if label != "loopnet_retail":
+                return []
+            def row(i, street, **kw):
+                return {"propertyId": str(i), "listingUrl": f"https://www.loopnet.com/Listing/{i}/", "address": street, "city": "Lakeland", "stateCode": "FL",
+                        "propertyType": "Retail", "brokerName": "Jane Roe", "brokerCompany": "Roe Realty", "latitude": 28.04, "longitude": -81.95,
+                        "description": "Fully leased shopping center, NNN leases in place.", **kw}
+            return [row(21, "21 Cap St", priceNumeric=10_000_000, capRatePercent="8.5%", brokerEmail="cap@x.com"),
+                    row(22, "22 Nocap Ave", priceNumeric=9_500_000, brokerEmail="ask@x.com"),
+                    row(23, "23 Second Ave", priceNumeric=11_000_000, brokerEmail="ask@x.com"),
+                    row(24, "24 Old Rd", priceNumeric=9_900_000, brokerEmail="old@x.com"),
+                    row(25, "25 Low Cap Ln", priceNumeric=10_500_000, capRatePercent="6.5%", brokerEmail="low@x.com"),
+                    row(26, "26 Inn Way", priceNumeric=9_200_000, brokerEmail="inn@x.com", propertyType="Hospitality", description="Hotel, 90 keys.")]
+    conn.execute("INSERT INTO commercial_threads (listing_id, broker_email, sent_at, state, created_at, updated_at) VALUES ('99','old@x.com','2026-11-10T15:00:00Z','SENT','x','x')")
+    a = FakeWorkingAsana()
+    ensure_board(a, "proj-1031")
+    w = CommercialAsana(a, "proj-1031", None, None, "proj-deck")
+    res = deck.run_campaign(conn, cfg, FakeApify(), w, run_date="2026-11-21")
+    assert res["pull"]["rows"] == 6 and res["listings"] == 5 and res["with_cap"] == 1 and res["cards"] == 5 and res["queued"] == 1
+    rows = {r["listing_id"]: r for r in conn.execute("SELECT listing_id, in_box, in_deck, deck_note FROM commercial_listings").fetchall()}
+    assert all(r["in_box"] == 0 for r in rows.values())                       # the 1031 box never sees them …
+    assert rows["25"]["in_deck"] == 0 and "under the floor" in rows["25"]["deck_note"] and rows["21"]["in_deck"] == 1
+    assert build_queue(conn, cfg, "2026-11-21x") == []                        # … so the 1031 blast does not either
+    assert {L["listing_id"] for L in load_listings(conn)} == {"21", "22", "23", "24", "26"}     # the site does (Good fit shows to the investor)
+    p = deck.plan(conn, cfg)
+    assert p["drag"] == ["21"] and [(e["broker_email"], len(e["listings"])) for e in p["emails"]] == [("ask@x.com", 2)]
+    assert "already emailed" in p["notes"]["24"] and "hotel" in p["notes"]["26"]
+    secs = w.deck_sections()
+    assert all(a.where[g] == secs["New"] for g in a.tasks)
+    by_listing = {re.search(r"Listing/(\d+)", a.tasks[g]["notes"]).group(1): a.tasks[g]["notes"] for g in a.tasks}
+    assert "=== EMAIL (what will be sent) ===" in by_listing["21"] and "=== EMAIL" not in by_listing["22"] and "is queued" in by_listing["22"]
+    q = pending(conn, cfg)
+    assert len(q) == 1 and q[0]["campaign"] == "deck" and set(q[0]["cards"]) == {"22", "23"} and "eight cap" in q[0]["body"]
+    again = deck.run_campaign(conn, cfg, None, w, pull_first=False, run_date="2026-11-21")
+    assert again["cards"] == 0 and again["already"] == 5 and len(a.tasks) == 5
+    assert "5 fit the deck" in deck.text(conn, cfg, again, deck.plan(conn, cfg))

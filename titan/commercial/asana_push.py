@@ -429,7 +429,7 @@ def refresh_cards(conn, cfg: Any, asana, limit: int = 40) -> dict[str, int]:
     `card_format:<gid>`). The email block, any "also asked about" line and the sent time are kept; nothing moves."""
     from .outreach import parse_om_card
     n = {"updated": 0, "skipped": 0, "errors": 0}
-    projects = [p for p in (cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"), cfg.get("commercial.asana.medical_project")) if p]
+    projects = [p for p in (cfg.get("commercial.asana.project"), cfg.get("commercial.asana.working_project"), cfg.get("commercial.asana.medical_project"), cfg.get("commercial.asana.deck_project")) if p]
     seen: set[str] = set()
     budget = limit
     for project in projects:

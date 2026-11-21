@@ -880,6 +880,30 @@ def cmd_commercial_medical(cfg, args):
     return 0
 
 
+def cmd_commercial_deck(cfg, args):
+    """The new deck (Rodrigo, 2026-11-21): LoopNet at $9M to $12M through the same screen, its own Asana board, the settled email
+    process. --list shows what it would do and touches nothing."""
+    from .commercial import deck
+    from .commercial.working import wrap as working_board
+    conn = _open(cfg)
+    if args.list:
+        print(deck.text(conn, cfg, {"pull": {"skipped": "list only"}}, deck.plan(conn, cfg, not args.no_queue)))
+        return 0
+    c = build_clients(cfg, conn, need=("apify", "gmail") if args.email else ("apify",))
+    res = deck.run_campaign(conn, cfg, None if args.no_pull else c["apify"], working_board(cfg, _asana(cfg)), pull_first=not args.no_pull,
+                            queue=not args.no_queue, gmail=c.get("gmail") if args.email else None, email=args.email, site=True)
+    conn.commit()
+    print(deck.text(conn, cfg, res, deck.plan(conn, cfg, not args.no_queue)))
+    files = (res.get("pull") or {}).get("files") or {}
+    if files:
+        print("\nFiles: " + " · ".join(str(v) for k, v in files.items() if k in ("workbook", "pdf", "deals_email")))
+    from .commercial.blast import pending
+    from .commercial.outreach import pace
+    per_round, cap = pace(cfg)
+    print(f"\n{len(pending(conn, cfg))} broker email(s) waiting in the queue · {per_round} per round, {cap} a day, send window only")
+    return 0
+
+
 def cmd_commercial_sheets(cfg, args):
     """The highest-scored in-box listings still missing their LoopNet property sheet, with the folder each sheet goes in.
     Rodrigo, 2026-11-08: a Claude Code session on the Mac with Claude in Chrome opens each one in HIS browser and saves the
@@ -1259,6 +1283,11 @@ def main(argv: list[str] | None = None) -> int:
     md = sub.add_parser("commercial-medical", help="the medical campaign: LoopNet medical pull, the Medical board, one request for the financials per broker")
     md.add_argument("--list", action="store_true", help="print the listings and the emails; pull nothing, post nothing, queue nothing")
     md.add_argument("--no-pull", action="store_true", help="skip the LoopNet pull, work from the stored listings")
+    dk = sub.add_parser("commercial-deck", help="the new deck: LoopNet at $9M to $12M, the New Deck board, the eight-cap question per broker")
+    dk.add_argument("--list", action="store_true", help="print the listings and the emails; pull nothing, post nothing, queue nothing")
+    dk.add_argument("--no-pull", action="store_true", help="skip the LoopNet pull, work from the stored deck listings")
+    dk.add_argument("--no-queue", action="store_true", help="cards only: queue no email")
+    dk.add_argument("--email", action="store_true", help="email Rodrigo the deck's deals email (the one he forwards)")
     cs = sub.add_parser("commercial-sheets", help="list the top listings still missing their LoopNet property sheet, for a Claude in Chrome session on the Mac")
     cs.add_argument("--top", type=int, default=15)
     cs.add_argument("--column", default=None, help="only this board column (e.g. 'Good fit')")
@@ -1290,7 +1319,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "commercial-medical": cmd_commercial_medical, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "commercial-medical": cmd_commercial_medical, "commercial-deck": cmd_commercial_deck, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

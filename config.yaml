@@ -485,6 +485,12 @@ commercial:
     cap_mismatch_bps: 50             # back-solved cap (NOI / price) off the stated cap by more than this = flag
     suspect_ppsf_multiple: 2.0       # $/SF above this × the county+type median (4+ peers) = SUSPECT
     min_expense_ratio_non_nnn: 0.30  # implied expenses under this share of gross on a non-NNN asset = SUSPECT
+  # Rodrigo, 2026-11-21: "all the properties on the market that are from $9 million to $12 million that fit our 8 cap rate ... another
+  # board ... new deck ... run it through the same process". A second price box; every other rule of buyer_box applies (deck.py).
+  # `make deck` pulls, posts the cards and queues the eight-cap question; `make deck-list` only prints.
+  deck:
+    buyer_box: {price_min: 9000000, price_max: 12000000, sweet_spot_max: 12000000}
+    outputs_dir: "reports/commercial/deck"
   loopnet:
     actor: "memo23/loopnet-scraper-ppe"   # $1.50 per 1,000 search rows + $0.01 per full detail sheet (2026-11-08 store price)
     # One LoopNet search per asset family, filtered by LoopNet itself to the price box; the cap floor is applied by the actor
@@ -515,6 +521,7 @@ commercial:
     needs_om_n: 40                   # OM-request task list
     medical_project: "1220751802973172"   # "Titan 1031 · Medical" (2026-11-20): medical buildings only, same columns as the 1031 board, read as part of it (working.py)
     working_project: "1220397720099247"   # "Titan 1031 · Working Deals" (2026-11-10): brokers he is talking to and has filtered; he moves cards there (working.py)
+    deck_project: "1220763032771742"  # "Titan 1031 · New Deck · $9M to $12M" (2026-11-21): the second price box, same columns, read as part of the 1031 board (working.py, deck.py)
   # Commercial send pace (Rodrigo, 2026-11-09: "shorten the time frame ... but not too too fast"): OM-request cards first, then the
   # no-cap blast queue (data/commercial_queue/<date>.json, `make commercial-blast`), every 20-minute round inside the send window.
   outreach:

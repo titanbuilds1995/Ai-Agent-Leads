@@ -785,6 +785,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-21 ~2:40pm ET (Mac), RESUME HERE: **New Deck pull RAN, queue STOPPED** (`make deck ARGS=--no-queue`, $1.91). 657 read, 18 in
+  the deck, 2 show 8+ cap (both NOI missing), 17 cards in New on the deck board, deals email to Rodrigo only. **Multifamily search timed
+  out (900s), so no apartments in this pull.** 605 dropped as "price not disclosed" (search stubs). NOT queued (`--no-pull` not run):
+  the Margate card (portfolio, no street) reads "I saw your listing at your listing" / subject "Your listing, Margate"; the Coral Springs
+  8.25% card's OM request has the whole LoopNet title as subject and street ("West Sample Road Retail Portfolio - Coral Springs, FL - …"):
+  **do not drag it to Approved until fixed**. Not income: 625 66th Ave SW Vero (fruit packing plant on 40 ac, land play), Tampa
+  "Morgan & Pierce" (office + garage pitched for redevelopment, typed hotel); owner-user-ish: 7565 Commerce Ct Sarasota, 7500 NW 25th St
+  Miami. Fix before queueing: portfolio/no-street wording (use `listingName`, or skip), income screen on "owner-users", "potential uses".
 - 2026-11-21 ~2:10pm ET, RESUME HERE: Rodrigo corrected the board: **"my main board" = Titan 1031 · Commercial (LoopNet)**, not Working
   Deals, and he wanted the top 15 to 25 medical, not 4. Done by hand: 20 cards moved from the Medical board (4 from Working Deals) into
   **New on the 1031 board**, renamed "MED #1 … MED #20" in rank order, each with a pinned 🤖 read. 1–5: Clark Rd Sarasota, 2801 SW 3rd Ave

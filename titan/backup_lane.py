@@ -140,6 +140,28 @@ def _set(conn, pid: int, **kw) -> None:
     conn.execute(f"UPDATE backup_leads SET {', '.join(k + '=?' for k in kw)} WHERE property_id=?", (*kw.values(), pid))
 
 
+RULED_OUT_TYPES = {"townhouse": "townhouse", "land": "land"}
+
+
+def ruled_out(p: dict[str, Any]) -> str | None:
+    """A house his rules exclude (townhouse, land, 55+, renovated, …): the backup lane never emails it
+    (2026-11-22: townhouses and a land lot reached Fresh Leads as backup cards)."""
+    t = (p.get("property_type") or "").lower()
+    if t in RULED_OUT_TYPES:
+        return RULED_OUT_TYPES[t]
+    note = p.get("lead_note") or ""
+    if note.startswith(("excluded:", "condition:")):
+        return note.split(":", 1)[1].strip()[:60] or "excluded"
+    try:
+        from .ingest.normalize import product_flags
+        hits = product_flags(p)
+        if hits:
+            return "55+ community" if "age_restricted" in hits else "townhouse"
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 # ---------- 1. find ----------
 
 def discover(conn, cfg: Any, lookup: Lookup | None, budget: int, sleep_s: float = 0.0) -> dict[str, int]:
@@ -373,6 +395,12 @@ def draft_cards(conn, cfg: Any, asana, llm, dry_run: bool = False) -> dict[str, 
         agent = db.row_to_dict(conn.execute("SELECT * FROM agents WHERE id=?", (aid,)).fetchone()) if aid else None
         if not p or not agent or not _emailable(conn, cfg, agent):
             n["no_email"] += 1
+            continue
+        why = ruled_out(p)
+        if why:                                         # his rules still apply to pending houses (Rodrigo, 2026-11-22)
+            n["ruled_out"] = n.get("ruled_out", 0) + 1
+            if not dry_run:
+                _set(conn, p["id"], state=DROPPED, note=f"ruled out: {why}")
             continue
         if aid in seen_agents or _recent_contact(conn, aid, "email", int(cfg["outreach"].get("agent_cooldown_days", 7))):
             n["agent_busy"] += 1                       # one email per agent at a time; this house waits its turn

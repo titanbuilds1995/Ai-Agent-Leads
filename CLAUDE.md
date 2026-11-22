@@ -785,6 +785,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses
+  back on the market (call card in Needs Rodrigo). Some backup cards were townhouses / land: `backup_lane.ruled_out` now drops those
+  (type townhouse / land, excluded: / condition: notes, 55+) before an email is written; the ones already on the board are for him to skip. 1 test.
 - 2026-11-21 ~2:40pm ET (Mac), RESUME HERE: **New Deck pull RAN, queue STOPPED** (`make deck ARGS=--no-queue`, $1.91). 657 read, 18 in
   the deck, 2 show 8+ cap (both NOI missing), 17 cards in New on the deck board, deals email to Rodrigo only. **Multifamily search timed
   out (900s), so no apartments in this pull.** 605 dropped as "price not disclosed" (search stubs). NOT queued (`--no-pull` not run):

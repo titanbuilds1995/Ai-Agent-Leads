@@ -149,3 +149,11 @@ def test_every_backup_email_is_read_by_the_second_reader(loaded, cfg, tmp_path, 
     out = bl.run(loaded, cfg, asana, ok, lookup=_lookup({pid: PENDING}))
     gid = next(iter(asana.tasks))
     assert out["emails"]["cards"] == 1 and any("Second read" in c for c in asana.stories[gid])
+
+
+def test_backup_lane_never_emails_townhouses_or_land():
+    from titan.backup_lane import ruled_out
+    assert ruled_out({"property_type": "townhouse"}) == "townhouse"
+    assert ruled_out({"property_type": "land"}) == "land"
+    assert ruled_out({"property_type": "single_family", "lead_note": "excluded: age_restricted"})
+    assert ruled_out({"property_type": "single_family", "lead_note": "backup lane: under contract"}) is None

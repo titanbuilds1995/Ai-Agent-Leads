@@ -785,6 +785,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~midday ET, RESUME HERE: **Alexander Oaks (Plant City, Kostas Stoilas / Fortress): offer + LOI drafted, NOT sent.** LOI in
+  Rodrigo's name (from Walter's LOI template, assignment widened to "any person or entity") and the offer email sit as a DRAFT in
+  rodrigo@ Gmail, in Kostas's thread. Numbers stay on the Working Deals card, not here. Open for Rodrigo: buyer's broker line, was the
+  property named in Walter's 1031 identification letter, the Fortress CA is still unsigned. Nothing else changed.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

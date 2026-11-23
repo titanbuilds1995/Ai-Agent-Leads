@@ -1,5 +1,5 @@
 PY := .venv/bin/python
-.PHONY: deck deck-list medical medical-list product-clean product-clean-list condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
+.PHONY: comments-now deck deck-list medical medical-list product-clean product-clean-list condition-check condition-list deliverability verify-list buyers-contacts-email buyers-contacts buyers-status buyers-area buyers-build clean-board clean-board-list site-1031 om-strays om-links buyer-brief commercial-round commercial-sheets commercial commercial-sample commercial-offline follow-ups eod-report comps-loop comps-check claude-login claude-check approvals-now setup test init-db run-daily check-replies report status install-cron webhook gmail-auth gmail-test doctor dashboard sync-dashboard demo clean-demo
 
 setup:            ## create venv + install deps (python3.11)
 	test -d .venv || uv venv --python 3.11 .venv || python3.11 -m venv .venv
@@ -71,6 +71,9 @@ claude-login:     ## log the background jobs in to Claude (token saved in .env, 
 
 claude-check:     ## is the background jobs' Claude login working? (tests the token in .env like cron)
 	env -u ANTHROPIC_API_KEY $(PY) -m titan.cli claude-login --test-only
+
+comments-now:     ## read my card comments now (rewrites, numbers, offer drafts); sends nothing
+	$(PY) -m titan.cli comments
 
 approvals-now:    ## run one approvals round now (rewrites commented cards, sends approved ones in the window)
 	$(PY) -m titan.cli approvals

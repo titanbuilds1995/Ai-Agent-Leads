@@ -391,6 +391,7 @@ def cmd_install_cron(cfg, args):
         f"30 5 * * * cd {root} && /usr/bin/caffeinate -i {py} -m titan.cli run-daily >> {root}/logs/cron.log 2>&1",
         f"*/15 * * * * cd {root} && {py} -m titan.cli check-replies >> {root}/logs/cron.log 2>&1",
         f"*/20 8-17 * * * cd {root} && {py} -m titan.cli approvals --jitter 600 >> {root}/logs/cron.log 2>&1   # Asana-approved emails, spread out",
+        f"*/5 8-19 * * * cd {root} && {py} -m titan.cli comments >> {root}/logs/cron.log 2>&1   # his card comments only: rewrites, numbers, offer drafts; sends nothing",
         f"0 {cfg.get('report.hour_et', 7)} * * * cd {root} && {py} -m titan.cli report >> {root}/logs/cron.log 2>&1",
         f"5 {w['start_hour']} * * 1-5 cd {root} && {py} -m titan.cli run-daily --steps outreach >> {root}/logs/cron.log 2>&1   # second outreach pass inside the SMS window",
         "# --- end titan ---",
@@ -649,6 +650,63 @@ def cmd_learn_loop(cfg, args):
         print("\nNo first emails for (you approved): " + ", ".join(p["blocked"]))
 
 
+def _round_lock(cfg, wait_s: int = 0):
+    """One board round at a time (the full approvals round and the comments pass share it). None = someone else has it."""
+    import fcntl
+    import time
+    lock_path = cfg.root / "logs" / "approvals.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock = open(lock_path, "w")
+    until = time.time() + wait_s
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return lock
+        except OSError:
+            if time.time() >= until:
+                lock.close()
+                return None
+            time.sleep(5)
+
+
+def cmd_comments(cfg, args):
+    """Every 5 minutes, 8am to 8pm (Rodrigo, 2026-11-23: "I need it to be read faster so I can send out more offers, faster"):
+    ONLY his comments are read: rewrites, numbers / bottom line / offer drafts, questions, on the house boards and the 1031
+    boards. It sends nothing to an agent or broker and moves nothing into the send pace: what he approves still goes out with
+    the full approvals round (every 20 minutes, inside the send window)."""
+    from .approvals import sync_feedback
+    conn = _open(cfg)
+    asana = _asana(cfg)
+    if asana is None:
+        print("ASANA_TOKEN missing in .env (Asana → My settings → Apps → Developer apps → Personal access token)")
+        sys.exit(1)
+    lock = _round_lock(cfg)
+    if lock is None:
+        print(json.dumps({"skipped": "a board round is running; it reads the comments itself"}))
+        return
+    c = build_clients(cfg, conn, need=("llm", "gmail"))
+    out: dict[str, Any] = {}
+
+    def stage(name, fn):
+        try:
+            out[name] = fn()
+        except Exception as e:  # noqa: BLE001 — the next stage still runs; the next pass retries this one
+            log.exception("comments stage %s failed: %s", name, e)
+            out[name] = {"error": str(e)[:200]}
+
+    stage("feedback", lambda: sync_feedback(conn, cfg, asana, c["llm"], c["gmail"]))   # gmail here only sends HIM a test copy when he asks
+    conn.commit()
+    if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):
+        from .commercial.card_files import pull_card_files
+        from .commercial.card_notes import handle_notes
+        from .commercial.working import wrap as working_board
+        casana = working_board(cfg, asana)
+        stage("card_files", lambda: pull_card_files(conn, cfg, casana, c["llm"]))   # files first, same order as the full round
+        stage("om_notes", lambda: handle_notes(conn, cfg, casana, c["llm"]))
+        conn.commit()
+    print(json.dumps(out, default=str))
+
+
 def cmd_approvals(cfg, args):
     """Every 20 minutes in the day: rewrite cards that got feedback, then send up to per_tick approved emails."""
     from .approvals import send_approved, sync_feedback
@@ -661,13 +719,16 @@ def cmd_approvals(cfg, args):
     # 2026-10-29 (Rodrigo: "there's a lot of approved, it's already past the 20 minutes"): rounds overlapped (a round with many
     # rewrites runs longer than 20 min), one Asana error killed the whole round, and sending came last. Now: one round at a
     # time, approved emails go out FIRST, and each stage fails on its own.
-    lock_path = cfg.root / "logs" / "approvals.lock"
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    import fcntl
-    lock = open(lock_path, "w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    # 2026-11-23 (Rodrigo: "I need it to be read faster so I can send out more offers"): the random wait that spreads the send
+    # times now happens BEFORE the round takes the lock, so the 5-minute comments pass (cmd_comments) is never shut out by a
+    # sleeping round; and the round waits for a comments pass to finish instead of giving its turn away.
+    if args.jitter:
+        import random
+        import time
+        time.sleep(random.randint(0, args.jitter))
+        args.jitter = 0
+    lock = _round_lock(cfg, wait_s=300)
+    if lock is None:
         print(json.dumps({"skipped": "the previous approvals round is still running"}))
         return
     out: dict[str, Any] = {}
@@ -1256,6 +1317,7 @@ def main(argv: list[str] | None = None) -> int:
     cl_.add_argument("--no-claude", action="store_true", help="skip Claude's review of the comp sets (no API spend)")
     cl_.add_argument("--no-asana", action="store_true", help="post nothing on the cards")
     ap_ = sub.add_parser("approvals", help="Asana email approvals: rewrite from comments, send approved emails in the window")
+    sub.add_parser("comments", help="read Rodrigo's card comments only (rewrites, numbers, offer drafts); sends nothing")
     ap_.add_argument("--jitter", type=int, default=0, help="wait a random 0..N seconds first, so send times vary")
     te = sub.add_parser("test-email", help="send a [TEST] copy of one card's email to yourself (the agent gets nothing)")
     te.add_argument("outreach_id", type=int)
@@ -1319,7 +1381,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = config.load(args.config) if args.config else config.load()
     setup_logging(cfg.path("logs"))
     {"init-db": cmd_init_db, "run-daily": cmd_run_daily, "check-replies": cmd_check_replies, "report": cmd_report, "status": cmd_status,
-     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "commercial-medical": cmd_commercial_medical, "commercial-deck": cmd_commercial_deck, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
+     "install-cron": cmd_install_cron, "webhook": cmd_webhook, "gmail-auth": cmd_gmail_auth, "gmail-test": cmd_gmail_test, "doctor": cmd_doctor, "sync-dashboard": cmd_sync_dashboard, "dashboard": cmd_dashboard, "mls-shortlist": cmd_mls_shortlist, "scrape-test": cmd_scrape_test, "approve-offer": cmd_approve_offer, "review-queue": cmd_review_queue, "offers": cmd_offers, "score-test": cmd_score_test, "approvals": cmd_approvals, "comments": cmd_comments, "ladder": cmd_ladder, "rewrite-pending": cmd_rewrite_pending, "test-email": cmd_test_email, "claude-login": cmd_claude_login, "comps-loop": cmd_comps_loop, "learn-loop": cmd_learn_loop, "backup-lane": cmd_backup_lane, "clean-board": cmd_clean_board, "product-clean": cmd_product_clean, "condition-check": cmd_condition_check, "end-of-day": cmd_end_of_day, "catch-up": cmd_catch_up, "follow-ups": cmd_follow_ups, "commercial": cmd_commercial, "commercial-sheets": cmd_commercial_sheets, "buyer-brief": cmd_buyer_brief, "commercial-site": cmd_commercial_site, "commercial-blast": cmd_commercial_blast, "commercial-medical": cmd_commercial_medical, "commercial-deck": cmd_commercial_deck, "books-review": cmd_books_review, "om-strays": cmd_om_strays, "om-links": cmd_om_links, "deliverability": cmd_deliverability}[args.cmd](cfg, args)
     return 0
 
 

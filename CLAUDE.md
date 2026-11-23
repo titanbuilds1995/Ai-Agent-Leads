@@ -785,6 +785,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~1pm ET (Mac): official public-record check for three 1031 deals on Working Deals (Leesburg warehouse, Tavares VA
+  clinic, Fleming Island daycare): FEMA, property appraiser, tax bills, zoning, permits, Sunbiz, DCF. Findings are pinned on each
+  card ("OFFICIAL RECORDS CHECK"), not in this repo. Not obtained: Leesburg code cases (city search down), Tavares permits / code
+  cases (no online search, phone only), the zoning use tables, the DCF inspection PDFs. No code changed, nothing sent.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

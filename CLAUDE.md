@@ -785,6 +785,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~midday ET, RESUME HERE: **Walter's top 4 (Kiddie Academy Fleming Island, Hajoca Leesburg, Tavares VA clinic, Chevron
+  Jacksonville = alternate) added by hand to Working Deals → HOT WORKING** (cards 1220795601108722, 1220795523482930, 1220795650789265,
+  1220795523839494). Each card: numbers, what we have, the document ask in 3 steps (now / with the LOI / under contract; Rodrigo:
+  "ask only for the things they will most likely release without a signed contract, do not ask for the phase 1"), and a step-1 email
+  draft in Charles's voice, second-read. **Nothing sent.** Open before any send: no broker email on file (Boulder Group broker's name
+  is on the OM; the others are firm-pattern guesses, unverified), and Rodrigo says from which mailbox. No LoopNet link on these cards.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

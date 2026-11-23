@@ -785,6 +785,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~3:40pm ET (Mac): **fixed.** The old Anthropic key had EXPIRED (Rodrigo saw it in the console); he put a new key in the
+  Mac's .env, `make doctor`: Anthropic key ok, 9 ok / 0 fail. Paid-API jobs work again from the next round. He comments "numbers" on
+  Juan Mora's card himself. If a key ever has an expiry date again, record the date here.
 - 2026-11-23 ~3pm ET (Mac), RESUME HERE: **why Claude was "not reachable" on Juan Mora's bottom line: the Anthropic API key in the
   Mac's .env is rejected** (`make doctor`: "Anthropic key fail, key rejected (401)"; log: 203 x "invalid x-api-key" today, first at
   8:32am, the first round after the Mac came back). .env is unchanged since 11-17, so the key was revoked / removed on Anthropic's side.

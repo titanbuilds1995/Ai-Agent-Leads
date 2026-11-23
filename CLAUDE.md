@@ -805,6 +805,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   and both Hajoca lease documents attached (the two OMs and the VA lease are too big for the connector: he adds or forwards them); (2) to
   Bruno LaBruno, 9 questions on the Hajoca discrepancies (end date, missing amendments, roof, CBRE commission, acreage, SF, costs, HVAC).
   The Mac is running the official-records prompt; its files should be saved under reports/commercial/walter/<property>/ (gitignored).
+  ~1:15pm: **the Mac finished the official records** (comment "OFFICIAL RECORDS CHECK" on each of the three cards, 1:01pm ET): Hajoca is
+  mostly FEMA Zone AE; Tavares paid $0 tax 2017-2025 (exempt), first bill 2026; Kiddie site is 1.65 ac, DCF capacity 186, landlord's taxes
+  went delinquent twice. Checklist PDF rebuilt with them (green). **Google Drive: "1031 exchanges" → "Walter Neal - Due Diligence
+  Documents"** (folder 1LUurnNd2gHccf-JDRJoHZceNcijBWZfM; subfolders per property) holds the checklist, both Hajoca lease documents and
+  the Tavares lease / amendments / books / insurance quotes (copied from the broker's folder). NOT uploaded (connector size limit): the
+  Hajoca OM (6 MB) and the Tavares OM (16 MB); Rodrigo drags them in. Folder NOT shared yet (sharing was blocked for this session): he
+  shares it with Walter himself. Both Gmail drafts updated (Walter: folder link + checklist attached; Bruno: flood zone and roof permit
+  questions added). Nothing sent.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import re
 
+# "attached" / "enclosed" are also house words: "enclosed Florida room", "attached garage" (Rodrigo, 2026-11-23, Alim Rahman,
+# 8870 Taft St: his first email was stopped three times for asking whether the enclosed Florida room was permitted).
+HOUSE_PART = (r"(?!\s*(?:-|\s)?(?:garage|carport|porch|patio|florida|sun\s*room|sunroom|room|lanai|balcony|deck|pool|"
+              r"screened|back|front|rear|in-?law|unit|efficiency|apartment|structure|shed|workshop|storage|laundry|"
+              r"utility|area|space|addition|one|two|single|double|\d|car\b|townhouse|townhome|villa|home|house|"
+              r"to the|by|with a|kitchen|bath|bed|den|office|loft|yard|courtyard|entry|stair))")
 CLAIM_RE = re.compile(
-    r"\b(?:attached|attaching|i(?:'ve| have) attached|we(?:'ve| have) attached|please find|find (?:it |them )?(?:attached|enclosed)|"
-    r"see (?:the )?attached|enclosed|here (?:is|are) the (?:signed|executed)|"
+    r"\b(?:attached" + HOUSE_PART + r"|attaching|i(?:'ve| have) attached|we(?:'ve| have) attached|please find|find (?:it |them )?(?:attached|enclosed)|"
+    r"see (?:the )?attached|enclosed" + HOUSE_PART + r"|here (?:is|are) the (?:signed|executed)|"
     r"(?:signed|executed|countersigned) (?:copy|nda|ca|confidentiality|agreement|contract|loi|document|form|psa)|"
     r"i(?:'ve| have) (?:just )?(?:signed|sent (?:it|them|that|the \w+) over|uploaded)|we(?:'ve| have) (?:just )?(?:signed|sent (?:it|them|that|the \w+) over|uploaded)|"
     r"(?:i'?ll send|we'?ll send|will send) (?:it|them|the \w+(?: \w+)?) (?:over|shortly|now|right over|back signed))\b", re.I)

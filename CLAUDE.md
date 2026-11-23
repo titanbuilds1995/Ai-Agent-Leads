@@ -785,6 +785,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~4pm ET, RESUME HERE: **Alim Rahman (8870 Taft St, Pembroke Pines) first email was stopped 3 times by the "nothing
+  attached" check**: it asks whether "the enclosed Florida room" had permits, and the bare word "enclosed" read as a file claim.
+  Fixed in `titan/claims.py` (`HOUSE_PART`: "enclosed / attached" + garage / porch / patio / Florida room / carport… are house words,
+  not attachments); 1 test. Card is in Needs Me, email unchanged: once the Mac pulls he drags it to Approved and it goes next round.
 - 2026-11-23 ~3:40pm ET (Mac): **fixed.** The old Anthropic key had EXPIRED (Rodrigo saw it in the console); he put a new key in the
   Mac's .env, `make doctor`: Anthropic key ok, 9 ok / 0 fail. Paid-API jobs work again from the next round. He comments "numbers" on
   Juan Mora's card himself. If a key ever has an expiry date again, record the date here.

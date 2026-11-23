@@ -54,3 +54,12 @@ def test_send_it_does_not_override_a_false_attachment_claim(conn, cfg, tmp_path)
         assert out["sent"] == 0 and out["stopped"] == 1
     assert len(gm.sent) == before
     assert sum("STOPPED, not sent" in c for c in asana.stories[gid]) == 1             # told once, not every round
+
+
+def test_house_words_are_not_attachment_claims():
+    """Alim Rahman, 8870 Taft St (2026-11-23): "the enclosed Florida room" stopped his first email three times."""
+    from titan.claims import unbacked_claims
+    assert unbacked_claims("Was the enclosed Florida room done with permits?") == []
+    assert unbacked_claims("It has a 2-car attached garage and an enclosed patio.") == []
+    assert unbacked_claims("The contract is attached.") == ["attached"]
+    assert "enclosed" in unbacked_claims("Please find enclosed our offer.")

@@ -822,6 +822,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   ~1:35pm: Kiddie Academy OM (Boulder Group) received from Rodrigo: smaller copy in the Drive folder's Kiddie subfolder; findings on
   the Kiddie card (1220795601108722; Phone field = Randy Blankstein); checklist rebuilt and uploaded as "…COMPLETED (latest).pdf", the
   copy sent to Walter renamed "OLDER VERSION …". Walter NOT emailed again (he got the folder link at 1:25pm; it shows the new files).
+  ~1:40pm: Bruno answered the 9 questions + sent an elevation certificate (floor 0.8 ft BELOW flood level), a 3/2025 survey, a site
+  exhibit and a "first addendum" that is really the PRIOR tenant's (Vistapak) extension, not Hajoca's First Amendment (still missing).
+  All 4 files in the Drive Hajoca subfolder; checklist rebuilt (new "latest", previous renamed OLDER); Hajoca card comment. Jimmy
+  (Boulder) sent only the Kiddie OM. Nothing emailed.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

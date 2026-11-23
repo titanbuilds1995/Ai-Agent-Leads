@@ -785,6 +785,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~5:30pm ET, RESUME HERE: **comments pass built** (Rodrigo: "I need it to be read faster so I can send out more
+  offers, faster"). `titan.cli comments` / `make comments-now`: only his card comments (house boards `sync_feedback`; 1031 boards
+  `card_files` + `om_notes`), sends nothing to anyone outside; cron `*/5 8-19` (was: comments read only inside the 20-minute approvals
+  round, 8:00–5:40pm, after a 0–10 min send wait). Send pace unchanged (approvals still `*/20 8-17`). The round's random wait now
+  happens before it takes the lock and the round waits up to 5 min for a comments pass (`_round_lock`). 3 tests; suite passes except
+  the same 3. **Not live until he runs `make install-cron` once on the Mac after pulling.** Watch: `logs/cron.log` for "comments
+  stage … failed", and that a full round is not skipped often ("previous approvals round is still running").
 - 2026-11-23 ~5:15pm ET (Mac), RESUME HERE: pulled the cloud's Alim Rahman fix (same fix was already here; kept the Mac's broader
   `HOUSE_PART`, both tests kept). `make doctor`: Anthropic key ok, 9 ok / 0 fail. `make test`: all pass. Only two rules-only bottom
   lines today (verdicts table): **Juan Mora** (14452 SW 115th St, 3:40pm) and **Devon Mclean** (926 33rd St, 4:00pm); Rodrigo comments

@@ -785,6 +785,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~noon ET, RESUME HERE: **Walter's top deals, Hajoca (Leesburg) and Tavares VA: brokers answered, documents read, Asana
+  updated by hand** (Working Deals cards 1220795523482930 and 1220795650789265: done / lease facts / buyer's sheet / flags / still to
+  do; numbers live on the cards, not here). Rodrigo emailed both brokers himself from rodrigo@. The Tavares deal room (broker's Google
+  Drive) was read through the Drive connector. Email to Walter answering his data request is WRITTEN BUT NOT IN GMAIL: the connector
+  refuses attachments over ~3 MB, waiting on Rodrigo's choice. Open: he signs the Tavares confidentiality agreement; second request to
+  each broker; Walter's section E public-record research not started; Kiddie Academy and Chevron cards untouched.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

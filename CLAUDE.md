@@ -819,6 +819,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   **~1:25pm SENT on Rodrigo's word, from rodrigo@:** (1) to Walter, cc Cat + Taylor, in the "1031_Due_Diligence_Data_Request" thread: the
   completed checklist + the Drive link; (2) to Bruno LaBruno, in his Hajoca thread: the nine discrepancy questions. Logged on both Asana
   cards. Next: wait for Bruno and Walter; no further email to either until they answer.
+  ~1:35pm: Kiddie Academy OM (Boulder Group) received from Rodrigo: smaller copy in the Drive folder's Kiddie subfolder; findings on
+  the Kiddie card (1220795601108722; Phone field = Randy Blankstein); checklist rebuilt and uploaded as "…COMPLETED (latest).pdf", the
+  copy sent to Walter renamed "OLDER VERSION …". Walter NOT emailed again (he got the folder link at 1:25pm; it shows the new files).
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

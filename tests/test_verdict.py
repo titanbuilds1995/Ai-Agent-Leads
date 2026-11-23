@@ -193,3 +193,16 @@ def test_card_shows_the_bottom_line_and_a_conclusion_ask_triggers_it(loaded, cfg
     lines = " ".join(house_card._numbers(props[0]))
     assert "BOTTOM LINE: offer $260,000" in lines and "do not go over $275,000" in lines and "$135,000 (34%) under asking" in lines
     assert "Internal MAO" not in lines
+
+
+def test_terms_said_backwards_and_offer_price_on_card():
+    """Alberto Pascual, 2026-11-19: "Inspection period needs to be 15 day's and escrow let's lower it to 5k" on a card that already
+    held the $540,000 offer went to the first-email rewriter and sat in Needs Revision."""
+    from titan import verdict
+    t = verdict.parse_terms("Inspection period needs to be 15 day's and escrow let's lower it to 5k")
+    assert t["inspection_days"] == 15 and t["deposit"] == 5000
+    t = verdict.parse_terms("5k escrow, 15 day inspection, 30 day closing")       # the usual order still wins
+    assert t == {"deposit": 5000, "inspection_days": 15, "close_days": 30}
+    m = verdict.CARD_OFFER_RE.search("Our offer:\n• Price: $540,000, cash\n• $10,000 escrow deposit")
+    assert m and m.group(1) == "540,000"
+    assert not verdict.CARD_OFFER_RE.search("How old are the roof and the AC?")

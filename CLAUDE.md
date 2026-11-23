@@ -785,6 +785,14 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~2:45pm ET, RESUME HERE: Rodrigo asked why cards sit in Needs Revision. Three were there. **Alberto Pascual** (since
+  11-19): "Inspection period needs to be 15 days and escrow 5k" on a card already holding the $540,000 offer went to the first-email
+  rewriter, which refuses any price. Fixed: `verdict.offer_comment` now redrafts the offer at the card's own price with the new terms
+  (`CARD_OFFER_RE`, `TERM_RES_REV` reads terms said backwards); 1 test, suite passes except the same 3. **Iliana Hernandez** (since
+  11-19): his "a little away from our cash offer" wording fails the first-email price check every round; NOT fixed in code (open: let
+  his own wording through when there is no figure?). Both cards fixed by hand from the cloud and moved to Needs Me (card text is what
+  sends; the Mac's database still has the old bodies for outreach #264 / #235). **Juan Mora**: handled by the Mac in 2 minutes, but
+  its bottom line says **"Claude was not reachable"** (rules only, no offer email): check `make doctor` on the Mac.
 - 2026-11-23 ~2:30pm ET, RESUME HERE: Rodrigo asked why house leads lag. Mac is back (2 follow-ups went 8:46am, report 9:05am).
   Found on "Sent · no answer yet" (34 cards): **9 agents got follow-up 1 on Nov 2 and nothing since** (Seer, Tammaro, Sanders, Montoya,
   Dominguez, Balthazar, Penn, McGee, Elbaz; step 2 was due ~Nov 7, the 11-17 run said "nothing to send"). Cause NOT confirmed: needs the

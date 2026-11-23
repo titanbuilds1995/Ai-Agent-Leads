@@ -401,13 +401,18 @@ TERM_RES = {"inspection_days": re.compile(r"(\d{1,2})[\s-]*day(?:s)?\s+inspectio
             "close_days": re.compile(r"(\d{1,3})[\s-]*day(?:s)?\s+clos", re.I),
             "deposit": re.compile(r"\$?\s?(\d{1,3}(?:,\d{3})|\d{1,2}\s?k)\s+(?:escrow|deposit|emd|earnest)", re.I)}
 TITLE_RE = re.compile(r"as soon as (?:the )?title\b[^.,;]{0,30}", re.I)
+# the same terms said the other way round ("Inspection period needs to be 15 days and escrow let's lower it to 5k", Alberto Pascual)
+TERM_RES_REV = {"inspection_days": re.compile(r"inspection(?: period)?[^.,\d$]{0,30}?(\d{1,2})[\s-]*day", re.I),
+                "close_days": re.compile(r"\bclos(?:e|ing)[^.,\d$]{0,30}?(\d{1,3})[\s-]*day", re.I),
+                "deposit": re.compile(r"(?:escrow|deposit|emd|earnest)[^.,\d$]{0,30}?\$?\s?(\d{1,3},\d{3}|\d{1,2}\s?k)\b", re.I)}
+CARD_OFFER_RE = re.compile(r"\boffer\b[^$]{0,80}\$\s?(\d{2,3},\d{3})\b", re.I | re.S)
 
 
 def parse_terms(text: str) -> dict[str, Any]:
     """The terms he states in his comment ("5k escrow, 15 day inspection, 30 day closing or as soon as the title is approved")."""
     out: dict[str, Any] = {}
     for key, rx in TERM_RES.items():
-        m = rx.search(text or "")
+        m = rx.search(text or "") or TERM_RES_REV[key].search(text or "")
         if m:
             raw = m.group(1).lower().replace(",", "").replace(" ", "")
             out[key] = int(float(raw[:-1]) * 1000) if raw.endswith("k") else int(raw)
@@ -742,6 +747,16 @@ def asked_price(feedback: list[str]) -> int | None:
 def offer_comment(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], feedback: list[str]) -> bool:
     """"offer 290k" on a card → the offer email at HIS number on that card (Needs Me; replaces a waiting draft). True = handled."""
     price = asked_price(feedback)
+    said = " ".join(f.strip() for f in feedback if f.strip())
+    terms_only = None
+    if not price and parse_terms(said) and not NOT_YET_RE.search(said):
+        # the card already holds an offer and he only changes its terms ("inspection needs to be 15 days, escrow 5k"): same price,
+        # new terms. Before 2026-11-23 this went to the email rewriter, which refuses any price, and the card sat in Needs Revision.
+        m = CARD_OFFER_RE.search(card.get("body") or "")
+        if m:
+            price = int(m.group(1).replace(",", ""))
+            terms_only = (f"Keep this offer as it is, same price. Change only these terms: {said}\n\nThe offer email on the card now "
+                          f"(keep what it says apart from those terms):\n{card.get('body') or ''}")
     if not price or not enabled(cfg):
         return False
     from .answers import dictation
@@ -760,7 +775,7 @@ def offer_comment(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], fe
     lp = int(p.get("list_price") or 0)
     v = {"offer": _k(price), "offer_reason": reason, "source": "rodrigo", "list_price": lp}
     line = draft_offer(conn, cfg, asana, llm, gid, card, {"p": p, "agent": agent, "comps": [], "asked": " ".join(feedback)}, v, his_number=True,
-                       instruction=" ".join(f.strip() for f in feedback if f.strip()))
+                       instruction=terms_only or said)
     gap = f" That is {money(lp - v['offer'])} ({round((lp - v['offer']) / lp * 100)}%) under asking." if lp and lp > v["offer"] else ""
     asana.comment(gid, (line or "The offer email could not be drafted.") + gap)
     return True

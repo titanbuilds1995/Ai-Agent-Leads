@@ -19,6 +19,15 @@ def test_plain_emails_and_their_quoted_history_pass(body):
     assert unbacked_claims(body) == []
 
 
+def test_an_enclosed_room_is_a_room_not_an_attachment():
+    """Rodrigo, 2026-11-23 (Alim Rahman, 8870 Taft St): "was the enclosed Florida room done with permits?" was stopped as a
+    claim that a file was enclosed, and no comment of his could get it out."""
+    assert unbacked_claims("Hey Alim,\n\nWas the enclosed Florida room done with permits?") == []
+    assert unbacked_claims("Is the enclosed porch under air? And the enclosed garage?") == []
+    assert unbacked_claims("Enclosed is our proof of funds.")
+    assert unbacked_claims("The contract is enclosed.")
+
+
 def test_the_gmail_send_itself_refuses_outside_mail_only():
     from titan.outreach.gmail_client import GmailClient
 

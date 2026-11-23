@@ -785,6 +785,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~5:15pm ET (Mac), RESUME HERE: pulled the cloud's Alim Rahman fix (same fix was already here; kept the Mac's broader
+  `HOUSE_PART`, both tests kept). `make doctor`: Anthropic key ok, 9 ok / 0 fail. `make test`: all pass. Only two rules-only bottom
+  lines today (verdicts table): **Juan Mora** (14452 SW 115th St, 3:40pm) and **Devon Mclean** (926 33rd St, 4:00pm); Rodrigo comments
+  "numbers" again on each (Devon: wood frame, rents listed). Alim's card can go to Approved. Nothing sent, no card moved.
 - 2026-11-23 ~4pm ET, RESUME HERE: **Alim Rahman (8870 Taft St, Pembroke Pines) first email was stopped 3 times by the "nothing
   attached" check**: it asks whether "the enclosed Florida room" had permits, and the bare word "enclosed" read as a file claim.
   Fixed in `titan/claims.py` (`HOUSE_PART`: "enclosed / attached" + garage / porch / patio / Florida room / carport… are house words,

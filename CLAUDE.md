@@ -798,6 +798,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Working Deals cards (Hajoca, Tavares VA, Kiddie Academy 1220795601108722) and shown in blue in the PDF. A cloud environment
   "Ai-Agent-Leads public records" (env_01SbuZwa3ybfr94RHmzAVySt) now allows those record hosts, but a running session cannot move to it
   and it has no ANTHROPIC / Gmail variables: start a NEW session on it for the official lookups, or do them on the Mac.
+  ~1:30pm: Rodrigo supplied the ORIGINAL Hajoca lease (29 pp); read in full, findings pinned on the Hajoca card and in the PDF (owner
+  pays roof / structure / capital items; a CBRE leasing commission passes to a buyer; tenant can terminate on landlord default). Still
+  missing there: First Amendment, Commencement Agreement, roof contract.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

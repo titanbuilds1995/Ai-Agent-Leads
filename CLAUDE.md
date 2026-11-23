@@ -785,6 +785,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~5pm ET, RESUME HERE: Rodrigo put a new Anthropic key in the Mac's .env (NOT confirmed from the cloud: no engine comment
+  on the board since 3:00pm ET). Needs Revision holds 3 cards. **Alim Rahman** (8870 Taft St): "was the enclosed Florida room done
+  with permits?" was stopped as an attachment claim ("enclosed") since 11-19 and nothing he wrote could release it. Fixed:
+  `claims.CLAIM_RE` lets "enclosed room / porch / patio / garage…" through; 1 test, suite passes except the same 3. After the Mac
+  pulls he drags the card to Approved. **Juan Mora** and **Devon Mclean**: rules-only bottom lines from while the key was dead; he
+  comments "numbers" again on each for the full read + offer draft (Devon: wood frame, rents listed). Nothing sent, no card moved.
 - 2026-11-23 ~3pm ET (Mac), RESUME HERE: **why Claude was "not reachable" on Juan Mora's bottom line: the Anthropic API key in the
   Mac's .env is rejected** (`make doctor`: "Anthropic key fail, key rejected (401)"; log: 203 x "invalid x-api-key" today, first at
   8:32am, the first round after the Mac came back). .env is unchanged since 11-17, so the key was revoked / removed on Anthropic's side.

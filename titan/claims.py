@@ -11,7 +11,7 @@ import re
 
 CLAIM_RE = re.compile(
     r"\b(?:attached|attaching|i(?:'ve| have) attached|we(?:'ve| have) attached|please find|find (?:it |them )?(?:attached|enclosed)|"
-    r"see (?:the )?attached|enclosed|here (?:is|are) the (?:signed|executed)|"
+    r"see (?:the )?attached|enclosed(?!\s+(?:\w+\s+)?(?:room|porch|patio|garage|lanai|carport|yard|pool|sunroom|balcony|terrace|addition|area|space)s?\b)|here (?:is|are) the (?:signed|executed)|"
     r"(?:signed|executed|countersigned) (?:copy|nda|ca|confidentiality|agreement|contract|loi|document|form|psa)|"
     r"i(?:'ve| have) (?:just )?(?:signed|sent (?:it|them|that|the \w+) over|uploaded)|we(?:'ve| have) (?:just )?(?:signed|sent (?:it|them|that|the \w+) over|uploaded)|"
     r"(?:i'?ll send|we'?ll send|will send) (?:it|them|the \w+(?: \w+)?) (?:over|shortly|now|right over|back signed))\b", re.I)

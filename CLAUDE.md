@@ -793,6 +793,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   each broker; Walter's section E public-record research not started; Kiddie Academy and Chevron cards untouched.
   Later same day: Walter's 7-page data request PDF was rebuilt with everything verified filled in (green = filled, yellow = open) and
   handed to Rodrigo in chat; not sent to anyone, not in the repo.
+  **Public-record research (Walter's section E), ~12:30pm: web research ONLY.** FEMA, the county appraisers / tax collectors, Sunbiz, DCF
+  and the city sites are blocked from the cloud, so nothing is from an official record; findings are pinned as a comment on the three
+  Working Deals cards (Hajoca, Tavares VA, Kiddie Academy 1220795601108722) and shown in blue in the PDF. A cloud environment
+  "Ai-Agent-Leads public records" (env_01SbuZwa3ybfr94RHmzAVySt) now allows those record hosts, but a running session cannot move to it
+  and it has no ANTHROPIC / Gmail variables: start a NEW session on it for the official lookups, or do them on the Mac.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

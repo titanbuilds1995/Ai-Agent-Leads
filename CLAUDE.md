@@ -801,6 +801,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   ~1:30pm: Rodrigo supplied the ORIGINAL Hajoca lease (29 pp); read in full, findings pinned on the Hajoca card and in the PDF (owner
   pays roof / structure / capital items; a CBRE leasing commission passes to a buyer; tenant can terminate on landlord default). Still
   missing there: First Amendment, Commencement Agreement, roof contract.
+  ~2pm: TWO GMAIL DRAFTS in rodrigo@ (nothing sent): (1) to Walter, reply in his data-request thread, with the completed checklist PDF
+  and both Hajoca lease documents attached (the two OMs and the VA lease are too big for the connector: he adds or forwards them); (2) to
+  Bruno LaBruno, 9 questions on the Hajoca discrepancies (end date, missing amendments, roof, CBRE commission, acreage, SF, costs, HVAC).
+  The Mac is running the official-records prompt; its files should be saved under reports/commercial/walter/<property>/ (gitignored).
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

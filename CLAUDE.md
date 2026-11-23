@@ -785,6 +785,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~2:30pm ET, RESUME HERE: Rodrigo asked why house leads lag. Mac is back (2 follow-ups went 8:46am, report 9:05am).
+  Found on "Sent · no answer yet" (34 cards): **9 agents got follow-up 1 on Nov 2 and nothing since** (Seer, Tammaro, Sanders, Montoya,
+  Dominguez, Balthazar, Penn, McGee, Elbaz; step 2 was due ~Nov 7, the 11-17 run said "nothing to send"). Cause NOT confirmed: needs the
+  Mac's database (suspects in `follow_up.candidates`: later-vs-steps count for the pre-sequence follow-ups, houses EXCLUDED = silent
+  stop with no comment, lookups "can't tell"). Also: 5 bounced cards sit there needing a call (Marrero, S. Garcia, Ramos, Montas, Gerges),
+  Thais Guevara / Cheryl Medeiros got our answer and no follow-up (a conversation never re-enters the sequence), 100+ Fresh Leads wait
+  on him. Nothing changed in code, nothing sent. Mac prompt given in chat.
 - 2026-11-23 ~1pm ET (Mac): official public-record check for three 1031 deals on Working Deals (Leesburg warehouse, Tavares VA
   clinic, Fleming Island daycare): FEMA, property appraiser, tax bills, zoning, permits, Sunbiz, DCF. Findings are pinned on each
   card ("OFFICIAL RECORDS CHECK"), not in this repo. Not obtained: Leesburg code cases (city search down), Tavares permits / code

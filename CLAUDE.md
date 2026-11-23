@@ -813,6 +813,9 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Hajoca OM (6 MB) and the Tavares OM (16 MB); Rodrigo drags them in. Folder NOT shared yet (sharing was blocked for this session): he
   shares it with Walter himself. Both Gmail drafts updated (Walter: folder link + checklist attached; Bruno: flood zone and roof permit
   questions added). Nothing sent.
+  ~1:20pm: Rodrigo signed the Tavares confidentiality agreement. Both OMs now in the Drive folder as lower-resolution page-image copies
+  (the originals were too big for the connector; text in them is not selectable). Walter draft re-made to say so. Folder still to be
+  shared with Walter by Rodrigo; nothing sent.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

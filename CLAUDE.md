@@ -785,6 +785,13 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~3pm ET (Mac), RESUME HERE: **why Claude was "not reachable" on Juan Mora's bottom line: the Anthropic API key in the
+  Mac's .env is rejected** (`make doctor`: "Anthropic key fail, key rejected (401)"; log: 203 x "invalid x-api-key" today, first at
+  8:32am, the first round after the Mac came back). .env is unchanged since 11-17, so the key was revoked / removed on Anthropic's side.
+  Until Rodrigo puts a new key in .env (console.anthropic.com → API keys) every paid-API job is down: bottom lines, offer drafts,
+  rewrites, second reads (so nothing auto-sends), 1031 reads and card chat. Then `make doctor`, then he comments "numbers" on Juan
+  Mora's card himself. Pull brought in the offer-terms fix (d255d94, `CARD_OFFER_RE`). Also in the log, not looked into: Gmail 403 on
+  two threads; books review 40157926 points at a deleted Asana card (1220757756299578). Nothing sent, no card moved.
 - 2026-11-23 ~2:45pm ET, RESUME HERE: Rodrigo asked why cards sit in Needs Revision. Three were there. **Alberto Pascual** (since
   11-19): "Inspection period needs to be 15 days and escrow 5k" on a card already holding the $540,000 offer went to the first-email
   rewriter, which refuses any price. Fixed: `verdict.offer_comment` now redrafts the offer at the card's own price with the new terms

@@ -206,3 +206,12 @@ def test_terms_said_backwards_and_offer_price_on_card():
     m = verdict.CARD_OFFER_RE.search("Our offer:\n• Price: $540,000, cash\n• $10,000 escrow deposit")
     assert m and m.group(1) == "540,000"
     assert not verdict.CARD_OFFER_RE.search("How old are the roof and the AC?")
+
+
+def test_run_the_numbers_with_a_repair_budget_is_not_an_offer():
+    # Daniel Schachtel, 2026-11-23: "$30,000 … to make it nice" in a run-the-numbers voice note became a $30,000 offer
+    from titan.verdict import asked_price
+    note = ("let's run the numbers and tell me what a debt service would be if we bought it, how much would we cash flow, "
+            "let's say I spend an extra $30,000 on it, buy it with a conventional loan, make an offer that works")
+    assert asked_price([note]) is None
+    assert asked_price(["Let's send an offer at $250,000"]) == 250000

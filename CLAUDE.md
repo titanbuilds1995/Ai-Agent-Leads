@@ -785,6 +785,17 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~5:50pm ET (Mac), RESUME HERE: pulled the comments pass (merge conflict in this section only, both kept). `make doctor`:
+  Anthropic key ok. `make install-cron`: `*/5 8-19 … titan.cli comments` is live. `make comments-now` ran once. Juan Mora, Devon Mclean,
+  Alim Rahman were already out of Needs Revision (the 5:20pm round): all three in Needs Me. **Two bugs found and fixed:** (1) a bare
+  "numbers" comment (what the rules-only bottom line tells him to write) was not a numbers ask, so Juan / Devon got a 💬 read plus an
+  email rewrite the second reader objects to, no 🏁 bottom line, no offer (`comment_router.BARE_NUMBERS_RE`); he comments "numbers"
+  again on each. Their stray NEXT EMAIL rewrites are still on the cards and block the auto offer draft ("a NEXT EMAIL is already
+  waiting"): "offer 392k" style comments replace them. (2) Daniel Schachtel (1300 NE 203rd St): his voice note asking to run the numbers
+  ("debt service … cash flow … spend an extra $30,000") became a **$30,000 offer** on a $635k house (`verdict.asked_price`): never sent;
+  now a run-the-numbers comment is never an offer and a price under 40% of asking is not an offer price (`verdict.min_offer_share`).
+  Card restored to its Oct 31 first email (the only saved copy), $30k picture and price record deleted, note on the card. Also seen:
+  New Deck board (project 1220763032771742) answers 404 on every round (deleted?), and 4 deleted 1031 cards. Tests pass.
 - 2026-11-23 ~5:30pm ET, RESUME HERE: **comments pass built** (Rodrigo: "I need it to be read faster so I can send out more
   offers, faster"). `titan.cli comments` / `make comments-now`: only his card comments (house boards `sync_feedback`; 1031 boards
   `card_files` + `om_notes`), sends nothing to anyone outside; cron `*/5 8-19` (was: comments read only inside the 20-minute approvals

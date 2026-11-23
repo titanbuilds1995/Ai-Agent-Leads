@@ -29,6 +29,10 @@ NUMBERS_RE = re.compile(
     r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|\bexit\b|"
     # Zaira Zavala, 2026-11-19: "I need a final analysis … a clear conclusion on the price we need to be at" got another long read, no bottom line
     r"final analysis|bottom line|clear conclusion|conclusion on the price|(?:price|number) we (?:need|should|have) to be|what (?:price|number) (?:do|should) we", re.I)
+# Rodrigo, 2026-11-23 (Juan Mora, Devon Mclean): the rules-only bottom line says "Comment 'numbers' again", he did, and the bare
+# word went to the email rewriter (no bottom line, no offer). A comment that is only "numbers" (again / please / the …) is a numbers ask.
+BARE_NUMBERS_RE = re.compile(r"^\W*(?:(?:the|run|give me|show me|full|new|need|redo|re-?run)\s+)*(?:the\s+)?numbers?"
+                             r"(?:\s+(?:again|please|now|on (?:this|it)|for (?:this|it)))*\W*$", re.I)
 SEND_RE = re.compile(
     r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|"
     r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)\b|^\s*(?:ok(?:ay)?,? )?approved?[.! ]*$", re.I)
@@ -121,7 +125,7 @@ def classify(feedback: list[str]) -> set[str]:
     negation, number or extra ask becomes 'hold' (nothing moves) or 'rewrite' (when it also asks for a change)."""
     text = " ".join(feedback)
     out: set[str] = set()
-    if NUMBERS_RE.search(text):
+    if NUMBERS_RE.search(text) or any(BARE_NUMBERS_RE.match((f or "").strip()) for f in feedback):
         out.add("numbers")
     if _positive(CALL_RE, text):
         out.add("call")

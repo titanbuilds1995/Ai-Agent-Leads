@@ -724,6 +724,8 @@ def after_numbers(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], sn
 
 PRICE_RE = re.compile(r"\$\s?(\d{2,3},\d{3}|\d{5,7})\b|\$?\s?\b(\d{2,3}(?:\.\d+)?)\s?k\b|\b(\d{2,3},\d{3})\b", re.I)
 OFFER_WORD_RE = re.compile(r"\boffer\b|\bmake it\b|\bgo with\b|\bdraft\b", re.I)
+RUN_NUMBERS_RE = re.compile(r"\brun (?:the |some )?numbers|\bnumbers on\b|debt service|cash ?flow|monthly payment|\bmortgage\b|"
+                            r"conventional loan|\bhow much (?:money|would|do|will)|\bwhere would (?:we|i|my)\b", re.I)
 NOT_YET_RE = re.compile(r"\?|\b(?:first|until|unless|wait|hold off|don'?t|do not|not yet|what would|should we)\b", re.I)
 
 
@@ -734,6 +736,10 @@ def asked_price(feedback: list[str]) -> int | None:
     about the roof first"), two different prices or a bare number is not an offer ask."""
     text = " ".join(f.strip() for f in feedback if f.strip())
     if not text or not OFFER_WORD_RE.search(text) or NOT_YET_RE.search(text):
+        return None
+    if RUN_NUMBERS_RE.search(text):
+        # Daniel Schachtel, 2026-11-23: a long voice note asking to run the numbers ("debt service … cash flow … I spend an extra
+        # $30,000 on it") became a $30,000 offer on a $635k house. Asking for the math is never an offer at a price.
         return None
     found = set()
     for m in PRICE_RE.finditer(text):
@@ -773,6 +779,9 @@ def offer_comment(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], fe
     last = db.row_to_dict(conn.execute("SELECT * FROM verdicts WHERE property_id=? ORDER BY id DESC LIMIT 1", (p["id"],)).fetchone()) or {}
     reason = (json.loads(last.get("body") or "{}").get("offer_reason") or "") if last else ""
     lp = int(p.get("list_price") or 0)
+    if lp and not terms_only and price < lp * float(_conf(cfg).get("min_offer_share", 0.4)):
+        log.info("offer comment on %s: %s is under %s of the $%s ask, read as not an offer price", gid, price, _conf(cfg).get("min_offer_share", 0.4), lp)
+        return False                 # a repair budget or a rent, not an offer (a $30k "offer" on a $635k house)
     v = {"offer": _k(price), "offer_reason": reason, "source": "rodrigo", "list_price": lp}
     line = draft_offer(conn, cfg, asana, llm, gid, card, {"p": p, "agent": agent, "comps": [], "asked": " ".join(feedback)}, v, his_number=True,
                        instruction=terms_only or said)

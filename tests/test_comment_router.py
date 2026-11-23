@@ -446,3 +446,11 @@ def test_numbers_trigger_inside_a_dictated_change_still_rewrites(loaded, cfg, tm
     n = sync_feedback(loaded, cfg, asana, LLM())
     assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] != before and "subfloors holding up" in asana.tasks[gid]["notes"]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
+
+
+def test_bare_numbers_is_a_numbers_ask():
+    # Juan Mora / Devon Mclean, 2026-11-23: the engine said "comment 'numbers' again" and the bare word went to the rewriter
+    from titan import comment_router as cr
+    for s in ["numbers", "Numbers.", "numbers again", "the numbers please"]:
+        assert "numbers" in cr.classify([s]), s
+    assert "numbers" not in cr.classify(["dont mention numbers"])

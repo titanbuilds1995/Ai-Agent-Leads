@@ -791,6 +791,8 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   Drive) was read through the Drive connector. Email to Walter answering his data request is WRITTEN BUT NOT IN GMAIL: the connector
   refuses attachments over ~3 MB, waiting on Rodrigo's choice. Open: he signs the Tavares confidentiality agreement; second request to
   each broker; Walter's section E public-record research not started; Kiddie Academy and Chevron cards untouched.
+  Later same day: Walter's 7-page data request PDF was rebuilt with everything verified filled in (green = filled, yellow = open) and
+  handed to Rodrigo in chat; not sent to anyone, not in the repo.
 - 2026-11-23 ~7:25am ET: morning check only. **Mac offline since Sun ~7:30am ET** (no report, no Sun EOD, board unchanged, the 2
   approved follow-ups did not send). Needs Rodrigo card: wake the Mac, `git pull --no-edit && make doctor && make report`.
 - 2026-11-22 ~7:30am ET: morning check. Report on time. **Backup lane is live**: ~20 "⏳ PENDING · backup" cards in Fresh Leads, 4 houses

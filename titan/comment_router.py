@@ -29,6 +29,10 @@ NUMBERS_RE = re.compile(
     r"(?:good|an?) offer (?:number|for)|offer or a range|where we (?:would |need to )?(?:need to )?be|how (?:far|close) off|\bexit\b|"
     # Zaira Zavala, 2026-11-19: "I need a final analysis … a clear conclusion on the price we need to be at" got another long read, no bottom line
     r"final analysis|bottom line|clear conclusion|conclusion on the price|(?:price|number) we (?:need|should|have) to be|what (?:price|number) (?:do|should) we", re.I)
+# Juan Mora, 2026-11-23: the rules-only bottom line told him "Comment 'numbers' again later"; he did, and the bare word matched
+# nothing above, so it went to the email rewriter ("Revised based on your comment") and no comps / bottom line / offer came.
+BARE_NUMBERS_RE = re.compile(r"^\W*(?:(?:the|run|re-?run|redo|give me|get me|show me|i need|need|want)\s+)*(?:the\s+)?(?:full\s+)?numbers"
+                             r"(?:\s+(?:again|please|now|here|for (?:this|it|him|her|them)(?: (?:one|lead|house|property))?))*\W*$", re.I)
 SEND_RE = re.compile(
     r"\b(?:send (?:it|this|him|her|them)(?: the email)?|send(?:ing)? the email|go ahead and send|i approve(?: this| it)?|"
     r"(?:really |very )?good email|looks good|good to go|ready to send|ship it)\b|^\s*(?:ok(?:ay)?,? )?approved?[.! ]*$", re.I)
@@ -121,7 +125,7 @@ def classify(feedback: list[str]) -> set[str]:
     negation, number or extra ask becomes 'hold' (nothing moves) or 'rewrite' (when it also asks for a change)."""
     text = " ".join(feedback)
     out: set[str] = set()
-    if NUMBERS_RE.search(text):
+    if NUMBERS_RE.search(text) or any(BARE_NUMBERS_RE.match(f or "") for f in feedback):
         out.add("numbers")
     if _positive(CALL_RE, text):
         out.add("call")

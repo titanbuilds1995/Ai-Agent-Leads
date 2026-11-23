@@ -446,3 +446,13 @@ def test_numbers_trigger_inside_a_dictated_change_still_rewrites(loaded, cfg, tm
     n = sync_feedback(loaded, cfg, asana, LLM())
     assert n["numbers"] >= 1 and asana.tasks[gid]["notes"] != before and "subfloors holding up" in asana.tasks[gid]["notes"]
     assert asana.where[gid] == asana.ensure_section(None, "Needs Me")
+
+
+def test_the_bare_word_numbers_is_a_numbers_ask():
+    """Rodrigo, 2026-11-23 (Juan Mora): the engine itself said "Comment 'numbers' again later"; the bare word then went to the
+    email rewriter and no comps, bottom line or offer came."""
+    from titan.comment_router import classify
+    for c in ["numbers", "Numbers.", "numbers again", "Numbers please", "give me the numbers", "I need the numbers for this lead", "the full numbers"]:
+        assert "numbers" in classify([c]) and "rewrite" not in classify([c]), c
+    assert "numbers" in classify(["Send it.", "numbers"])                   # his last comment is the ask
+    assert "numbers" not in classify(["say we still need to see the numbers behind the rent"])   # wording for the email, not an ask

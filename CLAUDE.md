@@ -785,6 +785,11 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-23 ~5:45pm ET, RESUME HERE: **the bare word "numbers" was not a numbers ask** (Juan Mora, 5:11pm: he commented
+  "numbers" as the rules-only bottom line told him to; it went to the 💬 answer + the email rewriter, the second reader objected, no
+  comps / 🏁 / offer). Fixed: `comment_router.BARE_NUMBERS_RE` ("numbers", "numbers again", "give me the numbers"…); 1 test, suite
+  passes except the same 3. Good news in that run: Claude answered, so the new API key works. Until the Mac pulls, "run the numbers"
+  works on any card. Juan Mora's card is in Needs Me with a holding NEXT EMAIL the second reader objects to: not to be approved.
 - 2026-11-23 ~5:30pm ET, RESUME HERE: **comments pass built** (Rodrigo: "I need it to be read faster so I can send out more
   offers, faster"). `titan.cli comments` / `make comments-now`: only his card comments (house boards `sync_feedback`; 1031 boards
   `card_files` + `om_notes`), sends nothing to anyone outside; cron `*/5 8-19` (was: comments read only inside the 20-minute approvals

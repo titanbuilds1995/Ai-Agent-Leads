@@ -101,3 +101,9 @@ def test_his_note_to_charles_is_not_sent_to_the_agent():
     out = strip_asides("Our offer would need to be at about $140,000.\n\nDo the sellers owe more than that? Let's ask them this.")
     assert "ask them this" not in out and out.rstrip().endswith("Do the sellers owe more than that?")
     assert strip_asides("Tell her we close in 30 days.") == "Tell her we close in 30 days."
+
+
+def test_send_email_is_his_go_ahead():
+    from titan.comment_router import plain_go_ahead
+    assert plain_go_ahead("Send email.")   # Alim Rahman, 2026-11-23: bounced back as "no comment"
+    assert not plain_go_ahead("send email to her later")

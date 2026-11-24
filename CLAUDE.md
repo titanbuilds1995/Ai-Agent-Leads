@@ -785,6 +785,10 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-24 ~7:25am ET: morning check + 1 fix. Mac back Mon 9am; today's report not in yet. **Alberto Pascual's $540k offer never went**:
+  his "numbers" comment was handled as a rewrite, the offer became a question email and that sent (Alberto now asks for the offer). Marilina's
+  offer comment had no readable price ("3 uh 5K"). Fixed: "Send email." is a go-ahead (`comment_router._GO_AHEAD`; Alim Rahman was bounced as
+  "no comment"). Not fixed: "numbers" on a card that already holds an offer draft should give the snapshot, not rewrite the offer away.
 - 2026-11-23 ~5:50pm ET (Mac), RESUME HERE: pulled the comments pass (merge conflict in this section only, both kept). `make doctor`:
   Anthropic key ok. `make install-cron`: `*/5 8-19 … titan.cli comments` is live. `make comments-now` ran once. Juan Mora, Devon Mclean,
   Alim Rahman were already out of Needs Revision (the 5:20pm round): all three in Needs Me. **Two bugs found and fixed:** (1) a bare

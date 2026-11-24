@@ -42,7 +42,7 @@ SEND_RE = re.compile(
 _GO_AHEAD = [
     r"(?:yes,? )?send (?:it |this )?anyway",   # 2026-11-15: his OK after a contact-guard hold (contact_guard.CONFIRM_RE)
     r"send (?:it|this|him|her|them)(?: the email| the emails?| out)?(?: now| asap| as is| as written| please)*",
-    r"send(?:ing)? the email", r"go ahead(?: and send(?: it)?)?", r"(?:approve and )?send(?= *[.!]* *$)", r"i approve(?: this| it)?(?: email)?", r"approved?",
+    r"send(?:ing)? (?:the |this |that )?emails?(?: now| please)?", r"go ahead(?: and send(?: it)?)?", r"(?:approve and )?send(?= *[.!]* *$)", r"i approve(?: this| it)?(?: email)?", r"approved?",
     r"(?:this is |it'?s |that'?s )?(?:a )?(?:really |very |super )?good email", r"(?:this |it )?looks? (?:really )?(?:good|great)",
     r"good to go", r"ready to send", r"ship it", r"i (?:actually )?(?:really )?(?:like|love) (?:it|this(?: one)?)",
 ]

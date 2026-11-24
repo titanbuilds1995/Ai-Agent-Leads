@@ -805,6 +805,12 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-24 ~4pm ET (Mac), RESUME HERE: pulled the Follow Up column + the offer fix (996cbbd). Tests pass, doctor 9 ok / 0 fail,
+  `make comments-now` ran. **Follow Up column is on the board** (between Needs Revision and Sent · no answer yet), empty, no
+  follow_up_column errors in logs/cron.log. **Alberto Pascual**: the $540,000 offer is the NEXT EMAIL on his card, card in Needs Me.
+  He dragged it to Approved at 3:40pm; the round already running on the old code held it once more at 3:47pm ("already emailed in 24
+  hours"). The new check sees Alberto's answer (`answered_since_our_last` True): he drags it to Approved again and it goes at the next
+  round. Still failing every round: Medical board 1220751802973172 answers 404 (comments stage `card_files`), 7 deleted 1031 cards.
 - 2026-11-24 ~3:45pm ET, RESUME HERE: **Alberto Pascual's offer explained + fixed** (Decisions → An offer draft is never rewritten).
   3 tests; suite passes except the same 3 + test_webhook. By hand: commented "Offer $540,000 …" on his card (as Rodrigo) so the Mac
   redrafts the offer as NEXT EMAIL in Needs Me; he drags it to Approved. Until the Mac pulls this branch the old guard may hold it once

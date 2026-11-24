@@ -20,7 +20,7 @@ operator:
 market:
   state: "FL"
   counties: ["Miami-Dade", "Broward", "Palm Beach"]
-  property_types: ["single_family", "multi_family", "land"]   # multi_family = duplex–quadplex. No townhouses (Rodrigo, 2026-11-18)
+  property_types: ["single_family", "multi_family"]   # multi_family = duplex–quadplex. No townhouses (2026-11-18), no land (2026-11-24)
   max_units: 4
   price_min: 150000
   price_max: 750000
@@ -28,7 +28,8 @@ market:
   min_sqft: 500
   # Never pursue these (Rodrigo, 2026-10-24): bank-owned/REO and short sales. Detected in the remarks and status.
   # age_restricted = 55-and-older / senior / active-adult communities; townhouse = townhouses / townhomes (Rodrigo, 2026-11-18)
-  exclude_flags: ["reo", "short_sale", "auction", "not_a_home", "no_assignment", "no_inspection", "age_restricted", "townhouse"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
+  # land = vacant lots / acreage, no house on it (Rodrigo, 2026-11-24: "we are not pulling land leads on the MLS scraper")
+  exclude_flags: ["reo", "short_sale", "auction", "not_a_home", "no_assignment", "no_inspection", "age_restricted", "townhouse", "land"]   # auction = trustee/bankruptcy/auction sales (no conversation to have); not_a_home = boat slips, parking, storage, timeshares, lot rent
 
 formula:
   # Share of ARV to pay comes from what investors actually paid in that ZIP (data/market_ratios.csv, from the WhatsApp

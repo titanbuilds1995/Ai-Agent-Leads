@@ -51,7 +51,8 @@ def test_filters(cfg):
     cfg["market"]["require_recent"] = True                  # the old window rule still works when switched on
     assert passes_filters(ls["zillow18"], cfg)[1].startswith("not new")
     cfg["market"]["require_recent"] = False
-    assert reasons["realtor0"] == "ok" and reasons["zillow12"] == "ok" and reasons["realtor3"] == "ok"  # land ok
+    assert reasons["realtor0"] == "ok" and reasons["zillow12"] == "ok"
+    assert reasons["realtor3"].startswith("type")          # land is out (Rodrigo, 2026-11-24: no land leads)
 
 
 def test_ingest_idempotent_and_dedupes(conn, cfg):

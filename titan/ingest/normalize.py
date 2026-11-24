@@ -147,10 +147,16 @@ PRODUCT_NEG_RE = re.compile(rf"\b(not|no|non|never|isn'?t|without)\b[\s-]+((a|an
 # realtor.com tags / sub types that say the same thing as the remarks would
 AGE_TAGS = {"senior_community", "55_plus", "age_restricted", "senior", "active_adult", "adult_community"}
 TOWNHOUSE_TYPES = {"townhouse", "townhome", "townhomes", "town_house", "villa"}
+# Rodrigo, 2026-11-24: no land leads. The type says it on a land listing, so that is the test; the wording below is only
+# a backstop for a row typed as a house with nothing built on it (no living sqft, no beds), never for a house with a big lot.
+LAND_TYPES = {"land", "lot", "lots", "lots_land", "farm", "ranch", "acreage", "vacant_land", "vacant land"}
+LAND_TAGS = {"land", "lot", "vacant_land", "farm", "ranch"}
+LAND_TEXT_RE = re.compile(r"\b(vacant|raw|unimproved|undeveloped|cleared)\s+(land|lot|parcel|acreage)\b|"
+                          r"\bland\s+(only|for sale)\b|\blot\s+(only|for sale)\b|\bbuild(able)?\s+lot\b", re.I)
 
 
 def product_flags(p: dict[str, Any]) -> list[str]:
-    """age_restricted / townhouse from what the stored row says beyond the remarks: type, realtor sub type, realtor tags."""
+    """age_restricted / townhouse / land from what the stored row says beyond the remarks: type, realtor sub type, realtor tags."""
     import json
     raw = p.get("raw")
     if isinstance(raw, str):
@@ -167,6 +173,11 @@ def product_flags(p: dict[str, Any]) -> list[str]:
         out.append("age_restricted")
     if (p.get("property_type") or "") == "townhouse" or sub in TOWNHOUSE_TYPES:
         out.append("townhouse")
+    ptype = (p.get("property_type") or "").lower().strip()
+    if ptype == "land" or sub in LAND_TYPES or tags & LAND_TAGS:
+        out.append("land")
+    elif not to_int(p.get("sqft")) and not to_int(p.get("beds")) and LAND_TEXT_RE.search(p.get("remarks") or ""):
+        out.append("land")   # typed as a house but nothing is built on it
     return out
 
 
@@ -270,11 +281,11 @@ def exclude_flagged(conn, cfg: Any) -> int:
         kept = {r[0] for r in conn.execute("SELECT property_id FROM product_keeps").fetchall()}
     except Exception:  # noqa: BLE001 — older database
         kept = set()
-    for r in conn.execute("SELECT id, remarks, listing_status, status_flags, property_type, raw FROM properties WHERE lead_status != 'EXCLUDED'").fetchall():
+    for r in conn.execute("SELECT id, remarks, listing_status, status_flags, property_type, sqft, beds, raw FROM properties WHERE lead_status != 'EXCLUDED'").fetchall():
         stored = json.loads(r["status_flags"] or "[]") if isinstance(r["status_flags"], str) else (r["status_flags"] or [])
         flags = set(detect_flags(f"{r['remarks'] or ''} {r['listing_status'] or ''}")) | set(stored) | set(product_flags(dict(r)))
         if r["id"] in kept:
-            flags -= {"age_restricted", "townhouse"}
+            flags -= {"age_restricted", "townhouse", "land"}
         hit = sorted(flags & bad)
         if hit:
             conn.execute("UPDATE properties SET lead_status='EXCLUDED', lead_note=? WHERE id=?", (f"excluded: {', '.join(hit)}", r["id"]))

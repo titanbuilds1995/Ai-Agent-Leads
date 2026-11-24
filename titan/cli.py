@@ -141,7 +141,7 @@ def _run_daily(cfg, args):
             log.exception("board clean failed: %s", e)
             summary["board_clean"] = {"error": str(e)}
     if "product_clean" in steps and not args.offline and not fixture:
-        # Rodrigo, 2026-11-18: no 55+ communities, no townhouses: their cards leave the board
+        # Rodrigo, 2026-11-18 / 2026-11-24: no 55+ communities, no townhouses, no land: their cards leave the board
         from .product_clean import run as product_clean
         try:
             summary["product_clean"] = {k: v for k, v in product_clean(conn, cfg, _asana(cfg)).items() if k != "moved"}
@@ -552,7 +552,7 @@ def cmd_clean_board(cfg, args):
 
 
 def cmd_product_clean(cfg, args):
-    """55+ / townhouse clean-up now (Rodrigo, 2026-11-18): those houses are ruled out and their cards leave the board. --list prints only."""
+    """55+ / townhouse / land clean-up now (Rodrigo, 2026-11-18 / 2026-11-24): those houses are ruled out and their cards leave the board. --list prints only."""
     from .product_clean import plain, run
     asana = _asana(cfg)
     if not asana:
@@ -1305,7 +1305,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("review-queue", help="print every lead waiting for Rodrigo's review")
     cb_ = sub.add_parser("clean-board", help="Fresh Leads clean-up: houses under contract / sold / off market go to Skip")
     cb_.add_argument("--list", action="store_true", help="only print what would move")
-    pc_ = sub.add_parser("product-clean", help="no 55+ communities / townhouses: rule them out and take their cards off the board")
+    pc_ = sub.add_parser("product-clean", help="no 55+ communities / townhouses / land: rule them out and take their cards off the board")
     pc_.add_argument("--list", action="store_true", help="only print what would move")
     cc_ = sub.add_parser("condition-check", help="Claude looks at the listing photos: renovated / really good houses leave Fresh Leads")
     cc_.add_argument("--list", action="store_true", help="look and print, move nothing")

@@ -799,12 +799,29 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "offer unchanged" comment (number / terms change via "offer N …", wording via "Answer with: …"). **Contact guard + our own records**:
   the 24-hour hold ("they have not answered since") is skipped when the database shows the agent answered after our last email
   (`answered_since_our_last`; Alberto's Yahoo reply landed outside the Gmail thread, so Gmail's thread looked unanswered).
+- **No land (Rodrigo, 2026-11-24: "we need to make sure that we are not pulling land leads on the MLS scraper")**: `land` is out of
+  `market.property_types`, so no source (HomeHarvest, realtor, Zillow, Apify) asks for it and `passes_filters` rejects any land that
+  comes in another way ("type land"); flag `land` is in `market.exclude_flags`, so `exclude_flagged` marks every stored lot EXCLUDED
+  on each ingest / score run (no score, valuation, email or follow-up). The test is the TYPE (feed type, realtor sub type, realtor
+  tag: `LAND_TYPES` / `LAND_TAGS` in normalize.py); the wording (`LAND_TEXT_RE`: vacant / raw / unimproved land, lot or parcel, land
+  or lot only, buildable lot) only counts on a row typed as a house with no living sqft and no beds, so a real house with a big or
+  cleared lot, or "the vacant land next door is also for sale", is never ruled out. `product_clean.py` (run-daily step
+  `product_clean`, `make product-clean`) takes the land cards off the board the same way as 55+ / townhouses: all-land card and the
+  agent never answered → Skip with one "Rule check" comment and the email never sends; one house of two → the card stays with a
+  comment; the agent answered → the card stays, follow-ups stop; he drags a skipped card back → that house is kept for good
+  (`product_keeps`). Valuation still knows how to price a lot (`repairs.land_per_acre`, `valuation.land_arv_per_acre_default`), it
+  just never gets one.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-24 ~5pm ET, RESUME HERE: **no more land leads** (Decisions → No land). `land` out of `market.property_types` and into
+  `market.exclude_flags`; type-based detection with a wording backstop only for rows with nothing built on them; the board clean-up
+  now takes land cards off the board too. 3 tests (one proves a house with a cleared lot / land next door is NOT ruled out); suite
+  passes except the same 3 that need packages the cloud lacks. Not run live (the cloud has no database): on the Mac, after it pulls,
+  `make product-clean-list` shows every land card that would move, then `make product-clean` (or tomorrow's 5:30am run does it).
 - 2026-11-24 ~4pm ET (Mac), RESUME HERE: pulled the Follow Up column + the offer fix (996cbbd). Tests pass, doctor 9 ok / 0 fail,
   `make comments-now` ran. **Follow Up column is on the board** (between Needs Revision and Sent · no answer yet), empty, no
   follow_up_column errors in logs/cron.log. **Alberto Pascual**: the $540,000 offer is the NEXT EMAIL on his card, card in Needs Me.

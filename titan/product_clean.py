@@ -1,10 +1,11 @@
-"""55+ and townhouse clean-up of the house board (Rodrigo, 2026-11-18: "I want us to not look for properties in 55 and older
-communities, and no townhouses ... clean out all of the properties I have on the board and take out all of those properties").
+"""55+ / townhouse / land clean-up of the house board (Rodrigo, 2026-11-18: "I want us to not look for properties in 55 and
+older communities, and no townhouses ... clean out all of the properties I have on the board and take out all of those
+properties"; 2026-11-24: "we need to make sure that we are not pulling land leads on the MLS scraper").
 
-The rule itself lives in ingest/normalize.py (flags `age_restricted` / `townhouse`, in `market.exclude_flags`): exclude_flagged()
+The rule itself lives in ingest/normalize.py (flags `age_restricted` / `townhouse` / `land`, in `market.exclude_flags`): exclude_flagged()
 marks matching stored houses EXCLUDED, so they are never scored, valued or emailed again and the follow-up sequence stops.
 This module takes their cards off the Email Approvals board:
-  - a card whose houses are all 55+ / townhouse and whose agent never really answered (Fresh Leads, Needs Me, Needs Revision,
+  - a card whose houses are all 55+ / townhouse / land and whose agent never really answered (Fresh Leads, Needs Me, Needs Revision,
     Approved, Sent · no answer yet) → Skip, one "Rule check" comment, an unsent email is marked skipped, a drafted NEXT EMAIL dropped;
   - a lead the agent answered stays where it is with one comment (a live conversation is his call);
   - he drags a skipped card back onto the board → that house is kept for good (`product_keeps`).
@@ -20,8 +21,9 @@ from . import db
 
 log = logging.getLogger(__name__)
 
-RULES = {"age_restricted": "55+ / age-restricted community", "townhouse": "townhouse"}
+RULES = {"age_restricted": "55+ / age-restricted community", "townhouse": "townhouse", "land": "vacant land / lot"}
 NOTE = "Rule check:"
+WHY = "We don't go after 55+ communities, townhouses or land any more"
 
 
 def _hits(p: dict[str, Any]) -> list[str]:
@@ -120,7 +122,7 @@ def _card(conn, cfg, asana, t, col, n, dry_run, parse_card, where_we_stand, reco
         n["partly"] += 1
         n["moved"].append({**entry, "action": "note (other house on the email is fine)"})
         if not dry_run and not _said(asana, t["gid"]):
-            asana.comment(t["gid"], f"{NOTE} {what}. We don't go after 55+ communities or townhouses any more; the other house on "
+            asana.comment(t["gid"], f"{NOTE} {what}. {WHY}; the other house on "
                                     "this email is fine, so the card stays. Edit the email if you still want to send it.")
         return
     answered = col == "Answered" or (row.get("agent_id") and where_we_stand(conn, row["agent_id"]) is not None)
@@ -128,7 +130,7 @@ def _card(conn, cfg, asana, t, col, n, dry_run, parse_card, where_we_stand, reco
         n["answered_kept"] += 1
         n["moved"].append({**entry, "action": "kept (the agent answered)"})
         if not dry_run and not _said(asana, t["gid"]):
-            asana.comment(t["gid"], f"{NOTE} {what}. We don't go after 55+ communities or townhouses any more, but this agent "
+            asana.comment(t["gid"], f"{NOTE} {what}. {WHY}, but this agent "
                                     "answered, so I left the card where it is and stopped the follow-ups. Drag it to Skip if you're done with it.")
         return
     n["to_skip"] += 1
@@ -145,13 +147,13 @@ def _card(conn, cfg, asana, t, col, n, dry_run, parse_card, where_we_stand, reco
         conn.execute("UPDATE outreach SET answer_draft=NULL, answer_note=NULL, answer_state=NULL WHERE id=?", (row["id"],))
     asana.move(t["gid"], a["skip"])
     sent = row.get("status") == "sent" or row.get("sent_at")
-    asana.comment(t["gid"], f"{NOTE} {what}. We don't go after 55+ communities or townhouses any more (your rule, Nov 18), so it "
+    asana.comment(t["gid"], f"{NOTE} {what}. {WHY} (your rules, Nov 18 and Nov 24), so it "
                             f"moved to Skip; {'no more follow-ups go to this agent' if sent else 'the email was never sent and won’t be'}. "
                             "Drag it back onto the board if that's wrong and I'll keep the house.")
 
 
 def plain(n: dict[str, Any]) -> str:
-    out = [f"55+ / townhouse clean-up: {n.get('excluded_now', 0)} more houses ruled out in the database · {n.get('cards', 0)} cards on the board",
+    out = [f"55+ / townhouse / land clean-up: {n.get('excluded_now', 0)} more houses ruled out in the database · {n.get('cards', 0)} cards on the board",
            f"  moved to Skip: {n.get('to_skip', 0)} · agent answered, card left with a note: {n.get('answered_kept', 0)} · "
            f"one house of two: {n.get('partly', 0)} · put back by you (kept): {n.get('put_back_by_you', 0)}"]
     if n.get("skipped"):

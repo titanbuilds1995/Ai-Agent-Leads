@@ -1,4 +1,4 @@
-"""No 55+ communities, no townhouses (Rodrigo, 2026-11-18): flagged at ingest, ruled out in the database, cards off the board."""
+"""No 55+ communities, no townhouses (2026-11-18), no land (2026-11-24): flagged at ingest, ruled out in the database, cards off the board."""
 import json
 
 from titan import product_clean
@@ -19,6 +19,19 @@ def test_flags_and_negations():
     assert product_flags({"property_type": "townhouse"}) == ["townhouse"]
     assert product_flags({"property_type": "single_family", "raw": json.dumps({"description": {"sub_type": "townhomes"},
                                                                                "tags": ["senior_community"]})}) == ["age_restricted", "townhouse"]
+
+
+def test_land_is_ruled_out_but_a_house_with_a_big_lot_is_not():
+    """Rodrigo, 2026-11-24: no land leads. The type is the test; the wording only catches a row with nothing built on it."""
+    assert product_flags({"property_type": "land"}) == ["land"]
+    assert product_flags({"property_type": "single_family", "raw": json.dumps({"description": {"sub_type": "lots_land"}})}) == ["land"]
+    assert product_flags({"property_type": "single_family", "raw": json.dumps({"tags": ["vacant_land"]})}) == ["land"]
+    # typed as a house, nothing built on it
+    assert product_flags({"property_type": "single_family", "remarks": "Vacant lot, buildable, bring your own plans"}) == ["land"]
+    # a real house: the lot wording must never rule it out
+    assert product_flags({"property_type": "single_family", "sqft": 1450, "beds": 3,
+                          "remarks": "3/2 pool home on a cleared lot, the vacant land next door is also for sale"}) == []
+    assert product_flags({"property_type": "single_family", "sqft": 1200, "beds": 2, "remarks": "Buildable lot behind the house"}) == []
 
 
 def test_board_cards_move_to_skip_and_put_back_is_kept(loaded, cfg, tmp_path, monkeypatch):

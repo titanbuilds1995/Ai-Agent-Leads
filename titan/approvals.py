@@ -617,6 +617,25 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
         if where != nm and not (ans and where == a["approved"]):
             asana.move(gid, nm)
         return
+    # Rodrigo, 2026-11-24 (Alberto Pascual: "I gave it instructions so it can send the email, but it doesn't send it ... it's
+    # drafting something that it isn't supposed to be drafting"): the NEXT EMAIL was his $540,000 offer; his comment ("what did we
+    # send them? ... let's send them an email again, this time with the offer email") went to the reply rewriter, whose rules forbid
+    # a price, so the offer was replaced by a holding email the second reader then objected to. An offer draft is never handed to
+    # that rewriter: it goes as written when he says send, else it stays untouched (number / terms change through "offer N ...").
+    from .contact_guard import is_offer
+    if ans and is_offer(ans["body"]):
+        if tells_to_send(text) or where == a["approved"]:
+            answers.approve(conn, cfg, asana, card["outreach_id"], gid)
+            asana.comment(gid, "Sending the offer on this card as written (you said to send it): it goes out at the next send round. "
+                               "Drag the card to Needs Me to stop it.")
+            n["sent_as_is"] += 1
+        else:
+            asana.comment(gid, "The offer email on this card is unchanged (I never rewrite an offer from a general comment). To change "
+                               "the number or terms comment them (\"offer 540k, 15 day inspection, 5k escrow\"); to change the wording "
+                               "write it (\"Answer with: Hey ...\"); to send it, drag the card to Approved or comment \"send it\".")
+            if where != nm:
+                asana.move(gid, nm)
+        return
     # a change to the answer: rewrite the one on this card, or write it from the conversation when none is drafted yet
     go = "send_after" in want or (answers.wants_send(text) and not question)
     drag = where == a["approved"] and not go and not question and not NO_SEND_RE.search(text)   # approved, then commented
@@ -682,6 +701,31 @@ def lead_card_comment(conn, cfg: Any, asana: Asana, llm, t: dict[str, Any], wher
 HELD_APPROVED = "Held: you left a comment after approving"
 NO_SEND_RE = re.compile(HOLD_WORDS_RE.pattern + r"|\b(?:not approved|tomorrow|later|before (?:we|you|it) sends?|let me (?:see|look|read))\b|[❌🛑🚫✋👎]", re.I)
 NOT_CLEARED = "**Not sent: the second reader did not clear it, so it is in Needs Me.** Drag it to Approved to send it anyway, or comment what to change."
+
+
+SEND_TOLD_RE = re.compile(r"\b(?:let'?s|let us|please|go ahead and|we (?:should|need to|have to)|i want (?:you |us )?to|you can|just)\s+"
+                          r"(?:re-?)?send\b|^\s*(?:re-?)?send\b|\bsend (?:it|this|that)\b(?! (?:yet|already))", re.I)
+
+
+def tells_to_send(text: str) -> bool:
+    """He TELLS us to send ("let's send them the offer email", "send it"), not asks about it ("did we send it?") and not "don't"."""
+    for sent in re.split(r"(?<=[.!?])\s+|\n+", text or ""):
+        if sent.strip().endswith("?") or NO_SEND_RE.search(sent):
+            continue
+        if SEND_TOLD_RE.search(sent):
+            return True
+    return False
+
+
+def answered_since_our_last(conn, agent_id: int) -> bool:
+    """The agent really answered after the last email we sent them (by our own records). Gmail does not always thread a reply
+    under our email (Alberto Pascual's Yahoo answer, 2026-11-23), and the contact guard only sees the Gmail thread."""
+    last = conn.execute("SELECT MAX(sent_at) FROM outreach WHERE agent_id=? AND status='sent'", (agent_id,)).fetchone()[0]
+    if not last:
+        return False
+    return bool(conn.execute(
+        "SELECT 1 FROM messages m JOIN threads t ON t.id=m.thread_id WHERE t.agent_id=? AND m.direction='in' "
+        "AND COALESCE(m.classification,'') NOT IN ('BOUNCE','OUT_OF_OFFICE') AND m.created_at>=? LIMIT 1", (agent_id, last)).fetchone())
 
 
 def approved_then_commented(comments: list[dict[str, Any]]) -> bool:
@@ -1071,12 +1115,22 @@ def send_approved(conn, cfg: Any, asana: Asana, gmail, now: datetime | None = No
         except Exception:  # noqa: BLE001
             cmts_now = []
         ok_anyway = {"confirmed": True} if confirmed_after_hold(cmts_now, BOT) else {}
-        try:
+
+        def _send(extra):
             if card.get("reply_to"):      # an answer: same Gmail thread as the email it answers
-                ids = gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"),
-                                 **({"cc": card["cc"]} if card.get("cc") else {}), **ok_anyway)
-            else:
-                ids = gmail.send(card["to"], card["subject"], card["body"], **({"cc": card["cc"]} if card.get("cc") else {}))
+                return gmail.send(card["to"], card["subject"], card["body"], thread_id=row.get("gmail_thread_id"),
+                                  **({"cc": card["cc"]} if card.get("cc") else {}), **extra)
+            return gmail.send(card["to"], card["subject"], card["body"], **({"cc": card["cc"]} if card.get("cc") else {}))
+        try:
+            try:
+                ids = _send(ok_anyway)
+            except ContactHold as h:
+                # "we wrote in the last 24 hours and they have not answered" when our own records show they DID answer (their reply
+                # landed outside the Gmail thread): this email is the answer they are waiting on, not a second ping
+                if "have not answered since" in h.reason and answered_since_our_last(conn, row["agent_id"]):
+                    ids = _send({"confirmed": True})
+                else:
+                    raise
         except ContactHold as h:  # 2026-11-15 (Walter): they already acknowledged us / we already wrote today. Bold, his OK only
             if not already_warned(cmts_now, BOT):
                 asana.comment(t["gid"], warning(h.reason))

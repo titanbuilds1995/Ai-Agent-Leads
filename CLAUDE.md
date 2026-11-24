@@ -790,12 +790,25 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   "Monday", "next week", "in 2 weeks", "Dec 3", "on 12/3") waits for 8am ET that day with one ⏰ comment; a date inside a dictated
   email is ignored, "close in 30 days" is not a date. The agent answers → Needs Me. An unsent first email dragged there → Needs Me.
   The automatic follow-up sequence skips cards in this column. Table `follow_up_column`. Claude unreachable → retried, card stays.
+- **An offer draft is never rewritten from a general comment (Rodrigo, 2026-11-24, Alberto Pascual: "I gave it instructions so it can
+  send the email, but it doesn't send it … it's drafting something that it isn't supposed to be drafting")**: his $540,000 offer was the
+  NEXT EMAIL; his comment ("what did we send them? … let's send them an email again, this time with the offer email") went to the reply
+  rewriter, whose rules forbid a price, so the offer became a holding email and the second reader objected. Now in `lead_card_comment`
+  a waiting answer that is an offer (`contact_guard.is_offer`) never reaches that rewriter: when he tells us to send
+  (`approvals.tells_to_send`: "let's send …", "send it"; a question or "don't send" is not it) it goes to Approved as written, else one
+  "offer unchanged" comment (number / terms change via "offer N …", wording via "Answer with: …"). **Contact guard + our own records**:
+  the 24-hour hold ("they have not answered since") is skipped when the database shows the agent answered after our last email
+  (`answered_since_our_last`; Alberto's Yahoo reply landed outside the Gmail thread, so Gmail's thread looked unanswered).
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-24 ~3:45pm ET, RESUME HERE: **Alberto Pascual's offer explained + fixed** (Decisions → An offer draft is never rewritten).
+  3 tests; suite passes except the same 3 + test_webhook. By hand: commented "Offer $540,000 …" on his card (as Rodrigo) so the Mac
+  redrafts the offer as NEXT EMAIL in Needs Me; he drags it to Approved. Until the Mac pulls this branch the old guard may hold it once
+  more before 5:41pm ET today. Also seen: the 2:40pm offer draft's second read was "Claude unreachable" (watch `make doctor`).
 - 2026-11-24, RESUME HERE: **Follow Up column built** (Decisions → Follow Up column). Tested on fixtures (4 tests; suite passes except
   the same 3 + test_webhook, packages the cloud lacks). Not run live: the column appears on the board at the Mac's first round after it
   pulls. Watch the first card: ⏰ or "Follow-up written and cleared" → 📤 Sent → "Back in Follow Up".

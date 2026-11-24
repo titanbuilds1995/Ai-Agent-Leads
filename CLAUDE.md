@@ -779,12 +779,26 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   email, which `make deck` also emails to him). Site: deck listings are in deals.json, so a card dragged to Good fit shows in the
   investor view. **The Asana cards carry broker contact and our internal numbers**: the investor's place is the site's investor view
   unless Rodrigo says the board itself.
+- **Follow Up column (Rodrigo, 2026-11-24: "a column on our board that handles the follow up leads, I will write comments on who to
+  follow up with and then just leave the task there")**: `titan/follow_up_column.py`, stage `follow_up_column` in the comments pass
+  (every 5 min) and the approvals round (before send). Column "Follow Up" on the Email Approvals board (created before "Sent · no
+  answer yet"; gid can be pinned as `outreach.asana.follow_up`). He drags a lead card there and comments ("follow up, ask if it's
+  vacant", or the email itself); Charles writes it in the agent's thread from the whole conversation (`write_checked`, his comment =
+  `rodrigo_instruction`; a dictated email is tidied, his words kept), the second reader reads it; cleared → the card rides through
+  Approved, sends in the window (contact guard / claims / bulk checks apply) and comes BACK to Follow Up with "Back in Follow Up".
+  Not cleared, "hold", bounced / DNC, a NEXT EMAIL already waiting → Needs Me with the reason. A date in his comment ("tomorrow",
+  "Monday", "next week", "in 2 weeks", "Dec 3", "on 12/3") waits for 8am ET that day with one ⏰ comment; a date inside a dictated
+  email is ignored, "close in 30 days" is not a date. The agent answers → Needs Me. An unsent first email dragged there → Needs Me.
+  The automatic follow-up sequence skips cards in this column. Table `follow_up_column`. Claude unreachable → retried, card stays.
 - Full list of build-time judgment calls: `DECISIONS.md`. Open items that need Rodrigo: `BLOCKERS.md`.
 
 ## Still open (ask once, then record the answer here)
 - (none)
 
 ## Current status
+- 2026-11-24, RESUME HERE: **Follow Up column built** (Decisions → Follow Up column). Tested on fixtures (4 tests; suite passes except
+  the same 3 + test_webhook, packages the cloud lacks). Not run live: the column appears on the board at the Mac's first round after it
+  pulls. Watch the first card: ⏰ or "Follow-up written and cleared" → 📤 Sent → "Back in Follow Up".
 - 2026-11-24 ~7:25am ET: morning check + 1 fix. Mac back Mon 9am; today's report not in yet. **Alberto Pascual's $540k offer never went**:
   his "numbers" comment was handled as a rewrite, the offer became a question email and that sent (Alberto now asks for the offer). Marilina's
   offer comment had no readable price ("3 uh 5K"). Fixed: "Send email." is a go-ahead (`comment_router._GO_AHEAD`; Alim Rahman was bounced as

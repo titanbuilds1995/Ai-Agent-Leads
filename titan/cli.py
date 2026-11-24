@@ -696,6 +696,9 @@ def cmd_comments(cfg, args):
 
     stage("feedback", lambda: sync_feedback(conn, cfg, asana, c["llm"], c["gmail"]))   # gmail here only sends HIM a test copy when he asks
     conn.commit()
+    from .follow_up_column import work as follow_up_column
+    stage("follow_up_column", lambda: follow_up_column(conn, cfg, asana, c["llm"]))   # 2026-11-24: his Follow Up column (writes; sending stays with the round)
+    conn.commit()
     if cfg.get("commercial.enabled") and cfg.get("commercial.asana.project"):
         from .commercial.card_files import pull_card_files
         from .commercial.card_notes import handle_notes
@@ -742,6 +745,8 @@ def cmd_approvals(cfg, args):
 
     from .end_of_day import track_board
     stage("board", lambda: track_board(conn, cfg, asana))   # before the engine moves anything: a card gone since the last look was deleted by hand
+    from .follow_up_column import work as follow_up_column
+    stage("follow_up_column", lambda: follow_up_column(conn, cfg, asana, c["llm"]))   # 2026-11-24: cleared follow-ups go to Approved and send in this round
     stage("send", lambda: send_approved(conn, cfg, asana, c["gmail"], jitter_s=args.jitter, llm=c["llm"]))
     if c["gmail"] is None and (out.get("send") or {}).get("waiting"):
         from .health import alert_gmail_down

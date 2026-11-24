@@ -155,13 +155,15 @@ def candidates(conn, cfg: Any, asana, after_days: int | None = None) -> list[dic
         first_gap = int(after_days)
     now = now_utc()
     pending = _pending_agents(conn, cfg, asana)
+    from .follow_up_column import card_gids
+    his = card_gids(cfg, asana)            # cards in his Follow Up column: he runs those himself (2026-11-24)
     out, seen_agents = [], set()
     rows = conn.execute("SELECT * FROM outreach WHERE channel='email' AND kind='first_touch' AND status='sent' AND sent_at IS NOT NULL "
                         "ORDER BY sent_at").fetchall()
     for r in rows:
         row = db.row_to_dict(r)
         aid = row["agent_id"]
-        if aid in pending or aid in seen_agents:
+        if aid in pending or aid in seen_agents or (row.get("asana_task_id") and row["asana_task_id"] in his):
             continue
         steps = _steps(conn, row["id"])
         if len(steps) >= max_steps:

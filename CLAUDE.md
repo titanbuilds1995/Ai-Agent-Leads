@@ -817,6 +817,17 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-26, RESUME HERE: **lien analysis for 940 E 9th Pl, Hialeah (Fidel Cabrera, Warm Leads "Needs to be called HOT")**. Rodrigo's
+  investor wants to see what the $250,000 lien is. Built a 7-page investor PDF (Titan house style, reportlab) and pinned the snapshot on
+  the lead card (1220125132718344). Read: the lien is almost certainly ~1,000 days of Hialeah Special Master fines at $250/day
+  (Ord. #2018-017) on the unpermitted 4-unit conversion the listing itself advertises; it runs with the land, grows ~$7,600/month until
+  cured, and is mitigable only AFTER the property is made legal. **No county or city record was read** — the cloud is network-blocked
+  from the Property Appraiser, the Clerk and hialeahfl.gov, no Mac folder is shared, and the cloud's Apify token is still 401. Next step
+  is the records pull on the Mac (folio + legal description first, then Clerk Official Records, then Hialeah Code Compliance
+  (305) 883-5832 for case number / daily rate / running total); Mac prompt given in chat. Also unconfirmed: a foreclosure-data site shows
+  this address with a $400,000 pre-foreclosure figure — if the "lien" is really a mortgage there is no mitigation path. The PDF builder
+  is a one-off in the session scratchpad, deliberately NOT committed (this repo is public and it carries our internal numbers).
+  No code changed, nothing sent to Fidel.
 - 2026-11-24 ~5pm ET, RESUME HERE: **no more land leads** (Decisions → No land). `land` out of `market.property_types` and into
   `market.exclude_flags`; type-based detection with a wording backstop only for rows with nothing built on them; the board clean-up
   now takes land cards off the board too. 3 tests (one proves a house with a cleared lot / land next door is NOT ruled out); suite

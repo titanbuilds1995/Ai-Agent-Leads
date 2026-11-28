@@ -812,8 +812,7 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
   escrow" parses, those two terms become bullets, a redraft keeps the terms already on the card, an older reason's price is cut and an
   email naming a second offer price is refused (`verdict.parse_terms` / `other_offer_prices` / `clean_reason`). (2) **Catherine Nagles**:
   "let's send them an email letting him know … no Catherine at the number" was read as a hold and dropped (bare "send"); now a rewrite
-  (`comment_router.CHANGE_RE`). Her card still holds the old first email: he re-comments, or it rewrites when the Mac pulls? No: the
-  comment is consumed; he comments again. Waiting on him: Juan Mora asks for "the formal contract" (11-25), Liz Hernandez (owner-agent,
+  (`comment_router.CHANGE_RE`). Her card still holds the old first email (the comment was consumed): he comments again. Waiting on him: Juan Mora asks for "the formal contract" (11-25), Liz Hernandez (owner-agent,
   ask $499,999 over our ARV), A.J. Elias got $450k, Marilina $340k draft (second reader objects to "acquisitions manager").
 - 2026-11-24 ~4pm ET (Mac), RESUME HERE: pulled the Follow Up column + the offer fix (996cbbd). Tests pass, doctor 9 ok / 0 fail,
   `make comments-now` ran. **Follow Up column is on the board** (between Needs Revision and Sent · no answer yet), empty, no

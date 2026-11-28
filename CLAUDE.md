@@ -805,6 +805,16 @@ Pipeline: ingest → score → value → rank → enrich → outreach drafts →
 - (none)
 
 ## Current status
+- 2026-11-28 ~7:25am ET, RESUME HERE: **Mac off since Wed Nov 25 ~9am ET** (no report Thu / Fri / Sat, no board change since).
+  Fixes from the Nov 25 review, in code (2 tests; suite passes): (1) offers that went out wrong on 11-24: **Devon Mclean** got
+  "$180,000" in the bullet AND "so we are offering $195,000" (an older read's reason) with $5,000 escrow instead of his "3k in escrow";
+  **Juan Mora** got $5,000 escrow instead of $10k and no "no buyer's agent commission" / "we pay all closing costs". Now: "3k in
+  escrow" parses, those two terms become bullets, a redraft keeps the terms already on the card, an older reason's price is cut and an
+  email naming a second offer price is refused (`verdict.parse_terms` / `other_offer_prices` / `clean_reason`). (2) **Catherine Nagles**:
+  "let's send them an email letting him know … no Catherine at the number" was read as a hold and dropped (bare "send"); now a rewrite
+  (`comment_router.CHANGE_RE`). Her card still holds the old first email: he re-comments, or it rewrites when the Mac pulls? No: the
+  comment is consumed; he comments again. Waiting on him: Juan Mora asks for "the formal contract" (11-25), Liz Hernandez (owner-agent,
+  ask $499,999 over our ARV), A.J. Elias got $450k, Marilina $340k draft (second reader objects to "acquisitions manager").
 - 2026-11-24 ~4pm ET (Mac), RESUME HERE: pulled the Follow Up column + the offer fix (996cbbd). Tests pass, doctor 9 ok / 0 fail,
   `make comments-now` ran. **Follow Up column is on the board** (between Needs Revision and Sent · no answer yet), empty, no
   follow_up_column errors in logs/cron.log. **Alberto Pascual**: the $540,000 offer is the NEXT EMAIL on his card, card in Needs Me.

@@ -399,7 +399,12 @@ def to_comment(s: dict[str, Any], v: dict[str, Any], tail: str = "") -> str:
 
 TERM_RES = {"inspection_days": re.compile(r"(\d{1,2})[\s-]*day(?:s)?\s+inspection", re.I),
             "close_days": re.compile(r"(\d{1,3})[\s-]*day(?:s)?\s+clos", re.I),
-            "deposit": re.compile(r"\$?\s?(\d{1,3}(?:,\d{3})|\d{1,2}\s?k)\s+(?:escrow|deposit|emd|earnest)", re.I)}
+            # "3k in escrow" (Devon Mclean, 2026-11-24: missed, the offer went with the default $5,000)
+            "deposit": re.compile(r"\$?\s?(\d{1,3}(?:,\d{3})|\d{1,3}\s?k)\s+(?:in\s+|of\s+|for\s+(?:the\s+)?)?(?:escrow|deposit|emd|earnest)", re.I)}
+# terms with no number (Juan Mora, 2026-11-24: "no buying agent commission and … we pay all closing cost" never reached the email)
+EXTRA_TERMS = ((re.compile(r"\bno (?:buy(?:ing|er'?s?)|buy side|selling) agent(?:'s)? commission", re.I), "No buyer's agent commission"),
+               (re.compile(r"\b(?:we|buyer)\s+(?:will\s+|would\s+)?(?:pay|cover)s?\s+(?:all\s+(?:of\s+)?(?:the\s+)?)?closing costs?", re.I),
+                "We pay all closing costs"))
 TITLE_RE = re.compile(r"as soon as (?:the )?title\b[^.,;]{0,30}", re.I)
 # the same terms said the other way round ("Inspection period needs to be 15 days and escrow let's lower it to 5k", Alberto Pascual)
 TERM_RES_REV = {"inspection_days": re.compile(r"inspection(?: period)?[^.,\d$]{0,30}?(\d{1,2})[\s-]*day", re.I),
@@ -418,7 +423,34 @@ def parse_terms(text: str) -> dict[str, Any]:
             out[key] = int(float(raw[:-1]) * 1000) if raw.endswith("k") else int(raw)
     if TITLE_RE.search(text or ""):
         out["close_note"] = ", or as soon as title is approved"
+    extra = [label for rx, label in EXTRA_TERMS if rx.search(text or "")]
+    if extra:
+        out["extra"] = extra
     return out
+
+
+OFFER_FIG_RE = re.compile(r"\$\s?(\d{2,3}(?:,\d{3})+|\d{2,3}\s?k)\b", re.I)
+
+
+def other_offer_prices(text: str, price: int) -> list[int]:
+    """Dollar figures said as OUR offer in a sentence ("so we are offering $195,000") that are not the offer price. Devon Mclean,
+    2026-11-24: the bullet said $180,000 and the paragraph (an older read's offer_reason) said $195,000; the agent got two prices."""
+    out = []
+    for w in re.finditer(r"\boffer(?:ing|ed)?\b|\bwe(?:'d| would| can| could)? (?:pay|go|come in)\b|\bour (?:number|price)\b", text or "", re.I):
+        m = OFFER_FIG_RE.search((text or "")[w.end():w.end() + 40].split("\n")[0])      # the figure said right after it
+        if not m:
+            continue
+        raw = m.group(1).lower().replace(",", "").replace(" ", "")
+        n = int(float(raw[:-1]) * 1000) if raw.endswith("k") else int(raw)
+        if n != price and n not in out:
+            out.append(n)
+    return out
+
+
+def clean_reason(reason: str, price: int) -> str:
+    """offer_reason without any sentence that names a different offer price (it may come from an older bottom line)."""
+    keep = [s for s in re.split(r"(?<=[.!?])\s+", (reason or "").strip()) if s and not other_offer_prices(s, price)]
+    return " ".join(keep)
 
 
 def offer_terms(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | None = None) -> list[str]:
@@ -428,7 +460,7 @@ def offer_terms(cfg: Any, price: int, p: dict[str, Any], over: dict[str, Any] | 
     close, insp, emd = int(t.get("close_days", 30)), int(t.get("inspection_days", 15)), int(t.get("deposit", cfg["formula"].get("emd", 5000)))
     note = t.get("close_note") or ("" if p.get("vacant") else ", or longer if that works better for the seller")
     return [f"{BULLET} Price: ${price:,}, cash", f"{BULLET} As is, no repairs asked of the seller", f"{BULLET} {insp} day inspection period",
-            f"{BULLET} ${emd:,} escrow deposit", f"{BULLET} Close in {close} days{note}"]
+            f"{BULLET} ${emd:,} escrow deposit", f"{BULLET} Close in {close} days{note}"] + [f"{BULLET} {x}" for x in t.get("extra") or []]
 
 
 BULLET = "•"       # Rodrigo, 2026-11-19: "each term needs to be a set bullet point"
@@ -457,8 +489,8 @@ def form_letter(body: str) -> list[str]:
     labels = len(LABEL_LINE_RE.findall(re.sub(r"(?m)^\s*[-•*]\s+.*$", "", text)))      # the offer's own term bullets are his format
     if labels >= 3:
         out.append(f"{labels} label lines outside the terms (\"Purchase price: …\")")
-    if bullets > 6:
-        out.append(f"{bullets} bullet points (the terms are five; the rest reads as a checklist)")
+    if bullets > 7:
+        out.append(f"{bullets} bullet points (the terms are five to seven; the rest reads as a checklist)")
     if HEADING_RE.search(text):
         out.append("section headings")
     words = len(text.split())
@@ -478,6 +510,8 @@ def offer_problems(body: str, price: int, list_price: int | None) -> list[str]:
         out.append(f"the offer price ${price:,} is missing")
     if text.count(f"${price:,}") > 2:
         out.append("the offer price is repeated")
+    for n in other_offer_prices(text, price):
+        out.append(f"a second offer price ${n:,} (the offer is ${price:,})")
     try:
         out += [f"says something is attached or signed ({c})" for c in unbacked_claims(body)]
     except Exception:  # noqa: BLE001
@@ -502,7 +536,7 @@ def template_offer(cfg: Any, agent: dict[str, Any], p: dict[str, Any], v: dict[s
     opening = (f"Thanks for the information on {p['street']}. We went through the numbers on our side and I am sending our offer over."
                if sent_before else
                f"{op['sender_name'].split()[0]} with {op['company']}. We went through the numbers on {p['street']} and I am sending our offer over.")
-    reason = (v.get("offer_reason") or "").strip() or "It reflects what similar properties nearby have sold for and the work this one needs."
+    reason = clean_reason(v.get("offer_reason") or "", v["offer"]) or "It reflects what similar properties nearby have sold for and the work this one needs."
     body = (f"Hey {first},\n\n{opening} I copied Rodrigo, our acquisitions manager, since he approved the numbers.\n\n"
             + "Our offer:\n\n" + "\n".join(offer_terms(cfg, v["offer"], p, over))
             + f"\n\nI know that is under the asking price. {reason}\n\nLet me know what the seller thinks. I am happy to get on a call "
@@ -525,7 +559,8 @@ def write_offer(cfg: Any, llm: Any, agent: dict[str, Any], p: dict[str, Any], v:
                "our offer, and that Rodrigo, our acquisitions manager, is copied because he approved the numbers.")
     system = OFFER_SYSTEM.format(sender=sender, company=op["company"], opening=opening, terms="\n".join(offer_terms(cfg, v["offer"], p, over)))
     user = json.dumps({"agent_first_name": first_name(agent.get("name")), "street": p.get("street"), "city": p.get("city"),
-                       "asking_price": p.get("list_price"), "offer_price": v["offer"], "offer_reason": v.get("offer_reason"),
+                       "asking_price": p.get("list_price"), "offer_price": v["offer"],
+                       "offer_reason": clean_reason(v.get("offer_reason") or "", v["offer"]),
                        "thread": thread or [], "signature_block": signature(cfg),
                        **({"rodrigo_instruction": instruction} if instruction else {}),
                        **({"pushback": pushback, "previous_draft": previous or ""} if pushback else {})}, ensure_ascii=False, default=str)
@@ -574,7 +609,13 @@ def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: d
         thread = _thread_text(conn, row["agent_id"]) if sent_before and row.get("agent_id") else []
     except Exception:  # noqa: BLE001
         pass
-    over = parse_terms(instruction or "")
+    # the terms of the offer already on the card stay unless his new comment changes them (Juan Mora, 2026-11-24: a fix to the
+    # price paragraph redrafted the offer and his $10k escrow went back to the default $5,000)
+    on_card = card.get("body") or ""
+    before, now = (parse_terms(on_card) if CARD_OFFER_RE.search(on_card) else {}), parse_terms(instruction or "")
+    over = {**before, **now}
+    if before.get("extra") or now.get("extra"):
+        over["extra"] = list(dict.fromkeys((before.get("extra") or []) + (now.get("extra") or [])))
     d = write_offer(cfg, llm, agent, p, v, sent_before, thread, instruction=instruction, over=over)
     state = {"body": d["body"]}
 
@@ -591,7 +632,7 @@ def draft_offer(conn, cfg: Any, asana, llm, gid: str, card: dict[str, Any], s: d
                            "draft waits for his approval. Judge the logic only: does it fit what the agent told us, does it state a fact "
                            "about the house or the sales that is not in the facts, does it repeat or contradict the thread.",
             "thread": thread, "facts": {"street": p.get("street"), "asking_price": p.get("list_price"), "offer_price": price,
-                                        "offer_reason": v.get("offer_reason"), "rodrigo_says": s.get("asked"),
+                                        "offer_reason": clean_reason(v.get("offer_reason") or "", price), "rodrigo_says": s.get("asked"),
                                         "comps": [{"address": c.get("address"), "price": c.get("sold_price"), "sqft": c.get("sqft")}
                                                   for c in s.get("comps") or []]},
             "rodrigo_instruction": instruction or (f"Draft the offer email at {money(price)} for my approval."

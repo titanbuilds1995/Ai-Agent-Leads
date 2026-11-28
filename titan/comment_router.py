@@ -77,7 +77,11 @@ def plain_go_ahead(text: str) -> bool:
 
 
 CHANGE_RE = re.compile(r"\b(?:change|take out|remove|instead|don'?t say|do not say|reword|replace|add (?:a|that|the)|shorter|"
-                       r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention|cc|attach|translate|spanish|offer)\b", re.I)
+                       r"too (?:long|robotic|formal)|rewrite|should say|let'?s say|mention|cc|attach|translate|spanish|offer|"
+                       # Rodrigo, 2026-11-24 (Catherine Nagles): "let's send them an email letting him know … who do I need to get
+                       # in touch with" is an email to write, not a hold; before, the bare "send" made it a hold and it was dropped
+                       r"let(?:ting)? (?:him|her|them|the agent) know|send (?:him|her|them|the agent) an? (?:email|note|message)|"
+                       r"(?:send|write) an? (?:email|note|message) (?:to|letting|saying|asking|telling))\b", re.I)
 # Rodrigo, 2026-10-29 (Juan Huice): "change the email and say something more direct like hey Juan … how are the subfloors" is a
 # numbers trigger (subfloors) AND a dictated rewrite; before, the numbers posted and the email never changed.
 DICTATED_RE = re.compile(r"\b(?:change|rewrite|reword|redo)\b[^.]{0,30}\b(?:email|text|wording|it)\b|\b(?:should|let'?s|let us) say\b|"

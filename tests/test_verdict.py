@@ -215,3 +215,27 @@ def test_run_the_numbers_with_a_repair_budget_is_not_an_offer():
             "let's say I spend an extra $30,000 on it, buy it with a conventional loan, make an offer that works")
     assert asked_price([note]) is None
     assert asked_price(["Let's send an offer at $250,000"]) == 250000
+
+
+def test_offer_terms_from_his_words_and_one_price_only():
+    from titan import verdict as v
+    # Devon Mclean, 2026-11-24: "3k in escrow" was missed; Juan Mora: "no buying agent commission … we pay all closing cost" too
+    assert v.parse_terms("send an offer at 180k, 15 day inspection, 3k in escrow")["deposit"] == 3000
+    t = v.parse_terms("offer $500,000 - 15 day inspection, $10k escrow, no buying agent commission and we pay all closing cost")
+    assert t["deposit"] == 10000 and t["extra"] == ["No buyer's agent commission", "We pay all closing costs"]
+    # the terms of the offer already on the card are read back (a redraft keeps them)
+    card = "• Price: $500,000, cash\n• 15 day inspection period\n• $10,000 escrow deposit\n• Close in 30 days\n• We pay all closing costs"
+    assert v.parse_terms(card)["deposit"] == 10000 and v.parse_terms(card)["extra"] == ["We pay all closing costs"]
+    # two prices in one offer email is refused, and an older read's number is cut from the reason
+    body = ("Hey Devon,\n\nOur offer:\n\n• Price: $180,000, cash\n\nSimilar duplexes sold for $310,000, so we are offering $195,000."
+            "\n\nBest regards")
+    assert any("second offer price $195,000" in x for x in v.offer_problems(body, 180000, 375000))
+    assert v.clean_reason("Comps sold for $310,000. It needs work, so we are offering $195,000.", 180000) == "Comps sold for $310,000."
+
+
+def test_send_them_an_email_is_a_rewrite_not_a_hold():
+    from titan import comment_router as cr
+    # Catherine Nagles, 2026-11-24: dropped as a hold because of the bare word "send"
+    said = ["Hey I tried calling this number, let's send them an email letting him know there is no Catherine at the number "
+            "that I called, just wondering who do I need to get in touch with for this property"]
+    assert "rewrite" in cr.classify(said) and "hold" not in cr.classify(said)
